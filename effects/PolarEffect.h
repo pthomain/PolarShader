@@ -21,15 +21,17 @@
 #ifndef LED_SEGMENTS_POLAREFFECT_H
 #define LED_SEGMENTS_POLAREFFECT_H
 
+#include "PolarUtils.h"
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
 
 namespace LEDSegments {
     class PolarEffect : public Effect<PolarEffect> {
-        PolarContext polarContext = PolarContext();
+        PolarContext &polarContext;
+        PolarUtils utils = PolarUtils();
 
     public:
-        explicit PolarEffect(const RenderableContext &context) : Effect(context) {
+        explicit PolarEffect(const RenderableContext &context) : Effect(context), polarContext(context.polarContext) {
         }
 
         void fillSegmentArray(

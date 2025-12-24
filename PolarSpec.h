@@ -29,7 +29,7 @@
 #include "engine/displayspec/DisplaySpec.h"
 #include "engine/utils/Utils.h"
 #include <functional> // Add this include
-#include <utility>    // For std::pair
+#include "engine/render/renderable/Polar.h"
 
 using namespace LEDSegments;
 
@@ -53,8 +53,7 @@ public:
         DEBUG ? 3600 : 8,
         1000,
         1.0f,
-        30,
-        true
+        30
     ) {
     }
 

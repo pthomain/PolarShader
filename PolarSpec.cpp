@@ -66,8 +66,6 @@ void PolarSpec::toPolarCoords(uint16_t pixelIndex, PolarContext &context) const 
         context.segmentIndex++;
     }
 
-    //TODO move
-    uint8_t angleUnit = context.segmentSize == 0 ? 0 : map16_to_8(max(1, 65535 / context.segmentSize));
-    context.angle = (pixelIndex - context.cumulativePixels) * angleUnit;
-    context.radius = context.segmentIndex;
+    context.angle = (pixelIndex - context.cumulativePixels) * context.angleUnit();
+    context.radius = (UINT16_MAX * context.segmentIndex) / nbSegments(SEGMENTED);
 }

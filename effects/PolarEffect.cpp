@@ -18,12 +18,30 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "FastLED.h"
 #include "PolarEffect.h"
 #include "engine/utils/Weights.h"
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
     RenderableFactoryRef<CRGB> PolarEffect::factory = &factoryInstance;
+
+    void fillPolarNoise(
+        CRGB *segmentArray,
+        uint16_t pixelIndex,
+        fract16 angle,
+        fract16 radius,
+        unsigned long timeInMillis
+    ) {
+        uint16_t x = qmul16u(cos16(angle), radius);
+        uint16_t y = qmul16u(sin16(angle), radius);
+        const uint8_t noise = map16_to_8(inoise16(x, y, timeInMillis << 5));
+        segmentArray[pixelIndex] = CHSV(
+            normaliseNoise(noise),
+            255,
+            255
+        );
+    }
 
     void PolarEffect::fillSegmentArray(
         CRGB *segmentArray,
@@ -32,24 +50,21 @@ namespace LEDSegments {
         fract16 progress,
         unsigned long timeInMillis
     ) {
-        //TODO move to effect context
         polarContext.reset();
+        utils.time16 += 64;
+        utils.rotate16 += 32;
 
-        //TODO move to base
-        auto polarCoords = context.polarCoords;
-        if (polarCoords == nullptr) {
-            Serial.println("PolarEffect::fillSegmentArray: polarCoords is nullptr");
-            return;
-        }
+        for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
+            context.polarCoords(pixelIndex, polarContext);
 
-        for (int pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
-            polarCoords->operator()(pixelIndex, polarContext);
-
-            uint8_t x = cos8(polarContext.angle) * polarContext.radius;
-            uint8_t y = sin8(polarContext.angle) * polarContext.radius;
-            const uint16_t noise = normaliseNoise(inoise8(x, y, timeInMillis >> 3));
-
-            segmentArray[pixelIndex] = CHSV(noise, 255, 255);
+            utils.fillPolar(
+            // fillPolarNoise(
+                segmentArray,
+                pixelIndex,
+                polarContext.angle,
+                polarContext.radius,
+                timeInMillis
+            );
         }
     }
 }
