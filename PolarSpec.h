@@ -33,6 +33,14 @@
 
 using namespace LEDSegments;
 
+/**
+ * @brief Defines the physical layout and properties of a polar-coordinate based LED display.
+ *
+ * This class implements the DisplaySpec interface to describe a display composed of
+ * concentric rings of LEDs. It provides methods to get the number of segments (rings),
+ * the size of each segment, and to map logical pixel indices to physical indices.
+ * It also provides the core function to convert a pixel index to polar coordinates.
+ */
 class PolarSpec : public DisplaySpec {
 public:
     static constexpr int LED_PIN = 9;
@@ -57,14 +65,31 @@ public:
     ) {
     }
 
+    /**
+     * @brief Gets the total number of LEDs in the display.
+     */
     uint16_t nbLeds() const override { return 241; }
 
+    /**
+     * @brief Gets the number of segments (concentric rings).
+     */
     uint16_t nbSegments(uint16_t layoutId) const override;
 
+    /**
+     * @brief Gets the number of LEDs in a specific segment (ring).
+     */
     uint16_t segmentSize(uint16_t layoutId, uint16_t segmentIndex) const override;
 
-    void toPolarCoords(uint16_t pixelIndex, PolarContext& context) const override;
+    /**
+     * @brief Converts a global pixel index to polar coordinates (angle and radius).
+     * This is a core function for the polar effects.
+     */
+    PolarCoords toPolarCoords(uint16_t pixelIndex) const override;
 
+    /**
+     * @brief Maps a logical pixel index within a segment to its physical, absolute index
+     * in the LED strip.
+     */
     void mapLeds(
         uint16_t layoutId,
         uint16_t segmentIndex,

@@ -27,6 +27,13 @@
 
 using namespace LEDSegments;
 
+/**
+ * @brief Selects the overlay(s) to be rendered for a given layout.
+ * @param layoutId The ID of the current layout.
+ * @return A list of renderable overlays and their mirrors.
+ *
+ * This is currently hardcoded to always return NoOverlay.
+ */
 static RenderablesAndMirrors<CRGB> polarOverlaySelector(uint16_t layoutId) {
     return {
         {

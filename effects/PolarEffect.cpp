@@ -20,28 +20,10 @@
 
 #include "FastLED.h"
 #include "PolarEffect.h"
-#include "engine/utils/Weights.h"
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
     RenderableFactoryRef<CRGB> PolarEffect::factory = &factoryInstance;
-
-    void fillPolarNoise(
-        CRGB *segmentArray,
-        uint16_t pixelIndex,
-        fract16 angle,
-        fract16 radius,
-        unsigned long timeInMillis
-    ) {
-        uint16_t x = qmul16u(cos16(angle), radius);
-        uint16_t y = qmul16u(sin16(angle), radius);
-        const uint8_t noise = map16_to_8(inoise16(x, y, timeInMillis << 5));
-        segmentArray[pixelIndex] = CHSV(
-            normaliseNoise(noise),
-            255,
-            255
-        );
-    }
 
     void PolarEffect::fillSegmentArray(
         CRGB *segmentArray,
@@ -50,20 +32,18 @@ namespace LEDSegments {
         fract16 progress,
         unsigned long timeInMillis
     ) {
-        polarContext.reset();
-        utils.time16 += 64;
-        utils.rotate16 += 32;
-
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
-            context.polarCoords(pixelIndex, polarContext);
+            auto [angle, radius] = context.polarCoordsMapper(pixelIndex);
 
-            utils.fillPolar(
-            // fillPolarNoise(
+            fillPolar(
                 segmentArray,
                 pixelIndex,
-                polarContext.angle,
-                polarContext.radius,
-                timeInMillis
+                angle,
+                radius,
+                timeInMillis,
+                {
+                    colourNoiseLayer
+                }
             );
         }
     }

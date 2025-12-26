@@ -23,14 +23,17 @@
 #include <algorithm> // For std::max
 
 uint16_t PolarSpec::nbSegments(uint16_t layoutId) const {
+    // The display can be treated as one whole segment or as 9 concentric rings.
     return layoutId == WHOLE ? 1 : 9;
 }
 
 uint16_t PolarSpec::segmentSize(uint16_t layoutId, uint16_t segmentIndex) const {
+    // If treated as one segment, it contains all LEDs.
     if (layoutId == WHOLE) return 241;
 
+    // Defines the number of LEDs in each concentric ring, from center outwards.
     switch (segmentIndex) {
-        case 0: return 1;
+        case 0: return 1;   // Center
         case 1: return 8;
         case 2: return 12;
         case 3: return 16;
@@ -38,7 +41,7 @@ uint16_t PolarSpec::segmentSize(uint16_t layoutId, uint16_t segmentIndex) const 
         case 5: return 32;
         case 6: return 40;
         case 7: return 48;
-        case 8: return 60;
+        case 8: return 60;  // Outermost ring
         default: return 0;
     }
 }
@@ -50,8 +53,8 @@ void PolarSpec::mapLeds(
     fract16 progress,
     const std::function<void(uint16_t)> &onLedMapped
 ) const {
+    // Calculate the absolute LED index by summing the sizes of all previous segments.
     uint16_t offset = 0;
-
     for (uint16_t i = 0; i < segmentIndex; ++i) {
         offset += segmentSize(layoutId, i);
     }
@@ -59,13 +62,32 @@ void PolarSpec::mapLeds(
     onLedMapped(offset + pixelIndex);
 }
 
-void PolarSpec::toPolarCoords(uint16_t pixelIndex, PolarContext &context) const {
-    if (pixelIndex > context.cumulativePixels && context.segmentIndex < nbSegments(SEGMENTED)) {
-        context.segmentSize = segmentSize(SEGMENTED, context.segmentIndex);
-        context.cumulativePixels += context.segmentSize;
-        context.segmentIndex++;
+PolarCoords PolarSpec::toPolarCoords(uint16_t pixelIndex) const {
+    uint16_t cumulativePixels = 0;
+    const uint16_t numSegments = nbSegments(SEGMENTED);
+
+    // Iterate through each ring to find which one the pixel belongs to.
+    for (uint16_t segmentIndex = 0; segmentIndex < numSegments; ++segmentIndex) {
+        const uint16_t currentSegmentSize = segmentSize(SEGMENTED, segmentIndex);
+
+        if (pixelIndex < cumulativePixels + currentSegmentSize) {
+            // The pixel is in this segment.
+            const uint16_t pixelInSegment = pixelIndex - cumulativePixels;
+
+            // The angle is the pixel's proportional position within its ring.
+            // It's a uint16_t from 0 to 65535, representing 0 to 2PI radians.
+            // For the center pixel (segment 0), the angle is 0.
+            const uint16_t angleStep = currentSegmentSize > 1 ? UINT16_MAX / currentSegmentSize : 0;
+            uint16_t angle = pixelInSegment * angleStep;
+
+            fract16 radius = divide_u16_as_fract16(segmentIndex + 1, numSegments);
+
+            return {angle, radius};
+        }
+
+        cumulativePixels += currentSegmentSize;
     }
 
-    context.angle = (pixelIndex - context.cumulativePixels) * context.angleUnit();
-    context.radius = (UINT16_MAX * context.segmentIndex) / nbSegments(SEGMENTED);
+    // This should not be reached if pixelIndex is valid.
+    return {0, 0};
 }

@@ -26,6 +26,13 @@
 
 using namespace LEDSegments;
 
+/**
+ * @brief Selects the transition to be used between effects for a given layout.
+ * @param layoutId The ID of the current layout.
+ * @return A list of renderable transitions and their mirrors.
+ *
+ * This is currently hardcoded to always return the FadeTransition.
+ */
 static RenderablesAndMirrors<uint8_t> polarTransitionSelector(uint16_t layoutId) {
     return {
         just(FadeTransition::factory),
