@@ -39,6 +39,12 @@ static const std::map<uint16_t, String> polarLayoutNames = {
     {SEGMENTED, "SEGMENTED"}
 };
 
+/**
+ * @brief Selects a layout based on the renderable type, returning weighted options.
+ * The weights determine the probability of a layout being chosen.
+ * @param type The type of the renderable.
+ * @return A vector of layouts and their weights.
+ */
 static WeightedLayouts polarLayoutSelector(RenderableType type) {
     return {
         {WHOLE, 1},

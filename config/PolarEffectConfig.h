@@ -27,6 +27,13 @@
 
 using namespace LEDSegments;
 
+/**
+ * @brief Selects the effect(s) to be rendered for a given layout.
+ * @param layoutId The ID of the current layout.
+ * @return A list of renderable effects and their mirrors.
+ *
+ * This is currently hardcoded to always return the PolarEffect.
+ */
 static RenderablesAndMirrors<CRGB> polarEffectSelector(uint16_t layoutId) {
     return {
         {

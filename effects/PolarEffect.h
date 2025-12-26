@@ -27,11 +27,10 @@
 
 namespace LEDSegments {
     class PolarEffect : public Effect<PolarEffect> {
-        PolarContext &polarContext;
         PolarUtils utils = PolarUtils();
 
     public:
-        explicit PolarEffect(const RenderableContext &context) : Effect(context), polarContext(context.polarContext) {
+        explicit PolarEffect(const RenderableContext &context) : Effect(context) {
         }
 
         void fillSegmentArray(

@@ -23,6 +23,16 @@
 
 using namespace LEDSegments;
 
+/**
+ * @brief Selects a map of parameters for a given renderable.
+ * @param type The type of the renderable (effect, overlay, etc.).
+ * @param renderableId The ID of the specific renderable.
+ * @param layoutId The ID of the current layout.
+ * @param mirror The mirror configuration.
+ * @return A map of parameter IDs to values.
+ *
+ * This is currently hardcoded to return an empty map, meaning no parameters are configured.
+ */
 static std::map<uint8_t, uint16_t> polarParamSelector(
     RenderableType type,
     TypeInfo::ID renderableId,
