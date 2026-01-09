@@ -5,7 +5,6 @@
 #include "PolarLayers.h"
 
 namespace LEDSegments {
-
     struct CRGB16 {
         uint16_t r;
         uint16_t g;
@@ -28,6 +27,8 @@ namespace LEDSegments {
         uint16_t angle,
         fract16 radius,
         unsigned long timeInMillis,
+        int32_t globalPositionX,
+        int32_t globalPositionY,
         const fl::vector<PolarLayer> &layers
     ) {
         if (layers.empty()) {
@@ -41,7 +42,9 @@ namespace LEDSegments {
             CRGB value = layer(
                 angle,
                 radius,
-                timeInMillis
+                timeInMillis,
+                globalPositionX,
+                globalPositionY
             );
             blended16 += value;
         }

@@ -56,7 +56,7 @@ public:
             polarTransitionSelector,
             polarParamSelector
         ),
-        DEBUG ? 40 : 128,
+        DEBUG ? 30 : 128,
         DEBUG ? 3600 : 3,
         DEBUG ? 3600 : 8,
         1000,

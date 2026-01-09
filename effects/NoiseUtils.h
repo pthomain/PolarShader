@@ -39,22 +39,32 @@ namespace LEDSegments {
         fl::u16 angle,
         fract16 radius,
         fl::u16 freqMultiplier,
-        fl::u8 kaleidoscopeSegments = 5,
-        bool isMirroring = false
+        fl::i32 globalPositionX,
+        fl::i32 globalPositionY,
+        fl::u8 nbRepetitions = 1,
+        bool isMandala = false,
+        bool isMirroring = true
     ) {
-        // Fold angle for exact repetition
-        uint16_t foldedAngle = (kaleidoscopeSegments > 1)
-                                   ? foldAngleKaleidoscope(angle, kaleidoscopeSegments, isMirroring)
-                                   : angle;
+        uint16_t symmetryAngle;
+
+        if (isMandala) {
+            // Multiply angle to create smooth rotational symmetry
+            symmetryAngle = angle * nbRepetitions;
+        } else {
+            // Fold angle for exact repetition
+            symmetryAngle = (nbRepetitions > 1)
+                                ? foldAngleKaleidoscope(angle, nbRepetitions, isMirroring)
+                                : angle;
+        }
 
         // Base x,y in noise space
-        int32_t x = scale_i16_by_f16(cos16(foldedAngle), radius);
-        int32_t y = scale_i16_by_f16(sin16(foldedAngle), radius);
+        int32_t x = scale_i16_by_f16(cos16(symmetryAngle), radius);
+        int32_t y = scale_i16_by_f16(sin16(symmetryAngle), radius);
 
-        if (kaleidoscopeSegments > 1) {
+        if (!isMandala && nbRepetitions > 1) {
             // angular dominance
-            x += cos16(foldedAngle) >> 2;
-            y += sin16(foldedAngle) >> 2;
+            x += cos16(symmetryAngle) >> 2;
+            y += sin16(symmetryAngle) >> 2;
         }
 
         // Reduce to noise resolution
@@ -62,8 +72,13 @@ namespace LEDSegments {
         y >>= NOISE_SCALE_SHIFT;
 
         // Convert to unsigned and scale frequency
-        uint32_t ux = ((uint32_t) x + 0x800000) * freqMultiplier;
-        uint32_t uy = ((uint32_t) y + 0x800000) * freqMultiplier;
+        uint32_t ux = ((uint32_t) x * freqMultiplier) + 0x800000;
+        uint32_t uy = ((uint32_t) y * freqMultiplier) + 0x800000;
+
+        // Domain warp in noise space
+
+        ux += globalPositionX;
+        uy += globalPositionY;
 
         return {ux, uy};
     }
