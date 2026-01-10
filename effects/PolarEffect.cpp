@@ -18,53 +18,88 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "FastLED.h"
 #include "PolarEffect.h"
+#include "PolarUtils.h" // For blendLayers
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
     RenderableFactoryRef<CRGB> PolarEffect::factory = &factoryInstance;
 
-    int32_t globalPositionX = random16();
-    int32_t globalPositionY = random16();
-    int32_t prevVx = 0;
-    int32_t prevVy = 0;
+    PolarEffect::PolarEffect(
+        const RenderableContext &context
+    ) : Effect(context),
+        cartesianScaleDecorator(200),
+        translationDecorator(1),
+        rotationDecorator(1),
+        kaleidoscopeDecorator(6, false, true),
+        vortexDecorator((fract16) 10000) {
+        // Configure the pipeline
+        // 1. Cartesian Phase
+        // Decorators are added in reverse order of execution.
+        // To get: Translation(Scale(Noise))), we add them in this order:
+        pipeline.addCartesianDecorator(&translationDecorator);
+        pipeline.addCartesianDecorator(&cartesianScaleDecorator);
 
-    int32_t globalAngle = 0;
-    int32_t angularVelocity = 0;
+        // 2. Polar Phase
+        // To get: Rotation(Vortex(Kaleidoscope(...)))
+        pipeline.addPolarDecorator(&rotationDecorator);
+        pipeline.addPolarDecorator(&vortexDecorator);
+        pipeline.addPolarDecorator(&kaleidoscopeDecorator);
 
-    void calculateAngle(unsigned long timeInMillis) {
-        uint16_t noiseAngle = inoise16(timeInMillis << 5);
-
-        // Map noise to signed angular velocity
-        auto targetAngularVelocity = (int16_t) (noiseAngle - 32768);
-
-        const uint8_t angularSpeedShift = 3; //lower is faster
-        targetAngularVelocity >>= angularSpeedShift;
-
-        angularVelocity = (angularVelocity + targetAngularVelocity) >> 1; //smoothing
-
-        globalAngle += angularVelocity;
+        // Build the final layer once in the constructor, as the structure and palette are static.
+        finalLayer = pipeline.build(colourNoiseLayer, context.palette.palette);
     }
 
-    void calculatePosition(unsigned long timeInMillis) {
-        uint16_t directionAngle = inoise16(globalPositionX, globalPositionY, timeInMillis << 5);
-        int32_t vx = cos16(directionAngle);
-        int32_t vy = sin16(directionAngle);
+    /**
+ * @brief Evaluates a single ColorLayer. This is the fast-path overload.
+ */
+    inline CRGB PolarEffect::blendLayers(
+        uint16_t angle,
+        fract16 radius,
+        unsigned long timeInMillis,
+        const ColourLayer &layer
+    ) {
+        return layer(angle, radius, timeInMillis);
+    }
 
-        const uint8_t speedShift = 4; // controls speed, lower is faster
-        vx >>= speedShift;
-        vy >>= speedShift;
+    /**
+     * @brief Blends a stack of ColorLayers for a specific pixel using additive blending.
+     * Handles HDR blending by accumulating in 16-bit and scaling down if overflow occurs.
+     */
+    inline CRGB PolarEffect::blendLayers(
+        uint16_t angle,
+        fract16 radius,
+        unsigned long timeInMillis,
+        const fl::vector<ColourLayer> &layers
+    ) {
+        if (layers.empty()) return CRGB::Black;
 
-        // Integrate
-        vx = (prevVx + vx) >> 1; // >>1 adds inertia to smooth motion
-        vy = (prevVy + vy) >> 1;
+        // Fast path for a single layer, bypassing HDR accumulation.
+        if (layers.size() == 1) {
+            return layers[0](angle, radius, timeInMillis);
+        }
 
-        globalPositionX += vx;
-        globalPositionY += vy;
+        CRGB16 blended16;
 
-        prevVx = vx;
-        prevVy = vy;
+        for (const auto &layer: layers) {
+            CRGB value = layer(
+                angle,
+                radius,
+                timeInMillis
+            );
+            blended16 += value;
+        }
+
+        uint16_t max_val = max(blended16.r, max(blended16.g, blended16.b));
+
+        if (max_val > UINT8_MAX) {
+            uint16_t scale = (UINT8_MAX * UINT16_MAX) / max_val;
+            blended16.r = scale16(blended16.r, scale);
+            blended16.g = scale16(blended16.g, scale);
+            blended16.b = scale16(blended16.b, scale);
+        }
+
+        return CRGB(blended16.r, blended16.g, blended16.b);
     }
 
     void PolarEffect::fillSegmentArray(
@@ -74,23 +109,16 @@ namespace LEDSegments {
         fract16 progress,
         unsigned long timeInMillis
     ) {
-        // calculateAngle(timeInMillis);
-        calculatePosition(timeInMillis);
-
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
             auto [angle, radius] = context.polarCoordsMapper(pixelIndex);
 
-            fillPolar(
-                segmentArray,
-                pixelIndex,
-                angle + globalAngle,
+            // Use the cached finalLayer. Since we know we only have one, we can
+            // call the fast-path overload of blendLayers directly.
+            segmentArray[pixelIndex] = blendLayers(
+                angle,
                 radius,
                 timeInMillis,
-                globalPositionX,
-                globalPositionY,
-                {
-                    colourNoiseLayer
-                }
+                finalLayer
             );
         }
     }

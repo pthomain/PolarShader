@@ -21,16 +21,42 @@
 #ifndef LED_SEGMENTS_POLAREFFECT_H
 #define LED_SEGMENTS_POLAREFFECT_H
 
-#include "PolarUtils.h"
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
+#include "decorators/VortexDecorator.h"
+#include "decorators/RotationDecorator.h"
+#include "decorators/TranslationDecorator.h"
+#include "decorators/KaleidoscopeDecorator.h"
+#include "decorators/CartesianScaleDecorator.h"
+#include "PolarPipeline.h"
 
 namespace LEDSegments {
     class PolarEffect : public Effect<PolarEffect> {
+        CartesianScaleDecorator cartesianScaleDecorator;
+        TranslationDecorator translationDecorator;
+        KaleidoscopeDecorator kaleidoscopeDecorator;
+        VortexDecorator vortexDecorator;
+        RotationDecorator rotationDecorator;
+
+        PolarPipeline pipeline;
+        ColourLayer finalLayer;
+
+        inline CRGB blendLayers(
+            uint16_t angle,
+            fract16 radius,
+            unsigned long timeInMillis,
+            const ColourLayer &layer
+        );
+
+        inline CRGB blendLayers(
+            uint16_t angle,
+            fract16 radius,
+            unsigned long timeInMillis,
+            const fl::vector<ColourLayer> &layers
+        );
 
     public:
-        explicit PolarEffect(const RenderableContext &context) : Effect(context) {
-        }
+        explicit PolarEffect(const RenderableContext &context);
 
         void fillSegmentArray(
             CRGB *segmentArray,

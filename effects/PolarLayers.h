@@ -1,150 +1,96 @@
 #ifndef LED_SEGMENTS_SPECS_POLARLAYERS_H
 #define LED_SEGMENTS_SPECS_POLARLAYERS_H
 
-#include <engine/palette/Palette.h>
-
 #include "crgb.h"
-#include "fl/function.h"
 #include "MathUtils.h"
 #include "NoiseUtils.h"
 #include "engine/utils/Utils.h"
 
 namespace LEDSegments {
-    using PolarLayer = fl::function<CRGB(
-        uint16_t angle,
-        fract16 radius,
-        unsigned long timeInMillis,
-        int32_t globalPositionX,
-        int32_t globalPositionY
-    )>;
+    // This offset is used to map the signed 32-bit Cartesian coordinate space
+    // to the unsigned 32-bit domain required by the inoise16 function.
+    static constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
 
-    inline CRGB colourNoiseLayer(
-        uint16_t angle,
-        fract16 radius,
-        unsigned long timeInMillis,
-        int32_t globalPositionX,
-        int32_t globalPositionY
+    /**
+     * @brief A base noise layer that samples 2D Perlin noise.
+     * @param x The signed 32-bit x-coordinate.
+     * @param y The signed 32-bit y-coordinate.
+     * @param timeInMillis The current animation time.
+     * @return A 16-bit scalar value (0-255) to be used as a palette index.
+     *
+     * This function performs the final, critical conversion from the pipeline's
+     * standard signed Cartesian space to the unsigned domain required by inoise16.
+     */
+    inline uint16_t colourNoiseLayer(
+        uint32_t x,
+        uint32_t y,
+        unsigned long timeInMillis
     ) {
-        fl::u16 freqMultiplier = 200;
-        fl::u8 speed = 10;
-
-        auto [x, y] = cartesianCoords(
-            angle,
-            radius,
-            freqMultiplier,
-            globalPositionX,
-            globalPositionY,
-            1,
-            false,
-            false
-        );
-
-        uint8_t r = nnoise8(x, y, timeInMillis * speed);
-
-        return ColorFromPalette(CloudColors_p, r, 255, LINEARBLEND);
-
-        // return CHSV(r, 255, 255);
+        uint8_t speed = 10;
+        uint32_t t = timeInMillis * speed;
+        return nnoise8(x, y, t);
     }
 
-    // Fractal Brownian Motion
-    inline CRGB fBmLayer(
-        uint16_t angle,
-        fract16 radius,
-        unsigned long timeInMillis,
-        int32_t globalPositionX,
-        int32_t globalPositionY
+    /**
+     * @brief A noise layer that generates Fractal Brownian Motion (fBm).
+     * This creates a more detailed, multi-layered noise pattern by summing
+     * multiple "octaves" of noise at different frequencies and amplitudes.
+     * @note The coordinate doubling (`x <<= 1`) can lead to rapid growth. The
+     * number of octaves is intentionally limited to prevent overflow of the
+     * 32-bit coordinate space, especially after upstream scaling decorators.
+     */
+    inline uint16_t fBmLayer(
+        uint32_t x,
+        uint32_t y,
+        unsigned long timeInMillis
     ) {
-        static fl::u16 freqMultiplier = 800;
-        static fl::u8 speed = 30;
         static fl::u8 octaves = 4;
-
-        auto time = timeInMillis * speed;
-        auto [x, y] = cartesianCoords(
-            angle,
-            radius,
-            freqMultiplier,
-            globalPositionX,
-            globalPositionY
-        );
+        uint8_t speed = 30;
+        uint32_t t = timeInMillis * speed;
 
         uint16_t r = 0;
-        uint16_t g = 0;
-        uint16_t b = 0;
         uint16_t amplitude = U16_HALF;
 
         for (int o = 0; o < octaves; o++) {
-            r += (inoise16(x, y, time) * amplitude) >> 16;
+            r += (inoise16(x, y, t) * amplitude) >> 16;
             x <<= 1;
             y <<= 1;
             amplitude >>= 1;
         }
 
-        uint8_t nR = normaliseNoise(map16_to_8(r));
-
-        return CHSV(
-            nR,
-            255,
-            255
-        );
+        return normaliseNoise(map16_to_8(r));
     }
 
-    inline CRGB turbulenceLayer(
-        uint16_t angle,
-        fract16 radius,
-        unsigned long timeInMillis,
-        int32_t globalPositionX,
-        int32_t globalPositionY
+    /**
+     * @brief A noise layer that generates a turbulence pattern.
+     * It uses the absolute value of signed noise to create sharp creases,
+     * resulting in a "flame-like" or "marbled" appearance.
+     */
+    inline uint16_t turbulenceLayer(
+        uint32_t x,
+        uint32_t y,
+        unsigned long timeInMillis
     ) {
-        static fl::u16 freqMultiplier = 1600;
-        static fl::u8 speed = 10;
-
-        auto time = timeInMillis * speed;
-        auto [x, y] = cartesianCoords(
-            angle,
-            radius,
-            freqMultiplier,
-            globalPositionX,
-            globalPositionY
-        );
-
-        int16_t r = inoise16(x, y, time) - U16_HALF;
-        uint8_t absR = normaliseNoise(map16_to_8(abs(r)));
-
-        return CHSV(
-            absR,
-            255,
-            255
-        );
+        uint8_t speed = 10;
+        uint32_t t = timeInMillis * speed;
+        int16_t r = inoise16(x, y, t) - U16_HALF;
+        return normaliseNoise(map16_to_8(abs(r)));
     }
 
-    // Inverse turbulence
-    inline CRGB ridgedLayer(
-        uint16_t angle,
-        fract16 radius,
-        unsigned long timeInMillis,
-        int32_t globalPositionX,
-        int32_t globalPositionY
+    /**
+     * @brief A noise layer that generates a ridged multifractal pattern.
+     * This is effectively the inverse of turbulence, creating bright ridges
+     * on a dark background, suitable for lightning or vein-like patterns.
+     */
+    inline uint16_t ridgedLayer(
+        uint32_t x,
+        uint32_t y,
+        unsigned long timeInMillis
     ) {
-        static fl::u16 freqMultiplier = 1600;
-        static fl::u8 speed = 10;
-
-        auto time = timeInMillis * speed;
-        auto [x, y] = cartesianCoords(
-            angle,
-            radius,
-            freqMultiplier,
-            globalPositionX,
-            globalPositionY
-        );
-
-        int16_t r = inoise16(x, y, time) - U16_HALF;
-        uint8_t absR = normaliseNoise(map16_to_8(255 - abs(r)));
-
-        return CHSV(
-            absR,
-            255,
-            255
-        );
+        uint8_t speed = 10;
+        uint32_t t = timeInMillis * speed;
+        int16_t r = inoise16(x, y, t) - U16_HALF;
+        return normaliseNoise(map16_to_8(255 - abs(r)));
     }
 }
 #endif //LED_SEGMENTS_SPECS_POLARLAYERS_H
