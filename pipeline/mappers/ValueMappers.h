@@ -55,6 +55,7 @@ namespace LEDSegments {
 
         /**
          * @brief Creates a WaveformSource that produces a constant acceleration and has zero phase velocity.
+         * @param acceleration The constant acceleration value in integer domain units.
          */
         inline WaveformSource Constant(int32_t acceleration) {
             return {ConstantWaveform(acceleration), ConstantWaveform(0)};
@@ -74,6 +75,41 @@ namespace LEDSegments {
 
                 int32_t amp_q16 = amplitude(phase);
                 int64_t accel_q31 = (int64_t) signedNoise * amp_q16;
+                return (int32_t) (accel_q31 >> 15);
+            };
+            return {acceleration, phaseVelocity};
+        }
+
+        /**
+         * @brief Creates a WaveformSource that generates a sine wave acceleration.
+         * @param phaseVelocity A waveform providing the rate of phase advancement in "turns per second" (Q16.16).
+         * @param amplitude A waveform providing the peak acceleration in integer units/sec^2 (Q16.16).
+         */
+        inline WaveformSource Sine(Waveform phaseVelocity, Waveform amplitude) {
+            Waveform acceleration = [amplitude](uint32_t phase) -> int32_t {
+                int32_t sin_val = sin16(phase >> 16);
+                int32_t amp_q16 = amplitude(phase);
+                int64_t accel_q31 = (int64_t) sin_val * amp_q16;
+                return (int32_t) (accel_q31 >> 15);
+            };
+            return {acceleration, phaseVelocity};
+        }
+
+        /**
+         * @brief Creates a WaveformSource that generates a pulse wave acceleration.
+         * The pulse has a sharp attack and a slower, linear decay.
+         * @param phaseVelocity A waveform providing the rate of phase advancement in "turns per second" (Q16.16).
+         * @param amplitude A waveform providing the peak acceleration in integer units/sec^2 (Q16.16).
+         */
+        inline WaveformSource Pulse(Waveform phaseVelocity, Waveform amplitude) {
+            Waveform acceleration = [amplitude](uint32_t phase) -> int32_t {
+                uint16_t saw = phase >> 16;
+                // Create a pulse with a sharp attack and slower decay
+                uint16_t pulse = (saw < 16384) ? (saw << 1) : (65535 - saw);
+                int32_t signedPulse = (int32_t) pulse - 32768;
+
+                int32_t amp_q16 = amplitude(phase);
+                int64_t accel_q31 = (int64_t) signedPulse * amp_q16;
                 return (int32_t) (accel_q31 >> 15);
             };
             return {acceleration, phaseVelocity};

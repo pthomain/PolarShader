@@ -22,28 +22,27 @@
 #define LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H
 
 #include "base/Decorators.h"
-#include "../mappers/ValueMappers.h"
+#include "polar/camera/CameraRig.h"
 
 namespace LEDSegments {
     /**
      * @class RotationDecorator
-     * @brief Applies a global rotation to the entire frame.
-     * @param rotationSignal An AngularSignal providing the rotation in turns.
+     * @brief Applies the global rotation from a CameraRig to the frame.
      */
     class RotationDecorator : public PolarDecorator {
-        AngularSignal angle_turns;
+        CameraRig &camera;
 
     public:
-        explicit RotationDecorator(AngularSignal rotationSignal) : angle_turns(std::move(rotationSignal)) {
+        explicit RotationDecorator(CameraRig &rig) : camera(rig) {
         }
 
         void advanceFrame(unsigned long timeInMillis) override {
-            angle_turns.advanceFrame(timeInMillis);
+            // Time is advanced by ViewPortDecorator via the CameraRig.
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
             return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                uint16_t new_angle_turns = angle_turns + this->angle_turns.getValue();
+                uint16_t new_angle_turns = angle_turns + camera.rotation();
                 return layer(new_angle_turns, radius, timeInMillis);
             };
         }

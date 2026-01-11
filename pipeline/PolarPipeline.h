@@ -25,6 +25,7 @@
 #include <type_traits>
 #include "PolarUtils.h"
 #include "utils/NoiseUtils.h"
+#include "polar/camera/CameraRig.h"
 
 namespace LEDSegments {
     class PolarPipeline {
@@ -33,15 +34,7 @@ namespace LEDSegments {
         fl::vector<PolarDecorator *> polarDecorators;
 
     public:
-        PolarPipeline(
-            LinearSignal positionX,
-            LinearSignal positionY,
-            BoundedSignal logScale
-        ) : viewPortDecorator(
-            std::move(positionX),
-            std::move(positionY),
-            std::move(logScale)
-        ) {
+        explicit PolarPipeline(CameraRig &camera) : viewPortDecorator(camera) {
             frameDecorators.push_back(&viewPortDecorator);
         }
 
@@ -73,7 +66,8 @@ namespace LEDSegments {
 
             CartesianLayer adjustedViewPort = viewPortDecorator(adaptedSource);
 
-            PolarLayer currentPolar = [layer = adjustedViewPort](uint16_t angle_turns, fract16 radius, unsigned long t) {
+            PolarLayer currentPolar = [layer = adjustedViewPort
+                    ](uint16_t angle_turns, fract16 radius, unsigned long t) {
                 auto [x, y] = cartesianCoords(angle_turns, radius);
                 return layer(x, y, t);
             };

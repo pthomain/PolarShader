@@ -20,6 +20,7 @@
 
 #include "PolarEffect.h"
 #include "../pipeline/PolarUtils.h"
+#include "polar/camera/CameraPreset.h"
 #include "polar/pipeline/CartesianNoiseLayers.h"
 
 namespace LEDSegments {
@@ -29,55 +30,11 @@ namespace LEDSegments {
     PolarEffect::PolarEffect(
         const RenderableContext &context
     ) : Effect(context),
-        pipeline(
-            // Position X: Unbounded linear signal, starts random.
-            // Driven by a noise acceleration with a phase velocity of ~0.1 cycles/sec and amplitude of 2000 units/sec^2.
-            LinearSignal(
-                random16(),
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(6554), // phaseVelocity
-                    Waveforms::ConstantWaveform(2000) // amplitude
-                )
-            ),
-            // Position Y: Unbounded linear signal, starts random.
-            // Driven by a noise acceleration with a phase velocity of ~0.1 cycles/sec and amplitude of 2000 units/sec^2.
-            LinearSignal(
-                random16(),
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(6554), // phaseVelocity
-                    Waveforms::ConstantWaveform(2000) // amplitude
-                )
-            ),
-            // Log-Scale: Bounded signal for perceptually stable zoom.
-            // The signal represents log2(scale) in Q8.8 format and oscillates between 2^-2 and 2^2 (0.25x to 4x).
-            BoundedSignal(
-                0, // Initial log-scale (1x zoom)
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(2000), // phaseVelocity
-                    Waveforms::ConstantWaveform(50) // amplitude
-                ),
-                950, // High retention for smooth motion
-                -2 * 256, // Min bound: log2(0.25) = -2
-                2 * 256 // Max bound: log2(4) = 2
-            )
-        ),
-        // Rotation: Angular signal in turns, starts at 0, no driving acceleration.
-        rotationDecorator(AngularSignal(0, Waveforms::Constant(0))),
+        camera(CameraRigPresets::create(CameraPreset::PulseZoom)),
+        pipeline(camera),
+        rotationDecorator(camera),
         kaleidoscopeDecorator(1, false, true),
-        // Vortex: Bounded signal oscillating between -2 and +2 full turns.
-        // Driven by a low-frequency noise acceleration.
-        vortexDecorator(
-            BoundedSignal(
-                0, // Initial strength
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(1000), // phaseVelocity
-                    Waveforms::ConstantWaveform(500) // amplitude
-                ),
-                950, // High retention for smooth motion
-                -2 * 65536, // Min bound (-2 turns)
-                2 * 65536 // Max bound (+2 turns)
-            )
-        ) {
+        vortexDecorator(camera) {
         pipeline.addPolarDecorator(&rotationDecorator);
         pipeline.addPolarDecorator(&vortexDecorator);
         pipeline.addPolarDecorator(&kaleidoscopeDecorator);
@@ -85,7 +42,7 @@ namespace LEDSegments {
         finalLayer = pipeline.build(noiseLayer, context.palette.palette);
     }
 
-    inline CRGB PolarEffect::blendLayers(
+    CRGB PolarEffect::blendLayers(
         uint16_t angle_turns,
         fract16 radius,
         unsigned long timeInMillis,
@@ -94,7 +51,7 @@ namespace LEDSegments {
         return layer(angle_turns, radius, timeInMillis);
     }
 
-    inline CRGB PolarEffect::blendLayers(
+    CRGB PolarEffect::blendLayers(
         uint16_t angle_turns,
         fract16 radius,
         unsigned long timeInMillis,
@@ -129,7 +86,7 @@ namespace LEDSegments {
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
             auto [angle_turns, radius] = context.polarCoordsMapper(pixelIndex);
             segmentArray[pixelIndex] = blendLayers(
-                angle_turns
+                angle_turns,
                 radius,
                 timeInMillis,
                 finalLayer

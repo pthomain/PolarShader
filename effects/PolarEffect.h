@@ -27,9 +27,11 @@
 #include "polar/pipeline/decorators/KaleidoscopeDecorator.h"
 #include "polar/pipeline/decorators/VortexDecorator.h"
 #include "polar/pipeline/decorators/RotationDecorator.h"
+#include "polar/camera/CameraRig.h"
 
 namespace LEDSegments {
     class PolarEffect : public Effect<PolarEffect> {
+        CameraRig camera;
         PolarPipeline pipeline;
         ColourLayer finalLayer;
 
@@ -37,15 +39,15 @@ namespace LEDSegments {
         KaleidoscopeDecorator kaleidoscopeDecorator;
         VortexDecorator vortexDecorator;
 
-        inline CRGB blendLayers(
-            uint16_t angle,
+        CRGB blendLayers(
+            uint16_t angle_turns,
             fract16 radius,
             unsigned long timeInMillis,
             const ColourLayer &layer
         );
 
-        inline CRGB blendLayers(
-            uint16_t angle,
+        CRGB blendLayers(
+            uint16_t angle_turns,
             fract16 radius,
             unsigned long timeInMillis,
             const fl::vector<ColourLayer> &layers

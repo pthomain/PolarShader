@@ -22,43 +22,36 @@
 #define LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
 
 #include "base/Decorators.h"
-#include "../mappers/ValueMappers.h"
+#include "polar/camera/CameraRig.h"
 
 namespace LEDSegments {
     /**
      * @class VortexDecorator
-     * @brief Applies a radius-dependent angular offset (twist) to the polar coordinates.
-     *
-     * @param vortexSignal A BoundedSignal providing the strength of the vortex in turns.
-     *                     The signal's value is interpreted as the total angular twist
-     *                     applied at the maximum radius (radius = 1.0).
-     *                     For example, a value of 32768 corresponds to a 0.5 turn twist.
+     * @brief Applies a radius-dependent angular offset (twist) using state from a CameraRig.
      */
     class VortexDecorator : public PolarDecorator {
-        BoundedSignal vortex_strength_turns;
+        CameraRig &camera;
 
     public:
-        explicit VortexDecorator(BoundedSignal vortexSignal)
-            : vortex_strength_turns(std::move(vortexSignal)) {
+        explicit VortexDecorator(CameraRig &rig) : camera(rig) {
         }
 
         void advanceFrame(unsigned long timeInMillis) override {
-            vortex_strength_turns.advanceFrame(timeInMillis);
+            // Time is advanced by ViewPortDecorator via the CameraRig.
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
             return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                // The signal value is a signed int, representing the vortex strength in turns.
-                // We constrain it to a 16-bit signed range before scaling.
-                int16_t strength_turns = constrain(
-                    vortex_strength_turns.getValue(),
-                    INT16_MIN,
-                    INT16_MAX
-                );
+                // camera.vortex() returns strength in turns as a Q16.16 value.
+                int32_t vortex_strength_q16_16 = camera.vortex();
 
-                // Scale the twist by the current pixel's radius using signed math.
-                int16_t offset_turns = scale_i16_by_f16(strength_turns, radius);
-                uint16_t new_angle_turns = angle_turns + offset_turns;
+                // Scale the strength by the radius to get the angular offset.
+                // (Q16.16 * Q0.16) -> Q16.32, then shift to get Q16.16
+                int32_t offset_q16_16 = scale_i32_by_f16(vortex_strength_q16_16, radius);
+
+                // Add the integer part of the offset to the angle.
+                uint16_t new_angle_turns = angle_turns + (offset_q16_16 >> 16);
+
                 return layer(new_angle_turns, radius, timeInMillis);
             };
         }
