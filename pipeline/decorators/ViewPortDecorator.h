@@ -23,69 +23,71 @@
 
 #include "base/Decorators.h"
 #include "../mappers/ValueMappers.h"
-#include "polar/pipeline/utils/MathUtils.h"
+#include "../utils/MathUtils.h"
 
 namespace LEDSegments {
+    /**
+     * @class ViewPortDecorator
+     * @brief Manages the "camera" over the Cartesian noise field, handling zoom and translation.
+     *        Zoom is controlled by a logarithmic scale signal for perceptually stable zooming.
+     */
     class ViewPortDecorator : public CartesianDecorator {
-        // Translation state
-        int32_t prevVx = 0;
-        int32_t prevVy = 0;
-        int32_t globalPositionX = random16();
-        int32_t globalPositionY = random16();
+        LinearSignal positionX;
+        LinearSignal positionY;
+        BoundedSignal logScale; // Signal's value is log2(scale), conceptually a Q8.8 value.
 
-        // Mappers
-        AbsoluteValue scaleMapper;
-        DeltaValue amplitudeMapper;
-        DeltaValue directionMapper;
-
-        // Scale constants
-        static constexpr uint16_t MIN_SCALE = 128; // 0.5x
-        static constexpr uint16_t MAX_SCALE = 1024; // 4.0x
-        static constexpr uint8_t DOMAIN_SCALE_SHIFT = 8;
-
-        // Translation constants
-        static constexpr uint8_t SPEED_SHIFT = 2;
-        static constexpr int16_t MAX_AMPLITUDE = 1024;
+        // Cache the scale factor to avoid re-computation when the log-scale hasn't changed.
+        int16_t lastQuantizedLogScale = INT16_MIN;
+        int32_t scaleFactor = 1 << 16; // Default to 1.0 in Q16.16
 
     public:
         ViewPortDecorator(
-            AbsoluteValue scaleMapper,
-            AbsoluteValue amplitudeMapper,
-            AbsoluteValue directionMapper
-        ) : scaleMapper(std::move(scaleMapper)),
-            amplitudeMapper(std::move(amplitudeMapper)),
-            directionMapper(std::move(directionMapper)) {
+            LinearSignal x,
+            LinearSignal y,
+            BoundedSignal logScaleSignal
+        ) : positionX(std::move(x)),
+            positionY(std::move(y)),
+            logScale(std::move(logScaleSignal)) {
         }
 
         void advanceFrame(unsigned long timeInMillis) override {
-            // Advance translation
-            uint16_t amplitude = map(amplitudeMapper(timeInMillis), 0, 65535, 0, MAX_AMPLITUDE);
-            fract16 directionAngle = directionMapper(timeInMillis);
-            int32_t vx = scale_i16_by_f16(cos16(directionAngle), amplitude);
-            int32_t vy = scale_i16_by_f16(sin16(directionAngle), amplitude);
-            vx = (prevVx + vx) >> 1;
-            vy = (prevVy + vy) >> 1;
-            globalPositionX += (vx >> SPEED_SHIFT);
-            globalPositionY += (vy >> SPEED_SHIFT);
-            prevVx = vx;
-            prevVy = vy;
+            positionX.advanceFrame(timeInMillis);
+            positionY.advanceFrame(timeInMillis);
+            logScale.advanceFrame(timeInMillis);
+
+            // Quantize the log-scale value to prevent cache misses from minor noise jitter.
+            // A Q8.4 quantization (16 levels per integer) is a good balance.
+            int16_t currentLogScale_q8_8 = (int16_t) logScale.getValue();
+            int16_t quantizedLogScale = (currentLogScale_q8_8 >> 4) << 4;
+
+            if (quantizedLogScale != lastQuantizedLogScale) {
+                lastQuantizedLogScale = quantizedLogScale;
+
+                // Defensively clamp logScale to a safe range (-8.0 to +8.0) before use.
+                int16_t clampedLogScale = constrain(quantizedLogScale, -8 << 8, 8 << 8);
+
+                // Convert the Q8.8 log2 scale to a Q16.16 linear scale factor.
+                int32_t linearScale_q16 = log2_to_linear_q16(clampedLogScale);
+
+                // Clamp to a minimum scale to prevent extreme zoom-out. 0.25x is a reasonable minimum.
+                static constexpr int32_t MIN_LINEAR_SCALE_Q16 = (1 << 16) / 4; // 0.25 in Q16.16
+                if (linearScale_q16 < MIN_LINEAR_SCALE_Q16) {
+                    linearScale_q16 = MIN_LINEAR_SCALE_Q16;
+                }
+
+                // The scaleFactor is the reciprocal (inverse) of the linear scale.
+                scaleFactor = ((uint64_t) 1 << 32) / linearScale_q16;
+            }
         }
 
         CartesianLayer operator()(const CartesianLayer &layer) const override {
             return [this, layer](int32_t x, int32_t y, unsigned long t) {
-                // Map scale as frequency (larger = zoom out)
-                uint16_t scale = map(scaleMapper(t), 0, 65535, MIN_SCALE, MAX_SCALE);
-
-                // Prevent divide-by-zero / collapse
-                scale = max<uint16_t>(scale, MIN_SCALE);
-
-                // Apply scale BEFORE translation so translation speed is scale-independent
-                int32_t sx = ((int64_t) x << DOMAIN_SCALE_SHIFT) / scale;
-                int32_t sy = ((int64_t) y << DOMAIN_SCALE_SHIFT) / scale;
+                int32_t sx = scale_i32_by_q16_16(x, scaleFactor);
+                int32_t sy = scale_i32_by_q16_16(y, scaleFactor);
 
                 return layer(
-                    sx + globalPositionX,
-                    sy + globalPositionY,
+                    sx + positionX.getValue(),
+                    sy + positionY.getValue(),
                     t
                 );
             };

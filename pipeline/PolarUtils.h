@@ -1,5 +1,27 @@
+//  SPDX-License-Identifier: GPL-3.0-or-later
+//  Copyright (C) 2023 Pierre Thomain
+
+/*
+ * This file is part of LED Segments.
+ *
+ * LED Segments is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LED Segments is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #ifndef LED_SEGMENTS_SPECS_POLARUTILS_H
 #define LED_SEGMENTS_SPECS_POLARUTILS_H
+
+#include "utils/MathUtils.h"
 
 namespace LEDSegments {
     struct CRGB16 {
@@ -19,24 +41,19 @@ namespace LEDSegments {
     };
 
     /**
- * @brief Converts polar coordinates to a clean, signed Cartesian space.
- * @param angle The polar angle (uint16_t from 0-65535).
- * @param radius The polar radius (fract16 from 0-65535, representing 0.0 to ~1.0).
- * @return A pair of {x, y} coordinates in a signed 32-bit integer space.
- *
- * This function establishes the base coordinate system. All scaling and resolution
- * control is now handled by decorators like DomainScaleDecorator.
- */
-    static fl::pair<uint32_t, uint32_t> cartesianCoords(
-        fl::u16 angle,
+     * @brief Converts polar coordinates to a clean, signed Cartesian space.
+     * @param angle_turns The polar angle in turns (1.0 turn = 65536 units).
+     * @param radius The polar radius (fract16 from 0-65535, representing 0.0 to ~1.0).
+     * @return A pair of {x, y} coordinates in a signed 32-bit integer space.
+     */
+    static fl::pair<int32_t, int32_t> cartesianCoords(
+        fl::u16 angle_turns,
         fract16 radius
     ) {
-        // Convert polar to signed cartesian space at full resolution + shift to unsigned
-        int32_t x = scale_i16_by_f16(cos16(angle), radius);
-        int32_t y = scale_i16_by_f16(sin16(angle), radius);
-        uint32_t ux = (uint32_t) x + NOISE_DOMAIN_OFFSET;
-        uint32_t uy = (uint32_t) y + NOISE_DOMAIN_OFFSET;
-        return {ux, uy};
+        // Convert polar to signed cartesian space at full resolution
+        int32_t x = scale_i16_by_f16(cos16(angle_turns), radius);
+        int32_t y = scale_i16_by_f16(sin16(angle_turns), radius);
+        return {x, y};
     }
 }
 #endif //LED_SEGMENTS_SPECS_POLARUTILS_H

@@ -20,6 +20,7 @@
 
 #include "PolarEffect.h"
 #include "../pipeline/PolarUtils.h"
+#include "polar/pipeline/CartesianNoiseLayers.h"
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
@@ -29,13 +30,54 @@ namespace LEDSegments {
         const RenderableContext &context
     ) : Effect(context),
         pipeline(
-            NoiseValue(400, 100),
-            ConstantValue(0), //NoiseValue(1000, 200),
-            ConstantValue(0) //NoiseValue(1000)
+            // Position X: Unbounded linear signal, starts random.
+            // Driven by a noise acceleration with a phase velocity of ~0.1 cycles/sec and amplitude of 2000 units/sec^2.
+            LinearSignal(
+                random16(),
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(6554), // phaseVelocity
+                    Waveforms::ConstantWaveform(2000) // amplitude
+                )
+            ),
+            // Position Y: Unbounded linear signal, starts random.
+            // Driven by a noise acceleration with a phase velocity of ~0.1 cycles/sec and amplitude of 2000 units/sec^2.
+            LinearSignal(
+                random16(),
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(6554), // phaseVelocity
+                    Waveforms::ConstantWaveform(2000) // amplitude
+                )
+            ),
+            // Log-Scale: Bounded signal for perceptually stable zoom.
+            // The signal represents log2(scale) in Q8.8 format and oscillates between 2^-2 and 2^2 (0.25x to 4x).
+            BoundedSignal(
+                0, // Initial log-scale (1x zoom)
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(2000), // phaseVelocity
+                    Waveforms::ConstantWaveform(50) // amplitude
+                ),
+                950, // High retention for smooth motion
+                -2 * 256, // Min bound: log2(0.25) = -2
+                2 * 256 // Max bound: log2(4) = 2
+            )
         ),
-        rotationDecorator(ConstantValue(0)),
+        // Rotation: Angular signal in turns, starts at 0, no driving acceleration.
+        rotationDecorator(AngularSignal(0, Waveforms::Constant(0))),
         kaleidoscopeDecorator(1, false, true),
-        vortexDecorator(ConstantValue(0)) {
+        // Vortex: Bounded signal oscillating between -2 and +2 full turns.
+        // Driven by a low-frequency noise acceleration.
+        vortexDecorator(
+            BoundedSignal(
+                0, // Initial strength
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(1000), // phaseVelocity
+                    Waveforms::ConstantWaveform(500) // amplitude
+                ),
+                950, // High retention for smooth motion
+                -2 * 65536, // Min bound (-2 turns)
+                2 * 65536 // Max bound (+2 turns)
+            )
+        ) {
         pipeline.addPolarDecorator(&rotationDecorator);
         pipeline.addPolarDecorator(&vortexDecorator);
         pipeline.addPolarDecorator(&kaleidoscopeDecorator);
@@ -43,55 +85,36 @@ namespace LEDSegments {
         finalLayer = pipeline.build(noiseLayer, context.palette.palette);
     }
 
-    /**
- * @brief Evaluates a single ColorLayer. This is the fast-path overload.
- */
     inline CRGB PolarEffect::blendLayers(
-        uint16_t angle,
+        uint16_t angle_turns,
         fract16 radius,
         unsigned long timeInMillis,
         const ColourLayer &layer
     ) {
-        return layer(angle, radius, timeInMillis);
+        return layer(angle_turns, radius, timeInMillis);
     }
 
-    /**
-     * @brief Blends a stack of ColorLayers for a specific pixel using additive blending.
-     * Handles HDR blending by accumulating in 16-bit and scaling down if overflow occurs.
-     */
     inline CRGB PolarEffect::blendLayers(
-        uint16_t angle,
+        uint16_t angle_turns,
         fract16 radius,
         unsigned long timeInMillis,
         const fl::vector<ColourLayer> &layers
     ) {
         if (layers.empty()) return CRGB::Black;
-
-        // Fast path for a single layer, bypassing HDR accumulation.
         if (layers.size() == 1) {
-            return layers[0](angle, radius, timeInMillis);
+            return layers[0](angle_turns, radius, timeInMillis);
         }
-
         CRGB16 blended16;
-
         for (const auto &layer: layers) {
-            CRGB value = layer(
-                angle,
-                radius,
-                timeInMillis
-            );
-            blended16 += value;
+            blended16 += layer(angle_turns, radius, timeInMillis);
         }
-
         uint16_t max_val = max(blended16.r, max(blended16.g, blended16.b));
-
         if (max_val > UINT8_MAX) {
             uint16_t scale = (UINT8_MAX * UINT16_MAX) / max_val;
             blended16.r = scale16(blended16.r, scale);
             blended16.g = scale16(blended16.g, scale);
             blended16.b = scale16(blended16.b, scale);
         }
-
         return CRGB(blended16.r, blended16.g, blended16.b);
     }
 
@@ -103,14 +126,10 @@ namespace LEDSegments {
         unsigned long timeInMillis
     ) {
         pipeline.advanceFrame(timeInMillis);
-
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
-            auto [angle, radius] = context.polarCoordsMapper(pixelIndex);
-
-            // Use the cached finalLayer. Since we know we only have one, we can
-            // call the fast-path overload of blendLayers directly.
+            auto [angle_turns, radius] = context.polarCoordsMapper(pixelIndex);
             segmentArray[pixelIndex] = blendLayers(
-                angle,
+                angle_turns
                 radius,
                 timeInMillis,
                 finalLayer

@@ -34,6 +34,14 @@ namespace LEDSegments {
 
     // A CartesianLayer is a function that takes Cartesian coordinates and returns a scalar value, usually noise-based.
     using CartesianLayer = fl::function<uint16_t(
+            int32_t x,
+            int32_t y,
+            unsigned long timeInMillis
+        )
+    >;
+
+    // A NoiseLayer is the raw source function that expects unsigned coordinates for Perlin noise.
+    using NoiseLayer = fl::function<uint16_t(
             uint32_t x,
             uint32_t y,
             unsigned long timeInMillis

@@ -22,30 +22,44 @@
 #define LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
 
 #include "base/Decorators.h"
+#include "../mappers/ValueMappers.h"
 
 namespace LEDSegments {
     /**
      * @class VortexDecorator
-     * @brief A stateless Polar decorator that applies a radius-dependent angular offset (twist).
+     * @brief Applies a radius-dependent angular offset (twist) to the polar coordinates.
      *
-     * The intensity of the vortex is controlled by a ValueMapper, allowing for
-     * dynamic spiral effects.
+     * @param vortexSignal A BoundedSignal providing the strength of the vortex in turns.
+     *                     The signal's value is interpreted as the total angular twist
+     *                     applied at the maximum radius (radius = 1.0).
+     *                     For example, a value of 32768 corresponds to a 0.5 turn twist.
      */
     class VortexDecorator : public PolarDecorator {
-        AbsoluteValue anglePerRadiusMapper;
+        BoundedSignal vortex_strength_turns;
 
     public:
-        explicit VortexDecorator(AbsoluteValue anglePerRadiusMapper)
-            : anglePerRadiusMapper(std::move(anglePerRadiusMapper)) {
+        explicit VortexDecorator(BoundedSignal vortexSignal)
+            : vortex_strength_turns(std::move(vortexSignal)) {
+        }
+
+        void advanceFrame(unsigned long timeInMillis) override {
+            vortex_strength_turns.advanceFrame(timeInMillis);
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
-            return [this, layer](uint16_t angle, fract16 radius, unsigned long timeInMillis) {
-                // The mapper's output is treated as a fract16 for scaling.
-                auto anglePerRadiusQ16 = (fract16) anglePerRadiusMapper(timeInMillis);
-                uint16_t offset = scale_u16_by_f16(anglePerRadiusQ16, radius);
-                uint16_t newAngle = angle + offset;
-                return layer(newAngle, radius, timeInMillis);
+            return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
+                // The signal value is a signed int, representing the vortex strength in turns.
+                // We constrain it to a 16-bit signed range before scaling.
+                int16_t strength_turns = constrain(
+                    vortex_strength_turns.getValue(),
+                    INT16_MIN,
+                    INT16_MAX
+                );
+
+                // Scale the twist by the current pixel's radius using signed math.
+                int16_t offset_turns = scale_i16_by_f16(strength_turns, radius);
+                uint16_t new_angle_turns = angle_turns + offset_turns;
+                return layer(new_angle_turns, radius, timeInMillis);
             };
         }
     };

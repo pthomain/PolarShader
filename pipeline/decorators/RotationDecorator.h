@@ -27,35 +27,24 @@
 namespace LEDSegments {
     /**
      * @class RotationDecorator
-     * @brief A stateful Polar decorator that applies a global angular rotation to the entire frame.
-     *
-     * The rotation speed is controlled by a ValueMapper, creating the potential for
-     * organic, wandering motion. It operates on the 16-bit angular domain.
+     * @brief Applies a global rotation to the entire frame.
+     * @param rotationSignal An AngularSignal providing the rotation in turns.
      */
     class RotationDecorator : public PolarDecorator {
-        uint16_t globalAngle = 0;
-        DeltaValue angleMapper;
+        AngularSignal angle_turns;
 
     public:
-        explicit RotationDecorator(DeltaValue velocityMapper) : angleMapper(std::move(velocityMapper)) {
+        explicit RotationDecorator(AngularSignal rotationSignal) : angle_turns(std::move(rotationSignal)) {
         }
 
-        /**
-         * @brief Evolves the global rotation angle for the next frame.
-         * The angular velocity is determined by the mapper and then integrated
-         * into the current angle with smoothing.
-         */
         void advanceFrame(unsigned long timeInMillis) override {
-            globalAngle += angleMapper(timeInMillis);
+            angle_turns.advanceFrame(timeInMillis);
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
-            // Capture 'this' to access the current globalAngle at render time.
-            return [this, layer](uint16_t angle, fract16 radius, unsigned long timeInMillis) {
-                // Apply the global rotation. The uint16_t arithmetic correctly
-                // wraps around within the 0-65535 angular domain.
-                uint16_t newAngle = angle + globalAngle;
-                return layer(newAngle, radius, timeInMillis);
+            return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
+                uint16_t new_angle_turns = angle_turns + this->angle_turns.getValue();
+                return layer(new_angle_turns, radius, timeInMillis);
             };
         }
     };

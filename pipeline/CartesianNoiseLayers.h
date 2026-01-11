@@ -24,10 +24,6 @@
 #include "utils/MathUtils.h"
 
 namespace LEDSegments {
-    // This offset is used to map the signed 32-bit Cartesian coordinate space
-    // to the unsigned 32-bit domain required by the inoise16 function.
-    static constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
-
     /**
      * @brief A base noise layer that samples 2D Perlin noise.
      * @param x The signed 32-bit x-coordinate.

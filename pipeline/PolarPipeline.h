@@ -22,10 +22,9 @@
 #define LED_SEGMENTS_EFFECTS_DECORATORS_POLARPIPELINE_H
 
 #include "decorators/ViewPortDecorator.h"
-#include "CartesianNoiseLayers.h"
 #include <type_traits>
-
 #include "PolarUtils.h"
+#include "utils/NoiseUtils.h"
 
 namespace LEDSegments {
     class PolarPipeline {
@@ -35,13 +34,13 @@ namespace LEDSegments {
 
     public:
         PolarPipeline(
-            AbsoluteValue scaleMapper = ConstantValue(200),
-            DeltaValue amplitudeMapper = ConstantDelta(200),
-            DeltaValue directionMapper = NoiseDelta(200)
+            LinearSignal positionX,
+            LinearSignal positionY,
+            BoundedSignal logScale
         ) : viewPortDecorator(
-            std::move(scaleMapper),
-            std::move(amplitudeMapper),
-            std::move(directionMapper)
+            std::move(positionX),
+            std::move(positionY),
+            std::move(logScale)
         ) {
             frameDecorators.push_back(&viewPortDecorator);
         }
@@ -63,12 +62,19 @@ namespace LEDSegments {
             }
         }
 
-        ColourLayer build(const CartesianLayer &sourceLayer, const CRGBPalette16 &palette) {
-            CartesianLayer adjustedViewPort = viewPortDecorator(sourceLayer);
-            // viewport transformations (scale, translation)
+        ColourLayer build(const NoiseLayer &sourceLayer, const CRGBPalette16 &palette) {
+            CartesianLayer adaptedSource = [sourceLayer](int32_t x, int32_t y, unsigned long t) {
+                return sourceLayer(
+                    (uint32_t) x + NOISE_DOMAIN_OFFSET,
+                    (uint32_t) y + NOISE_DOMAIN_OFFSET,
+                    t
+                );
+            };
 
-            PolarLayer currentPolar = [layer = adjustedViewPort](uint16_t angle, fract16 radius, unsigned long t) {
-                auto [x, y] = cartesianCoords(angle, radius);
+            CartesianLayer adjustedViewPort = viewPortDecorator(adaptedSource);
+
+            PolarLayer currentPolar = [layer = adjustedViewPort](uint16_t angle_turns, fract16 radius, unsigned long t) {
+                auto [x, y] = cartesianCoords(angle_turns, radius);
                 return layer(x, y, t);
             };
 
@@ -76,9 +82,8 @@ namespace LEDSegments {
                 currentPolar = (*polarDecorators[polarDecorators.size() - 1 - i])(currentPolar);
             }
 
-            // Map noise to colour palette
-            return [palette, layer = currentPolar](uint16_t angle, fract16 radius, unsigned long t) {
-                uint8_t index = normaliseNoise(map16_to_8(layer(angle, radius, t)));
+            return [palette, layer = currentPolar](uint16_t angle_turns, fract16 radius, unsigned long t) {
+                uint8_t index = map16_to_8(normaliseNoise16(layer(angle_turns, radius, t)));
                 return ColorFromPalette(palette, index, 255, LINEARBLEND);
             };
         }

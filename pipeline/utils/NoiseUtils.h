@@ -21,13 +21,36 @@
 #ifndef LED_SEGMENTS_SPECS_NOISEUTILS_H
 #define LED_SEGMENTS_SPECS_NOISEUTILS_H
 
-#include "engine/utils/Utils.h"
+#include "FastLED.h"
 
 namespace LEDSegments {
-    // Normalised 8 bit noise.
-    // Maps the 16-bit output of inoise16 to a full 0-255 range.
-    inline uint8_t nnoise8(uint32_t x, uint32_t y, uint32_t z) {
-        return normaliseNoise(map16_to_8(inoise16(x, y, z)));
+    // This offset is added to the noise coordinate to shift the sampling domain.
+    // It helps avoid the less-random regions of the Perlin noise space near the origin.
+    static constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
+
+    /**
+     * @brief Normalizes a 16-bit raw noise value to the full 0-65535 range.
+     *
+     * This function remaps the typical output range of FastLED's inoise16()
+     * (empirically found to be around 12000-54000) to the full 16-bit range.
+     * This increases the contrast of the noise, which is useful for visual effects.
+     *
+     * @param value The raw 16-bit noise value.
+     * @return The normalized 16-bit value.
+     */
+    static fl::u16 normaliseNoise16(fl::u16 value) {
+        // These bounds are specific to the typical output of inoise16() and may
+        // need tuning if a different noise function is used.
+        const uint16_t MIN_NOISE = 12000;
+        const uint16_t MAX_NOISE = 54000;
+        const uint16_t RANGE = MAX_NOISE - MIN_NOISE;
+
+        if (value <= MIN_NOISE) return 0;
+        if (value >= MAX_NOISE) return 65535;
+
+        uint32_t temp = (uint32_t) (value - MIN_NOISE) * 65535;
+        return temp / RANGE;
     }
 }
+
 #endif //LED_SEGMENTS_SPECS_NOISEUTILS_H

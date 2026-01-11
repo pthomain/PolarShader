@@ -22,123 +22,226 @@
 #define LED_SEGMENTS_EFFECTS_MAPPERS_VALUEMAPPERS_H
 
 #include <functional>
+#include "../utils/MathUtils.h"
+#include "../utils/NoiseUtils.h"
 
 namespace LEDSegments {
-    /**
-    * AbsoluteValue:
-    *   Stateless or internally smoothed
-    *   Frame-rate independent
-    *   Idempotent
-    *   Safe to sample anywhere in the pipeline
-    *
-    *   Examples:
-    *       Zoom level
-    *       Palette index
-    *       Symmetry count
-    *       Vortex strength
-    *       Brightness envelope
-    */
-    using AbsoluteValue = std::function<uint16_t(unsigned long)>;
+    static constexpr uint16_t MILLIS_PER_SECOND = 1000;
+
+    namespace Waveforms {
+        /**
+         * @brief A stateless function that generates a value from a given phase.
+         * @param phase A Q16.16 fixed-point phase value.
+         * @return A Q16.16 fixed-point value.
+         */
+        using Waveform = std::function<int32_t(uint32_t)>;
+
+        /**
+         * @brief A pair of waveforms describing a dynamic value: one for the acceleration
+         * and one for the rate of change of its phase (phase velocity).
+         */
+        struct WaveformSource {
+            Waveform acceleration;
+            Waveform phaseVelocity;
+        };
+
+        /**
+         * @brief Creates a waveform that returns a constant value, regardless of phase.
+         * @param value The integer value, which will be converted to Q16.16 format.
+         */
+        inline Waveform ConstantWaveform(int32_t value) {
+            return [val_q16 = value << 16](uint32_t) { return val_q16; };
+        }
+
+        /**
+         * @brief Creates a WaveformSource that produces a constant acceleration and has zero phase velocity.
+         */
+        inline WaveformSource Constant(int32_t acceleration) {
+            return {ConstantWaveform(acceleration), ConstantWaveform(0)};
+        }
+
+        /**
+         * @brief Creates a WaveformSource that generates a signed Perlin noise acceleration.
+         * @param phaseVelocity A waveform providing the rate of phase advancement in "noise units per second" (Q16.16).
+         * @param amplitude A waveform providing the peak acceleration in integer units/sec^2 (Q16.16).
+         * @return A WaveformSource containing the noise-based acceleration and the provided phase velocity.
+         */
+        inline WaveformSource Noise(Waveform phaseVelocity, Waveform amplitude) {
+            Waveform acceleration = [amplitude](uint32_t phase) -> int32_t {
+                uint16_t rawNoise = inoise16(phase >> 16);
+                uint16_t normNoise = normaliseNoise16(rawNoise);
+                int32_t signedNoise = (int32_t) normNoise - 32768;
+
+                int32_t amp_q16 = amplitude(phase);
+                int64_t accel_q31 = (int64_t) signedNoise * amp_q16;
+                return (int32_t) (accel_q31 >> 15);
+            };
+            return {acceleration, phaseVelocity};
+        }
+    }
+
+    // --- Signal Policies ---
+
+    struct LinearPolicy {
+        void apply(int32_t &, int32_t &) const {
+        }
+    };
+
+    struct ClampPolicy {
+        using Q16_16 = int32_t;
+        Q16_16 min_val;
+        Q16_16 max_val;
+
+        /**
+         * @param min The minimum bound in integer domain units.
+         * @param max The maximum bound in integer domain units.
+         */
+        ClampPolicy(int32_t min, int32_t max) : min_val(min << 16), max_val(max << 16) {
+        }
+
+        void apply(Q16_16 &position, Q16_16 &velocity) const {
+            if (position < min_val) {
+                position = min_val;
+                velocity = 0;
+            } else if (position > max_val) {
+                position = max_val;
+                velocity = 0;
+            }
+        }
+    };
 
     /**
-    * DeltaValue (motion):
-    *   Represents change, not position
-    *   Must be integrated by the consumer
-    *   Frame-rate dependent unless explicitly normalized
-    *   Order-sensitive
-    *
-    *   Examples:
-    *       Rotation speed
-    *       Translation velocity
-    *       Angular drift
-    *       Phase accumulation
-    *       Flow-field motion
-    */
-    using DeltaValue = std::function<int32_t(unsigned long)>;
-
-    /**
-     * @brief Creates a mapper that returns a constant value, scaled from a 0-1000 input range.
-     * @param value_0_1000 The desired value in the range 0-1000. Values above 1000 will be clamped.
+     * @brief A policy that wraps a signal's position, useful for angular values.
+     * The default wrap value of 65536 makes it suitable for angles measured in "turns",
+     * where 1.0 turn = 65536 units, matching the uint16_t range.
      */
-    inline AbsoluteValue ConstantValue(uint16_t value_0_1000) {
-        uint16_t clampedValue = min(value_0_1000, (uint16_t) 1000);
-        uint16_t mappedValue = (uint32_t) clampedValue * 65535 / 1000;
-        return [mappedValue](unsigned long /*timeInMillis*/) {
-            return mappedValue;
-        };
-    }
+    struct WrapPolicy {
+        using Q16_16 = int32_t;
+        Q16_16 wrap_val;
+
+        WrapPolicy(int32_t wrap = 65536) : wrap_val(wrap << 16) {
+        }
+
+        void apply(Q16_16 &position, Q16_16 &) const {
+            // This robust version handles multiple wraps in a single time step.
+            if (position >= wrap_val || position < 0) {
+                position %= wrap_val;
+                if (position < 0) {
+                    position += wrap_val;
+                }
+            }
+        }
+    };
 
     /**
-     * @brief Creates a mapper that returns a value increasing linearly with time.
-     * @param scale The rate of change.
+     * @class Signal
+     * @brief A stateful, 1D physical model that owns and integrates time and phase.
+     * @property retention_per_sec The fraction of velocity retained after one second of damping.
+     *           This is a dimensionless value in the range [0.0, 1.0).
      */
-    inline AbsoluteValue TimeScaledValue(uint16_t scale) {
-        return [scale](unsigned long timeInMillis) {
-            // The result is shifted to keep the rate of change manageable.
-            return (uint16_t) ((timeInMillis * scale) >> 8);
-        };
-    }
+    template<typename Policy>
+    class Signal {
+    public:
+        using Time = unsigned long;
+        using Value = int32_t;
+        using Q16_16 = int32_t;
 
-    /**
-     * @brief Creates a mapper that returns a 1D Perlin noise value that evolves over time.
-     * @param scale Controls the "speed" of travel through the noise field.
-     * @param magnitude_0_1000 The output amplitude (0-1000), mapped to 0-65535. Defaults to 1000.
-     * @param seed An offset into the noise field, allowing for different random seeds.
-     */
-    inline AbsoluteValue NoiseValue(uint16_t freq_0_1000,
-                                    uint16_t magnitude_0_1000 = 1000) {
-        // Map inputs to usable ranges
-        uint16_t magnitude = map(min(magnitude_0_1000, 1000), 0, 1000, 0, 65535);
-        uint16_t freq = map(min(freq_0_1000, 1000), 0, 1000, 1, 50);
+    private:
+        Q16_16 position;
+        Q16_16 velocity = 0;
+        Waveforms::WaveformSource source;
+        uint32_t phase_q16 = 0;
+        fract16 retention_per_sec;
+        Time lastTime = 0;
+        Policy policy;
 
-        return [freq, magnitude, currentValue = uint16_t(32768)](unsigned long timeInMillis) mutable -> uint16_t {
-            // Slow down time so changes are gradual
-            uint32_t scaledTime = (timeInMillis * freq) >> 4;
+    public:
+        /**
+         * @param initialPosition The starting position of the signal.
+         * @param waveformSource The source of acceleration and phase velocity for the signal's physics.
+         * @param retention_per_sec_0_1000 An integer from 0-999 representing the percentage of
+         *        velocity to retain per second, scaled by 10. E.g., 900 means 90% retention.
+         *        A value of 1000 (100%) is disallowed to ensure all motion eventually stops.
+         */
+        template<typename... PolicyArgs>
+        Signal(
+            Value initialPosition = 0,
+            Waveforms::WaveformSource waveformSource = Waveforms::Constant(0),
+            uint16_t retention_per_sec_0_1000 = 900,
+            PolicyArgs... policy_args
+        ) : position(initialPosition << 16),
+            source(std::move(waveformSource)),
+            policy(policy_args...) {
+            // Constrain input to prevent retention >= 1.0, which would be unstable.
+            uint16_t constrained_retention = min((uint16_t) 999, retention_per_sec_0_1000);
+            retention_per_sec = divide_u16_as_fract16(constrained_retention, 1000);
+            phase_q16 = (uint32_t) random16() << 16;
+        }
 
-            uint16_t target = inoise16(scaledTime);
-            target = scale16(target, magnitude); // scale amplitude
+        void advanceFrame(Time currentTime) {
+            if (lastTime == 0) {
+                lastTime = currentTime;
+                return;
+            }
 
-            // Smooth step with IIR filter
-            currentValue += ((int32_t) target - currentValue) >> 4;
+            Time deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            if (deltaTime == 0) return;
 
-            return currentValue;
-        };
-    }
+            // Clamp deltaTime to a max of 200ms to prevent instability or large jumps
+            // after a long pause. This ensures smooth resumption of motion.
+            const Time MAX_DELTA_TIME = 200;
+            if (deltaTime > MAX_DELTA_TIME) {
+                deltaTime = MAX_DELTA_TIME;
+            }
 
-    inline DeltaValue NoiseDelta(
-        uint16_t magnitude_0_1000
-    ) {
-        // Map UI inputs
-        uint16_t magnitude = map(min(magnitude_0_1000, 1000), 0, 1000, 0, 32768);
+            const Time CHUNK_SIZE_MS = 100;
+            Time remaining_dt = deltaTime;
 
-        int32_t velocity = 0;
+            while (remaining_dt > 0) {
+                Time chunk = min(remaining_dt, CHUNK_SIZE_MS);
+                remaining_dt -= chunk;
 
-        return [magnitude, velocity](unsigned long timeInMillis) mutable -> int32_t {
-            uint32_t t = (timeInMillis) >> 4;
+                // 1. Get phase velocity and advance phase
+                int32_t phase_velocity_q16 = source.phaseVelocity(phase_q16);
+                int64_t advance_q16 = ((int64_t) phase_velocity_q16 * chunk) / MILLIS_PER_SECOND;
+                phase_q16 += (uint32_t) advance_q16;
 
-            // Signed noise target
-            int32_t target = (int32_t) inoise16(t) - 32768;
+                // 2. Get acceleration from new phase
+                Q16_16 frame_acceleration = source.acceleration(phase_q16);
 
-            // Amplitude control
-            target = (target * magnitude) >> 15;
+                // dt must be Q16.16 for physics calculations
+                int32_t dt_chunk_q16_16 = (static_cast<int32_t>(chunk) << 16) / MILLIS_PER_SECOND;
+                dt_chunk_q16_16 = constrain(dt_chunk_q16_16, 0, 1 << 16); // Clamp to max 1.0 sec
 
-            // Temporal smoothing (inertia)
-            velocity += (target - velocity) >> 3;
+                // 3. Apply acceleration
+                velocity += scale_i32_by_q16_16(frame_acceleration, dt_chunk_q16_16);
 
-            return velocity;
-        };
-    }
+                // 4. Apply damping
+                int32_t retention_this_chunk_q16 = pow_q16(retention_per_sec, dt_chunk_q16_16);
+                velocity = scale_i32_by_q16_16(velocity, retention_this_chunk_q16);
 
-    inline DeltaValue ConstantDelta(
-        uint16_t magnitude_0_1000 = 1000
-    ) {
-        // Map UI inputs
-        uint16_t magnitude = map(min(magnitude_0_1000, 1000), 0, 1000, 0, 32768);
+                // 5. Update position
+                position += scale_i32_by_q16_16(velocity, dt_chunk_q16_16);
 
-        return [ magnitude](unsigned long timeInMillis) mutable -> int32_t {
-            return magnitude;
-        };
-    }
+                // 6. Apply boundary policies
+                policy.apply(position, velocity);
+            }
+        }
+
+        /**
+         * @brief Gets the current position of the signal.
+         * @return The integer part of the signal's position, not the full Q16.16 value.
+         */
+        Value getValue() const {
+            return position >> 16;
+        }
+    };
+
+    using LinearSignal = Signal<LinearPolicy>;
+    using BoundedSignal = Signal<ClampPolicy>;
+    /// A signal whose position wraps, suitable for angles measured in turns (1.0 turn = 65536 units).
+    using AngularSignal = Signal<WrapPolicy>;
 }
 
 #endif //LED_SEGMENTS_EFFECTS_MAPPERS_VALUEMAPPERS_H
