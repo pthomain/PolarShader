@@ -80,7 +80,7 @@ PolarCoords PolarSpec::toPolarCoords(uint16_t pixelIndex) const {
             const uint16_t angleStep = currentSegmentSize > 1 ? UINT16_MAX / currentSegmentSize : 0;
             uint16_t angle = pixelInSegment * angleStep;
 
-            fract16 radius = divide_u16_as_fract16(segmentIndex + 1, numSegments);
+            fract16 radius = divide_u16_as_fract16(segmentIndex, numSegments > 1 ? numSegments - 1 : 1);
 
             return {angle, radius};
         }

@@ -30,18 +30,7 @@ namespace LEDSegments {
         OscillatingOrbit,
         EllipticalOrbit,
         PendulumDrift,
-        SlowDrift,
         PulseZoom,
-        SpiralVortex,
-        VortexSwirl,
-        Orbit,
-        Breathing,
-        Chaos,
-        RandomPop,
-        SlowSpiral,
-        Heartbeat,
-        WaveDrift,
-        RandomDrift
     };
 
     namespace CameraRigPresets {
@@ -51,24 +40,12 @@ namespace LEDSegments {
                 case CameraPreset::OscillatingOrbit: return OscillatingOrbitRig();
                 case CameraPreset::EllipticalOrbit: return EllipticalOrbitRig();
                 case CameraPreset::PendulumDrift: return PendulumDriftRig();
-                case CameraPreset::SpiralVortex: return SpiralVortexRig();
                 case CameraPreset::PulseZoom: return PulseZoomRig();
-                case CameraPreset::SlowDrift: return SlowDriftRig();
-                case CameraPreset::Orbit: return OrbitRig();
-                case CameraPreset::Breathing: return BreathingRig();
-                case CameraPreset::Chaos: return ChaosRig();
-                case CameraPreset::RandomPop: return RandomPopRig();
-                case CameraPreset::VortexSwirl: return VortexSwirlRig();
-                case CameraPreset::SlowSpiral: return SlowSpiralRig();
-                case CameraPreset::Heartbeat: return HeartbeatRig();
-                case CameraPreset::WaveDrift: return WaveDriftRig();
-                case CameraPreset::RandomDrift: return RandomDriftRig();
-
                 default:
-                    return ZoomOnlyRig(); // fallback
+                    return ZoomOnlyRig();
             }
         }
     }
-} // namespace LEDSegments
+}
 
 #endif //LED_SEGMENTS_SPECS_CAMERAPRESET_H

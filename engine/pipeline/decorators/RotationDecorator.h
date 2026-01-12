@@ -18,22 +18,22 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
-#define LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
+#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H
+#define LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H
 
 #include "base/Decorators.h"
-#include "polar/camera/CameraRig.h"
+#include "polar/engine/camera/CameraRig.h"
 
 namespace LEDSegments {
     /**
-     * @class VortexDecorator
-     * @brief Applies a radius-dependent angular offset (twist) using state from a CameraRig.
+     * @class RotationDecorator
+     * @brief Applies the global rotation from a CameraRig to the frame.
      */
-    class VortexDecorator : public PolarDecorator {
+    class RotationDecorator : public PolarDecorator {
         CameraRig &camera;
 
     public:
-        explicit VortexDecorator(CameraRig &rig) : camera(rig) {
+        explicit RotationDecorator(CameraRig &rig) : camera(rig) {
         }
 
         void advanceFrame(unsigned long timeInMillis) override {
@@ -42,20 +42,11 @@ namespace LEDSegments {
 
         PolarLayer operator()(const PolarLayer &layer) const override {
             return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                // camera.vortex() returns strength in turns as a Q16.16 value.
-                int32_t vortex_strength_q16_16 = camera.vortex();
-
-                // Scale the strength by the radius to get the angular offset.
-                // (Q16.16 * Q0.16) -> Q16.32, then shift to get Q16.16
-                int32_t offset_q16_16 = scale_i32_by_f16(vortex_strength_q16_16, radius);
-
-                // Add the integer part of the offset to the angle.
-                uint16_t new_angle_turns = angle_turns + (offset_q16_16 >> 16);
-
+                uint16_t new_angle_turns = angle_turns + camera.rotation();
                 return layer(new_angle_turns, radius, timeInMillis);
             };
         }
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
+#endif //LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H

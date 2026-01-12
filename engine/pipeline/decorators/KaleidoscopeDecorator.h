@@ -59,14 +59,12 @@ namespace LEDSegments {
             uint8_t nbSegments,
             bool isMandala = false,
             bool isMirroring = true
-        ) : nbSegments(nbSegments),
-            isMandala(isMandala),
-            isMirroring(isMirroring) {
+        ) : nbSegments(nbSegments), isMandala(isMandala), isMirroring(isMirroring) {
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
             return [this, layer](uint16_t angle, fract16 radius, unsigned long timeInMillis) {
-                uint8_t segments = map(nbSegments, 0, 65535, 1, MAX_SEGMENTS + 1);
+                uint8_t segments = constrain(nbSegments, (uint8_t)1, MAX_SEGMENTS);
 
                 uint16_t newAngle = isMandala
                                         ? angle * segments

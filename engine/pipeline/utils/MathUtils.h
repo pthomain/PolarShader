@@ -31,7 +31,7 @@ namespace LEDSegments {
         uint32_t result = static_cast<uint32_t>(value) * scale;
         result += 0x8000;
         result >>= 16;
-        return result;
+        return (fl::u16) result;
     }
 
     static fl::i16 scale_i16_by_f16(fl::i16 value, fract16 scale) {
@@ -162,9 +162,7 @@ namespace LEDSegments {
 
         // The fractional part of the log is log2(z/2^15), which is in [0,1).
         uint8_t frac_index = (z - 0x8000) >> 7;
-
         uint8_t frac_part = pgm_read_byte_near(log2_frac_lut_q8 + frac_index);
-
         return (int_part << 8) | frac_part;
     }
 
@@ -195,3 +193,4 @@ namespace LEDSegments {
     }
 }
 #endif //LED_SEGMENTS_SPECS_MATHUTILS_H
+

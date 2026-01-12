@@ -19,9 +19,8 @@
  */
 
 #include "PolarEffect.h"
-#include "../pipeline/PolarUtils.h"
-#include "polar/camera/CameraPreset.h"
-#include "polar/pipeline/CartesianNoiseLayers.h"
+#include "polar/engine/camera/CameraPreset.h"
+#include "polar/engine/pipeline/CartesianNoiseLayers.h"
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
@@ -30,11 +29,15 @@ namespace LEDSegments {
     PolarEffect::PolarEffect(
         const RenderableContext &context
     ) : Effect(context),
-        camera(CameraRigPresets::create(CameraPreset::PulseZoom)),
+        camera(CameraRigPresets::create(CameraPreset::ZoomOnly)),
         pipeline(camera),
         rotationDecorator(camera),
-        kaleidoscopeDecorator(1, false, true),
-        vortexDecorator(camera) {
+        kaleidoscopeDecorator(3, false, true),
+        vortexDecorator(camera),
+        domainWarpDecorator(camera) {
+        // Pipeline order:
+        // Viewport (advance + scale/translate) -> DomainWarp -> Rotation -> Vortex -> Symmetry -> Noise -> Palette
+        pipeline.addCartesianDecorator(&domainWarpDecorator);
         pipeline.addPolarDecorator(&rotationDecorator);
         pipeline.addPolarDecorator(&vortexDecorator);
         pipeline.addPolarDecorator(&kaleidoscopeDecorator);

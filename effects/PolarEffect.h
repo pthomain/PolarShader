@@ -23,11 +23,12 @@
 
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
-#include "polar/pipeline/PolarPipeline.h"
-#include "polar/pipeline/decorators/KaleidoscopeDecorator.h"
-#include "polar/pipeline/decorators/VortexDecorator.h"
-#include "polar/pipeline/decorators/RotationDecorator.h"
-#include "polar/camera/CameraRig.h"
+#include "polar/engine/pipeline/PolarPipeline.h"
+#include "polar/engine/pipeline/decorators/KaleidoscopeDecorator.h"
+#include "polar/engine/pipeline/decorators/DomainWarpDecorator.h"
+#include "polar/engine/pipeline/decorators/VortexDecorator.h"
+#include "polar/engine/pipeline/decorators/RotationDecorator.h"
+#include "polar/engine/camera/CameraRig.h"
 
 namespace LEDSegments {
     class PolarEffect : public Effect<PolarEffect> {
@@ -38,6 +39,7 @@ namespace LEDSegments {
         RotationDecorator rotationDecorator;
         KaleidoscopeDecorator kaleidoscopeDecorator;
         VortexDecorator vortexDecorator;
+        DomainWarpDecorator domainWarpDecorator;
 
         CRGB blendLayers(
             uint16_t angle_turns,

@@ -24,37 +24,15 @@
 #include "CameraRig.h"
 
 namespace LEDSegments {
-    CameraRig SlowDriftRig();
-
-    CameraRig OrbitRig();
-
-    CameraRig BreathingRig();
-
-    CameraRig ChaosRig();
-
-    CameraRig PulseZoomRig();
-
-    CameraRig SpiralVortexRig();
-
     CameraRig ZoomOnlyRig();
 
     CameraRig OscillatingOrbitRig();
 
-    CameraRig PendulumDriftRig();
-
-    CameraRig RandomPopRig();
-
     CameraRig EllipticalOrbitRig();
 
-    CameraRig VortexSwirlRig();
+    CameraRig PendulumDriftRig();
 
-    CameraRig SlowSpiralRig();
-
-    CameraRig HeartbeatRig();
-
-    CameraRig WaveDriftRig();
-
-    CameraRig RandomDriftRig();
-} // namespace LEDSegments
+    CameraRig PulseZoomRig();
+}
 
 #endif // LED_SEGMENTS_CAMERA_RIG_PRESETS_H

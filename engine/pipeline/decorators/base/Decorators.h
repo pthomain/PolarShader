@@ -24,37 +24,17 @@
 #include "Layers.h"
 
 namespace LEDSegments {
-    /**
-     * @class FrameDecorator
-     * @brief The abstract base for all decorators.
-     */
     class FrameDecorator {
     public:
         virtual ~FrameDecorator() = default;
-
-        /**
-         * @brief Evolves the decorator's internal state for the next frame.
-         * @param timeInMillis The current animation time.
-         * Decorators that have time-varying state should override this method.
-         */
-        virtual void advanceFrame(unsigned long timeInMillis) {
-            // Default implementation is empty.
-        }
+        virtual void advanceFrame(unsigned long timeInMillis) {};
     };
 
-    /**
-     * @class CartesianDecorator
-     * @brief An interface for decorators that operate in the Cartesian (X, Y) domain.
-     */
     class CartesianDecorator : public virtual FrameDecorator {
-    public:
+        public:
         virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
     };
 
-    /**
-     * @class PolarDecorator
-     * @brief An interface for decorators that operate in the Polar (Angle, Radius) domain.
-     */
     class PolarDecorator : public virtual FrameDecorator {
     public:
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
@@ -62,3 +42,4 @@ namespace LEDSegments {
 }
 
 #endif //LED_SEGMENTS_EFFECTS_DECORATORS_DECORATORS_LAYERS_H
+

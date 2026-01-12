@@ -40,17 +40,10 @@ namespace LEDSegments {
         }
     };
 
-    /**
-     * @brief Converts polar coordinates to a clean, signed Cartesian space.
-     * @param angle_turns The polar angle in turns (1.0 turn = 65536 units).
-     * @param radius The polar radius (fract16 from 0-65535, representing 0.0 to ~1.0).
-     * @return A pair of {x, y} coordinates in a signed 32-bit integer space.
-     */
     static fl::pair<int32_t, int32_t> cartesianCoords(
         fl::u16 angle_turns,
         fract16 radius
     ) {
-        // Convert polar to signed cartesian space at full resolution
         int32_t x = scale_i16_by_f16(cos16(angle_turns), radius);
         int32_t y = scale_i16_by_f16(sin16(angle_turns), radius);
         return {x, y};

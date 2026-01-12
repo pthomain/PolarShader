@@ -22,7 +22,7 @@
 #define LED_SEGMENTS_EFFECTS_DECORATORS_VIEWPORTDECORATOR_H
 
 #include "base/Decorators.h"
-#include "polar/camera/CameraRig.h"
+#include "polar/engine/camera/CameraRig.h"
 
 namespace LEDSegments {
     /**

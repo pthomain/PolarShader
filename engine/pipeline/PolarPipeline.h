@@ -25,12 +25,13 @@
 #include <type_traits>
 #include "PolarUtils.h"
 #include "utils/NoiseUtils.h"
-#include "polar/camera/CameraRig.h"
+#include "polar/engine/camera/CameraRig.h"
 
 namespace LEDSegments {
     class PolarPipeline {
         ViewPortDecorator viewPortDecorator;
         fl::vector<FrameDecorator *> frameDecorators;
+        fl::vector<CartesianDecorator *> cartesianDecorators;
         fl::vector<PolarDecorator *> polarDecorators;
 
     public:
@@ -44,9 +45,18 @@ namespace LEDSegments {
             polarDecorators.push_back(decorator);
         }
 
+        template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianDecorator, T>::value> >
+        void addCartesianDecorator(T *decorator) {
+            frameDecorators.push_back(decorator);
+            cartesianDecorators.push_back(decorator);
+        }
+
         void clear() {
             frameDecorators.clear();
+            cartesianDecorators.clear();
             polarDecorators.clear();
+            // Keep viewport as the first frame decorator
+            frameDecorators.push_back(&viewPortDecorator);
         }
 
         void advanceFrame(unsigned long timeInMillis) {
@@ -58,15 +68,20 @@ namespace LEDSegments {
         ColourLayer build(const NoiseLayer &sourceLayer, const CRGBPalette16 &palette) {
             CartesianLayer adaptedSource = [sourceLayer](int32_t x, int32_t y, unsigned long t) {
                 return sourceLayer(
-                    (uint32_t) x + NOISE_DOMAIN_OFFSET,
-                    (uint32_t) y + NOISE_DOMAIN_OFFSET,
+                    x + NOISE_DOMAIN_OFFSET,
+                    y + NOISE_DOMAIN_OFFSET,
                     t
                 );
             };
 
-            CartesianLayer adjustedViewPort = viewPortDecorator(adaptedSource);
+            // Apply viewport first so subsequent cartesian decorators (e.g. domain warp)
+            // do NOT get scaled by zoom
+            CartesianLayer currentCartesian = viewPortDecorator(adaptedSource);
+            for (size_t i = 0; i < cartesianDecorators.size(); ++i) {
+                currentCartesian = (*cartesianDecorators[cartesianDecorators.size() - 1 - i])(currentCartesian);
+            }
 
-            PolarLayer currentPolar = [layer = adjustedViewPort
+            PolarLayer currentPolar = [layer = currentCartesian
                     ](uint16_t angle_turns, fract16 radius, unsigned long t) {
                 auto [x, y] = cartesianCoords(angle_turns, radius);
                 return layer(x, y, t);
@@ -77,7 +92,9 @@ namespace LEDSegments {
             }
 
             return [palette, layer = currentPolar](uint16_t angle_turns, fract16 radius, unsigned long t) {
-                uint8_t index = map16_to_8(normaliseNoise16(layer(angle_turns, radius, t)));
+                uint16_t value = normaliseNoise16(layer(angle_turns, radius, t));
+                uint8_t phase = 0; //t / 8;
+                uint8_t index = map16_to_8(value) + phase;
                 return ColorFromPalette(palette, index, 255, LINEARBLEND);
             };
         }
