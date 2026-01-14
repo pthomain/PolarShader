@@ -18,32 +18,36 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
-#define LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
+#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_VORTEXTRANSFORM_H
+#define LED_SEGMENTS_EFFECTS_TRANSFORMS_VORTEXTRANSFORM_H
 
-#include "base/Decorators.h"
-#include "polar/engine/camera/CameraRig.h"
+#include "base/Transforms.h"
+#include "polar/engine/pipeline/mappers/Signal.h"
 
 namespace LEDSegments {
     /**
-     * @class VortexDecorator
-     * @brief Applies a radius-dependent angular offset (twist) using state from a CameraRig.
+     * @class VortexTransform
+     * @brief Applies a radius-dependent angular offset (twist) to the polar coordinates.
      */
-    class VortexDecorator : public PolarDecorator {
-        CameraRig &camera;
+    class VortexTransform : public PolarTransform {
+        BoundedSignal vortexSignal;
 
     public:
-        explicit VortexDecorator(CameraRig &rig) : camera(rig) {
+        /**
+         * @brief Constructs a new VortexTransform.
+         * @param vortex A signal that provides the vortex strength over time.
+         */
+        explicit VortexTransform(BoundedSignal vortex) : vortexSignal(std::move(vortex)) {
         }
 
         void advanceFrame(unsigned long timeInMillis) override {
-            // Time is advanced by ViewPortDecorator via the CameraRig.
+            vortexSignal.advanceFrame(timeInMillis);
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
             return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                // camera.vortex() returns strength in turns as a Q16.16 value.
-                int32_t vortex_strength_q16_16 = camera.vortex();
+                // vortexSignal.getValue() returns strength in turns as a Q16.16 value.
+                int32_t vortex_strength_q16_16 = vortexSignal.getValue();
 
                 // Scale the strength by the radius to get the angular offset.
                 // (Q16.16 * Q0.16) -> Q16.32, then shift to get Q16.16
@@ -58,4 +62,4 @@ namespace LEDSegments {
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_DECORATORS_VORTEXDECORATOR_H
+#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_VORTEXTRANSFORM_H

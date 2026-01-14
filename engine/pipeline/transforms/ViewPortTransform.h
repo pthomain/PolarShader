@@ -18,39 +18,39 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_VIEWPORTDECORATOR_H
-#define LED_SEGMENTS_EFFECTS_DECORATORS_VIEWPORTDECORATOR_H
+#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_VIEWPORTTRANSFORM_H
+#define LED_SEGMENTS_EFFECTS_TRANSFORMS_VIEWPORTTRANSFORM_H
 
-#include "base/Decorators.h"
-#include "polar/engine/camera/CameraRig.h"
+#include "base/Transforms.h"
+#include "../ViewPort.h"
 
 namespace LEDSegments {
     /**
-     * @class ViewPortDecorator
+     * @class ViewPortTransform
      * @brief A thin adapter that applies camera transformations to the Cartesian coordinate space.
      */
-    class ViewPortDecorator : public CartesianDecorator {
-        CameraRig &camera;
+    class ViewPortTransform : public CartesianTransform {
+        ViewPort &viewPort;
 
     public:
-        explicit ViewPortDecorator(CameraRig &rig) : camera(rig) {
+        explicit ViewPortTransform(ViewPort &viewPort) : viewPort(viewPort) {
         }
 
         void advanceFrame(unsigned long t) override {
             // The camera rig is the single source of truth for advancing time.
-            camera.advanceFrame(t);
+            viewPort.advanceFrame(t);
         }
 
         CartesianLayer operator()(const CartesianLayer &layer) const override {
             return [this, layer](int32_t x, int32_t y, unsigned long t) {
                 // Apply the inverse scale to "zoom" the coordinate space.
-                int32_t sx = scale_i32_by_q16_16(x, camera.inverseLinearScale());
-                int32_t sy = scale_i32_by_q16_16(y, camera.inverseLinearScale());
+                int32_t sx = scale_i32_by_q16_16(x, viewPort.inverseLinearScale());
+                int32_t sy = scale_i32_by_q16_16(y, viewPort.inverseLinearScale());
 
                 // Apply translation.
                 return layer(
-                    sx + camera.positionX(),
-                    sy + camera.positionY(),
+                    sx + viewPort.positionX(),
+                    sy + viewPort.positionY(),
                     t
                 );
             };
@@ -58,4 +58,4 @@ namespace LEDSegments {
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_DECORATORS_VIEWPORTDECORATOR_H
+#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_VIEWPORTTRANSFORM_H

@@ -18,71 +18,51 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_SPECS_CAMERARIG_H
-#define LED_SEGMENTS_SPECS_CAMERARIG_H
+#ifndef LED_SEGMENTS_SPECS_VIEWPORT_H
+#define LED_SEGMENTS_SPECS_VIEWPORT_H
 
-#include "polar/engine/pipeline/mappers/Signal.h"
-#include "polar/engine/pipeline/utils/MathUtils.h"
+#include "mappers/Signal.h"
+#include "utils/MathUtils.h"
 
 namespace LEDSegments {
-    class CameraRig {
+    /**
+     * @brief Defines the viewpoint for the rendering pipeline, controlling position (pan) and zoom.
+     *
+     * The ViewPort is responsible for managing the fundamental properties of a "camera" that
+     * define the viewing window on a 2D plane. This includes the X/Y position and the zoom level.
+     */
+    class ViewPort {
         LinearSignal posX;
         LinearSignal posY;
         BoundedSignal logZoom;
-        AngularSignal rotationSignal;
-        BoundedSignal vortexSignal;
-
-        LinearSignal warpXSignal;
-        LinearSignal warpYSignal;
-
-        int32_t warpDeltaX_int = 0;
-        int32_t warpDeltaY_int = 0;
-        int32_t lastWarpPosX_int = 0;
-        int32_t lastWarpPosY_int = 0;
 
         int16_t lastQuantizedLogScale = INT16_MIN;
         int32_t cachedInverseScale = 1 << 16;
 
     public:
-        CameraRig(
+        /**
+         * @brief Constructs a new ViewPort.
+         * @param x A LinearSignal that controls the camera's X position.
+         * @param y A LinearSignal that controls the camera's Y position.
+         * @param zoom A BoundedSignal that controls the camera's zoom level (logarithmic).
+         */
+        ViewPort(
             LinearSignal x,
             LinearSignal y,
-            BoundedSignal zoom,
-            AngularSignal rotation,
-            BoundedSignal vortex
+            BoundedSignal zoom
         ) : posX(std::move(x)),
             posY(std::move(y)),
-            logZoom(std::move(zoom)),
-            rotationSignal(std::move(rotation)),
-            vortexSignal(std::move(vortex)),
-            warpXSignal(LinearSignal(0, Waveforms::Constant(0))),
-            warpYSignal(LinearSignal(0, Waveforms::Constant(0))) {
+            logZoom(std::move(zoom)) {
         }
 
-        void setWarpSignals(LinearSignal xWarp, LinearSignal yWarp) {
-            warpXSignal = std::move(xWarp);
-            warpYSignal = std::move(yWarp);
-            lastWarpPosX_int = warpXSignal.getValue();
-            lastWarpPosY_int = warpYSignal.getValue();
-            warpDeltaX_int = 0;
-            warpDeltaY_int = 0;
-        }
-
+        /**
+         * @brief Advances the camera's state in time.
+         * @param t The current time in milliseconds.
+         */
         void advanceFrame(unsigned long t) {
             posX.advanceFrame(t);
             posY.advanceFrame(t);
             logZoom.advanceFrame(t);
-            rotationSignal.advanceFrame(t);
-            vortexSignal.advanceFrame(t);
-
-            warpXSignal.advanceFrame(t);
-            warpYSignal.advanceFrame(t);
-            int32_t currentWarpPosX = warpXSignal.getValue();
-            int32_t currentWarpPosY = warpYSignal.getValue();
-            warpDeltaX_int = currentWarpPosX - lastWarpPosX_int;
-            warpDeltaY_int = currentWarpPosY - lastWarpPosY_int;
-            lastWarpPosX_int = currentWarpPosX;
-            lastWarpPosY_int = currentWarpPosY;
 
             // The BoundedSignal for logZoom is configured to stay within a range that
             // safely fits in an int16_t, so this cast is safe.
@@ -105,25 +85,14 @@ namespace LEDSegments {
             }
         }
 
-        // World-space camera state
+        /// Returns the camera's X position in world-space.
         int32_t positionX() const { return posX.getValue(); }
+        /// Returns the camera's Y position in world-space.
         int32_t positionY() const { return posY.getValue(); }
 
-        // Log2 scale, returned as an int32_t but should be interpreted as Q8.8
-        int32_t logScale() const { return logZoom.getValue(); }
-
-        // Inverse linear scale (Q16.16) for coordinate scaling
+        /// Returns the inverse linear scale (Q16.16) for coordinate scaling.
         int32_t inverseLinearScale() const { return cachedInverseScale; }
-
-        // Angular rotation (uint16 wrap)
-        uint16_t rotation() const { return rotationSignal.getValue(); }
-
-        // Absolute vortex strength (signed Q16.16 turns)
-        int32_t vortex() const { return vortexSignal.getValue(); }
-
-        int32_t warpDeltaX() const { return warpDeltaX_int; }
-        int32_t warpDeltaY() const { return warpDeltaY_int; }
     };
 }
 
-#endif //LED_SEGMENTS_SPECS_CAMERARIG_H
+#endif //LED_SEGMENTS_SPECS_VIEWPORT_H

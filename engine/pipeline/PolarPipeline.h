@@ -21,47 +21,51 @@
 #ifndef LED_SEGMENTS_EFFECTS_DECORATORS_POLARPIPELINE_H
 #define LED_SEGMENTS_EFFECTS_DECORATORS_POLARPIPELINE_H
 
-#include "decorators/ViewPortDecorator.h"
+#include "transforms/ViewPortTransform.h"
 #include <type_traits>
 #include "PolarUtils.h"
 #include "utils/NoiseUtils.h"
-#include "polar/engine/camera/CameraRig.h"
+#include "ViewPort.h"
 
 namespace LEDSegments {
+    /**
+     * @brief Manages the rendering pipeline for polar effects.
+     *
+     * The PolarPipeline is responsible for chaining together a series of transforms
+     * to transform coordinates and generate the final colour for each pixel. It handles
+     * both Cartesian and Polar coordinate transforms.
+     */
     class PolarPipeline {
-        ViewPortDecorator viewPortDecorator;
-        fl::vector<FrameDecorator *> frameDecorators;
-        fl::vector<CartesianDecorator *> cartesianDecorators;
-        fl::vector<PolarDecorator *> polarDecorators;
+        ViewPortTransform viewPortTransform;
+        fl::vector<CartesianTransform *> cartesianTransforms;
+        fl::vector<PolarTransform *> polarTransforms;
 
     public:
-        explicit PolarPipeline(CameraRig &camera) : viewPortDecorator(camera) {
-            frameDecorators.push_back(&viewPortDecorator);
+        explicit PolarPipeline(ViewPort &camera) : viewPortTransform(camera) {
         }
 
-        template<typename T, typename = std::enable_if_t<std::is_base_of<PolarDecorator, T>::value> >
-        void addPolarDecorator(T *decorator) {
-            frameDecorators.push_back(decorator);
-            polarDecorators.push_back(decorator);
+        template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
+        void addPolarTransform(T *transform) {
+            polarTransforms.push_back(transform);
         }
 
-        template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianDecorator, T>::value> >
-        void addCartesianDecorator(T *decorator) {
-            frameDecorators.push_back(decorator);
-            cartesianDecorators.push_back(decorator);
+        template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianTransform, T>::value> >
+        void addCartesianTransform(T *transform) {
+            cartesianTransforms.push_back(transform);
         }
 
         void clear() {
-            frameDecorators.clear();
-            cartesianDecorators.clear();
-            polarDecorators.clear();
-            // Keep viewport as the first frame decorator
-            frameDecorators.push_back(&viewPortDecorator);
+            cartesianTransforms.clear();
+            polarTransforms.clear();
         }
 
         void advanceFrame(unsigned long timeInMillis) {
-            for (auto *decorator: frameDecorators) {
-                decorator->advanceFrame(timeInMillis);
+            viewPortTransform.advanceFrame(timeInMillis);
+            for (auto *transform: cartesianTransforms) {
+                transform->advanceFrame(timeInMillis);
+            }
+            for (auto *transform: polarTransforms) {
+                transform->advanceFrame(timeInMillis);
             }
         }
 
@@ -74,23 +78,28 @@ namespace LEDSegments {
                 );
             };
 
-            // Apply viewport first so subsequent cartesian decorators (e.g. domain warp)
-            // do NOT get scaled by zoom
-            CartesianLayer currentCartesian = viewPortDecorator(adaptedSource);
-            for (size_t i = 0; i < cartesianDecorators.size(); ++i) {
-                currentCartesian = (*cartesianDecorators[cartesianDecorators.size() - 1 - i])(currentCartesian);
+            // Apply viewport first, so subsequent cartesian transforms (e.g., domain warp)
+            // are not scaled by zoom.
+            CartesianLayer currentCartesian = viewPortTransform(adaptedSource);
+
+            // Apply Cartesian transforms in reverse order for correct functional composition.
+            for (auto it = cartesianTransforms.rbegin(); it != cartesianTransforms.rend(); ++it) {
+                currentCartesian = (**it)(currentCartesian);
             }
 
+            // Convert the Cartesian layer to a Polar layer.
             PolarLayer currentPolar = [layer = currentCartesian
                     ](uint16_t angle_turns, fract16 radius, unsigned long t) {
                 auto [x, y] = cartesianCoords(angle_turns, radius);
                 return layer(x, y, t);
             };
 
-            for (size_t i = 0; i < polarDecorators.size(); ++i) {
-                currentPolar = (*polarDecorators[polarDecorators.size() - 1 - i])(currentPolar);
+            // Apply Polar transforms in reverse order.
+            for (auto it = polarTransforms.rbegin(); it != polarTransforms.rend(); ++it) {
+                currentPolar = (**it)(currentPolar);
             }
 
+            // Final stage: sample the noise value and map it to a color from the palette.
             return [palette, layer = currentPolar](uint16_t angle_turns, fract16 radius, unsigned long t) {
                 uint16_t value = normaliseNoise16(layer(angle_turns, radius, t));
                 uint8_t phase = 0; //t / 8;

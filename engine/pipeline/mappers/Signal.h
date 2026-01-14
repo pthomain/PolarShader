@@ -55,7 +55,7 @@ namespace LEDSegments {
         Q16_16 velocity = 0;
         Waveforms::WaveformSource source;
         uint32_t phase_q16 = 0;
-        fract16 retention_per_sec;
+        fract16 retention_per_sec; //todo rename to friction
         Time lastTime = 0;
         Policy policy;
 

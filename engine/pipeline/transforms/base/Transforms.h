@@ -18,21 +18,29 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_CAMERA_RIG_PRESETS_H
-#define LED_SEGMENTS_CAMERA_RIG_PRESETS_H
+#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_TRANSFORMS_H
+#define LED_SEGMENTS_EFFECTS_TRANSFORMS_TRANSFORMS_H
 
-#include "CameraRig.h"
+#include "Layers.h"
 
 namespace LEDSegments {
-    CameraRig ZoomOnlyRig();
+    class FrameTransform {
+    public:
+        virtual ~FrameTransform() = default;
 
-    CameraRig OscillatingOrbitRig();
+        virtual void advanceFrame(unsigned long timeInMillis) {
+        };
+    };
 
-    CameraRig EllipticalOrbitRig();
+    class CartesianTransform : public virtual FrameTransform {
+    public:
+        virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
+    };
 
-    CameraRig PendulumDriftRig();
-
-    CameraRig PulseZoomRig();
+    class PolarTransform : public virtual FrameTransform {
+    public:
+        virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
+    };
 }
 
-#endif // LED_SEGMENTS_CAMERA_RIG_PRESETS_H
+#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_TRANSFORMS_H

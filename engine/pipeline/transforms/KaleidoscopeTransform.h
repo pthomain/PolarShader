@@ -18,20 +18,20 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_KALEIDOSCOPEDECORATOR_H
-#define LED_SEGMENTS_EFFECTS_DECORATORS_KALEIDOSCOPEDECORATOR_H
+#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
+#define LED_SEGMENTS_EFFECTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
 
-#include "base/Decorators.h"
+#include "base/Transforms.h"
 
 namespace LEDSegments {
     /**
-     * @class KaleidoscopeDecorator
-     * @brief A stateless Polar decorator that folds the angular space to create symmetry.
+     * @class KaleidoscopeTransform
+     * @brief A stateless Polar transform that folds the angular space to create symmetry.
      *
      * The number of segments is controlled by a ValueMapper, which provides a
-     * normalized 0-65535 value that this decorator maps to the segment count.
+     * normalized 0-65535 value that this transform maps to the segment count.
      */
-    class KaleidoscopeDecorator : public PolarDecorator {
+    class KaleidoscopeTransform : public PolarTransform {
         uint8_t nbSegments;
         bool isMandala;
         bool isMirroring;
@@ -55,7 +55,7 @@ namespace LEDSegments {
         }
 
     public:
-        explicit KaleidoscopeDecorator(
+        explicit KaleidoscopeTransform(
             uint8_t nbSegments,
             bool isMandala = false,
             bool isMirroring = true
@@ -76,4 +76,4 @@ namespace LEDSegments {
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_DECORATORS_KALEIDOSCOPEDECORATOR_H
+#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H

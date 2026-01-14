@@ -1,6 +1,7 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
 //  Copyright (C) 2023 Pierre Thomain
 
+
 /*
  * This file is part of LED Segments.
  *
@@ -19,7 +20,6 @@
  */
 
 #include "PolarEffect.h"
-#include "polar/engine/camera/CameraPreset.h"
 #include "polar/engine/pipeline/CartesianNoiseLayers.h"
 
 namespace LEDSegments {
@@ -29,18 +29,78 @@ namespace LEDSegments {
     PolarEffect::PolarEffect(
         const RenderableContext &context
     ) : Effect(context),
-        camera(CameraRigPresets::create(CameraPreset::ZoomOnly)),
-        pipeline(camera),
-        rotationDecorator(camera),
-        kaleidoscopeDecorator(3, false, true),
-        vortexDecorator(camera),
-        domainWarpDecorator(camera) {
+        viewPort(
+            // X position: slow noise-driven drift
+            LinearSignal(
+                0,
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(1000),
+                    Waveforms::ConstantWaveform(4000)
+                )
+            ),
+            // Y position: slow noise-driven drift (with a different noise seed)
+            LinearSignal(
+                0,
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(1000),
+                    Waveforms::ConstantWaveform(4000)
+                )
+            ),
+            // Zoom: slow noise-driven drift
+            BoundedSignal(
+                0,
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(1000),
+                    Waveforms::ConstantWaveform(6000)
+                ),
+                950,
+                -(8 << 8),
+                0
+            )
+        ),
+        pipeline(viewPort),
+        rotationTransform(
+            AngularSignal(
+                0,
+                Waveforms::Constant(500)
+            )
+        ),
+        kaleidoscopeTransform(3, false, true),
+        vortexTransform(
+            BoundedSignal(
+                0,
+                Waveforms::Pulse(
+                    Waveforms::ConstantWaveform(200),
+                    Waveforms::ConstantWaveform(20000)
+                ),
+                500,
+                -30000,
+                30000
+            )
+        ),
+        domainWarpTransform(
+            LinearSignal(
+                0,
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(100),
+                    Waveforms::ConstantWaveform(1000)
+                )
+            ),
+            LinearSignal(
+                0,
+                Waveforms::Noise(
+                    Waveforms::ConstantWaveform(100),
+                    Waveforms::ConstantWaveform(1000)
+                )
+            )
+        ) {
+
         // Pipeline order:
         // Viewport (advance + scale/translate) -> DomainWarp -> Rotation -> Vortex -> Symmetry -> Noise -> Palette
-        pipeline.addCartesianDecorator(&domainWarpDecorator);
-        pipeline.addPolarDecorator(&rotationDecorator);
-        pipeline.addPolarDecorator(&vortexDecorator);
-        pipeline.addPolarDecorator(&kaleidoscopeDecorator);
+        // pipeline.addCartesianTransform(&domainWarpTransform);
+        // pipeline.addPolarTransform(&rotationTransform);
+        // pipeline.addPolarTransform(&vortexTransform);
+        // pipeline.addPolarTransform(&kaleidoscopeTransform);
 
         finalLayer = pipeline.build(noiseLayer, context.palette.palette);
     }

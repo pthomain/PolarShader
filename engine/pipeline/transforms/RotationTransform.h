@@ -18,35 +18,39 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H
-#define LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H
+#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_ROTATIONTRANSFORM_H
+#define LED_SEGMENTS_EFFECTS_TRANSFORMS_ROTATIONTRANSFORM_H
 
-#include "base/Decorators.h"
-#include "polar/engine/camera/CameraRig.h"
+#include "base/Transforms.h"
+#include "polar/engine/pipeline/mappers/Signal.h"
 
 namespace LEDSegments {
     /**
-     * @class RotationDecorator
-     * @brief Applies the global rotation from a CameraRig to the frame.
+     * @class RotationTransform
+     * @brief Applies a dynamic rotation to the polar coordinates.
      */
-    class RotationDecorator : public PolarDecorator {
-        CameraRig &camera;
+    class RotationTransform : public PolarTransform {
+        AngularSignal rotationSignal;
 
     public:
-        explicit RotationDecorator(CameraRig &rig) : camera(rig) {
+        /**
+         * @brief Constructs a new RotationTransform.
+         * @param rotation A signal that provides the rotation angle over time.
+         */
+        explicit RotationTransform(AngularSignal rotation) : rotationSignal(std::move(rotation)) {
         }
 
         void advanceFrame(unsigned long timeInMillis) override {
-            // Time is advanced by ViewPortDecorator via the CameraRig.
+            rotationSignal.advanceFrame(timeInMillis);
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
             return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                uint16_t new_angle_turns = angle_turns + camera.rotation();
+                uint16_t new_angle_turns = angle_turns + rotationSignal.getValue();
                 return layer(new_angle_turns, radius, timeInMillis);
             };
         }
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_DECORATORS_ROTATIONDECORATOR_H
+#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_ROTATIONTRANSFORM_H
