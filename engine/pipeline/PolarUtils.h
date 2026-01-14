@@ -48,5 +48,25 @@ namespace LEDSegments {
         int32_t y = scale_i16_by_f16(sin16(angle_turns), radius);
         return {x, y};
     }
+
+    static fl::pair<fl::u16, fract16> polarCoords(
+        fl::i32 x,
+        fl::i32 y
+    ) {
+        int32_t clampedX = constrain(x, INT16_MIN, INT16_MAX);
+        int32_t clampedY = constrain(y, INT16_MIN, INT16_MAX);
+        int16_t x16 = static_cast<int16_t>(clampedX);
+        int16_t y16 = static_cast<int16_t>(clampedY);
+
+        fl::u16 angle_turns = atan2_turns_approx(y16, x16);
+        int32_t dx = x16;
+        int32_t dy = y16;
+        uint32_t radius_squared = static_cast<uint32_t>(dx * dx) + static_cast<uint32_t>(dy * dy);
+        uint16_t magnitude = sqrt_u32(radius_squared);
+        uint32_t radius_q16 = (static_cast<uint32_t>(magnitude) << 16) / 32767u;
+        if (radius_q16 > UINT16_MAX) radius_q16 = UINT16_MAX;
+        fract16 radius = static_cast<fract16>(radius_q16);
+        return {angle_turns, radius};
+    }
 }
 #endif //LED_SEGMENTS_SPECS_POLARUTILS_H

@@ -32,12 +32,12 @@ namespace LEDSegments {
         };
     };
 
-    class CartesianTransform : public virtual FrameTransform {
+    class CartesianTransform : public FrameTransform {
     public:
         virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
     };
 
-    class PolarTransform : public virtual FrameTransform {
+    class PolarTransform : public FrameTransform {
     public:
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
     };

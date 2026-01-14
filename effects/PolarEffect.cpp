@@ -21,6 +21,10 @@
 
 #include "PolarEffect.h"
 #include "polar/engine/pipeline/CartesianNoiseLayers.h"
+#include "polar/engine/pipeline/transforms/KaleidoscopeTransform.h"
+#include "polar/engine/pipeline/transforms/DomainWarpTransform.h"
+#include "polar/engine/pipeline/transforms/VortexTransform.h"
+#include "polar/engine/pipeline/transforms/RotationTransform.h"
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
@@ -29,80 +33,58 @@ namespace LEDSegments {
     PolarEffect::PolarEffect(
         const RenderableContext &context
     ) : Effect(context),
-        viewPort(
-            // X position: slow noise-driven drift
-            LinearSignal(
-                0,
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(1000),
-                    Waveforms::ConstantWaveform(4000)
-                )
-            ),
-            // Y position: slow noise-driven drift (with a different noise seed)
-            LinearSignal(
-                0,
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(1000),
-                    Waveforms::ConstantWaveform(4000)
-                )
-            ),
-            // Zoom: slow noise-driven drift
-            BoundedSignal(
-                0,
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(1000),
-                    Waveforms::ConstantWaveform(6000)
-                ),
-                950,
-                -(8 << 8),
-                0
-            )
-        ),
-        pipeline(viewPort),
-        rotationTransform(
-            AngularSignal(
-                0,
-                Waveforms::Constant(500)
-            )
-        ),
-        kaleidoscopeTransform(3, false, true),
-        vortexTransform(
-            BoundedSignal(
-                0,
-                Waveforms::Pulse(
-                    Waveforms::ConstantWaveform(200),
-                    Waveforms::ConstantWaveform(20000)
-                ),
-                500,
-                -30000,
-                30000
-            )
-        ),
-        domainWarpTransform(
-            LinearSignal(
-                0,
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(100),
-                    Waveforms::ConstantWaveform(1000)
-                )
-            ),
-            LinearSignal(
-                0,
-                Waveforms::Noise(
-                    Waveforms::ConstantWaveform(100),
-                    Waveforms::ConstantWaveform(1000)
+        pipeline(
+            PolarPipelineBuilder(std::move(noiseLayer), context.palette.palette)
+            .addCartesianTransform(
+                DomainWarpTransform(
+                    LinearSignal(
+                        0,
+                        Waveforms::Noise(
+                            Waveforms::ConstantWaveform(100),
+                            Waveforms::ConstantWaveform(1000)
+                        )
+                    ),
+                    LinearSignal(
+                        0,
+                        Waveforms::Noise(
+                            Waveforms::ConstantWaveform(100),
+                            Waveforms::ConstantWaveform(1000)
+                        )
+                    )
                 )
             )
+            .addPolarTransform(
+                RotationTransform(
+                    AngularSignal(
+                        0,
+                        Waveforms::Constant(500)
+                    )
+                )
+            )
+            .addPolarTransform(
+                VortexTransform(
+                    BoundedSignal(
+                        0,
+                        Waveforms::Pulse(
+                            Waveforms::ConstantWaveform(200),
+                            Waveforms::ConstantWaveform(20000)
+                        ),
+                        500,
+                        -30000,
+                        30000
+                    )
+                )
+            )
+            .addPolarTransform(
+                KaleidoscopeTransform(
+                    3,
+                    false,
+                    true
+                )
+            )
+            .build()
         ) {
-
-        // Pipeline order:
-        // Viewport (advance + scale/translate) -> DomainWarp -> Rotation -> Vortex -> Symmetry -> Noise -> Palette
-        // pipeline.addCartesianTransform(&domainWarpTransform);
-        // pipeline.addPolarTransform(&rotationTransform);
-        // pipeline.addPolarTransform(&vortexTransform);
-        // pipeline.addPolarTransform(&kaleidoscopeTransform);
-
-        finalLayer = pipeline.build(noiseLayer, context.palette.palette);
+        colourLayer = pipeline.build();
     }
 
     CRGB PolarEffect::blendLayers(
@@ -152,7 +134,7 @@ namespace LEDSegments {
                 angle_turns,
                 radius,
                 timeInMillis,
-                finalLayer
+                colourLayer
             );
         }
     }

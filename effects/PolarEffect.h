@@ -23,22 +23,12 @@
 
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
-#include "polar/engine/pipeline/PolarPipeline.h"
-#include "polar/engine/pipeline/transforms/KaleidoscopeTransform.h"
-#include "polar/engine/pipeline/transforms/DomainWarpTransform.h"
-#include "polar/engine/pipeline/transforms/VortexTransform.h"
-#include "polar/engine/pipeline/transforms/RotationTransform.h"
+#include "polar/engine/pipeline/PolarPipelineBuilder.h"
 
 namespace LEDSegments {
     class PolarEffect : public Effect<PolarEffect> {
-        ViewPort viewPort;
         PolarPipeline pipeline;
-        ColourLayer finalLayer;
-
-        RotationTransform rotationTransform;
-        KaleidoscopeTransform kaleidoscopeTransform;
-        VortexTransform vortexTransform;
-        DomainWarpTransform domainWarpTransform;
+        ColourLayer colourLayer;
 
         CRGB blendLayers(
             uint16_t angle_turns,

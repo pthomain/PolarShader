@@ -65,6 +65,34 @@ namespace LEDSegments {
         return (int32_t) result;
     }
 
+    /**
+     * @brief Integer square root for 32-bit values.
+     * @param value The unsigned value to square-root.
+     * @return floor(sqrt(value)) clamped to UINT16_MAX.
+     */
+    static uint16_t sqrt_u32(uint32_t value) {
+        uint32_t op = value;
+        uint32_t res = 0;
+        uint32_t one = 1uL << 30;
+
+        while (one > op) {
+            one >>= 2;
+        }
+
+        while (one != 0) {
+            if (op >= res + one) {
+                op -= res + one;
+                res = (res >> 1) + one;
+            } else {
+                res >>= 1;
+            }
+            one >>= 2;
+        }
+
+        if (res > UINT16_MAX) return UINT16_MAX;
+        return static_cast<uint16_t>(res);
+    }
+
     static fl::u16 multiply_u16_sat(fl::u16 left, fl::u16 right) {
         uint32_t product = static_cast<uint32_t>(left) * right;
         return (product > 0xFFFF) ? 0xFFFF : (fl::u16) product;
@@ -78,8 +106,43 @@ namespace LEDSegments {
         return static_cast<fract16>(temp);
     }
 
+    /**
+     * @brief Fixed-point atan2 approximation that returns turns (0..65535).
+     * @param y Signed Y coordinate (Q15.0).
+     * @param x Signed X coordinate (Q15.0).
+     * @return Angle in turns, where 65536 represents 1 full rotation.
+     */
+    static fl::u16 atan2_turns_approx(int16_t y, int16_t x) {
+        if (x == 0 && y == 0) return 0;
+
+        uint16_t abs_x = (x < 0) ? static_cast<uint16_t>(-x) : static_cast<uint16_t>(x);
+        uint16_t abs_y = (y < 0) ? static_cast<uint16_t>(-y) : static_cast<uint16_t>(y);
+
+        uint16_t max_val = (abs_x > abs_y) ? abs_x : abs_y;
+        uint16_t min_val = (abs_x > abs_y) ? abs_y : abs_x;
+
+        uint32_t z = (static_cast<uint32_t>(min_val) << 16) / max_val; // Q0.16
+        uint32_t one_minus_z = 65536u - z;
+
+        static constexpr uint32_t A_Q16 = 8192u; // 0.125 turns in Q0.16
+        static constexpr uint32_t B_Q16 = 2847u; // 0.04345 turns in Q0.16
+
+        uint32_t inner = A_Q16 + ((B_Q16 * one_minus_z) >> 16);
+        uint32_t base = (z * inner) >> 16; // 0..0.125 turns
+
+        uint32_t angle = (abs_x >= abs_y) ? base : (16384u - base);
+        if (x < 0) {
+            angle = 32768u - angle;
+        }
+        if (y < 0) {
+            angle = 65536u - angle;
+        }
+
+        return static_cast<fl::u16>(angle & 0xFFFFu);
+    }
+
     // LUT for 2^(i/256) in Q1.15 format
-    const uint16_t pow2_frac_lut_q1_15[256] PROGMEM = {
+    inline constexpr uint16_t pow2_frac_lut_q1_15[256] PROGMEM = {
         32768, 32857, 32947, 33037, 33127, 33217, 33307, 33398, 33488, 33579, 33670, 33761, 33852, 33944, 34036, 34128,
         34220, 34313, 34406, 34499, 34592, 34686, 34780, 34874, 34968, 35063, 35158, 35253, 35349, 35445, 35541, 35637,
         35734, 35831, 35928, 36026, 36124, 36222, 36321, 36420, 36519, 36618, 36718, 36818, 36919, 37019, 37120, 37222,
@@ -125,7 +188,7 @@ namespace LEDSegments {
     }
 
     // LUT for log2(1 + i/256) in Q8 format
-    const uint8_t log2_frac_lut_q8[256] PROGMEM = {
+    inline constexpr uint8_t log2_frac_lut_q8[256] PROGMEM = {
         0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
         32, 34, 36, 38, 39, 41, 43, 45, 47, 49, 51, 52, 54, 56, 58, 60,
         61, 63, 65, 67, 68, 70, 72, 73, 75, 77, 78, 80, 82, 83, 85, 87,
@@ -193,4 +256,3 @@ namespace LEDSegments {
     }
 }
 #endif //LED_SEGMENTS_SPECS_MATHUTILS_H
-
