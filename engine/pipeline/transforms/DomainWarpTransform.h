@@ -18,9 +18,10 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_DOMAINWARPTRANSFORM_H
-#define LED_SEGMENTS_EFFECTS_TRANSFORMS_DOMAINWARPTRANSFORM_H
+#ifndef LED_SEGMENTS_TRANSFORMS_DOMAINWARPTRANSFORM_H
+#define LED_SEGMENTS_TRANSFORMS_DOMAINWARPTRANSFORM_H
 
+#include <memory>
 #include "base/Transforms.h"
 #include "polar/engine/pipeline/mappers/Signal.h"
 
@@ -31,15 +32,13 @@ namespace LEDSegments {
      *
      * This transform distorts the input coordinates by adding a time-varying offset,
      * creating a "warping" or "flowing" effect in the final pattern.
+     *
+     * Input/output domain: CartesianLayer with 32-bit coordinates. Offsets are added with explicit
+     * 32-bit wrap; no clamping occurs. Use when you want slow spatial drift before converting to polar.
      */
     class DomainWarpTransform : public CartesianTransform {
-        LinearSignal warpXSignal;
-        LinearSignal warpYSignal;
-
-        int32_t lastWarpPosX_int = 0;
-        int32_t lastWarpPosY_int = 0;
-        int32_t accumX = 0;
-        int32_t accumY = 0;
+        struct State;
+        std::shared_ptr<State> state;
 
     public:
         /**
@@ -47,32 +46,12 @@ namespace LEDSegments {
          * @param xWarp A signal that provides the X component of the warp.
          * @param yWarp A signal that provides the Y component of the warp.
          */
-        DomainWarpTransform(LinearSignal xWarp, LinearSignal yWarp)
-            : warpXSignal(std::move(xWarp)), warpYSignal(std::move(yWarp)) {
-            lastWarpPosX_int = warpXSignal.getValue();
-            lastWarpPosY_int = warpYSignal.getValue();
-        }
+        DomainWarpTransform(LinearSignal xWarp, LinearSignal yWarp);
 
-        void advanceFrame(unsigned long timeInMillis) override {
-            warpXSignal.advanceFrame(timeInMillis);
-            warpYSignal.advanceFrame(timeInMillis);
+        void advanceFrame(Units::TimeMillis timeInMillis) override;
 
-            int32_t currentWarpPosX = warpXSignal.getValue();
-            int32_t currentWarpPosY = warpYSignal.getValue();
-
-            accumX += currentWarpPosX - lastWarpPosX_int;
-            accumY += currentWarpPosY - lastWarpPosY_int;
-
-            lastWarpPosX_int = currentWarpPosX;
-            lastWarpPosY_int = currentWarpPosY;
-        }
-
-        CartesianLayer operator()(const CartesianLayer &layer) const override {
-            return [this, layer](int32_t x, int32_t y, unsigned long t) {
-                return layer(x + accumX, y + accumY, t);
-            };
-        }
+        CartesianLayer operator()(const CartesianLayer &layer) const override;
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_DOMAINWARPTRANSFORM_H
+#endif //LED_SEGMENTS_TRANSFORMS_DOMAINWARPTRANSFORM_H

@@ -24,6 +24,8 @@
 #include <functional>
 #include "../utils/MathUtils.h"
 #include "../utils/NoiseUtils.h"
+#include "../utils/FixMathUtils.h"
+#include "../utils/Units.h"
 
 namespace LEDSegments {
     /**
@@ -38,10 +40,14 @@ namespace LEDSegments {
      */
     namespace Waveforms {
         /**
-         * @brief A function that takes a phase (Q16.16) and returns a value (Q16.16).
-         * The phase represents a point in time or space along the waveform.
+         * @brief A function that takes a phase (Q16.16) and returns an acceleration value (Q16.16).
          */
-        using Waveform = std::function<int32_t(uint32_t)>; // Q16.16 -> Q16.16
+        using AccelerationWaveform = std::function<Units::SignalQ16_16(Units::PhaseTurnsUQ16_16)>;
+
+        /**
+         * @brief A function that takes a phase (Q16.16) and returns a phase velocity (Turns/s Q16.16).
+         */
+        using PhaseVelocityWaveform = std::function<Units::PhaseVelAngleUnitsQ16_16(Units::PhaseTurnsUQ16_16)>; // Q16.16-scaled AngleTurns16 per second
 
         /**
          * @brief Defines the behavior of a Signal.
@@ -54,21 +60,30 @@ namespace LEDSegments {
             /**
              * @brief A waveform that determines the acceleration of a Signal at a given phase.
              */
-            Waveform acceleration;
+            AccelerationWaveform acceleration;
             /**
              * @brief A waveform that determines how fast the phase evolves over time.
              * A phase velocity of 0 results in a static phase.
              */
-            Waveform phaseVelocity;
+            PhaseVelocityWaveform phaseVelocity;
         };
 
         /**
-         * @brief Creates a waveform that returns a constant value, regardless of the phase.
-         * @param value The constant value (integer part) for the waveform to return.
-         * @return A Waveform function.
+         * @brief Creates a waveform that returns a constant acceleration value.
+         * @param value The constant acceleration value (integer part).
+         * @return An AccelerationWaveform function.
          */
-        inline Waveform ConstantWaveform(int32_t value) {
-            return [val_q16 = value << 16](uint32_t) { return val_q16; };
+        inline AccelerationWaveform ConstantAccelerationWaveform(int32_t value) {
+            return [val_q16 = Units::SignalQ16_16(value)](Units::PhaseTurnsUQ16_16) { return val_q16; };
+        }
+
+        /**
+         * @brief Creates a waveform that returns a constant phase velocity value.
+         * @param value The constant phase velocity value (integer part, in turns/sec).
+         * @return A PhaseVelocityWaveform function.
+         */
+        inline PhaseVelocityWaveform ConstantPhaseVelocityWaveform(int32_t value) {
+            return [val_q16 = Units::PhaseVelAngleUnitsQ16_16(value)](Units::PhaseTurnsUQ16_16) { return val_q16; };
         }
 
         /**
@@ -78,7 +93,7 @@ namespace LEDSegments {
          * @return A WaveformSource struct.
          */
         inline WaveformSource Constant(int32_t acceleration) {
-            return {ConstantWaveform(acceleration), ConstantWaveform(0)};
+            return {ConstantAccelerationWaveform(acceleration), ConstantPhaseVelocityWaveform(0)};
         }
 
         /**
@@ -88,14 +103,14 @@ namespace LEDSegments {
          * @param amplitude A waveform controlling the strength (amplitude) of the noise.
          * @return A WaveformSource struct.
          */
-        inline WaveformSource Noise(Waveform phaseVelocity, Waveform amplitude) {
-            Waveform acceleration = [amplitude](uint32_t phase) -> int32_t {
-                uint16_t rawNoise = inoise16(phase >> 16);
-                uint16_t normNoise = normaliseNoise16(rawNoise);
-                int32_t signedNoise = (int32_t) normNoise - 32768;
-                int32_t amp_q16 = amplitude(phase);
+        inline WaveformSource Noise(PhaseVelocityWaveform phaseVelocity, AccelerationWaveform amplitude) {
+            AccelerationWaveform acceleration = [amplitude](Units::PhaseTurnsUQ16_16 phase) -> Units::SignalQ16_16 {
+                Units::NoiseRawU16 rawNoise = inoise16(phase >> 16);
+                Units::NoiseNormU16 normNoise = normaliseNoise16(rawNoise);
+                int32_t signedNoise = static_cast<int32_t>(normNoise) - Units::U16_HALF;
+                int32_t amp_q16 = amplitude(phase).asRaw();
                 int64_t accel_q31 = (int64_t) signedNoise * amp_q16;
-                return (int32_t) (accel_q31 >> 15);
+                return Units::SignalQ16_16::fromRaw(static_cast<int32_t>(accel_q31 >> 15));
             };
             return {acceleration, phaseVelocity};
         }
@@ -106,12 +121,12 @@ namespace LEDSegments {
          * @param amplitude A waveform controlling the amplitude of the sine wave.
          * @return A WaveformSource struct.
          */
-        inline WaveformSource Sine(Waveform phaseVelocity, Waveform amplitude) {
-            Waveform acceleration = [amplitude](uint32_t phase) -> int32_t {
+        inline WaveformSource Sine(PhaseVelocityWaveform phaseVelocity, AccelerationWaveform amplitude) {
+            AccelerationWaveform acceleration = [amplitude](Units::PhaseTurnsUQ16_16 phase) -> Units::SignalQ16_16 {
                 int32_t sin_val = sin16(phase >> 16);
-                int32_t amp_q16 = amplitude(phase);
+                int32_t amp_q16 = amplitude(phase).asRaw();
                 int64_t accel_q31 = (int64_t) sin_val * amp_q16;
-                return (int32_t) (accel_q31 >> 15);
+                return Units::SignalQ16_16::fromRaw(static_cast<int32_t>(accel_q31 >> 15));
             };
             return {acceleration, phaseVelocity};
         }
@@ -123,15 +138,16 @@ namespace LEDSegments {
          * @param amplitude A waveform controlling the amplitude of the pulses.
          * @return A WaveformSource struct.
          */
-        inline WaveformSource Pulse(Waveform phaseVelocity, Waveform amplitude) {
-            Waveform acceleration = [amplitude](uint32_t phase) -> int32_t {
-                uint16_t saw = phase >> 16;
+        inline WaveformSource Pulse(PhaseVelocityWaveform phaseVelocity, AccelerationWaveform amplitude) {
+            AccelerationWaveform acceleration = [amplitude](Units::PhaseTurnsUQ16_16 phase) -> Units::SignalQ16_16 {
+                Units::AngleTurns16 saw = phase >> 16;
                 // Creates a triangular wave that quickly rises and then linearly falls.
-                uint16_t pulse = (saw < 16384) ? (saw << 1) : (65535 - saw);
-                int32_t signedPulse = (int32_t) pulse - 32768;
-                int32_t amp_q16 = amplitude(phase);
+                Units::AngleTurns16 pulse = (saw < Units::QUARTER_TURN_U16) ? static_cast<Units::AngleTurns16>(saw << 1)
+                                                                            : static_cast<Units::AngleTurns16>(Units::ANGLE_U16_MAX - saw);
+                int32_t signedPulse = static_cast<int32_t>(pulse) - Units::U16_HALF;
+                int32_t amp_q16 = amplitude(phase).asRaw();
                 int64_t accel_q31 = (int64_t) signedPulse * amp_q16;
-                return (int32_t) (accel_q31 >> 15);
+                return Units::SignalQ16_16::fromRaw(static_cast<int32_t>(accel_q31 >> 15));
             };
             return {acceleration, phaseVelocity};
         }

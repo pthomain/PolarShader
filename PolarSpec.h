@@ -30,6 +30,7 @@
 #include "engine/utils/Utils.h"
 #include <functional> // Add this include
 #include "engine/render/renderable/Polar.h"
+#include "polar/engine/pipeline/utils/Units.h"
 
 using namespace LEDSegments;
 
@@ -94,7 +95,7 @@ public:
         uint16_t layoutId,
         uint16_t segmentIndex,
         uint16_t pixelIndex,
-        fract16 progress,
+        FractQ0_16 progress,
         const std::function<void(uint16_t)> &onLedMapped
     ) const override;
 

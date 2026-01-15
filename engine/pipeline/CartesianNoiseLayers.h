@@ -18,58 +18,68 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_SPECS_POLARLAYERS_H
-#define LED_SEGMENTS_SPECS_POLARLAYERS_H
+#ifndef LED_SEGMENTS_PIPELINE_CARTESIANNOISELAYERS_H
+#define LED_SEGMENTS_PIPELINE_CARTESIANNOISELAYERS_H
 
 #include "utils/MathUtils.h"
+#include "utils/NoiseUtils.h"
+#include "utils/Units.h"
 
 namespace LEDSegments {
-    inline uint16_t noiseLayer(
+    // All Cartesian noise layers return 16-bit intensities in [0..65535] suitable for palette mapping.
+    // noiseLayer/fBm normalize raw inoise16(); turbulence/ridged derive palette-ready intensities directly.
+    inline Units::NoiseNormU16 noiseLayer(
         uint32_t x,
         uint32_t y,
-        unsigned long /*timeInMillis*/
+        Units::TimeMillis /*timeInMillis*/
     ) {
-        return inoise16(x, y);
+        // Normalize once at the source so downstream layers/palette mapping can assume 0..65535.
+        return normaliseNoise16(inoise16(x, y));
     }
 
-    inline uint16_t fBmLayer(
+    inline Units::NoiseNormU16 fBmLayer(
         uint32_t x,
         uint32_t y,
-        unsigned long /*timeInMillis*/
+        Units::TimeMillis /*timeInMillis*/
     ) {
         static fl::u8 octaves = 4;
-        uint16_t r = 0;
-        uint16_t amplitude = U16_HALF;
+        uint32_t r = 0;
+        uint16_t amplitude = Units::U16_HALF;
         for (int o = 0; o < octaves; o++) {
-            r += (inoise16(x, y) * amplitude) >> 16;
+            Units::NoiseNormU16 n = normaliseNoise16(inoise16(x, y));
+            r += (n * amplitude) >> 16;
             x <<= 1;
             y <<= 1;
             amplitude >>= 1;
         }
-        return r;
+        if (r > UINT16_MAX) r = UINT16_MAX;
+        return static_cast<Units::NoiseNormU16>(r);
     }
 
-    inline uint16_t turbulenceLayer(
+    inline Units::NoiseNormU16 turbulenceLayer(
         uint32_t x,
         uint32_t y,
-        unsigned long /*timeInMillis*/
+        Units::TimeMillis /*timeInMillis*/
     ) {
-        int16_t r = (int16_t) inoise16(x, y) - 32768;
+        int16_t r = (int16_t) inoise16(x, y) - Units::U16_HALF;
         uint16_t mag = (uint16_t) (r ^ (r >> 15)) - (uint16_t) (r >> 15);
-        return mag << 1;
+        uint32_t doubled = static_cast<uint32_t>(mag) << 1;
+        if (doubled > Units::FRACT_Q0_16_MAX) doubled = Units::FRACT_Q0_16_MAX;
+        return static_cast<Units::NoiseNormU16>(doubled);
     }
 
-    inline uint16_t ridgedLayer(
+    inline Units::NoiseNormU16 ridgedLayer(
         uint32_t x,
         uint32_t y,
-        unsigned long /*timeInMillis*/
+        Units::TimeMillis /*timeInMillis*/
     ) {
-        int16_t r = (int16_t) inoise16(x, y) - 32768;
+        int16_t r = (int16_t) inoise16(x, y) - Units::U16_HALF;
         uint16_t mag = (uint16_t) (r ^ (r >> 15)) - (uint16_t) (r >> 15);
-        mag = min<uint16_t>(mag, 32767);
-        uint16_t inverted = 65535 - (mag << 1);
+        mag = min<uint16_t>(mag, static_cast<uint16_t>(Units::TRIG_Q1_15_MAX));
+        uint32_t doubled = static_cast<uint32_t>(mag) << 1;
+        if (doubled > Units::FRACT_Q0_16_MAX) doubled = Units::FRACT_Q0_16_MAX;
+        uint16_t inverted = static_cast<uint16_t>(Units::FRACT_Q0_16_MAX - doubled);
         return inverted;
     }
 }
-#endif //LED_SEGMENTS_SPECS_POLARLAYERS_H
-
+#endif //LED_SEGMENTS_PIPELINE_CARTESIANNOISELAYERS_H

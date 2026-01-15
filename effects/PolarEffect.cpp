@@ -1,7 +1,6 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
 //  Copyright (C) 2023 Pierre Thomain
 
-
 /*
  * This file is part of LED Segments.
  *
@@ -40,15 +39,15 @@ namespace LEDSegments {
                     LinearSignal(
                         0,
                         Waveforms::Noise(
-                            Waveforms::ConstantWaveform(100),
-                            Waveforms::ConstantWaveform(1000)
+                            Waveforms::ConstantPhaseVelocityWaveform(100),
+                            Waveforms::ConstantAccelerationWaveform(1000)
                         )
                     ),
                     LinearSignal(
                         0,
                         Waveforms::Noise(
-                            Waveforms::ConstantWaveform(100),
-                            Waveforms::ConstantWaveform(1000)
+                            Waveforms::ConstantPhaseVelocityWaveform(100),
+                            Waveforms::ConstantAccelerationWaveform(1000)
                         )
                     )
                 )
@@ -66,8 +65,8 @@ namespace LEDSegments {
                     BoundedSignal(
                         0,
                         Waveforms::Pulse(
-                            Waveforms::ConstantWaveform(200),
-                            Waveforms::ConstantWaveform(20000)
+                            Waveforms::ConstantPhaseVelocityWaveform(200),
+                            Waveforms::ConstantAccelerationWaveform(20000)
                         ),
                         500,
                         -30000,
@@ -88,27 +87,27 @@ namespace LEDSegments {
     }
 
     CRGB PolarEffect::blendLayers(
-        uint16_t angle_turns,
-        fract16 radius,
-        unsigned long timeInMillis,
+        Units::PhaseTurnsUQ16_16 angle_q16,
+        Units::FractQ0_16 radius,
+        Units::TimeMillis timeInMillis,
         const ColourLayer &layer
     ) {
-        return layer(angle_turns, radius, timeInMillis);
+        return layer(angle_q16, radius, timeInMillis);
     }
 
     CRGB PolarEffect::blendLayers(
-        uint16_t angle_turns,
-        fract16 radius,
-        unsigned long timeInMillis,
+        Units::PhaseTurnsUQ16_16 angle_q16,
+        Units::FractQ0_16 radius,
+        Units::TimeMillis timeInMillis,
         const fl::vector<ColourLayer> &layers
     ) {
         if (layers.empty()) return CRGB::Black;
         if (layers.size() == 1) {
-            return layers[0](angle_turns, radius, timeInMillis);
+            return layers[0](angle_q16, radius, timeInMillis);
         }
         CRGB16 blended16;
         for (const auto &layer: layers) {
-            blended16 += layer(angle_turns, radius, timeInMillis);
+            blended16 += layer(angle_q16, radius, timeInMillis);
         }
         uint16_t max_val = max(blended16.r, max(blended16.g, blended16.b));
         if (max_val > UINT8_MAX) {
@@ -124,14 +123,15 @@ namespace LEDSegments {
         CRGB *segmentArray,
         uint16_t segmentSize,
         uint16_t segmentIndex,
-        fract16 progress,
-        unsigned long timeInMillis
+        Units::FractQ0_16 progress,
+        Units::TimeMillis timeInMillis
     ) {
         pipeline.advanceFrame(timeInMillis);
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
             auto [angle_turns, radius] = context.polarCoordsMapper(pixelIndex);
+            Units::PhaseTurnsUQ16_16 angle_q16 = Units::angleTurnsToPhaseQ16_16(angle_turns);
             segmentArray[pixelIndex] = blendLayers(
-                angle_turns,
+                angle_q16,
                 radius,
                 timeInMillis,
                 colourLayer

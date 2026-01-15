@@ -18,10 +18,11 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
-#define LED_SEGMENTS_EFFECTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
+#ifndef LED_SEGMENTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
+#define LED_SEGMENTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
 
 #include "base/Transforms.h"
+#include "../utils/MathUtils.h"
 
 namespace LEDSegments {
     /**
@@ -30,6 +31,11 @@ namespace LEDSegments {
      *
      * The number of segments is controlled by a ValueMapper, which provides a
      * normalized 0-65535 value that this transform maps to the segment count.
+     *
+     * Phase domain is PhaseTurnsUQ16_16 (wraps at 2^32). In kaleidoscope mode, phase is folded within
+     * each segment; in mandala mode, phase is multiplied by segment count and wraps. Mirroring treats
+     * the folded boundary deterministically. Use when you need hard angular symmetry; beware of abrupt
+     * folds if your source has discontinuities at 0/2π.
      */
     class KaleidoscopeTransform : public PolarTransform {
         uint8_t nbSegments;
@@ -38,20 +44,24 @@ namespace LEDSegments {
 
         static constexpr uint8_t MAX_SEGMENTS = 8;
 
-        static uint16_t foldAngleKaleidoscope(
-            fl::u16 angle,
+        static Units::PhaseTurnsUQ16_16 foldPhaseKaleidoscope(
+            Units::PhaseTurnsUQ16_16 phase_q16,
             fl::u8 nbSegments,
             bool isMirroring
         ) {
-            if (nbSegments <= 1) return angle;
+            if (nbSegments <= 1) return phase_q16;
 
-            uint16_t segmentAngle = 0x10000 / nbSegments;
-            uint16_t foldedAngle = angle % segmentAngle;
+            const uint32_t segmentPhase = static_cast<uint32_t>(Units::PHASE_FULL_TURN / nbSegments);
+            uint32_t foldedPhase = phase_q16 % segmentPhase;
 
-            bool isOdd = (angle / segmentAngle) & 1;
-            if (isMirroring && isOdd) return segmentAngle - foldedAngle;
+            bool isOdd = (static_cast<uint64_t>(phase_q16) / segmentPhase) & 1u;
+            if (isMirroring && isOdd) {
+                uint32_t mirrored = segmentPhase - foldedPhase;
+                // Handle the boundary case where foldedPhase is 0.
+                return (mirrored == segmentPhase) ? 0 : mirrored;
+            }
 
-            return foldedAngle;
+            return foldedPhase;
         }
 
     public:
@@ -63,17 +73,22 @@ namespace LEDSegments {
         }
 
         PolarLayer operator()(const PolarLayer &layer) const override {
-            return [this, layer](uint16_t angle, fract16 radius, unsigned long timeInMillis) {
+            return [nbSegments = this->nbSegments, isMandala = this->isMandala, isMirroring = this->isMirroring, layer](Units::PhaseTurnsUQ16_16 angle_q16, Units::FractQ0_16 radius, Units::TimeMillis timeInMillis) {
                 uint8_t segments = constrain(nbSegments, (uint8_t)1, MAX_SEGMENTS);
 
-                uint16_t newAngle = isMandala
-                                        ? angle * segments
-                                        : foldAngleKaleidoscope(angle, segments, isMirroring);
+                Units::PhaseTurnsUQ16_16 newAngle_q16;
+                if (isMandala) {
+                    // Multiply the angle by the number of segments. The uint32_t accumulator
+                    // will naturally wrap, creating the intended mandala effect.
+                    newAngle_q16 = angle_q16 * segments;
+                } else {
+                    newAngle_q16 = foldPhaseKaleidoscope(angle_q16, segments, isMirroring);
+                }
 
-                return layer(newAngle, radius, timeInMillis);
+                return layer(newAngle_q16, radius, timeInMillis);
             };
         }
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
+#endif //LED_SEGMENTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H

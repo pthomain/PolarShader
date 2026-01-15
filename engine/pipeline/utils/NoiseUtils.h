@@ -18,10 +18,11 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_SPECS_NOISEUTILS_H
-#define LED_SEGMENTS_SPECS_NOISEUTILS_H
+#ifndef LED_SEGMENTS_PIPELINE_UTILS_NOISEUTILS_H
+#define LED_SEGMENTS_PIPELINE_UTILS_NOISEUTILS_H
 
 #include "FastLED.h"
+#include "Units.h"
 
 namespace LEDSegments {
     static constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
@@ -36,19 +37,7 @@ namespace LEDSegments {
         * @param value The raw 16-bit noise value.
         * @return The normalized 16-bit value.
         */
-    static fl::u16 normaliseNoise16(fl::u16 value) {
-        // These bounds are specific to the typical output of inoise16() and may
-        // need tuning if a different noise function is used.
-        const uint16_t MIN_NOISE = 12000;
-        const uint16_t MAX_NOISE = 54000;
-        const uint16_t RANGE = MAX_NOISE - MIN_NOISE;
-
-        if (value <= MIN_NOISE) return 0;
-        if (value >= MAX_NOISE) return 65535;
-
-        uint32_t temp = (uint32_t) (value - MIN_NOISE) * 65535;
-        return temp / RANGE;
-    }
+    Units::NoiseNormU16 normaliseNoise16(Units::NoiseRawU16 value);
 }
 
-#endif //LED_SEGMENTS_SPECS_NOISEUTILS_H
+#endif //LED_SEGMENTS_PIPELINE_UTILS_NOISEUTILS_H

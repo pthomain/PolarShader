@@ -21,47 +21,30 @@
 #ifndef LED_SEGMENTS_EFFECTS_MAPPERS_SIGNALPOLICIES_H
 #define LED_SEGMENTS_EFFECTS_MAPPERS_SIGNALPOLICIES_H
 
+#include "../utils/FixMathUtils.h"
+#include "../utils/Units.h"
+
 namespace LEDSegments {
+
     struct LinearPolicy {
-        void apply(int32_t &, int32_t &) const {}
+        void apply(Units::SignalQ16_16 &, Units::SignalQ16_16 &) const {}
     };
 
     struct ClampPolicy {
-        using Q16_16 = int32_t;
-        Q16_16 min_val;
-        Q16_16 max_val;
+        Units::SignalQ16_16 min_val;
+        Units::SignalQ16_16 max_val;
 
-        ClampPolicy(int32_t min, int32_t max) : min_val(min << 16), max_val(max << 16) {}
+        ClampPolicy(int32_t min, int32_t max);
 
-        void apply(Q16_16 &position, Q16_16 &velocity) const {
-            if (position < min_val) {
-                position = min_val;
-                velocity = 0;
-            } else if (position > max_val) {
-                position = max_val;
-                velocity = 0;
-            }
-        }
+        void apply(Units::SignalQ16_16 &position, Units::SignalQ16_16 &velocity) const;
     };
 
     struct WrapPolicy {
-        using Q16_16 = int32_t;
-        // Wrap value in integer units (not Q16.16) to avoid 32-bit overflow of 65536<<16
         int32_t wrap_units;
 
-        explicit WrapPolicy(int32_t wrap = 65536) : wrap_units(wrap) {}
+        explicit WrapPolicy(int32_t wrap = 65536);
 
-        void apply(Q16_16 &position, Q16_16 &) const {
-            if (wrap_units <= 0) return;
-            // Promote to 64-bit to perform modulo by (wrap_units << 16) safely
-            int64_t pos64 = static_cast<int64_t>(position);
-            const int64_t wrap_q16_16 = (static_cast<int64_t>(wrap_units) << 16);
-            if (pos64 >= wrap_q16_16 || pos64 < 0) {
-                pos64 %= wrap_q16_16;
-                if (pos64 < 0) pos64 += wrap_q16_16;
-                position = static_cast<Q16_16>(pos64);
-            }
-        }
+        void apply(Units::SignalQ16_16 &position, Units::SignalQ16_16 &) const;
     };
 }
 

@@ -18,16 +18,17 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_DECORATORS_LAYERS_H
-#define LED_SEGMENTS_EFFECTS_DECORATORS_LAYERS_H
+#ifndef LED_SEGMENTS_TRANSFORMS_BASE_LAYERS_H
+#define LED_SEGMENTS_TRANSFORMS_BASE_LAYERS_H
 
 #include "FastLED.h"
+#include "../../utils/Units.h"
 
 namespace LEDSegments {
-    using PolarLayer = fl::function<uint16_t(uint16_t, fract16, unsigned long)>;
-    using CartesianLayer = fl::function<uint16_t(int32_t, int32_t, unsigned long)>;
-    using NoiseLayer = fl::function<uint16_t(uint32_t, uint32_t, unsigned long)>;
-    using ColourLayer = fl::function<CRGB(uint16_t, fract16, unsigned long)>;
+    using PolarLayer = fl::function<Units::NoiseNormU16(Units::PhaseTurnsUQ16_16, Units::FractQ0_16, Units::TimeMillis)>;
+    using CartesianLayer = fl::function<Units::NoiseNormU16(int32_t, int32_t, Units::TimeMillis)>;
+    using NoiseLayer = fl::function<Units::NoiseNormU16(uint32_t, uint32_t, Units::TimeMillis)>;
+    using ColourLayer = fl::function<CRGB(Units::PhaseTurnsUQ16_16, Units::FractQ0_16, Units::TimeMillis)>;
 }
 
-#endif //LED_SEGMENTS_EFFECTS_DECORATORS_LAYERS_H
+#endif //LED_SEGMENTS_TRANSFORMS_BASE_LAYERS_H

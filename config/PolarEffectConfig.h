@@ -22,7 +22,7 @@
 #define POLAR_EFFECT_CONFIG_H
 
 #include "crgb.h"
-#include "../effects/PolarEffect.h"
+#include <polar/effects/PolarEffect.h>
 #include "engine/displayspec/config/LayoutConfig.h"
 
 using namespace LEDSegments;

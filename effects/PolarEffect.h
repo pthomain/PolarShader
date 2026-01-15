@@ -24,23 +24,31 @@
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
 #include "polar/engine/pipeline/PolarPipelineBuilder.h"
+#include "polar/engine/pipeline/utils/Units.h"
 
 namespace LEDSegments {
+    using namespace Units;
+    /**
+     * PolarEffect builds a PolarPipeline from the current palette and renders using PhaseTurnsUQ16_16 angles
+     * (AngleTurns16 stored in the upper 16 bits). Callers must promote AngleTurns16 -> PhaseTurnsUQ16_16
+     * once before entering the pipeline. The pipeline assumes incoming noise layers already produce
+     * palette-ready intensities in [0..65535]; no normalization occurs past the source layer.
+     */
     class PolarEffect : public Effect<PolarEffect> {
         PolarPipeline pipeline;
         ColourLayer colourLayer;
 
         CRGB blendLayers(
-            uint16_t angle_turns,
-            fract16 radius,
-            unsigned long timeInMillis,
+            Units::PhaseTurnsUQ16_16 angle_q16,
+            FractQ0_16 radius,
+            TimeMillis timeInMillis,
             const ColourLayer &layer
         );
 
         CRGB blendLayers(
-            uint16_t angle_turns,
-            fract16 radius,
-            unsigned long timeInMillis,
+            Units::PhaseTurnsUQ16_16 angle_q16,
+            FractQ0_16 radius,
+            TimeMillis timeInMillis,
             const fl::vector<ColourLayer> &layers
         );
 
@@ -51,8 +59,8 @@ namespace LEDSegments {
             CRGB *segmentArray,
             uint16_t segmentSize,
             uint16_t segmentIndex,
-            fract16 progress,
-            unsigned long timeInMillis
+            FractQ0_16 progress,
+            TimeMillis timeInMillis
         ) override;
 
 

@@ -18,30 +18,21 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_TRANSFORMS_BASE_TRANSFORMS_H
-#define LED_SEGMENTS_TRANSFORMS_BASE_TRANSFORMS_H
-
-#include "Layers.h"
-#include "../../utils/Units.h"
+#include "NoiseUtils.h"
 
 namespace LEDSegments {
-    class FrameTransform {
-    public:
-        virtual ~FrameTransform() = default;
 
-        virtual void advanceFrame(Units::TimeMillis timeInMillis) {
-        };
-    };
+    Units::NoiseNormU16 normaliseNoise16(Units::NoiseRawU16 value) {
+        // These bounds are specific to the typical output of inoise16() and may
+        // need tuning if a different noise function is used.
+        const uint16_t MIN_NOISE = 12000;
+        const uint16_t MAX_NOISE = 54000;
+        const uint16_t RANGE = MAX_NOISE - MIN_NOISE;
 
-    class CartesianTransform : public FrameTransform {
-    public:
-        virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
-    };
+        if (value <= MIN_NOISE) return 0;
+        if (value >= MAX_NOISE) return Units::FRACT_Q0_16_MAX;
 
-    class PolarTransform : public FrameTransform {
-    public:
-        virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
-    };
+        uint32_t temp = (uint32_t) (value - MIN_NOISE) * Units::FRACT_Q0_16_MAX;
+        return static_cast<Units::NoiseNormU16>(temp / RANGE);
+    }
 }
-
-#endif //LED_SEGMENTS_TRANSFORMS_BASE_TRANSFORMS_H

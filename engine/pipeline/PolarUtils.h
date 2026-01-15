@@ -18,10 +18,11 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_SPECS_POLARUTILS_H
-#define LED_SEGMENTS_SPECS_POLARUTILS_H
+#ifndef LED_SEGMENTS_PIPELINE_POLARUTILS_H
+#define LED_SEGMENTS_PIPELINE_POLARUTILS_H
 
 #include "utils/MathUtils.h"
+#include "utils/Units.h"
 
 namespace LEDSegments {
     struct CRGB16 {
@@ -29,44 +30,21 @@ namespace LEDSegments {
         uint16_t g;
         uint16_t b;
 
-        CRGB16(uint16_t r = 0, uint16_t g = 0, uint16_t b = 0) : r(r), g(g), b(b) {
-        }
+        CRGB16(uint16_t r = 0, uint16_t g = 0, uint16_t b = 0);
 
-        CRGB16 &operator+=(const CRGB &rhs) {
-            r += rhs.r;
-            g += rhs.g;
-            b += rhs.b;
-            return *this;
-        }
+        CRGB16 &operator+=(const CRGB &rhs);
     };
 
-    static fl::pair<int32_t, int32_t> cartesianCoords(
-        fl::u16 angle_turns,
-        fract16 radius
-    ) {
-        int32_t x = scale_i16_by_f16(cos16(angle_turns), radius);
-        int32_t y = scale_i16_by_f16(sin16(angle_turns), radius);
-        return {x, y};
-    }
+    // Phase stores AngleTurns16 in the high 16 bits; trig sampling uses (phase >> 16). Callers must
+    // pass a promoted PhaseTurnsUQ16_16; no auto-promotion happens here.
+    fl::pair<int32_t, int32_t> cartesianCoords(
+        Units::PhaseTurnsUQ16_16 angle_q16,
+        Units::FractQ0_16 radius
+    );
 
-    static fl::pair<fl::u16, fract16> polarCoords(
+    fl::pair<Units::PhaseTurnsUQ16_16, Units::FractQ0_16> polarCoords(
         fl::i32 x,
         fl::i32 y
-    ) {
-        int32_t clampedX = constrain(x, INT16_MIN, INT16_MAX);
-        int32_t clampedY = constrain(y, INT16_MIN, INT16_MAX);
-        int16_t x16 = static_cast<int16_t>(clampedX);
-        int16_t y16 = static_cast<int16_t>(clampedY);
-
-        fl::u16 angle_turns = atan2_turns_approx(y16, x16);
-        int32_t dx = x16;
-        int32_t dy = y16;
-        uint32_t radius_squared = static_cast<uint32_t>(dx * dx) + static_cast<uint32_t>(dy * dy);
-        uint16_t magnitude = sqrt_u32(radius_squared);
-        uint32_t radius_q16 = (static_cast<uint32_t>(magnitude) << 16) / 32767u;
-        if (radius_q16 > UINT16_MAX) radius_q16 = UINT16_MAX;
-        fract16 radius = static_cast<fract16>(radius_q16);
-        return {angle_turns, radius};
-    }
+    );
 }
-#endif //LED_SEGMENTS_SPECS_POLARUTILS_H
+#endif //LED_SEGMENTS_PIPELINE_POLARUTILS_H

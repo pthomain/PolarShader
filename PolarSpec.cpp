@@ -20,7 +20,6 @@
 
 #include "PolarSpec.h"
 #include "config/PolarLayoutConfig.h"
-#include <algorithm> // For std::max
 
 uint16_t PolarSpec::nbSegments(uint16_t layoutId) const {
     // The display can be treated as one whole segment or as 9 concentric rings.
@@ -33,7 +32,7 @@ uint16_t PolarSpec::segmentSize(uint16_t layoutId, uint16_t segmentIndex) const 
 
     // Defines the number of LEDs in each concentric ring, from center outwards.
     switch (segmentIndex) {
-        case 0: return 1;   // Center
+        case 0: return 1; // Center
         case 1: return 8;
         case 2: return 12;
         case 3: return 16;
@@ -41,7 +40,7 @@ uint16_t PolarSpec::segmentSize(uint16_t layoutId, uint16_t segmentIndex) const 
         case 5: return 32;
         case 6: return 40;
         case 7: return 48;
-        case 8: return 60;  // Outermost ring
+        case 8: return 60; // Outermost ring
         default: return 0;
     }
 }
@@ -50,7 +49,7 @@ void PolarSpec::mapLeds(
     uint16_t layoutId,
     uint16_t segmentIndex,
     uint16_t pixelIndex,
-    fract16 progress,
+    FractQ0_16 progress,
     const std::function<void(uint16_t)> &onLedMapped
 ) const {
     // Calculate the absolute LED index by summing the sizes of all previous segments.
@@ -77,10 +76,14 @@ PolarCoords PolarSpec::toPolarCoords(uint16_t pixelIndex) const {
             // The angle is the pixel's proportional position within its ring.
             // It's a uint16_t from 0 to 65535, representing 0 to 2PI radians.
             // For the center pixel (segment 0), the angle is 0.
-            const uint16_t angleStep = currentSegmentSize > 1 ? UINT16_MAX / currentSegmentSize : 0;
-            uint16_t angle = pixelInSegment * angleStep;
+            const AngleTurns16 angleStep =
+                    currentSegmentSize > 1 ? UINT16_MAX / currentSegmentSize : 0;
+            AngleTurns16 angle = pixelInSegment * angleStep;
 
-            fract16 radius = divide_u16_as_fract16(segmentIndex, numSegments > 1 ? numSegments - 1 : 1);
+            FractQ0_16 radius = divide_u16_as_fract16(
+                segmentIndex,
+                numSegments > 1 ? numSegments - 1 : 1
+            );
 
             return {angle, radius};
         }

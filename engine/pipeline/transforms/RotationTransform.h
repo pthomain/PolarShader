@@ -18,9 +18,10 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_ROTATIONTRANSFORM_H
-#define LED_SEGMENTS_EFFECTS_TRANSFORMS_ROTATIONTRANSFORM_H
+#ifndef LED_SEGMENTS_TRANSFORMS_ROTATIONTRANSFORM_H
+#define LED_SEGMENTS_TRANSFORMS_ROTATIONTRANSFORM_H
 
+#include <memory>
 #include "base/Transforms.h"
 #include "polar/engine/pipeline/mappers/Signal.h"
 
@@ -28,29 +29,26 @@ namespace LEDSegments {
     /**
      * @class RotationTransform
      * @brief Applies a dynamic rotation to the polar coordinates.
+     *
+     * Expects and returns PolarLayer phases in PhaseTurnsUQ16_16 (AngleTurns16 in high 16 bits).
+     * Rotation signal is added full-resolution and wraps modulo 2^32. Negative velocities wrap via
+     * unsigned addition.
      */
     class RotationTransform : public PolarTransform {
-        AngularSignal rotationSignal;
+        struct State;
+        std::shared_ptr<State> state;
 
     public:
         /**
          * @brief Constructs a new RotationTransform.
          * @param rotation A signal that provides the rotation angle over time.
          */
-        explicit RotationTransform(AngularSignal rotation) : rotationSignal(std::move(rotation)) {
-        }
+        explicit RotationTransform(AngularSignal rotation);
 
-        void advanceFrame(unsigned long timeInMillis) override {
-            rotationSignal.advanceFrame(timeInMillis);
-        }
+        void advanceFrame(Units::TimeMillis timeInMillis) override;
 
-        PolarLayer operator()(const PolarLayer &layer) const override {
-            return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                uint16_t new_angle_turns = angle_turns + rotationSignal.getValue();
-                return layer(new_angle_turns, radius, timeInMillis);
-            };
-        }
+        PolarLayer operator()(const PolarLayer &layer) const override;
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_ROTATIONTRANSFORM_H
+#endif //LED_SEGMENTS_TRANSFORMS_ROTATIONTRANSFORM_H

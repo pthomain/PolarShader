@@ -18,15 +18,31 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_MAPPERS_SIGNAL_H
-#define LED_SEGMENTS_EFFECTS_MAPPERS_SIGNAL_H
+#ifndef LED_SEGMENTS_MAPPERS_SIGNAL_H
+#define LED_SEGMENTS_MAPPERS_SIGNAL_H
 
+#include <type_traits>
 #include "Waveforms.h"
 #include "SignalPolicies.h"
 #include "../utils/MathUtils.h"
+#include "../utils/FixMathUtils.h"
+#include "../utils/Units.h"
 
 namespace LEDSegments {
-    static constexpr uint16_t MILLIS_PER_SECOND = 1000;
+
+    static constexpr uint16_t PERMILLE_MAX = 1000;
+
+    template<typename Policy>
+    class Signal;
+
+    /// A signal that can move indefinitely in a linear fashion.
+    using LinearSignal = Signal<LinearPolicy>;
+
+    /// A signal whose value is clamped within a specified min/max range.
+    using BoundedSignal = Signal<ClampPolicy>;
+
+    /// A signal whose value wraps around, like an angle (0-360 degrees).
+    using AngularSignal = Signal<WrapPolicy>;
 
     /**
      * @brief A time-varying value that evolves based on a waveform and physics simulation.
@@ -35,6 +51,16 @@ namespace LEDSegments {
      * It simulates physical properties like velocity and acceleration, which are influenced
      * by a provided waveform (the 'source'). The signal also has a 'retention' property,
      * which acts like friction or drag, causing the velocity to decay over time.
+     *
+     * Policies define boundary behavior:
+     *  - LinearPolicy: unbounded.
+     *  - ClampPolicy: clamps to min/max and zeroes velocity on hit.
+     *  - WrapPolicy: wraps at wrap_units<<16; AngularSignal defaults to 65536 units (AngleTurns16 domain).
+     *
+     * Edge cases and units:
+     *  - advanceFrame clamps deltaTime to 200 ms and integrates in 100 ms chunks for stability.
+     *  - Phase velocity is “AngleTurns16 per second” scaled Q16.16; 1.0 == 1/65536 of a full wrap per second.
+     *  - Negative velocities wrap via unsigned addition.
      *
      * The behavior of the signal at its boundaries is determined by a template 'Policy'.
      * For example, a signal can wrap around (like an angle), be clamped within a range,
@@ -46,40 +72,41 @@ namespace LEDSegments {
     template<typename Policy>
     class Signal {
     public:
-        using Time = unsigned long;
         using Value = int32_t;
-        using Q16_16 = int32_t;
 
     private:
-        Q16_16 position;
-        Q16_16 velocity = 0;
+        Units::SignalQ16_16 position;
+        Units::SignalQ16_16 velocity = Units::SignalQ16_16(0);
         Waveforms::WaveformSource source;
-        uint32_t phase_q16 = 0;
-        fract16 retention_per_sec; //todo rename to friction
-        Time lastTime = 0;
+        Units::PhaseTurnsUQ16_16 phase_q16 = 0;
+        Units::FractQ0_16 retention_f16;
+        Units::TimeMillis lastTime = 0;
         Policy policy;
+
+        friend Units::AngleTurns16 asAngleTurns(const AngularSignal& s);
 
     public:
         /**
          * @brief Constructs a new Signal.
          * @param initialPosition The starting value of the signal.
          * @param waveformSource A function that provides acceleration to the signal over time.
-         * @param retention_per_sec_0_1000 The percentage of velocity to retain per second (0-1000).
-         *                                 Acts like friction. 900 means 90% retention per second.
+         * @param retention_permille_per_sec The percentage of velocity to retain per second, in permille (0-1000).
+         *                                   Acts like friction. 900 means 90% retention per second.
          * @param policy_args Arguments to be forwarded to the policy's constructor.
          */
         template<typename... PolicyArgs>
         Signal(
             Value initialPosition = 0,
             Waveforms::WaveformSource waveformSource = Waveforms::Constant(0),
-            uint16_t retention_per_sec_0_1000 = 900,
+            uint16_t retention_permille_per_sec = 900,
             PolicyArgs... policy_args
-        ) : position(initialPosition << 16),
+        ) : position(initialPosition),
             source(std::move(waveformSource)),
+            retention_f16(0),
             policy(policy_args...) {
-            uint16_t constrained_retention = min((uint16_t) 999, retention_per_sec_0_1000);
-            retention_per_sec = divide_u16_as_fract16(constrained_retention, 1000);
-            phase_q16 = (uint32_t) random16() << 16;
+            uint16_t constrained_retention = (retention_permille_per_sec > 999u) ? 999u : retention_permille_per_sec;
+            retention_f16 = divide_u16_as_fract16(constrained_retention, PERMILLE_MAX);
+            phase_q16 = (Units::PhaseTurnsUQ16_16) random16() << 16;
         }
 
         /**
@@ -91,56 +118,75 @@ namespace LEDSegments {
          *
          * @param currentTime The current time in milliseconds.
          */
-        void advanceFrame(Time currentTime) {
+        void advanceFrame(Units::TimeMillis currentTime) {
             if (lastTime == 0) {
                 lastTime = currentTime;
                 return;
             }
-            Time deltaTime = currentTime - lastTime;
+            Units::TimeMillis deltaTime = currentTime - lastTime;
             lastTime = currentTime;
             if (deltaTime == 0) return;
 
-            const Time MAX_DELTA_TIME = 200;
+            const Units::TimeMillis MAX_DELTA_TIME = 200;
             if (deltaTime > MAX_DELTA_TIME) deltaTime = MAX_DELTA_TIME;
 
-            const Time CHUNK_SIZE_MS = 100;
-            Time remaining_dt = deltaTime;
+            const Units::TimeMillis CHUNK_SIZE_MS = 100;
+            Units::TimeMillis remaining_dt = deltaTime;
 
             while (remaining_dt > 0) {
-                Time chunk = min(remaining_dt, CHUNK_SIZE_MS);
+                Units::TimeMillis chunk = (remaining_dt < CHUNK_SIZE_MS) ? remaining_dt : CHUNK_SIZE_MS;
                 remaining_dt -= chunk;
 
-                int32_t phase_velocity_q16 = source.phaseVelocity(phase_q16);
-                int64_t advance_q16 = ((int64_t) phase_velocity_q16 * chunk) / MILLIS_PER_SECOND;
-                phase_q16 += (uint32_t) advance_q16;
+                Units::SignalQ16_16 dt_q16 = millisToQ16_16(chunk);
 
-                Q16_16 frame_acceleration = source.acceleration(phase_q16);
-                int32_t dt_chunk_q16_16 = (static_cast<int32_t>(chunk) << 16) / MILLIS_PER_SECOND;
-                dt_chunk_q16_16 = constrain(dt_chunk_q16_16, 0, 1 << 16);
+                // Advance phase using wrapping multiplication
+                Units::PhaseVelAngleUnitsQ16_16 phase_velocity_q16 = source.phaseVelocity(phase_q16);
+                Units::RawSignalQ16_16 phase_advance = mul_q16_16_wrap(phase_velocity_q16, dt_q16).asRaw();
+                phase_q16 += static_cast<uint32_t>(phase_advance);
 
-                velocity += scale_i32_by_q16_16(frame_acceleration, dt_chunk_q16_16);
-                int32_t retention_this_chunk_q16 = pow_q16(retention_per_sec, dt_chunk_q16_16);
-                velocity = scale_i32_by_q16_16(velocity, retention_this_chunk_q16);
-                position += scale_i32_by_q16_16(velocity, dt_chunk_q16_16);
+                // Apply acceleration to velocity using saturating multiplication
+                Units::SignalQ16_16 acceleration = source.acceleration(phase_q16);
+                Units::SignalQ16_16 dv = mul_q16_16_sat(acceleration, dt_q16);
+                velocity = Units::SignalQ16_16::fromRaw(add_sat_q16_16(velocity.asRaw(), dv.asRaw()));
+
+                // Apply damping to velocity
+                Units::SignalQ16_16 retention_factor = pow_f16_q16(retention_f16, dt_q16);
+                velocity = mul_q16_16_sat(velocity, retention_factor);
+
+                // Apply velocity to position
+                Units::SignalQ16_16 dp = mul_q16_16_sat(velocity, dt_q16);
+                Units::RawSignalQ16_16 next_position_raw;
+                if constexpr (std::is_same_v<Policy, WrapPolicy>) {
+                    next_position_raw = add_wrap_q16_16(position.asRaw(), dp.asRaw());
+                } else {
+                    next_position_raw = add_sat_q16_16(position.asRaw(), dp.asRaw());
+                }
+                position = Units::SignalQ16_16::fromRaw(next_position_raw);
+
                 policy.apply(position, velocity);
             }
         }
 
         /**
-         * @brief Gets the current value of the signal.
+         * @brief Gets the integer part of the signal's current position.
          * @return The integer part of the signal's current position.
          */
-        Value getValue() const { return position >> 16; }
+        Value getValue() const { return position.asInt(); }
+
+        /**
+         * @brief Gets the raw Q16.16 value of the signal's current position.
+         * @return The raw Q16.16 value.
+         */
+        Units::RawSignalQ16_16 getRawValue() const { return position.asRaw(); }
     };
 
-    /// A signal that can move indefinitely in a linear fashion.
-    using LinearSignal = Signal<LinearPolicy>;
-
-    /// A signal whose value is clamped within a specified min/max range.
-    using BoundedSignal = Signal<ClampPolicy>;
-
-    /// A signal whose value wraps around, like an angle (0-360 degrees).
-    using AngularSignal = Signal<WrapPolicy>;
+    /**
+     * @brief Gets the current value of an AngularSignal as an angle in turns (0-65535).
+     * Assumes the AngularSignal uses a WrapPolicy of 65536 units (AngleTurns16 domain).
+     */
+    inline Units::AngleTurns16 asAngleTurns(const AngularSignal& s) {
+        return static_cast<Units::AngleTurns16>(static_cast<uint32_t>(s.getRawValue()) >> 16);
+    }
 }
 
-#endif //LED_SEGMENTS_EFFECTS_MAPPERS_SIGNAL_H
+#endif //LED_SEGMENTS_MAPPERS_SIGNAL_H

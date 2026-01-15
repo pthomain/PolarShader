@@ -18,9 +18,10 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_TRANSFORMS_VORTEXTRANSFORM_H
-#define LED_SEGMENTS_EFFECTS_TRANSFORMS_VORTEXTRANSFORM_H
+#ifndef LED_SEGMENTS_TRANSFORMS_VORTEXTRANSFORM_H
+#define LED_SEGMENTS_TRANSFORMS_VORTEXTRANSFORM_H
 
+#include <memory>
 #include "base/Transforms.h"
 #include "polar/engine/pipeline/mappers/Signal.h"
 
@@ -28,38 +29,26 @@ namespace LEDSegments {
     /**
      * @class VortexTransform
      * @brief Applies a radius-dependent angular offset (twist) to the polar coordinates.
+     *
+     * Expects PolarLayer with PhaseTurnsUQ16_16 phase. Multiplies vortex strength (Q16.16) by radius (Q0.16)
+     * and adds the result modulo 2^32; large strengths can wrap. Use when you want radial twist; set bounds
+     * on the BoundedSignal to avoid unexpected wrap artifacts.
      */
     class VortexTransform : public PolarTransform {
-        BoundedSignal vortexSignal;
+        struct State;
+        std::shared_ptr<State> state;
 
     public:
         /**
          * @brief Constructs a new VortexTransform.
          * @param vortex A signal that provides the vortex strength over time.
          */
-        explicit VortexTransform(BoundedSignal vortex) : vortexSignal(std::move(vortex)) {
-        }
+        explicit VortexTransform(BoundedSignal vortex);
 
-        void advanceFrame(unsigned long timeInMillis) override {
-            vortexSignal.advanceFrame(timeInMillis);
-        }
+        void advanceFrame(Units::TimeMillis timeInMillis) override;
 
-        PolarLayer operator()(const PolarLayer &layer) const override {
-            return [this, layer](uint16_t angle_turns, fract16 radius, unsigned long timeInMillis) {
-                // vortexSignal.getValue() returns strength in turns as a Q16.16 value.
-                int32_t vortex_strength_q16_16 = vortexSignal.getValue();
-
-                // Scale the strength by the radius to get the angular offset.
-                // (Q16.16 * Q0.16) -> Q16.32, then shift to get Q16.16
-                int32_t offset_q16_16 = scale_i32_by_f16(vortex_strength_q16_16, radius);
-
-                // Add the integer part of the offset to the angle.
-                uint16_t new_angle_turns = angle_turns + (offset_q16_16 >> 16);
-
-                return layer(new_angle_turns, radius, timeInMillis);
-            };
-        }
+        PolarLayer operator()(const PolarLayer &layer) const override;
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_TRANSFORMS_VORTEXTRANSFORM_H
+#endif //LED_SEGMENTS_TRANSFORMS_VORTEXTRANSFORM_H
