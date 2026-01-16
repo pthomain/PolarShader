@@ -30,7 +30,7 @@ namespace LEDSegments {
      * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in Q16.16.
      * Positive s > 1 zooms in (expands coordinates), 0..1 zooms out.
      *
-     * Parameters: scale (LinearSignal, Q16.16).
+     * Parameters: scale (BoundedSignal, Q16.16).
      * Recommended order: early in Cartesian chain before warps/tiling.
      */
     class ZoomTransform : public CartesianTransform {
@@ -38,7 +38,21 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        explicit ZoomTransform(LinearSignal scale);
+        // Standard bounds for safe zoom: [1/16x, 1x]
+        inline static const Units::SignalQ16_16 ZOOM_MIN = Units::SignalQ16_16::fromRaw(Units::Q16_16_ONE >> 4); // 0.0625x
+        inline static const Units::SignalQ16_16 ZOOM_MAX = Units::SignalQ16_16(Units::Q16_16_ONE);                // 1.0x
+        inline static const Units::SignalQ16_16 ZOOM_MID =
+            Units::SignalQ16_16::fromRaw((ZOOM_MIN.asRaw() + ZOOM_MAX.asRaw()) / 2); // ~0.53125x
+        inline static const Units::SignalQ16_16 ZOOM_SPAN =
+            Units::SignalQ16_16::fromRaw(ZOOM_MAX.asRaw() - ZOOM_MIN.asRaw());
+        inline static const Units::SignalQ16_16 ZOOM_HALF_SPAN =
+            Units::SignalQ16_16::fromRaw(ZOOM_SPAN.asRaw() / 2);
+
+        explicit ZoomTransform(BoundedSignal scale);
+        ZoomTransform(Units::SignalQ16_16 base,
+                      Units::SignalQ16_16 amplitude,
+                      Units::PhaseVelAngleUnitsQ16_16 phaseVelocity,
+                      Units::PhaseTurnsUQ16_16 initialPhase = 0);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

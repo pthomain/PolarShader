@@ -23,22 +23,24 @@
 
 #include "base/Transforms.h"
 #include "polar/pipeline/utils/Units.h"
+#include "polar/pipeline/signals/Signal.h"
 
 namespace LEDSegments {
     /**
      * Adds a small, per-tile offset after tiling to break repetition. Uses tile index noise to jitter.
      *
-     * Parameters: tileX, tileY (tile sizes), amplitude (uint16_t jitter magnitude in coordinate units).
+     * Parameters: tileX, tileY (tile sizes), amplitude (LinearSignal jitter magnitude in coordinate units).
      * Recommended order: immediately after TilingTransform in the Cartesian chain.
      */
     class TileJitterTransform : public CartesianTransform {
         uint32_t tileX;
         uint32_t tileY;
-        uint16_t amplitude;
+        LinearSignal amplitudeSignal;
 
     public:
-        TileJitterTransform(uint32_t tileX, uint32_t tileY, uint16_t amplitude);
+        TileJitterTransform(uint32_t tileX, uint32_t tileY, LinearSignal amplitude);
 
+        void advanceFrame(Units::TimeMillis timeInMillis) override;
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };
 }

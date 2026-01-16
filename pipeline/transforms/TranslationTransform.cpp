@@ -20,6 +20,7 @@
 
 #include "TranslationTransform.h"
 #include <cstring>
+#include "polar/pipeline/utils/MathUtils.h"
 
 namespace LEDSegments {
     struct TranslationTransform::State {
@@ -27,8 +28,7 @@ namespace LEDSegments {
         LinearSignal dySignal;
 
         State(LinearSignal dx, LinearSignal dy)
-            : dxSignal(std::move(dx)), dySignal(std::move(dy)) {
-        }
+            : dxSignal(std::move(dx)), dySignal(std::move(dy)) {}
     };
 
     TranslationTransform::TranslationTransform(LinearSignal dx, LinearSignal dy)

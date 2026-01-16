@@ -23,6 +23,8 @@
 
 namespace LEDSegments {
 
+    ClampPolicy::ClampPolicy() : min_val(INT32_MIN), max_val(INT32_MAX) {}
+
     ClampPolicy::ClampPolicy(int32_t min, int32_t max) : min_val(min), max_val(max) {}
 
     ClampPolicy::ClampPolicy(Units::SignalQ16_16 min, Units::SignalQ16_16 max) : min_val(min), max_val(max) {}

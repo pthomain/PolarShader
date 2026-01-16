@@ -34,6 +34,8 @@ namespace LEDSegments {
         Units::SignalQ16_16 min_val;
         Units::SignalQ16_16 max_val;
 
+        // Default: effectively unbounded.
+        ClampPolicy();
         ClampPolicy(int32_t min, int32_t max);
         ClampPolicy(Units::SignalQ16_16 min, Units::SignalQ16_16 max);
 

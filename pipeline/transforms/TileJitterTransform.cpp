@@ -21,15 +21,22 @@
 #include "TileJitterTransform.h"
 #include <cstring>
 #include "FastLED.h"
+#include "polar/pipeline/utils/MathUtils.h"
 
 namespace LEDSegments {
 
-    TileJitterTransform::TileJitterTransform(uint32_t tileX, uint32_t tileY, uint16_t amplitude)
-        : tileX(tileX), tileY(tileY), amplitude(amplitude) {
+    TileJitterTransform::TileJitterTransform(uint32_t tileX, uint32_t tileY, LinearSignal amplitude)
+        : tileX(tileX), tileY(tileY), amplitudeSignal(std::move(amplitude)) {
+    }
+
+    void TileJitterTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+        amplitudeSignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer TileJitterTransform::operator()(const CartesianLayer &layer) const {
-        return [tileX = this->tileX, tileY = this->tileY, amp = this->amplitude, layer](int32_t x, int32_t y) {
+        return [tileX = this->tileX, tileY = this->tileY, ampSignal = this->amplitudeSignal, layer](int32_t x, int32_t y) mutable {
+            ampSignal.advanceFrame(0); // assumes caller advanced per frame; keep state in sync if reused
+            uint16_t amp = static_cast<uint16_t>(ampSignal.getValue());
             // Use floor division for signed coordinates to ensure continuous tile indices across 0.
             auto floor_div = [](int32_t val, uint32_t div) -> int32_t {
                 if (div == 0) return 0;
@@ -47,8 +54,8 @@ namespace LEDSegments {
             int32_t signedJx = static_cast<int32_t>(jitterX) - Units::U16_HALF;
             int32_t signedJy = static_cast<int32_t>(jitterY) - Units::U16_HALF;
 
-            int32_t offsetX = (signedJx * amp) >> 15; // scale to amplitude
-            int32_t offsetY = (signedJy * amp) >> 15;
+            int32_t offsetX = amp ? (signedJx * amp) >> 15 : 0; // scale to amplitude
+            int32_t offsetY = amp ? (signedJy * amp) >> 15 : 0;
 
             uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + offsetX);
             uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + offsetY);

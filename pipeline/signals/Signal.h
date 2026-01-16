@@ -24,13 +24,12 @@
 #include <type_traits>
 #include "Waveforms.h"
 #include "SignalPolicies.h"
+#include "WaveformSources.h"
 #include "../utils/MathUtils.h"
 #include "../utils/FixMathUtils.h"
 #include "../utils/Units.h"
 
 namespace LEDSegments {
-
-    static constexpr uint16_t PERMILLE_MAX = 1000;
 
     template<typename Policy>
     class Signal;
@@ -80,9 +79,8 @@ namespace LEDSegments {
     private:
         Units::SignalQ16_16 position;
         Units::SignalQ16_16 velocity = Units::SignalQ16_16(0);
-        Waveforms::WaveformSource source;
+        WaveformSources::WaveformSource source;
         Units::PhaseTurnsUQ16_16 phase_q16 = 0;
-        Units::FractQ0_16 retention_f16;
         Units::TimeMillis lastTime = 0;
         Policy policy;
 
@@ -93,22 +91,15 @@ namespace LEDSegments {
          * @brief Constructs a new Signal.
          * @param initialPosition The starting value of the signal.
          * @param waveformSource A function that provides acceleration to the signal over time.
-         * @param retention_permille_per_sec The percentage of velocity to retain per second, in permille (0-1000).
-         *                                   Acts like friction. 900 means 90% retention per second.
          * @param policy_args Arguments to be forwarded to the policy's constructor.
          */
         template<typename... PolicyArgs>
-        Signal(
-            Value initialPosition = 0,
-            Waveforms::WaveformSource waveformSource = Waveforms::Constant(0),
-            uint16_t retention_permille_per_sec = 900,
-            PolicyArgs... policy_args
-        ) : position(initialPosition),
-            source(std::move(waveformSource)),
-            retention_f16(0),
-            policy(policy_args...) {
-            uint16_t constrained_retention = (retention_permille_per_sec > 999u) ? 999u : retention_permille_per_sec;
-            retention_f16 = divide_u16_as_fract16(constrained_retention, PERMILLE_MAX);
+        Signal(Value initialPosition = 0,
+               WaveformSources::WaveformSource waveformSource = WaveformSources::Constant(0),
+               PolicyArgs... policy_args)
+            : position(initialPosition),
+              source(std::move(waveformSource)),
+              policy(policy_args...) {
             phase_q16 = (Units::PhaseTurnsUQ16_16) random16() << 16;
         }
 
@@ -116,17 +107,12 @@ namespace LEDSegments {
          * @brief Constructs a new Signal from a Q16.16 initial value (allows fractional starts).
          */
         template<typename... PolicyArgs>
-        Signal(
-            Units::SignalQ16_16 initialPosition,
-            Waveforms::WaveformSource waveformSource = Waveforms::Constant(0),
-            uint16_t retention_permille_per_sec = 900,
-            PolicyArgs... policy_args
-        ) : position(initialPosition),
-            source(std::move(waveformSource)),
-            retention_f16(0),
-            policy(policy_args...) {
-            uint16_t constrained_retention = (retention_permille_per_sec > 999u) ? 999u : retention_permille_per_sec;
-            retention_f16 = divide_u16_as_fract16(constrained_retention, PERMILLE_MAX);
+        Signal(Units::SignalQ16_16 initialPosition,
+               WaveformSources::WaveformSource waveformSource = WaveformSources::Constant(0),
+               PolicyArgs... policy_args)
+            : position(initialPosition),
+              source(std::move(waveformSource)),
+              policy(policy_args...) {
             phase_q16 = (Units::PhaseTurnsUQ16_16) random16() << 16;
         }
 
@@ -169,10 +155,6 @@ namespace LEDSegments {
                 Units::SignalQ16_16 acceleration = source.acceleration(phase_q16);
                 Units::SignalQ16_16 dv = mul_q16_16_sat(acceleration, dt_q16);
                 velocity = Units::SignalQ16_16::fromRaw(add_sat_q16_16(velocity.asRaw(), dv.asRaw()));
-
-                // Apply damping to velocity
-                Units::SignalQ16_16 retention_factor = pow_f16_q16(retention_f16, dt_q16);
-                velocity = mul_q16_16_sat(velocity, retention_factor);
 
                 // Apply velocity to position
                 Units::SignalQ16_16 dp = mul_q16_16_sat(velocity, dt_q16);

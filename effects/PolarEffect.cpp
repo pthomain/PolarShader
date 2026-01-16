@@ -30,9 +30,9 @@ namespace LEDSegments {
     PolarEffect::PolarEffect(
         const RenderableContext &context
     ) : Effect(context),
-        pipeline(buildDefaultPreset(context.palette.palette)) {
+        pipeline(buildDefaultPreset(context.palette.palette)),
+        colourLayer(pipeline.build()) {
         //PresetPicker::pickRandom(context.palette.palette)) {
-        colourLayer = pipeline.build();
     }
 
     CRGB PolarEffect::blendLayers(

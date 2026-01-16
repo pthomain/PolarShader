@@ -51,9 +51,20 @@ namespace LEDSegments {
     }
 
     PolarPipeline buildDefaultPreset(const CRGBPalette16 &palette) {
-        return PolarPipelineBuilder(fBmLayer, palette, "Default")
-                .addCartesianTransform(ZoomTransform(
-                    LinearSignal(UINT16_MAX / 16)
+        return PolarPipelineBuilder(noiseLayer, palette, "Default")
+                // Fixed zoom at mid-range for a stable baseline.
+                .addCartesianTransform(ZoomTransform(BoundedSignal(ZoomTransform::ZOOM_MID)))
+                // Slow constant translation of the noise domain (diagonal drift).
+                .addCartesianTransform(TranslationTransform(
+                    // Gentle signal-driven offsets (integer part of Q16.16); phase velocities create steady drift.
+                    LinearSignal(0, {
+                                     Waveforms::ConstantAccelerationWaveform(0),
+                                     Waveforms::ConstantPhaseVelocityWaveform(200)
+                                 }),
+                    LinearSignal(0, {
+                                     Waveforms::ConstantAccelerationWaveform(0),
+                                     Waveforms::ConstantPhaseVelocityWaveform(150)
+                                 })
                 ))
                 .build();
     }
@@ -99,7 +110,7 @@ namespace LEDSegments {
                 .addPolarTransform(LensDistortionTransform(LinearSignal(q16_frac(1, 128)))) // slight barrel
                 // Slow twist
                 .addPolarTransform(VortexTransform(BoundedSignal(
-                    Units::SignalQ16_16(0), Waveforms::Constant(0), 0,
+                    Units::SignalQ16_16(0), WaveformSources::Constant(0),
                     q16_frac(-1, 64), q16_frac(1, 64))))
                 .build();
     }
@@ -134,7 +145,7 @@ namespace LEDSegments {
                 // stretch Y ~0.6
                 // Gentle twist
                 .addPolarTransform(VortexTransform(BoundedSignal(
-                    Units::SignalQ16_16(0), Waveforms::Constant(0), 0,
+                    Units::SignalQ16_16(0), WaveformSources::Constant(0),
                     q16_frac(-1, 48), q16_frac(1, 48))))
                 // Symmetry
                 .addPolarTransform(KaleidoscopeTransform(4, false, true))
@@ -167,8 +178,8 @@ namespace LEDSegments {
                 // Breathing zoom
                 .addPolarTransform(RadialScaleTransform(
                     LinearSignal(Units::SignalQ16_16(0),
-                                 Waveforms::Sine(Waveforms::ConstantPhaseVelocityWaveform(30),
-                                                 Waveforms::ConstantAccelerationWaveformRaw(500)))))
+                                 WaveformSources::Sine(Waveforms::ConstantPhaseVelocityWaveform(30),
+                                                       Waveforms::ConstantAccelerationWaveformRaw(500)))))
                 // oscillating zoom, raw 500 is tiny fraction
                 // Mild symmetry
                 .addPolarTransform(KaleidoscopeTransform(3, false, false))
@@ -182,7 +193,7 @@ namespace LEDSegments {
                 .addCartesianTransform(ShearTransform(LinearSignal(q16_frac(1, 8)), LinearSignal(0)))
                 // Strong twist
                 .addPolarTransform(VortexTransform(BoundedSignal(
-                    Units::SignalQ16_16(0), Waveforms::Constant(0), 0,
+                    Units::SignalQ16_16(0), WaveformSources::Constant(0),
                     q16_frac(1, 80), q16_frac(3, 40))))
                 // Pincushion
                 .addPolarTransform(LensDistortionTransform(LinearSignal(q16_frac(-1, 80)))) // mild pincushion
@@ -223,9 +234,12 @@ namespace LEDSegments {
         return PolarPipelineBuilder(noiseLayer, palette, "StarburstPulse")
                 // Pulsed radial zoom
                 .addPolarTransform(RadialScaleTransform(
-                    LinearSignal(Units::SignalQ16_16(0), Waveforms::Pulse(Waveforms::ConstantPhaseVelocityWaveform(40),
-                                                                          Waveforms::ConstantAccelerationWaveformRaw(
-                                                                              2000)))))
+                    LinearSignal(
+                        Units::SignalQ16_16(0),
+                        WaveformSources::Pulse(
+                            Waveforms::ConstantPhaseVelocityWaveform(40),
+                            Waveforms::ConstantAccelerationWaveformRaw(
+                                2000)))))
                 // Angular symmetry
                 .addPolarTransform(KaleidoscopeTransform(6, false, true))
                 // Barrel pop
@@ -253,8 +267,10 @@ namespace LEDSegments {
         return PolarPipelineBuilder(fBmLayer, palette, "RippleRing")
                 // Oscillating radial scale
                 .addPolarTransform(RadialScaleTransform(LinearSignal(
-                    Units::SignalQ16_16(0), Waveforms::Sine(Waveforms::ConstantPhaseVelocityWaveform(25),
-                                                            Waveforms::ConstantAccelerationWaveformRaw(1500)))))
+                    Units::SignalQ16_16(0),
+                    WaveformSources::Sine(
+                        Waveforms::ConstantPhaseVelocityWaveform(25),
+                        Waveforms::ConstantAccelerationWaveformRaw(1500)))))
                 // Mirror both axes (Cartesian symmetry before polar conversion)
                 .addCartesianTransform(MirrorTransform(true, true))
                 // Many petals
@@ -291,8 +307,10 @@ namespace LEDSegments {
         return PolarPipelineBuilder(noiseLayer, palette, "StutterPulse")
                 // Pulsed radius
                 .addPolarTransform(RadialScaleTransform(LinearSignal(
-                    Units::SignalQ16_16(0), Waveforms::Pulse(Waveforms::ConstantPhaseVelocityWaveform(60),
-                                                             Waveforms::ConstantAccelerationWaveformRaw(2500)))))
+                    Units::SignalQ16_16(0),
+                    WaveformSources::Pulse(
+                        Waveforms::ConstantPhaseVelocityWaveform(60),
+                        Waveforms::ConstantAccelerationWaveformRaw(2500)))))
                 // Medium rotation
                 .addPolarTransform(RotationTransform(AngularSignal(Units::SignalQ16_16(0),
                                                                    {
@@ -315,7 +333,7 @@ namespace LEDSegments {
                 .addCartesianTransform(NoiseWarpTransform(LinearSignal(q16_frac(1, 40)), LinearSignal(q16_frac(1, 40))))
                 // Twist
                 .addPolarTransform(VortexTransform(BoundedSignal(
-                    Units::SignalQ16_16(0), Waveforms::Constant(0), 0,
+                    Units::SignalQ16_16(0), WaveformSources::Constant(0),
                     q16_frac(-1, 64), q16_frac(1, 64))))
                 // Lens
                 .addPolarTransform(LensDistortionTransform(LinearSignal(q16_frac(1, 96))))
@@ -347,7 +365,7 @@ namespace LEDSegments {
                 .addPolarTransform(PosterizePolarTransform(12, 6))
                 // Twist
                 .addPolarTransform(VortexTransform(BoundedSignal(
-                    Units::SignalQ16_16(0), Waveforms::Constant(0), 0,
+                    Units::SignalQ16_16(0), WaveformSources::Constant(0),
                     q16_frac(-1, 48), q16_frac(1, 48))))
                 // Rotation
                 .addPolarTransform(RotationTransform(AngularSignal(Units::SignalQ16_16(0),
@@ -364,7 +382,11 @@ namespace LEDSegments {
                 // Tile
                 .addCartesianTransform(TilingTransform(1u << 17, 1u << 17))
                 // Jitter tiles
-                .addCartesianTransform(TileJitterTransform(1u << 17, 1u << 17, 1024))
+                .addCartesianTransform(TileJitterTransform(
+                    1u << 17,
+                    1u << 17,
+                    LinearSignal(1024) // constant amplitude via signal
+                ))
                 // Mandala fold
                 .addPolarTransform(KaleidoscopeTransform(5, true, true))
                 .build();
