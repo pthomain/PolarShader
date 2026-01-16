@@ -28,9 +28,9 @@
 #include "config/PolarTransitionConfig.h"
 #include "engine/displayspec/DisplaySpec.h"
 #include "engine/utils/Utils.h"
-#include <functional> // Add this include
+#include <functional>
 #include "engine/render/renderable/Polar.h"
-#include "polar/engine/pipeline/utils/Units.h"
+#include "polar/pipeline/utils/Units.h"
 
 using namespace LEDSegments;
 

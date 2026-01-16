@@ -23,8 +23,8 @@
 
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
-#include "polar/engine/pipeline/PolarPipelineBuilder.h"
-#include "polar/engine/pipeline/utils/Units.h"
+#include "polar/pipeline/PolarPipelineBuilder.h"
+#include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
     using namespace Units;
@@ -38,17 +38,15 @@ namespace LEDSegments {
         PolarPipeline pipeline;
         ColourLayer colourLayer;
 
-        CRGB blendLayers(
+        static CRGB blendLayers(
             Units::PhaseTurnsUQ16_16 angle_q16,
             FractQ0_16 radius,
-            TimeMillis timeInMillis,
             const ColourLayer &layer
         );
 
         CRGB blendLayers(
             Units::PhaseTurnsUQ16_16 angle_q16,
             FractQ0_16 radius,
-            TimeMillis timeInMillis,
             const fl::vector<ColourLayer> &layers
         );
 
