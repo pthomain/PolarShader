@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/engine/pipeline/mappers/Signal.h"
+#include "polar/engine/pipeline/signals/Signal.h"
 
 namespace LEDSegments {
     /**
@@ -33,8 +33,11 @@ namespace LEDSegments {
      * This transform distorts the input coordinates by adding a time-varying offset,
      * creating a "warping" or "flowing" effect in the final pattern.
      *
+     * Parameters: two LinearSignals (Q16.16) for X/Y offsets.
      * Input/output domain: CartesianLayer with 32-bit coordinates. Offsets are added with explicit
-     * 32-bit wrap; no clamping occurs. Use when you want slow spatial drift before converting to polar.
+     * 32-bit wrap; no clamping occurs.
+     * Recommended order: apply early, before other Cartesian transforms or polar conversion, so downstream
+     * transforms see the warped space.
      */
     class DomainWarpTransform : public CartesianTransform {
         struct State;

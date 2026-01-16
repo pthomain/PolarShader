@@ -36,6 +36,9 @@ namespace LEDSegments {
      * each segment; in mandala mode, phase is multiplied by segment count and wraps. Mirroring treats
      * the folded boundary deterministically. Use when you need hard angular symmetry; beware of abrupt
      * folds if your source has discontinuities at 0/2π.
+     *
+     * Parameters: nbSegments (1-8), isMandala (multiply vs fold), isMirroring (flip odd sectors).
+     * Recommended order: last polar transform before palette sampling; apply after rotation/vortex.
      */
     class KaleidoscopeTransform : public PolarTransform {
         uint8_t nbSegments;
@@ -72,22 +75,7 @@ namespace LEDSegments {
         ) : nbSegments(nbSegments), isMandala(isMandala), isMirroring(isMirroring) {
         }
 
-        PolarLayer operator()(const PolarLayer &layer) const override {
-            return [nbSegments = this->nbSegments, isMandala = this->isMandala, isMirroring = this->isMirroring, layer](Units::PhaseTurnsUQ16_16 angle_q16, Units::FractQ0_16 radius, Units::TimeMillis timeInMillis) {
-                uint8_t segments = constrain(nbSegments, (uint8_t)1, MAX_SEGMENTS);
-
-                Units::PhaseTurnsUQ16_16 newAngle_q16;
-                if (isMandala) {
-                    // Multiply the angle by the number of segments. The uint32_t accumulator
-                    // will naturally wrap, creating the intended mandala effect.
-                    newAngle_q16 = angle_q16 * segments;
-                } else {
-                    newAngle_q16 = foldPhaseKaleidoscope(angle_q16, segments, isMirroring);
-                }
-
-                return layer(newAngle_q16, radius, timeInMillis);
-            };
-        }
+        PolarLayer operator()(const PolarLayer &layer) const override;
     };
 }
 

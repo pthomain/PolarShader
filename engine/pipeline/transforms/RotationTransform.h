@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/engine/pipeline/mappers/Signal.h"
+#include "polar/engine/pipeline/signals/Signal.h"
 
 namespace LEDSegments {
     /**
@@ -33,6 +33,9 @@ namespace LEDSegments {
      * Expects and returns PolarLayer phases in PhaseTurnsUQ16_16 (AngleTurns16 in high 16 bits).
      * Rotation signal is added full-resolution and wraps modulo 2^32. Negative velocities wrap via
      * unsigned addition.
+     * Parameters: AngularSignal rotation (Q16.16 angle-units per second).
+     * Recommended order: after Cartesian → Polar conversion and before kaleidoscope/mandala folding
+     * so symmetry uses the rotated frame.
      */
     class RotationTransform : public PolarTransform {
         struct State;

@@ -21,6 +21,7 @@
 #include "PolarPipeline.h"
 #include "utils/NoiseUtils.h"
 #include "PolarUtils.h"
+#include "utils/PipelineLogging.h"
 #include "FastLED.h"
 
 namespace LEDSegments {
@@ -28,16 +29,17 @@ namespace LEDSegments {
     PolarPipeline::PolarPipeline(
         NoiseLayer sourceLayer,
         const CRGBPalette16 &palette,
-        fl::vector<PipelineStep> steps
+        fl::vector<PipelineStep> steps,
+        const char *name
     ) : sourceLayer(std::move(sourceLayer)),
         palette(palette),
-        steps(std::move(steps)) {
+        steps(std::move(steps)),
+        name(name ? name : "unnamed") {
+        pipelineLog("Building pipeline:", this->name);
     }
 
     ColourLayer PolarPipeline::blackLayer(const char *reason) {
-#ifdef ARDUINO
-        if (reason) Serial.println(reason);
-#endif
+        if (reason) pipelineLog(reason);
         return [](Units::PhaseTurnsUQ16_16, Units::FractQ0_16, Units::TimeMillis) {
             return CRGB::Black;
         };

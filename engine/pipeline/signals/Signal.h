@@ -18,8 +18,8 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_MAPPERS_SIGNAL_H
-#define LED_SEGMENTS_MAPPERS_SIGNAL_H
+#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_SIGNAL_H
+#define LED_SEGMENTS_PIPELINE_SIGNALS_SIGNAL_H
 
 #include <type_traits>
 #include "Waveforms.h"
@@ -35,13 +35,16 @@ namespace LEDSegments {
     template<typename Policy>
     class Signal;
 
-    /// A signal that can move indefinitely in a linear fashion.
+    /// A signal that can move indefinitely in a linear fashion (no bounds).
+    /// Use for offsets or camera moves where wrap/clamp behavior is not desired.
     using LinearSignal = Signal<LinearPolicy>;
 
     /// A signal whose value is clamped within a specified min/max range.
+    /// Use for zoom/radius controls that must stay within safe limits.
     using BoundedSignal = Signal<ClampPolicy>;
 
-    /// A signal whose value wraps around, like an angle (0-360 degrees).
+    /// A signal whose value wraps around, like an angle (0-360 degrees). Defaults to 65536 units (AngleTurns16).
+    /// Use for anything periodic (rotation, hue phase) where modulo wrap is desired.
     using AngularSignal = Signal<WrapPolicy>;
 
     /**
@@ -97,6 +100,24 @@ namespace LEDSegments {
         template<typename... PolicyArgs>
         Signal(
             Value initialPosition = 0,
+            Waveforms::WaveformSource waveformSource = Waveforms::Constant(0),
+            uint16_t retention_permille_per_sec = 900,
+            PolicyArgs... policy_args
+        ) : position(initialPosition),
+            source(std::move(waveformSource)),
+            retention_f16(0),
+            policy(policy_args...) {
+            uint16_t constrained_retention = (retention_permille_per_sec > 999u) ? 999u : retention_permille_per_sec;
+            retention_f16 = divide_u16_as_fract16(constrained_retention, PERMILLE_MAX);
+            phase_q16 = (Units::PhaseTurnsUQ16_16) random16() << 16;
+        }
+
+        /**
+         * @brief Constructs a new Signal from a Q16.16 initial value (allows fractional starts).
+         */
+        template<typename... PolicyArgs>
+        Signal(
+            Units::SignalQ16_16 initialPosition,
             Waveforms::WaveformSource waveformSource = Waveforms::Constant(0),
             uint16_t retention_permille_per_sec = 900,
             PolicyArgs... policy_args
@@ -189,4 +210,4 @@ namespace LEDSegments {
     }
 }
 
-#endif //LED_SEGMENTS_MAPPERS_SIGNAL_H
+#endif //LED_SEGMENTS_PIPELINE_SIGNALS_SIGNAL_H

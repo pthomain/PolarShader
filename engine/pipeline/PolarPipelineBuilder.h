@@ -22,9 +22,6 @@
 #define LED_SEGMENTS_SPECS_POLARPIPELINEBUILDER_H
 
 #include "PolarPipeline.h"
-#ifdef ARDUINO
-#include "Arduino.h"
-#endif
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -41,6 +38,8 @@ namespace LEDSegments {
         fl::vector<PipelineStep> steps;
         bool built = false;
         BuilderDomain currentDomain = BuilderDomain::Cartesian;
+        // Must point to a string with static storage duration (presets use literals).
+        const char *name;
 
         void ensureFinalPolarDomain() {
             if (currentDomain == BuilderDomain::Cartesian) {
@@ -52,9 +51,11 @@ namespace LEDSegments {
     public:
         PolarPipelineBuilder(
             NoiseLayer sourceLayer,
-            const CRGBPalette16 &palette
+            const CRGBPalette16 &palette,
+            const char *name
         ) : sourceLayer(std::move(sourceLayer)),
-            palette(palette) {
+            palette(palette),
+            name(name ? name : "unnamed") {
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
@@ -79,17 +80,7 @@ namespace LEDSegments {
             return *this;
         }
 
-        PolarPipeline build() {
-            if (built) {
-#ifdef ARDUINO
-                Serial.println("PolarPipelineBuilder::build called more than once; returning black pipeline.");
-#endif
-                return PolarPipeline(sourceLayer, palette, {});
-            }
-            ensureFinalPolarDomain();
-            built = true;
-            return PolarPipeline(sourceLayer, palette, std::move(steps));
-        }
+        PolarPipeline build();
     };
 }
 
