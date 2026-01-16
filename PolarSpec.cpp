@@ -20,6 +20,7 @@
 
 #include "PolarSpec.h"
 #include "config/PolarLayoutConfig.h"
+#include "polar/pipeline/utils/MathUtils.h"
 
 uint16_t PolarSpec::nbSegments(uint16_t layoutId) const {
     // The display can be treated as one whole segment or as 9 concentric rings.

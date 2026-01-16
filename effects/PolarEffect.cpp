@@ -18,13 +18,9 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "polar/pipeline/utils/PolarUtils.h"
 #include "PolarEffect.h"
-#include "polar/engine/pipeline/CartesianNoiseLayers.h"
-#include "polar/engine/pipeline/PresetPicker.h"
-#include "polar/engine/pipeline/transforms/KaleidoscopeTransform.h"
-#include "polar/engine/pipeline/transforms/DomainWarpTransform.h"
-#include "polar/engine/pipeline/transforms/VortexTransform.h"
-#include "polar/engine/pipeline/transforms/RotationTransform.h"
+#include "polar/pipeline/presets/PresetPicker.h"
 
 namespace LEDSegments {
     static const PolarEffectFactory factoryInstance;
@@ -40,25 +36,23 @@ namespace LEDSegments {
     CRGB PolarEffect::blendLayers(
         Units::PhaseTurnsUQ16_16 angle_q16,
         Units::FractQ0_16 radius,
-        Units::TimeMillis timeInMillis,
         const ColourLayer &layer
     ) {
-        return layer(angle_q16, radius, timeInMillis);
+        return layer(angle_q16, radius);
     }
 
     CRGB PolarEffect::blendLayers(
         Units::PhaseTurnsUQ16_16 angle_q16,
         Units::FractQ0_16 radius,
-        Units::TimeMillis timeInMillis,
         const fl::vector<ColourLayer> &layers
     ) {
         if (layers.empty()) return CRGB::Black;
         if (layers.size() == 1) {
-            return layers[0](angle_q16, radius, timeInMillis);
+            return layers[0](angle_q16, radius);
         }
         CRGB16 blended16;
         for (const auto &layer: layers) {
-            blended16 += layer(angle_q16, radius, timeInMillis);
+            blended16 += layer(angle_q16, radius);
         }
         uint16_t max_val = max(blended16.r, max(blended16.g, blended16.b));
         if (max_val > UINT8_MAX) {
@@ -84,7 +78,6 @@ namespace LEDSegments {
             segmentArray[pixelIndex] = blendLayers(
                 angle_q16,
                 radius,
-                timeInMillis,
                 colourLayer
             );
         }
