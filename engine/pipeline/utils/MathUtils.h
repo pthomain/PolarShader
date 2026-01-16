@@ -46,7 +46,8 @@ namespace LEDSegments {
     Units::AngleTurns16 atan2_turns_approx(int16_t y, int16_t x);
 
     /**
-     * @brief Computes pow(base, exp) with guards for edge cases.
+     * @brief Retention-focused pow(base, exp) with clamps.
+     * Assumes exp >= 0 (typical for damping over time) and clamps the result to [0,1].
      * @param base The base, a Q0.16 fraction (Units::FractQ0_16).
      * @param exp The exponent, a Q16.16 fixed-point value (Units::SignalQ16_16).
      * @return base^exp, as a Q16.16 value, clamped to the [0, 1] range.

@@ -20,6 +20,7 @@
 
 #include "PolarEffect.h"
 #include "polar/engine/pipeline/CartesianNoiseLayers.h"
+#include "polar/engine/pipeline/PresetPicker.h"
 #include "polar/engine/pipeline/transforms/KaleidoscopeTransform.h"
 #include "polar/engine/pipeline/transforms/DomainWarpTransform.h"
 #include "polar/engine/pipeline/transforms/VortexTransform.h"
@@ -32,57 +33,7 @@ namespace LEDSegments {
     PolarEffect::PolarEffect(
         const RenderableContext &context
     ) : Effect(context),
-        pipeline(
-            PolarPipelineBuilder(std::move(noiseLayer), context.palette.palette)
-            .addCartesianTransform(
-                DomainWarpTransform(
-                    LinearSignal(
-                        0,
-                        Waveforms::Noise(
-                            Waveforms::ConstantPhaseVelocityWaveform(100),
-                            Waveforms::ConstantAccelerationWaveform(1000)
-                        )
-                    ),
-                    LinearSignal(
-                        0,
-                        Waveforms::Noise(
-                            Waveforms::ConstantPhaseVelocityWaveform(100),
-                            Waveforms::ConstantAccelerationWaveform(1000)
-                        )
-                    )
-                )
-            )
-            .addPolarTransform(
-                RotationTransform(
-                    AngularSignal(
-                        0,
-                        Waveforms::Constant(500)
-                    )
-                )
-            )
-            .addPolarTransform(
-                VortexTransform(
-                    BoundedSignal(
-                        0,
-                        Waveforms::Pulse(
-                            Waveforms::ConstantPhaseVelocityWaveform(200),
-                            Waveforms::ConstantAccelerationWaveform(20000)
-                        ),
-                        500,
-                        -30000,
-                        30000
-                    )
-                )
-            )
-            .addPolarTransform(
-                KaleidoscopeTransform(
-                    3,
-                    false,
-                    true
-                )
-            )
-            .build()
-        ) {
+        pipeline(PresetPicker::pickRandom(context.palette.palette)) {
         colourLayer = pipeline.build();
     }
 

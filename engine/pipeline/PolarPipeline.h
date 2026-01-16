@@ -22,9 +22,6 @@
 #define LED_SEGMENTS_PIPELINE_POLARPIPELINE_H
 
 #include "transforms/base/Transforms.h"
-#ifdef ARDUINO
-#include "Arduino.h"
-#endif
 #include "PolarUtils.h"
 #include "utils/Units.h"
 #include <memory>
@@ -47,6 +44,7 @@ namespace LEDSegments {
         NoiseLayer sourceLayer;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
+        const char *name;
 
         static ColourLayer blackLayer(const char *reason);
 
@@ -57,7 +55,8 @@ namespace LEDSegments {
         PolarPipeline(
             NoiseLayer sourceLayer,
             const CRGBPalette16 &palette,
-            fl::vector<PipelineStep> steps
+            fl::vector<PipelineStep> steps,
+            const char *name
         );
 
         friend class PolarPipelineBuilder;
@@ -66,6 +65,8 @@ namespace LEDSegments {
         void advanceFrame(Units::TimeMillis timeInMillis);
 
         ColourLayer build() const;
+
+        const char *getName() const { return name; }
     };
 }
 

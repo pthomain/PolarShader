@@ -18,8 +18,8 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_EFFECTS_MAPPERS_SIGNALPOLICIES_H
-#define LED_SEGMENTS_EFFECTS_MAPPERS_SIGNALPOLICIES_H
+#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H
+#define LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H
 
 #include "../utils/FixMathUtils.h"
 #include "../utils/Units.h"
@@ -35,6 +35,7 @@ namespace LEDSegments {
         Units::SignalQ16_16 max_val;
 
         ClampPolicy(int32_t min, int32_t max);
+        ClampPolicy(Units::SignalQ16_16 min, Units::SignalQ16_16 max);
 
         void apply(Units::SignalQ16_16 &position, Units::SignalQ16_16 &velocity) const;
     };
@@ -48,4 +49,4 @@ namespace LEDSegments {
     };
 }
 
-#endif //LED_SEGMENTS_EFFECTS_MAPPERS_SIGNALPOLICIES_H
+#endif //LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H

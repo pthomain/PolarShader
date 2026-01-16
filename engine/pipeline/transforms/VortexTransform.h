@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/engine/pipeline/mappers/Signal.h"
+#include "polar/engine/pipeline/signals/Signal.h"
 
 namespace LEDSegments {
     /**
@@ -33,6 +33,8 @@ namespace LEDSegments {
      * Expects PolarLayer with PhaseTurnsUQ16_16 phase. Multiplies vortex strength (Q16.16) by radius (Q0.16)
      * and adds the result modulo 2^32; large strengths can wrap. Use when you want radial twist; set bounds
      * on the BoundedSignal to avoid unexpected wrap artifacts.
+     * Parameters: BoundedSignal vortex (Q16.16 angle-units per second, bounded externally).
+     * Recommended order: after rotation and before kaleidoscope so the twist participates in symmetry folding.
      */
     class VortexTransform : public PolarTransform {
         struct State;

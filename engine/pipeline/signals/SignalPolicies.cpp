@@ -25,6 +25,8 @@ namespace LEDSegments {
 
     ClampPolicy::ClampPolicy(int32_t min, int32_t max) : min_val(min), max_val(max) {}
 
+    ClampPolicy::ClampPolicy(Units::SignalQ16_16 min, Units::SignalQ16_16 max) : min_val(min), max_val(max) {}
+
     void ClampPolicy::apply(Units::SignalQ16_16 &position, Units::SignalQ16_16 &velocity) const {
         if (position < min_val) {
             position = min_val;

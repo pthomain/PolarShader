@@ -58,8 +58,8 @@ public:
             polarParamSelector
         ),
         DEBUG ? 30 : 128,
-        DEBUG ? 3600 : 3,
-        DEBUG ? 3600 : 8,
+        DEBUG ? 10 : 3,
+        DEBUG ? 10 : 8,
         1000,
         1.0f,
         30
