@@ -34,7 +34,7 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(warp))) {
     }
 
-    void DomainWarpTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void DomainWarpTransform::advanceFrame(TimeMillis timeInMillis) {
         state->warpSignal.advanceFrame(timeInMillis);
     }
 

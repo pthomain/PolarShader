@@ -50,7 +50,7 @@ namespace LEDSegments {
      */
         explicit DomainWarpTransform(LinearMotion warp);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };

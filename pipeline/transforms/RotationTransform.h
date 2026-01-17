@@ -48,7 +48,7 @@ namespace LEDSegments {
          */
         explicit RotationTransform(AngularMotion rotation);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         PolarLayer operator()(const PolarLayer &layer) const override;
     };

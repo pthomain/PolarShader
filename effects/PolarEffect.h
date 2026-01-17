@@ -23,11 +23,11 @@
 
 #include "engine/render/renderable/BaseRenderableFactory.h"
 #include "engine/render/renderable/TypedRenderable.h"
+#include "polar/pipeline/utils/Units.h"
 #include "polar/pipeline/PolarPipelineBuilder.h"
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
-    using namespace Units;
     /**
      * PolarEffect builds a PolarPipeline from the current palette and renders using AngleTurnsUQ16_16 angles
      * (AngleUnitsQ0_16 stored in the upper 16 bits). Callers must promote AngleUnitsQ0_16 -> AngleTurnsUQ16_16
@@ -39,14 +39,14 @@ namespace LEDSegments {
         ColourLayer colourLayer;
 
         static CRGB blendLayers(
-            Units::AngleTurnsUQ16_16 angle_q16,
-            FracQ0_16 radius,
+            AngleTurnsUQ16_16 angle_q16,
+            RadiusQ0_16 radius,
             const ColourLayer &layer
         );
 
         CRGB blendLayers(
-            Units::AngleTurnsUQ16_16 angle_q16,
-            FracQ0_16 radius,
+            AngleTurnsUQ16_16 angle_q16,
+            RadiusQ0_16 radius,
             const fl::vector<ColourLayer> &layers
         );
 

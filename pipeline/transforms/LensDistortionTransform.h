@@ -41,7 +41,7 @@ namespace LEDSegments {
     public:
         explicit LensDistortionTransform(ScalarMotion k);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         PolarLayer operator()(const PolarLayer &layer) const override;
     };

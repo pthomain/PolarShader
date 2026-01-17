@@ -23,7 +23,7 @@
 
 #include <utility>
 #include "LinearVector.h"
-#include "polar/pipeline/signals/Fluctuation.h"
+#include "polar/pipeline/signals/Modulation.h"
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
@@ -39,81 +39,83 @@ namespace LEDSegments {
 
         ~LinearMotion() = default;
 
-        void advanceFrame(Units::TimeMillis timeInMillis);
+        void advanceFrame(TimeMillis timeInMillis);
 
         int32_t getX() const { return positionX.asInt(); }
         int32_t getY() const { return positionY.asInt(); }
 
-        Units::RawFracQ16_16 getRawX() const { return positionX.asRaw(); }
-        Units::RawFracQ16_16 getRawY() const { return positionY.asRaw(); }
+        RawQ16_16 getRawX() const { return RawQ16_16(positionX.asRaw()); }
+        RawQ16_16 getRawY() const { return RawQ16_16(positionY.asRaw()); }
 
     protected:
-        LinearMotion(Units::FracQ16_16 initialX,
-                     Units::FracQ16_16 initialY,
-                     Fluctuation<LinearVector> velocity,
+        LinearMotion(FracQ16_16 initialX,
+                     FracQ16_16 initialY,
+                     Modulation<LinearVector> velocity,
                      bool clampEnabled,
-                     Units::FracQ16_16 maxRadius);
+                     FracQ16_16 maxRadius);
 
         void applyRadialClamp();
 
-        Units::FracQ16_16 positionX;
-        Units::FracQ16_16 positionY;
-        Fluctuation<LinearVector> velocity;
-        Units::TimeMillis lastTime = 0;
+        FracQ16_16 positionX;
+        FracQ16_16 positionY;
+        Modulation<LinearVector> velocity;
+        TimeMillis lastTime = 0;
+        bool hasLastTime = false;
         bool clampEnabled = false;
-        Units::FracQ16_16 maxRadius;
+        FracQ16_16 maxRadius;
     };
 
     class UnboundedLinearMotion : public LinearMotion {
     public:
-        UnboundedLinearMotion(Units::FracQ16_16 initialX,
-                              Units::FracQ16_16 initialY,
-                              Fluctuation<LinearVector> velocity)
-            : LinearMotion(initialX, initialY, std::move(velocity), false, Units::FracQ16_16(0)) {
+        UnboundedLinearMotion(FracQ16_16 initialX,
+                              FracQ16_16 initialY,
+                              Modulation<LinearVector> velocity)
+            : LinearMotion(initialX, initialY, std::move(velocity), false, FracQ16_16(0)) {
         }
     };
 
     class BoundedLinearMotion : public LinearMotion {
     public:
-        BoundedLinearMotion(Units::FracQ16_16 initialX,
-                            Units::FracQ16_16 initialY,
-                            Fluctuation<LinearVector> velocity,
-                            Units::FracQ16_16 maxRadius)
+        BoundedLinearMotion(FracQ16_16 initialX,
+                            FracQ16_16 initialY,
+                            Modulation<LinearVector> velocity,
+                            FracQ16_16 maxRadius)
             : LinearMotion(initialX, initialY, std::move(velocity), true, maxRadius) {
         }
     };
 
     class AngularMotion {
     public:
-        AngularMotion(Units::AngleUnitsQ0_16 initial,
-                      Fluctuation<Units::FracQ16_16> speed);
+        AngularMotion(AngleUnitsQ0_16 initial,
+                      Modulation<FracQ16_16> speed);
 
-        void advanceFrame(Units::TimeMillis timeInMillis);
+        void advanceFrame(TimeMillis timeInMillis);
 
-        Units::AngleTurnsUQ16_16 getPhase() const { return phase; }
+        AngleTurnsUQ16_16 getPhase() const { return phase; }
 
-        Units::AngleUnitsQ0_16 getAngle() const { return Units::angleTurnsToAngleUnits(phase); }
+        AngleUnitsQ0_16 getAngle() const { return angleTurnsToAngleUnits(phase); }
 
     private:
-        // Delta-time is clamped using Fluctuations::MAX_DELTA_TIME_MS; set to 0 to disable.
-        Units::AngleTurnsUQ16_16 phase;
-        Fluctuation<Units::FracQ16_16> speed;
-        Units::TimeMillis lastTime = 0;
+        // Delta-time is clamped using MAX_DELTA_TIME_MS; set to 0 to disable.
+        AngleTurnsUQ16_16 phase = AngleTurnsUQ16_16(0);
+        Modulation<FracQ16_16> speed;
+        TimeMillis lastTime = 0;
+        bool hasLastTime = false;
     };
 
     class ScalarMotion {
     public:
-        explicit ScalarMotion(Fluctuation<Units::FracQ16_16> delta);
+        explicit ScalarMotion(Modulation<FracQ16_16> delta);
 
-        void advanceFrame(Units::TimeMillis timeInMillis);
+        void advanceFrame(TimeMillis timeInMillis);
 
         int32_t getValue() const { return value.asInt(); }
 
-        Units::RawFracQ16_16 getRawValue() const { return value.asRaw(); }
+        RawQ16_16 getRawValue() const { return RawQ16_16(value.asRaw()); }
 
     private:
-        Units::FracQ16_16 value = Units::FracQ16_16(0);
-        Fluctuation<Units::FracQ16_16> delta;
+        FracQ16_16 value = FracQ16_16(0);
+        Modulation<FracQ16_16> delta;
     };
 }
 

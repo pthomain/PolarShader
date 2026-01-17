@@ -26,26 +26,26 @@
 namespace LEDSegments {
     class LinearVector {
     public:
-        static LinearVector fromVelocity(Units::FracQ16_16 speed,
-                                         Units::AngleUnitsQ0_16 direction);
+        static LinearVector fromVelocity(FracQ16_16 speed,
+                                         AngleUnitsQ0_16 direction);
 
-        static LinearVector fromXY(Units::FracQ16_16 x, Units::FracQ16_16 y);
+        static LinearVector fromXY(FracQ16_16 x, FracQ16_16 y);
 
-        Units::FracQ16_16 getX() const { return x; }
-        Units::FracQ16_16 getY() const { return y; }
-        Units::FracQ16_16 getSpeed() const { return speed; }
-        Units::AngleUnitsQ0_16 getDirection() const { return direction; }
+        FracQ16_16 getX() const { return x; }
+        FracQ16_16 getY() const { return y; }
+        FracQ16_16 getSpeed() const { return speed; }
+        AngleUnitsQ0_16 getDirection() const { return direction; }
 
     private:
-        LinearVector(Units::FracQ16_16 x,
-                     Units::FracQ16_16 y,
-                     Units::FracQ16_16 speed,
-                     Units::AngleUnitsQ0_16 direction);
+        LinearVector(FracQ16_16 x,
+                     FracQ16_16 y,
+                     FracQ16_16 speed,
+                     AngleUnitsQ0_16 direction);
 
-        Units::FracQ16_16 x;
-        Units::FracQ16_16 y;
-        Units::FracQ16_16 speed;
-        Units::AngleUnitsQ0_16 direction;
+        FracQ16_16 x;
+        FracQ16_16 y;
+        FracQ16_16 speed;
+        AngleUnitsQ0_16 direction;
     };
 }
 

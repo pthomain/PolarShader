@@ -35,18 +35,18 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
-    void ShearTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void ShearTransform::advanceFrame(TimeMillis timeInMillis) {
         state->kxSignal.advanceFrame(timeInMillis);
         state->kySignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer ShearTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawFracQ16_16 kx_raw = state->kxSignal.getRawValue();
-            Units::RawFracQ16_16 ky_raw = state->kySignal.getRawValue();
+            RawQ16_16 kx_raw = state->kxSignal.getRawValue();
+            RawQ16_16 ky_raw = state->kySignal.getRawValue();
 
-            int64_t dx = static_cast<int64_t>(y) * kx_raw;
-            int64_t dy = static_cast<int64_t>(x) * ky_raw;
+            int64_t dx = static_cast<int64_t>(y) * raw(kx_raw);
+            int64_t dy = static_cast<int64_t>(x) * raw(ky_raw);
 
             uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + (dx >> 16));
             uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + (dy >> 16));

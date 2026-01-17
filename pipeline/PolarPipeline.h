@@ -59,7 +59,7 @@ namespace LEDSegments {
         friend class PolarPipelineBuilder;
 
     public:
-        void advanceFrame(Units::TimeMillis timeInMillis);
+        void advanceFrame(TimeMillis timeInMillis);
 
         ColourLayer build() const;
 

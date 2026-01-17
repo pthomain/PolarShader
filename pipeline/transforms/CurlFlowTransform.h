@@ -42,7 +42,7 @@ namespace LEDSegments {
     public:
         CurlFlowTransform(ScalarMotion amplitude, uint8_t sampleShift = 3);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };

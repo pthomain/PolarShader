@@ -33,7 +33,7 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(offset))) {
     }
 
-    void TranslationTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void TranslationTransform::advanceFrame(TimeMillis timeInMillis) {
         state->offsetSignal.advanceFrame(timeInMillis);
     }
 

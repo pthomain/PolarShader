@@ -23,8 +23,9 @@
 
 #include <FixMath.h>
 #include "FastLED.h"
+#include "StrongTypes.h"
 
-namespace LEDSegments::Units {
+namespace LEDSegments {
     // --- Constants ---
 
     // Represents the midpoint of a 16-bit unsigned integer range, often used for remapping.
@@ -46,6 +47,28 @@ namespace LEDSegments::Units {
     inline constexpr uint16_t QUARTER_TURN_U16 = 16384u;
     inline constexpr uint16_t HALF_TURN_U16 = 32768u;
     inline constexpr uint16_t ANGLE_U16_MAX = 65535u; // The maximum representable value for a uint16_t angle.
+
+    // --- Strong Type Tags ---
+    struct AngleUnitsQ0_16_Tag {
+    };
+
+    struct AngleTurnsUQ16_16_Tag {
+    };
+
+    struct RadiusQ0_16_Tag {
+    };
+
+    struct NoiseRawU16_Tag {
+    };
+
+    struct NoiseNormU16_Tag {
+    };
+
+    struct TrigQ1_15_Tag {
+    };
+
+    struct RawQ16_16_Tag {
+    };
 
     // --- Type Aliases ---
 
@@ -78,7 +101,7 @@ namespace LEDSegments::Units {
     *
     *       It is modular: arithmetic wraps naturally at 16 bits.
     */
-    using AngleUnitsQ0_16 = uint16_t;
+    using AngleUnitsQ0_16 = Strong<uint16_t, AngleUnitsQ0_16_Tag>;
 
     /**
     *   A higher-resolution phase accumulator in AngleUnitsQ0_16 using unsigned Q16.16 semantics:
@@ -119,7 +142,7 @@ namespace LEDSegments::Units {
     *
     *   This is precisely the choke-point that must be correct in the pipeline.
     */
-    using AngleTurnsUQ16_16 = uint32_t;
+    using AngleTurnsUQ16_16 = Strong<uint32_t, AngleTurnsUQ16_16_Tag>;
 
     /**
     *   The output of sin16/cos16 in signed fixed-point Q1.15:
@@ -148,7 +171,7 @@ namespace LEDSegments::Units {
     *       Signed bipolar waveform centered at 0.
     *       Different scaling from FracQ0_16 and from Q16.16 signals.
     */
-    using TrigQ1_15 = int16_t;
+    using TrigQ1_15 = Strong<int16_t, TrigQ1_15_Tag>;
 
     /**
     *   An unsigned fraction in Q0.16, typically interpreted as [0, 1):
@@ -162,7 +185,6 @@ namespace LEDSegments::Units {
     *
     *       - retention/damping factors,
     *       - interpolation weights,
-    *       - normalized radius (common in polar coordinates: center→edge mapping),
     *       - scaling factors that should never go negative.
     *
     *   • When it should NOT be used:
@@ -176,6 +198,22 @@ namespace LEDSegments::Units {
     *       Often used with FastLED scale helpers and blends.
     */
     using FracQ0_16 = fract16;
+
+    /**
+    *   A normalized radius in Q0.16 used exclusively for polar coordinates.
+    *
+    *       0x0000 = center
+    *       0xFFFF ≈ outer edge
+    *
+    *   • Where it is used:
+    *
+    *       - Polar layer radius inputs.
+    *
+    *   • Key property:
+    *
+    *       Distinguishes radius from other generic Q0.16 fractions.
+    */
+    using RadiusQ0_16 = Strong<uint16_t, RadiusQ0_16_Tag>;
 
     /**
     *   A signed fixed-point scalar with:
@@ -233,7 +271,7 @@ namespace LEDSegments::Units {
     *       Same numeric meaning as FracQ16_16, but without type safety.
     *       Wrap/overflow behavior depends entirely on the operations you choose.
     */
-    using RawFracQ16_16 = int32_t;
+    using RawQ16_16 = Strong<int32_t, RawQ16_16_Tag>;
 
     /**
     *   The raw 16-bit output of FastLED’s inoise16.
@@ -252,7 +290,7 @@ namespace LEDSegments::Units {
     *       As if it were uniformly distributed or fully normalized.
     *       As an input to code that expects NoiseNormU16 semantics.
     */
-    using NoiseRawU16 = uint16_t;
+    using NoiseRawU16 = Strong<uint16_t, NoiseRawU16_Tag>;
 
     /**
     *   A 16-bit value intended to represent noise mapped to the full 0..65535 domain (or at least a consistent normalized span).
@@ -277,18 +315,81 @@ namespace LEDSegments::Units {
     *       NoiseRawU16 is “whatever inoise16 returns.”
     *       NoiseNormU16 is “pipeline-normalized, consistent 0..65535-ish.”
      */
-    using NoiseNormU16 = uint16_t;
+    using NoiseNormU16 = Strong<uint16_t, NoiseNormU16_Tag>;
 
     // Time
     using TimeMillis = unsigned long; // Arduino millis()
 
-    // --- Conversions ---
-    inline AngleTurnsUQ16_16 angleUnitsToAngleTurns(AngleUnitsQ0_16 units) {
-        return static_cast<AngleTurnsUQ16_16>(units) << 16;
+    // --- Raw extractors (avoid generic templates). ---
+    constexpr uint16_t raw(AngleUnitsQ0_16 a) { return a.raw(); }
+    constexpr uint32_t raw(AngleTurnsUQ16_16 p) { return p.raw(); }
+    constexpr uint16_t raw(RadiusQ0_16 r) { return r.raw(); }
+    constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
+    constexpr uint16_t raw(NoiseNormU16 n) { return n.raw(); }
+    constexpr int16_t raw(TrigQ1_15 t) { return t.raw(); }
+    constexpr int32_t raw(RawQ16_16 v) { return v.raw(); }
+
+    // --- Angle/phase promotion and sampling ---
+    constexpr AngleTurnsUQ16_16 angleUnitsToAngleTurns(AngleUnitsQ0_16 units) {
+        return AngleTurnsUQ16_16(static_cast<uint32_t>(raw(units)) << 16);
     }
 
-    inline AngleUnitsQ0_16 angleTurnsToAngleUnits(AngleTurnsUQ16_16 turns) {
-        return static_cast<AngleUnitsQ0_16>(turns >> 16);
+    constexpr AngleUnitsQ0_16 angleTurnsToAngleUnits(AngleTurnsUQ16_16 turns) {
+        return AngleUnitsQ0_16(static_cast<uint16_t>(raw(turns) >> 16));
+    }
+
+    // FastLED trig sampling helpers (explicit angle/phase conversions).
+    constexpr uint16_t toFastLedPhase(AngleUnitsQ0_16 a) { return raw(a); }
+
+    constexpr uint16_t toFastLedPhase(AngleTurnsUQ16_16 p) {
+        return static_cast<uint16_t>(raw(p) >> 16);
+    }
+
+    inline TrigQ1_15 sinQ1_15(AngleUnitsQ0_16 a) {
+        return TrigQ1_15(sin16(toFastLedPhase(a)));
+    }
+
+    inline TrigQ1_15 sinQ1_15(AngleTurnsUQ16_16 p) {
+        return TrigQ1_15(sin16(toFastLedPhase(p)));
+    }
+
+    inline TrigQ1_15 cosQ1_15(AngleUnitsQ0_16 a) {
+        return TrigQ1_15(cos16(toFastLedPhase(a)));
+    }
+
+    inline TrigQ1_15 cosQ1_15(AngleTurnsUQ16_16 p) {
+        return TrigQ1_15(cos16(toFastLedPhase(p)));
+    }
+
+    // --- Radius conversions ---
+    constexpr RadiusQ0_16 toRadiusQ0_16(FracQ0_16 f) {
+        return RadiusQ0_16(static_cast<uint16_t>(f));
+    }
+
+    constexpr FracQ0_16 toFracQ0_16(RadiusQ0_16 r) {
+        return static_cast<FracQ0_16>(raw(r));
+    }
+
+    // --- Phase wrap arithmetic (mod 2^32) ---
+    constexpr AngleTurnsUQ16_16 wrapAdd(AngleTurnsUQ16_16 a, uint32_t delta) {
+        return AngleTurnsUQ16_16(raw(a) + delta);
+    }
+
+    // Wrap-add using signed raw delta (Q16.16), interpreted via two's-complement.
+    constexpr AngleTurnsUQ16_16 wrapAddSigned(AngleTurnsUQ16_16 a, int32_t delta_raw_q16_16) {
+        return AngleTurnsUQ16_16(raw(a) + static_cast<uint32_t>(delta_raw_q16_16));
+    }
+
+    // --- Phase quantize/fold helpers ---
+    inline AngleTurnsUQ16_16 mulPhaseWrap(AngleTurnsUQ16_16 p, uint8_t k) {
+        return AngleTurnsUQ16_16(static_cast<uint32_t>(raw(p) * static_cast<uint32_t>(k)));
+    }
+
+    inline AngleTurnsUQ16_16 quantizePhase(AngleTurnsUQ16_16 p, uint32_t binWidth) {
+        if (binWidth == 0) return p;
+        uint32_t v = raw(p);
+        uint32_t q = static_cast<uint32_t>((static_cast<uint64_t>(v) / binWidth) * binWidth);
+        return AngleTurnsUQ16_16(q);
     }
 }
 

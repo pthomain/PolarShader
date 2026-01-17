@@ -21,7 +21,6 @@
 #ifndef LED_SEGMENTS_PIPELINE_UTILS_NOISEUTILS_H
 #define LED_SEGMENTS_PIPELINE_UTILS_NOISEUTILS_H
 
-#include "FastLED.h"
 #include "Units.h"
 
 namespace LEDSegments {
@@ -37,7 +36,7 @@ namespace LEDSegments {
         * @param value The raw 16-bit noise value.
         * @return The normalized 16-bit value.
         */
-    Units::NoiseNormU16 normaliseNoise16(Units::NoiseRawU16 value);
+    NoiseNormU16 normaliseNoise16(NoiseRawU16 value);
 }
 
 #endif //LED_SEGMENTS_PIPELINE_UTILS_NOISEUTILS_H

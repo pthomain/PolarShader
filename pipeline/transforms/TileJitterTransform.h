@@ -40,7 +40,7 @@ namespace LEDSegments {
     public:
         TileJitterTransform(uint32_t tileX, uint32_t tileY, ScalarMotion amplitude);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };
 }

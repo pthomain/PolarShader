@@ -33,15 +33,15 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(k))) {
     }
 
-    void PerspectiveWarpTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void PerspectiveWarpTransform::advanceFrame(TimeMillis timeInMillis) {
         state->kSignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer PerspectiveWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawFracQ16_16 k_raw = state->kSignal.getRawValue();
-            int64_t ky = (static_cast<int64_t>(k_raw) * y) >> 16;
-            int64_t denom = static_cast<int64_t>(Units::Q16_16_ONE) + ky;
+            RawQ16_16 k_raw = state->kSignal.getRawValue();
+            int64_t ky = (static_cast<int64_t>(raw(k_raw)) * y) >> 16;
+            int64_t denom = static_cast<int64_t>(Q16_16_ONE) + ky;
 
             // Clamp denom to avoid singularity and overflow.
             // Ensure minimum magnitude to prevent division by zero or explosive scaling.
@@ -50,7 +50,7 @@ namespace LEDSegments {
                 denom = (denom >= 0) ? 64 : -64;
             }
 
-            int64_t scale_q16 = (static_cast<int64_t>(Units::Q16_16_ONE) << 16) / denom; // Q16.16 factor
+            int64_t scale_q16 = (static_cast<int64_t>(Q16_16_ONE) << 16) / denom; // Q16.16 factor
 
             int64_t sx = (static_cast<int64_t>(x) * scale_q16 + (1LL << 15)) >> 16;
             int64_t sy = (static_cast<int64_t>(y) * scale_q16 + (1LL << 15)) >> 16;

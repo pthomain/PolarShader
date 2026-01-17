@@ -47,24 +47,7 @@ public:
     static constexpr int LED_PIN = 9;
     static constexpr EOrder RGB_ORDER = GRB;
 
-    explicit PolarSpec() : DisplaySpec(
-        LayoutConfig(
-            polarLayoutIds,
-            polarLayoutNames,
-            polarLayoutSelector,
-            polarEffectSelector,
-            polarOverlaySelector,
-            polarTransitionSelector,
-            polarParamSelector
-        ),
-        DEBUG ? 20 : 128,
-        DEBUG ? 3600 : 3,
-        DEBUG ? 3600 : 8,
-        1000,
-        1.0f,
-        30
-    ) {
-    }
+    explicit PolarSpec();
 
     /**
      * @brief Gets the total number of LEDs in the display.

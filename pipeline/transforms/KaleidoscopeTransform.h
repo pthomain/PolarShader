@@ -22,7 +22,7 @@
 #define LED_SEGMENTS_TRANSFORMS_KALEIDOSCOPETRANSFORM_H
 
 #include "base/Transforms.h"
-#include "../utils/MathUtils.h"
+#include <polar/pipeline/utils/MathUtils.h>
 
 namespace LEDSegments {
     /**
@@ -47,24 +47,26 @@ namespace LEDSegments {
 
         static constexpr uint8_t MAX_SEGMENTS = 8;
 
-        static Units::AngleTurnsUQ16_16 foldPhaseKaleidoscope(
-            Units::AngleTurnsUQ16_16 phase_q16,
+        static AngleTurnsUQ16_16 foldPhaseKaleidoscope(
+            AngleTurnsUQ16_16 phase_q16,
             fl::u8 nbSegments,
             bool isMirroring
         ) {
             if (nbSegments <= 1) return phase_q16;
 
-            const uint32_t segmentPhase = static_cast<uint32_t>(Units::PHASE_FULL_TURN / nbSegments);
-            uint32_t foldedPhase = phase_q16 % segmentPhase;
+            const uint32_t segmentPhase = static_cast<uint32_t>(PHASE_FULL_TURN / nbSegments);
+            uint32_t phase_raw = raw(phase_q16);
+            uint32_t foldedPhase = phase_raw % segmentPhase;
 
-            bool isOdd = (static_cast<uint64_t>(phase_q16) / segmentPhase) & 1u;
+            bool isOdd = (static_cast<uint64_t>(phase_raw) / segmentPhase) & 1u;
             if (isMirroring && isOdd) {
                 uint32_t mirrored = segmentPhase - foldedPhase;
                 // Handle the boundary case where foldedPhase is 0.
-                return (mirrored == segmentPhase) ? 0 : mirrored;
+                return (mirrored == segmentPhase) ? AngleTurnsUQ16_16(0)
+                                                  : AngleTurnsUQ16_16(mirrored);
             }
 
-            return foldedPhase;
+            return AngleTurnsUQ16_16(foldedPhase);
         }
 
     public:

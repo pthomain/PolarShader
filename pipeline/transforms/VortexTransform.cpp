@@ -33,22 +33,23 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(vortex))) {
     }
 
-    void VortexTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void VortexTransform::advanceFrame(TimeMillis timeInMillis) {
         state->vortexSignal.advanceFrame(timeInMillis);
     }
 
     PolarLayer VortexTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
+        return [state = this->state, layer](AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
             // Get the vortex strength as a raw Q16.16 value.
-            Units::RawFracQ16_16 vortex_strength_raw = state->vortexSignal.getRawValue();
-            if (vortex_strength_raw < VORTEX_MIN.asRaw()) vortex_strength_raw = VORTEX_MIN.asRaw();
-            if (vortex_strength_raw > VORTEX_MAX.asRaw()) vortex_strength_raw = VORTEX_MAX.asRaw();
+            RawQ16_16 vortex_strength_raw = state->vortexSignal.getRawValue();
+            if (raw(vortex_strength_raw) < VORTEX_MIN.asRaw()) vortex_strength_raw = RawQ16_16(VORTEX_MIN.asRaw());
+            if (raw(vortex_strength_raw) > VORTEX_MAX.asRaw()) vortex_strength_raw = RawQ16_16(VORTEX_MAX.asRaw());
 
             // Scale the vortex strength (Q16.16) by the radius (Q0.16) to get the angular offset.
-            Units::RawFracQ16_16 offset_raw = scale_q16_16_by_f16(vortex_strength_raw, radius);
+            RawQ16_16 offset_raw = RawQ16_16(
+                scale_q16_16_by_f16(raw(vortex_strength_raw), toFracQ0_16(radius)));
 
             // Add the full Q16.16 offset to the angle.
-            Units::AngleTurnsUQ16_16 new_angle_q16 = angle_q16 + static_cast<uint32_t>(offset_raw);
+            AngleTurnsUQ16_16 new_angle_q16 = wrapAddSigned(angle_q16, raw(offset_raw));
 
             return layer(new_angle_q16, radius);
         };

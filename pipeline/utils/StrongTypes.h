@@ -18,22 +18,24 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "NoiseUtils.h"
+#pragma once
 
 namespace LEDSegments {
+    template<typename Rep, typename Tag>
+    class Strong {
+    public:
+        using rep_type = Rep;
 
-    // These bounds are specific to the typical output of inoise16() and may
-    // need tuning if a different noise function is used.
-    const uint16_t MIN_NOISE = 12000;
-    const uint16_t MAX_NOISE = 54000;
-    const uint16_t RANGE = MAX_NOISE - MIN_NOISE;
+        constexpr Strong() : v_(0) {}
+        explicit constexpr Strong(Rep raw) : v_(raw) {}
 
-    NoiseNormU16 normaliseNoise16(NoiseRawU16 value) {
-        uint16_t noise_raw = raw(value);
-        if (noise_raw <= MIN_NOISE) return NoiseNormU16(0);
-        if (noise_raw >= MAX_NOISE) return NoiseNormU16(FRACT_Q0_16_MAX);
+        constexpr Rep raw() const { return v_; }
 
-        uint32_t temp = static_cast<uint32_t>(noise_raw - MIN_NOISE) * FRACT_Q0_16_MAX;
-        return NoiseNormU16(static_cast<uint16_t>(temp / RANGE));
-    }
-}
+        friend constexpr bool operator==(Strong a, Strong b) { return a.v_ == b.v_; }
+        friend constexpr bool operator!=(Strong a, Strong b) { return a.v_ != b.v_; }
+        friend constexpr bool operator<(Strong a, Strong b) { return a.v_ < b.v_; }
+
+    private:
+        Rep v_;
+    };
+} // namespace LEDSegments::Units

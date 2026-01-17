@@ -20,7 +20,6 @@
 
 #include "polar/pipeline/utils/PolarUtils.h"
 #include "PolarEffect.h"
-#include "polar/pipeline/presets/PresetPicker.h"
 #include "polar/pipeline/presets/Presets.h"
 
 namespace LEDSegments {
@@ -36,16 +35,16 @@ namespace LEDSegments {
     }
 
     CRGB PolarEffect::blendLayers(
-        Units::AngleTurnsUQ16_16 angle_q16,
-        Units::FracQ0_16 radius,
+        AngleTurnsUQ16_16 angle_q16,
+        RadiusQ0_16 radius,
         const ColourLayer &layer
     ) {
         return layer(angle_q16, radius);
     }
 
     CRGB PolarEffect::blendLayers(
-        Units::AngleTurnsUQ16_16 angle_q16,
-        Units::FracQ0_16 radius,
+        AngleTurnsUQ16_16 angle_q16,
+        RadiusQ0_16 radius,
         const fl::vector<ColourLayer> &layers
     ) {
         if (layers.empty()) return CRGB::Black;
@@ -70,13 +69,15 @@ namespace LEDSegments {
         CRGB *segmentArray,
         uint16_t segmentSize,
         uint16_t segmentIndex,
-        Units::FracQ0_16 progress,
-        Units::TimeMillis timeInMillis
+        FracQ0_16 progress,
+        TimeMillis timeInMillis
     ) {
         pipeline.advanceFrame(timeInMillis);
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
-            auto [angle_turns, radius] = context.polarCoordsMapper(pixelIndex);
-            Units::AngleTurnsUQ16_16 angle_q16 = Units::angleUnitsToAngleTurns(angle_turns);
+            auto [angle_turns, radius_raw] = context.polarCoordsMapper(pixelIndex);
+            AngleUnitsQ0_16 angle_units(angle_turns);
+            RadiusQ0_16 radius = toRadiusQ0_16(radius_raw);
+            AngleTurnsUQ16_16 angle_q16 = angleUnitsToAngleTurns(angle_units);
             segmentArray[pixelIndex] = blendLayers(
                 angle_q16,
                 radius,

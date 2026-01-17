@@ -25,43 +25,43 @@
 #include "Motion.h"
 
 namespace LEDSegments {
-    inline UnboundedLinearMotion makeUnboundedLinear(Units::FracQ16_16 initialX,
-                                                     Units::FracQ16_16 initialY,
-                                                     Fluctuation<LinearVector> velocity) {
+    inline UnboundedLinearMotion linearUnbounded(FracQ16_16 initialX,
+                                                 FracQ16_16 initialY,
+                                                 Modulation<LinearVector> velocity) {
         return UnboundedLinearMotion(initialX, initialY, std::move(velocity));
     }
 
-    inline UnboundedLinearMotion makeUnboundedLinear(int32_t initialX,
-                                                     int32_t initialY,
-                                                     Fluctuation<LinearVector> velocity) {
-        return makeUnboundedLinear(Units::FracQ16_16(initialX),
-                                   Units::FracQ16_16(initialY),
-                                   std::move(velocity));
+    inline UnboundedLinearMotion linearUnbounded(int32_t initialX,
+                                                 int32_t initialY,
+                                                 Modulation<LinearVector> velocity) {
+        return linearUnbounded(FracQ16_16(initialX),
+                               FracQ16_16(initialY),
+                               std::move(velocity));
     }
 
-    inline BoundedLinearMotion makeBoundedLinear(Units::FracQ16_16 initialX,
-                                                 Units::FracQ16_16 initialY,
-                                                 Fluctuation<LinearVector> velocity,
-                                                 Units::FracQ16_16 maxRadius) {
+    inline BoundedLinearMotion linearBounded(FracQ16_16 initialX,
+                                             FracQ16_16 initialY,
+                                             Modulation<LinearVector> velocity,
+                                             FracQ16_16 maxRadius) {
         return BoundedLinearMotion(initialX, initialY, std::move(velocity), maxRadius);
     }
 
-    inline BoundedLinearMotion makeBoundedLinear(int32_t initialX,
-                                                 int32_t initialY,
-                                                 Fluctuation<LinearVector> velocity,
-                                                 Units::FracQ16_16 maxRadius) {
-        return makeBoundedLinear(Units::FracQ16_16(initialX),
-                                 Units::FracQ16_16(initialY),
-                                 std::move(velocity),
-                                 maxRadius);
+    inline BoundedLinearMotion linearBounded(int32_t initialX,
+                                             int32_t initialY,
+                                             Modulation<LinearVector> velocity,
+                                             FracQ16_16 maxRadius) {
+        return linearBounded(FracQ16_16(initialX),
+                             FracQ16_16(initialY),
+                             std::move(velocity),
+                             maxRadius);
     }
 
-    inline AngularMotion makeAngular(Units::AngleUnitsQ0_16 initial,
-                                     Fluctuation<Units::FracQ16_16> speed) {
+    inline AngularMotion angular(AngleUnitsQ0_16 initial,
+                                 Modulation<FracQ16_16> speed) {
         return AngularMotion(initial, std::move(speed));
     }
 
-    inline ScalarMotion makeScalar(Fluctuation<Units::FracQ16_16> delta) {
+    inline ScalarMotion scalar(Modulation<FracQ16_16> delta) {
         return ScalarMotion(std::move(delta));
     }
 }

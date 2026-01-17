@@ -20,7 +20,6 @@
 
 #include "BendTransform.h"
 #include <cstring>
-#include <cstdlib>
 #include <cstdint>
 
 namespace LEDSegments {
@@ -37,23 +36,24 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
-    void BendTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void BendTransform::advanceFrame(TimeMillis timeInMillis) {
         state->kxSignal.advanceFrame(timeInMillis);
         state->kySignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer BendTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawFracQ16_16 kx_raw = state->kxSignal.getRawValue();
-            Units::RawFracQ16_16 ky_raw = state->kySignal.getRawValue();
+            RawQ16_16 kx_raw = state->kxSignal.getRawValue();
+            RawQ16_16 ky_raw = state->kySignal.getRawValue();
 
-            auto safe_bend = [](int32_t k_raw, int32_t coord) -> int64_t {
-                if (k_raw == 0) return 0;
+            auto safe_bend = [](RawQ16_16 k_raw, int32_t coord) -> int64_t {
+                int32_t k_val = raw(k_raw);
+                if (k_val == 0) return 0;
                 int64_t squared = static_cast<int64_t>(coord) * static_cast<int64_t>(coord);
-                int64_t abs_k = std::llabs(static_cast<int64_t>(k_raw));
+                int64_t abs_k = std::llabs(static_cast<int64_t>(k_val));
                 int64_t limit = (abs_k == 0) ? 0 : (INT64_MAX / abs_k);
                 if (squared > limit) squared = limit;
-                return (squared * k_raw) >> 16;
+                return (squared * k_val) >> 16;
             };
 
             int64_t bendX = safe_bend(kx_raw, y);

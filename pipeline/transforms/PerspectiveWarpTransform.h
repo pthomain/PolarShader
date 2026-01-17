@@ -40,7 +40,7 @@ namespace LEDSegments {
     public:
         explicit PerspectiveWarpTransform(ScalarMotion k);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };

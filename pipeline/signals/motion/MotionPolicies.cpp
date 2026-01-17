@@ -27,21 +27,21 @@ namespace LEDSegments {
 
     ClampPolicy::ClampPolicy(int32_t min, int32_t max) : min_val(min), max_val(max) {}
 
-    ClampPolicy::ClampPolicy(Units::FracQ16_16 min, Units::FracQ16_16 max) : min_val(min), max_val(max) {}
+    ClampPolicy::ClampPolicy(FracQ16_16 min, FracQ16_16 max) : min_val(min), max_val(max) {}
 
-    void ClampPolicy::apply(Units::FracQ16_16 &position, Units::FracQ16_16 &velocity) const {
+    void ClampPolicy::apply(FracQ16_16 &position, FracQ16_16 &velocity) const {
         if (position < min_val) {
             position = min_val;
-            velocity = Units::FracQ16_16(0);
+            velocity = FracQ16_16(0);
         } else if (position > max_val) {
             position = max_val;
-            velocity = Units::FracQ16_16(0);
+            velocity = FracQ16_16(0);
         }
     }
 
     WrapPolicy::WrapPolicy(int32_t wrap) : wrap_units(wrap) {}
 
-    void WrapPolicy::apply(Units::FracQ16_16 &position, Units::FracQ16_16 &) const {
+    void WrapPolicy::apply(FracQ16_16 &position, FracQ16_16 &) const {
         if (wrap_units <= 0) return;
 
         const int64_t wrap_q16_16 = static_cast<int64_t>(wrap_units) << 16;
@@ -53,6 +53,6 @@ namespace LEDSegments {
                 pos64 += wrap_q16_16;
             }
         }
-        position = Units::FracQ16_16::fromRaw(static_cast<int32_t>(pos64));
+        position = FracQ16_16::fromRaw(static_cast<int32_t>(pos64));
     }
 }

@@ -29,7 +29,7 @@ namespace LEDSegments {
     public:
         virtual ~FrameTransform() = default;
 
-        virtual void advanceFrame(Units::TimeMillis timeInMillis) {};
+        virtual void advanceFrame(TimeMillis timeInMillis) {};
     };
 
     class CartesianTransform : public FrameTransform {

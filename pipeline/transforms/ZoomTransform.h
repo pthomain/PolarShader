@@ -39,22 +39,23 @@ namespace LEDSegments {
 
     public:
         // Standard bounds for safe zoom: [1/16x, 1x]
-        inline static const Units::FracQ16_16 ZOOM_MIN = Units::FracQ16_16::fromRaw(Units::Q16_16_ONE >> 4); // 0.0625x
-        inline static const Units::FracQ16_16 ZOOM_MAX = Units::FracQ16_16::fromRaw(Units::Q16_16_ONE);       // 1.0x
-        inline static const Units::FracQ16_16 ZOOM_MID =
-            Units::FracQ16_16::fromRaw((ZOOM_MIN.asRaw() + ZOOM_MAX.asRaw()) / 2); // ~0.53125x
-        inline static const Units::FracQ16_16 ZOOM_SPAN =
-            Units::FracQ16_16::fromRaw(ZOOM_MAX.asRaw() - ZOOM_MIN.asRaw());
-        inline static const Units::FracQ16_16 ZOOM_HALF_SPAN =
-            Units::FracQ16_16::fromRaw(ZOOM_SPAN.asRaw() / 2);
+        inline static const FracQ16_16 ZOOM_MIN = FracQ16_16::fromRaw(Q16_16_ONE >> 4); // 0.0625x
+        inline static const FracQ16_16 ZOOM_MAX = FracQ16_16::fromRaw(Q16_16_ONE); // 1.0x
+        inline static const FracQ16_16 ZOOM_MID =
+                FracQ16_16::fromRaw((ZOOM_MIN.asRaw() + ZOOM_MAX.asRaw()) / 2); // ~0.53125x
+        inline static const FracQ16_16 ZOOM_SPAN =
+                FracQ16_16::fromRaw(ZOOM_MAX.asRaw() - ZOOM_MIN.asRaw());
+        inline static const FracQ16_16 ZOOM_HALF_SPAN =
+                FracQ16_16::fromRaw(ZOOM_SPAN.asRaw() / 2);
 
         explicit ZoomTransform(ScalarMotion scale);
-        ZoomTransform(Units::FracQ16_16 base,
-                      Units::FracQ16_16 amplitude,
-                      Units::FracQ16_16 phaseVelocity,
-                      Units::AngleTurnsUQ16_16 initialPhase = 0);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        ZoomTransform(FracQ16_16 base,
+                      FracQ16_16 amplitude,
+                      FracQ16_16 phaseVelocity,
+                      AngleTurnsUQ16_16 initialPhase = AngleTurnsUQ16_16(0));
+
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };

@@ -35,21 +35,22 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
-    void NoiseWarpTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void NoiseWarpTransform::advanceFrame(TimeMillis timeInMillis) {
         state->kxSignal.advanceFrame(timeInMillis);
         state->kySignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer NoiseWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawFracQ16_16 kx_raw = state->kxSignal.getRawValue();
-            Units::RawFracQ16_16 ky_raw = state->kySignal.getRawValue();
+            RawQ16_16 kx_raw = state->kxSignal.getRawValue();
+            RawQ16_16 ky_raw = state->kySignal.getRawValue();
 
-            int32_t signedNoise = static_cast<int32_t>(inoise16(x, y)) - Units::U16_HALF; // ~Q1.15 signed
+            NoiseRawU16 rawNoise = NoiseRawU16(inoise16(x, y));
+            int32_t signedNoise = static_cast<int32_t>(raw(rawNoise)) - U16_HALF; // ~Q1.15 signed
 
             // noise (Q1.15) * k_raw (Q16.16) => Q17.31; shift 16 to yield ~Q16.16 offset in coord units
-            int64_t ox = (static_cast<int64_t>(signedNoise) * kx_raw) >> 16;
-            int64_t oy = (static_cast<int64_t>(signedNoise) * ky_raw) >> 16;
+            int64_t ox = (static_cast<int64_t>(signedNoise) * raw(kx_raw)) >> 16;
+            int64_t oy = (static_cast<int64_t>(signedNoise) * raw(ky_raw)) >> 16;
 
             uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + ox);
             uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + oy);

@@ -40,7 +40,7 @@ namespace LEDSegments {
     public:
         explicit TranslationTransform(LinearMotion offset);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };

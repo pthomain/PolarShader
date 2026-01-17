@@ -42,8 +42,8 @@ namespace LEDSegments {
 
     public:
         // Clamp to +/- 1.0 turn at unit radius to prevent multi-turn wrap artifacts.
-        inline static const Units::FracQ16_16 VORTEX_MIN = Units::FracQ16_16(-1);
-        inline static const Units::FracQ16_16 VORTEX_MAX = Units::FracQ16_16(1);
+        inline static const FracQ16_16 VORTEX_MIN = FracQ16_16(-1);
+        inline static const FracQ16_16 VORTEX_MAX = FracQ16_16(1);
 
         /**
          * @brief Constructs a new VortexTransform.
@@ -51,7 +51,7 @@ namespace LEDSegments {
          */
         explicit VortexTransform(ScalarMotion vortex);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         PolarLayer operator()(const PolarLayer &layer) const override;
     };

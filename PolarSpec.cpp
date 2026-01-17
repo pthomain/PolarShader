@@ -21,6 +21,32 @@
 #include "PolarSpec.h"
 #include "config/PolarLayoutConfig.h"
 #include "polar/pipeline/utils/MathUtils.h"
+#include "polar/pipeline/utils/StrongTypeTests.h"
+#include <Arduino.h>
+
+PolarSpec::PolarSpec() : DisplaySpec(
+    LayoutConfig(
+        polarLayoutIds,
+        polarLayoutNames,
+        polarLayoutSelector,
+        polarEffectSelector,
+        polarOverlaySelector,
+        polarTransitionSelector,
+        polarParamSelector
+    ),
+    DEBUG ? 20 : 128,
+    DEBUG ? 3600 : 3,
+    DEBUG ? 3600 : 8,
+    1000,
+    1.0f,
+    30
+) {
+#ifdef LED_SEGMENTS_UNIT_TEST
+    bool ok = LEDSegments::UnitsTest::runStrongTypeTests();
+    Serial.print("Strong type tests: ");
+    Serial.println(ok ? "PASS" : "FAIL");
+#endif
+}
 
 uint16_t PolarSpec::nbSegments(uint16_t layoutId) const {
     // The display can be treated as one whole segment or as 9 concentric rings.
@@ -77,21 +103,21 @@ PolarCoords PolarSpec::toPolarCoords(uint16_t pixelIndex) const {
             // The angle is the pixel's proportional position within its ring.
             // It's a uint16_t from 0 to 65535, representing 0 to 2PI radians.
             // For the center pixel (segment 0), the angle is 0.
-            const AngleUnitsQ0_16 angleStep =
-                    currentSegmentSize > 1 ? UINT16_MAX / currentSegmentSize : 0;
-            AngleUnitsQ0_16 angle = pixelInSegment * angleStep;
+            uint32_t angle_step_raw = currentSegmentSize > 1 ? (0x10000u / currentSegmentSize) : 0;
+            uint32_t angle_raw = static_cast<uint32_t>(pixelInSegment) * angle_step_raw;
+            AngleUnitsQ0_16 angle(static_cast<uint16_t>(angle_raw & 0xFFFFu));
 
             FracQ0_16 radius = divide_u16_as_fract16(
                 segmentIndex,
                 numSegments > 1 ? numSegments - 1 : 1
             );
 
-            return {angle, radius};
+            return {raw(angle), radius};
         }
 
         cumulativePixels += currentSegmentSize;
     }
 
     // This should not be reached if pixelIndex is valid.
-    return {0, 0};
+    return {0, static_cast<FracQ0_16>(0)};
 }

@@ -32,14 +32,14 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(rotation))) {
     }
 
-    void RotationTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void RotationTransform::advanceFrame(TimeMillis timeInMillis) {
         state->rotationSignal.advanceFrame(timeInMillis);
     }
 
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
+        return [state = this->state, layer](AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
             // Add the full Q16.16 rotation value to the angle
-            Units::AngleTurnsUQ16_16 new_angle_q16 = angle_q16 + state->rotationSignal.getPhase();
+            AngleTurnsUQ16_16 new_angle_q16 = wrapAdd(angle_q16, raw(state->rotationSignal.getPhase()));
             return layer(new_angle_q16, radius);
         };
     }

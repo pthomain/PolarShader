@@ -28,7 +28,7 @@ namespace LEDSegments {
         : tileX(tileX), tileY(tileY), amplitudeSignal(std::move(amplitude)) {
     }
 
-    void TileJitterTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void TileJitterTransform::advanceFrame(TimeMillis timeInMillis) {
         amplitudeSignal.advanceFrame(timeInMillis);
     }
 
@@ -47,11 +47,17 @@ namespace LEDSegments {
             int32_t tileIdxY = floor_div(y, tileY);
 
             // Cast to unsigned for noise hashing (wraps naturally)
-            uint16_t jitterX = (tileX != 0) ? inoise16(static_cast<uint32_t>(tileIdxX), static_cast<uint32_t>(tileIdxY)) : 0;
-            uint16_t jitterY = (tileY != 0) ? inoise16(static_cast<uint32_t>(tileIdxY), static_cast<uint32_t>(tileIdxX)) : 0;
+            NoiseRawU16 jitterX = (tileX != 0)
+                                             ? NoiseRawU16(inoise16(static_cast<uint32_t>(tileIdxX),
+                                                                           static_cast<uint32_t>(tileIdxY)))
+                                             : NoiseRawU16(0);
+            NoiseRawU16 jitterY = (tileY != 0)
+                                             ? NoiseRawU16(inoise16(static_cast<uint32_t>(tileIdxY),
+                                                                           static_cast<uint32_t>(tileIdxX)))
+                                             : NoiseRawU16(0);
 
-            int32_t signedJx = static_cast<int32_t>(jitterX) - Units::U16_HALF;
-            int32_t signedJy = static_cast<int32_t>(jitterY) - Units::U16_HALF;
+            int32_t signedJx = static_cast<int32_t>(raw(jitterX)) - U16_HALF;
+            int32_t signedJy = static_cast<int32_t>(raw(jitterY)) - U16_HALF;
 
             int32_t offsetX = amp ? (signedJx * amp) >> 15 : 0; // scale to amplitude
             int32_t offsetY = amp ? (signedJy * amp) >> 15 : 0;

@@ -41,7 +41,7 @@ namespace LEDSegments {
     public:
         NoiseWarpTransform(ScalarMotion kx, ScalarMotion ky);
 
-        void advanceFrame(Units::TimeMillis timeInMillis) override;
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
     };

@@ -32,21 +32,21 @@ namespace LEDSegments {
         : state(std::make_shared<State>(std::move(k))) {
     }
 
-    void RadialScaleTransform::advanceFrame(Units::TimeMillis timeInMillis) {
+    void RadialScaleTransform::advanceFrame(TimeMillis timeInMillis) {
         state->kSignal.advanceFrame(timeInMillis);
     }
 
     PolarLayer RadialScaleTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
-            Units::RawFracQ16_16 k_raw = state->kSignal.getRawValue();
+        return [state = this->state, layer](AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
+            RawQ16_16 k_raw = state->kSignal.getRawValue();
 
-            int64_t delta = (static_cast<int64_t>(k_raw) * static_cast<int64_t>(radius)) >> 16;
-            int64_t new_radius = static_cast<int64_t>(radius) + delta;
+            int64_t delta = (static_cast<int64_t>(raw(k_raw)) * static_cast<int64_t>(raw(radius))) >> 16;
+            int64_t new_radius = static_cast<int64_t>(raw(radius)) + delta;
 
             if (new_radius < 0) new_radius = 0;
-            if (new_radius > Units::FRACT_Q0_16_MAX) new_radius = Units::FRACT_Q0_16_MAX;
+            if (new_radius > FRACT_Q0_16_MAX) new_radius = FRACT_Q0_16_MAX;
 
-            Units::FracQ0_16 r_out = static_cast<Units::FracQ0_16>(new_radius);
+            RadiusQ0_16 r_out = RadiusQ0_16(static_cast<uint16_t>(new_radius));
             return layer(angle_q16, r_out);
         };
     }

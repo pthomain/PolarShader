@@ -21,13 +21,12 @@
 #include "Motion.h"
 
 namespace LEDSegments {
-
     LinearMotion::LinearMotion(
-        Units::FracQ16_16 initialX,
-        Units::FracQ16_16 initialY,
-        Fluctuation<LinearVector> velocity,
+        FracQ16_16 initialX,
+        FracQ16_16 initialY,
+        Modulation<LinearVector> velocity,
         bool clampEnabled,
-        Units::FracQ16_16 maxRadius
+        FracQ16_16 maxRadius
     ) : positionX(initialX),
         positionY(initialY),
         velocity(std::move(velocity)),
@@ -35,34 +34,35 @@ namespace LEDSegments {
         maxRadius(maxRadius) {
     }
 
-    void LinearMotion::advanceFrame(Units::TimeMillis timeInMillis) {
-        if (lastTime == 0) {
+    void LinearMotion::advanceFrame(TimeMillis timeInMillis) {
+        if (!hasLastTime) {
             lastTime = timeInMillis;
+            hasLastTime = true;
             return;
         }
-        Units::TimeMillis deltaTime = timeInMillis - lastTime;
+        TimeMillis deltaTime = timeInMillis - lastTime;
         lastTime = timeInMillis;
         if (deltaTime == 0) return;
 
-        deltaTime = Fluctuations::clampDeltaTime(deltaTime);
+        deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        Units::FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
+        FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
         LinearVector velocity_now = velocity(timeInMillis);
-        Units::RawFracQ16_16 dx_raw = mul_q16_16_sat(velocity_now.getX(), dt_q16).asRaw();
-        Units::RawFracQ16_16 dy_raw = mul_q16_16_sat(velocity_now.getY(), dt_q16).asRaw();
+        RawQ16_16 dx_raw = RawQ16_16(mul_q16_16_sat(velocity_now.getX(), dt_q16).asRaw());
+        RawQ16_16 dy_raw = RawQ16_16(mul_q16_16_sat(velocity_now.getY(), dt_q16).asRaw());
 
         if (clampEnabled) {
-            int64_t new_x_raw = clamp_raw(static_cast<int64_t>(positionX.asRaw()) + dx_raw);
-            int64_t new_y_raw = clamp_raw(static_cast<int64_t>(positionY.asRaw()) + dy_raw);
-            positionX = Units::FracQ16_16::fromRaw(static_cast<int32_t>(new_x_raw));
-            positionY = Units::FracQ16_16::fromRaw(static_cast<int32_t>(new_y_raw));
+            int64_t new_x_raw = clamp_raw(static_cast<int64_t>(positionX.asRaw()) + raw(dx_raw));
+            int64_t new_y_raw = clamp_raw(static_cast<int64_t>(positionY.asRaw()) + raw(dy_raw));
+            positionX = FracQ16_16::fromRaw(static_cast<int32_t>(new_x_raw));
+            positionY = FracQ16_16::fromRaw(static_cast<int32_t>(new_y_raw));
             applyRadialClamp();
         } else {
-            Units::RawFracQ16_16 new_x_raw = add_wrap_q16_16(positionX.asRaw(), dx_raw);
-            Units::RawFracQ16_16 new_y_raw = add_wrap_q16_16(positionY.asRaw(), dy_raw);
-            positionX = Units::FracQ16_16::fromRaw(new_x_raw);
-            positionY = Units::FracQ16_16::fromRaw(new_y_raw);
+            RawQ16_16 new_x_raw = add_wrap_q16_16(RawQ16_16(positionX.asRaw()), dx_raw);
+            RawQ16_16 new_y_raw = add_wrap_q16_16(RawQ16_16(positionY.asRaw()), dy_raw);
+            positionX = FracQ16_16::fromRaw(raw(new_x_raw));
+            positionY = FracQ16_16::fromRaw(raw(new_y_raw));
         }
     }
 
@@ -70,8 +70,8 @@ namespace LEDSegments {
         if (!clampEnabled) return;
 
         if (maxRadius.asRaw() <= 0) {
-            positionX = Units::FracQ16_16(0);
-            positionY = Units::FracQ16_16(0);
+            positionX = FracQ16_16(0);
+            positionY = FracQ16_16(0);
             return;
         }
 
@@ -94,8 +94,8 @@ namespace LEDSegments {
 
         uint64_t dist = sqrt_u64(dist_sq);
         if (dist == 0) {
-            positionX = Units::FracQ16_16(0);
-            positionY = Units::FracQ16_16(0);
+            positionX = FracQ16_16(0);
+            positionY = FracQ16_16(0);
             return;
         }
 
@@ -104,38 +104,39 @@ namespace LEDSegments {
         int64_t scaled_x = (positionX.asRaw() * static_cast<int64_t>(factor)) >> 16;
         int64_t scaled_y = (positionY.asRaw() * static_cast<int64_t>(factor)) >> 16;
 
-        positionX = Units::FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(scaled_x)));
-        positionY = Units::FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(scaled_y)));
+        positionX = FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(scaled_x)));
+        positionY = FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(scaled_y)));
     }
 
-    AngularMotion::AngularMotion(Units::AngleUnitsQ0_16 initial,
-                                 Fluctuation<Units::FracQ16_16> speed)
-        : phase(Units::angleUnitsToAngleTurns(initial)),
+    AngularMotion::AngularMotion(AngleUnitsQ0_16 initial,
+                                 Modulation<FracQ16_16> speed)
+        : phase(angleUnitsToAngleTurns(initial)),
           speed(std::move(speed)) {
     }
 
-    void AngularMotion::advanceFrame(Units::TimeMillis timeInMillis) {
-        if (lastTime == 0) {
+    void AngularMotion::advanceFrame(TimeMillis timeInMillis) {
+        if (!hasLastTime) {
             lastTime = timeInMillis;
+            hasLastTime = true;
             return;
         }
-        Units::TimeMillis deltaTime = timeInMillis - lastTime;
+        TimeMillis deltaTime = timeInMillis - lastTime;
         lastTime = timeInMillis;
         if (deltaTime == 0) return;
 
-        deltaTime = Fluctuations::clampDeltaTime(deltaTime);
+        deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        Units::FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
-        Units::RawFracQ16_16 phase_advance = mul_q16_16_wrap(speed(timeInMillis), dt_q16).asRaw();
-        phase += static_cast<uint32_t>(phase_advance);
+        FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
+        RawQ16_16 phase_advance = RawQ16_16(mul_q16_16_wrap(speed(timeInMillis), dt_q16).asRaw());
+        phase = wrapAddSigned(phase, raw(phase_advance));
     }
 
-    ScalarMotion::ScalarMotion(Fluctuation<Units::FracQ16_16> delta)
+    ScalarMotion::ScalarMotion(Modulation<FracQ16_16> delta)
         : delta(std::move(delta)) {
     }
 
-    void ScalarMotion::advanceFrame(Units::TimeMillis timeInMillis) {
+    void ScalarMotion::advanceFrame(TimeMillis timeInMillis) {
         value = delta(timeInMillis);
     }
 }
