@@ -59,7 +59,7 @@ namespace LEDSegments {
                 .addCartesianTransform(TranslationTransform(
                     linearUnbounded(0,
                                     0,
-                                    Constant(LinearVector::fromVelocity(
+                                    ConstantVelocity(LinearVector::fromVelocity(
                                         FracQ16_16(200),
                                         AngleUnitsQ0_16(150)
                                     )))))
@@ -77,7 +77,7 @@ namespace LEDSegments {
                     DomainWarpTransform(
                         linearUnbounded(0,
                                         0,
-                                        Constant(warp_velocity))
+                                        ConstantVelocity(warp_velocity))
                     )
                 )
                 // Barrel distortion
@@ -180,7 +180,7 @@ namespace LEDSegments {
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Sine(
                         ConstantPhaseVelocity(FracQ16_16(30)),
-                        ConstantSignalRaw(RawQ16_16(500))))))
+                        ConstantRawQ16_16(RawQ16_16(500))))))
                 // oscillating zoom, raw 500 is tiny fraction
                 // Mild symmetry
                 .addPolarTransform(KaleidoscopeTransform(3, false, false))
@@ -236,7 +236,7 @@ namespace LEDSegments {
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Pulse(
                         ConstantPhaseVelocity(FracQ16_16(40)),
-                        ConstantSignalRaw(RawQ16_16(2000))))))
+                        ConstantRawQ16_16(RawQ16_16(2000))))))
                 // Angular symmetry
                 .addPolarTransform(KaleidoscopeTransform(6, false, true))
                 // Barrel pop
@@ -273,7 +273,7 @@ namespace LEDSegments {
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Sine(
                         ConstantPhaseVelocity(FracQ16_16(25)),
-                        ConstantSignalRaw(RawQ16_16(1500))))))
+                        ConstantRawQ16_16(RawQ16_16(1500))))))
                 // Mirror both axes (Cartesian symmetry before polar conversion)
                 .addCartesianTransform(MirrorTransform(true, true))
                 // Many petals
@@ -312,7 +312,7 @@ namespace LEDSegments {
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Pulse(
                         ConstantPhaseVelocity(FracQ16_16(60)),
-                        ConstantSignalRaw(RawQ16_16(2500))))))
+                        ConstantRawQ16_16(RawQ16_16(2500))))))
                 // Medium rotation
                 .addPolarTransform(RotationTransform(
                     angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(2500)))))
@@ -382,7 +382,7 @@ namespace LEDSegments {
                 .addCartesianTransform(TileJitterTransform(
                     1u << 17,
                     1u << 17,
-                    scalar(ConstantSignal(FracQ16_16(1024))) // constant amplitude via signal
+                    scalar(Constant(FracQ16_16(1024))) // constant amplitude via signal
                 ))
                 // Mandala fold
                 .addPolarTransform(KaleidoscopeTransform(5, true, true))

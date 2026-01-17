@@ -39,7 +39,7 @@ namespace LEDSegments {
         }
 
         State(FracQ16_16 b, FracQ16_16 a, FracQ16_16 pv, AngleTurnsUQ16_16 p)
-            : scaleSignal(ScalarMotion(ConstantSignal(FracQ16_16(0)))),
+            : scaleSignal(ScalarMotion(Constant(FracQ16_16(0)))),
               useOsc(true),
               base(b),
               amp(a),

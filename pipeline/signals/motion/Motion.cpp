@@ -19,12 +19,14 @@
  */
 
 #include "Motion.h"
+#include "polar/pipeline/utils/MathUtils.h"
+#include "polar/pipeline/utils/TimeUtils.h"
 
 namespace LEDSegments {
     LinearMotion::LinearMotion(
         FracQ16_16 initialX,
         FracQ16_16 initialY,
-        Modulation<LinearVector> velocity,
+        VelocityModulation velocity,
         bool clampEnabled,
         FracQ16_16 maxRadius
     ) : positionX(initialX),
@@ -53,10 +55,10 @@ namespace LEDSegments {
         RawQ16_16 dy_raw = RawQ16_16(mul_q16_16_sat(velocity_now.getY(), dt_q16).asRaw());
 
         if (clampEnabled) {
-            int64_t new_x_raw = clamp_raw(static_cast<int64_t>(positionX.asRaw()) + raw(dx_raw));
-            int64_t new_y_raw = clamp_raw(static_cast<int64_t>(positionY.asRaw()) + raw(dy_raw));
-            positionX = FracQ16_16::fromRaw(static_cast<int32_t>(new_x_raw));
-            positionY = FracQ16_16::fromRaw(static_cast<int32_t>(new_y_raw));
+            FracQ16_16 new_x = clamp_q16_16_raw(static_cast<int64_t>(positionX.asRaw()) + raw(dx_raw));
+            FracQ16_16 new_y = clamp_q16_16_raw(static_cast<int64_t>(positionY.asRaw()) + raw(dy_raw));
+            positionX = new_x;
+            positionY = new_y;
             applyRadialClamp();
         } else {
             RawQ16_16 new_x_raw = add_wrap_q16_16(RawQ16_16(positionX.asRaw()), dx_raw);
@@ -104,12 +106,12 @@ namespace LEDSegments {
         int64_t scaled_x = (positionX.asRaw() * static_cast<int64_t>(factor)) >> 16;
         int64_t scaled_y = (positionY.asRaw() * static_cast<int64_t>(factor)) >> 16;
 
-        positionX = FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(scaled_x)));
-        positionY = FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(scaled_y)));
+        positionX = clamp_q16_16_raw(scaled_x);
+        positionY = clamp_q16_16_raw(scaled_y);
     }
 
     AngularMotion::AngularMotion(AngleUnitsQ0_16 initial,
-                                 Modulation<FracQ16_16> speed)
+                                 ScalarModulation speed)
         : phase(angleUnitsToAngleTurns(initial)),
           speed(std::move(speed)) {
     }
@@ -132,7 +134,7 @@ namespace LEDSegments {
         phase = wrapAddSigned(phase, raw(phase_advance));
     }
 
-    ScalarMotion::ScalarMotion(Modulation<FracQ16_16> delta)
+    ScalarMotion::ScalarMotion(ScalarModulation delta)
         : delta(std::move(delta)) {
     }
 

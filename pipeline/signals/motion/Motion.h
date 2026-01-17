@@ -27,6 +27,12 @@
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
+    using VelocityModulation = fl::function<LinearVector(TimeMillis)>;
+
+    inline VelocityModulation ConstantVelocity(LinearVector v) {
+        return [v](TimeMillis) { return v; };
+    }
+
     class LinearMotion {
     public:
         LinearMotion(const LinearMotion &) = default;
@@ -50,7 +56,7 @@ namespace LEDSegments {
     protected:
         LinearMotion(FracQ16_16 initialX,
                      FracQ16_16 initialY,
-                     Modulation<LinearVector> velocity,
+                     VelocityModulation velocity,
                      bool clampEnabled,
                      FracQ16_16 maxRadius);
 
@@ -58,7 +64,7 @@ namespace LEDSegments {
 
         FracQ16_16 positionX;
         FracQ16_16 positionY;
-        Modulation<LinearVector> velocity;
+        VelocityModulation velocity;
         TimeMillis lastTime = 0;
         bool hasLastTime = false;
         bool clampEnabled = false;
@@ -69,7 +75,7 @@ namespace LEDSegments {
     public:
         UnboundedLinearMotion(FracQ16_16 initialX,
                               FracQ16_16 initialY,
-                              Modulation<LinearVector> velocity)
+                              VelocityModulation velocity)
             : LinearMotion(initialX, initialY, std::move(velocity), false, FracQ16_16(0)) {
         }
     };
@@ -78,7 +84,7 @@ namespace LEDSegments {
     public:
         BoundedLinearMotion(FracQ16_16 initialX,
                             FracQ16_16 initialY,
-                            Modulation<LinearVector> velocity,
+                            VelocityModulation velocity,
                             FracQ16_16 maxRadius)
             : LinearMotion(initialX, initialY, std::move(velocity), true, maxRadius) {
         }
@@ -87,7 +93,7 @@ namespace LEDSegments {
     class AngularMotion {
     public:
         AngularMotion(AngleUnitsQ0_16 initial,
-                      Modulation<FracQ16_16> speed);
+                      ScalarModulation speed);
 
         void advanceFrame(TimeMillis timeInMillis);
 
@@ -98,14 +104,14 @@ namespace LEDSegments {
     private:
         // Delta-time is clamped using MAX_DELTA_TIME_MS; set to 0 to disable.
         AngleTurnsUQ16_16 phase = AngleTurnsUQ16_16(0);
-        Modulation<FracQ16_16> speed;
+        ScalarModulation speed;
         TimeMillis lastTime = 0;
         bool hasLastTime = false;
     };
 
     class ScalarMotion {
     public:
-        explicit ScalarMotion(Modulation<FracQ16_16> delta);
+        explicit ScalarMotion(ScalarModulation delta);
 
         void advanceFrame(TimeMillis timeInMillis);
 
@@ -115,7 +121,7 @@ namespace LEDSegments {
 
     private:
         FracQ16_16 value = FracQ16_16(0);
-        Modulation<FracQ16_16> delta;
+        ScalarModulation delta;
     };
 }
 

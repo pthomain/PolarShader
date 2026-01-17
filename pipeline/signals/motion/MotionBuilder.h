@@ -27,13 +27,13 @@
 namespace LEDSegments {
     inline UnboundedLinearMotion linearUnbounded(FracQ16_16 initialX,
                                                  FracQ16_16 initialY,
-                                                 Modulation<LinearVector> velocity) {
+                                                 VelocityModulation velocity) {
         return UnboundedLinearMotion(initialX, initialY, std::move(velocity));
     }
 
     inline UnboundedLinearMotion linearUnbounded(int32_t initialX,
                                                  int32_t initialY,
-                                                 Modulation<LinearVector> velocity) {
+                                                 VelocityModulation velocity) {
         return linearUnbounded(FracQ16_16(initialX),
                                FracQ16_16(initialY),
                                std::move(velocity));
@@ -41,14 +41,14 @@ namespace LEDSegments {
 
     inline BoundedLinearMotion linearBounded(FracQ16_16 initialX,
                                              FracQ16_16 initialY,
-                                             Modulation<LinearVector> velocity,
+                                             VelocityModulation velocity,
                                              FracQ16_16 maxRadius) {
         return BoundedLinearMotion(initialX, initialY, std::move(velocity), maxRadius);
     }
 
     inline BoundedLinearMotion linearBounded(int32_t initialX,
                                              int32_t initialY,
-                                             Modulation<LinearVector> velocity,
+                                             VelocityModulation velocity,
                                              FracQ16_16 maxRadius) {
         return linearBounded(FracQ16_16(initialX),
                              FracQ16_16(initialY),
@@ -57,11 +57,11 @@ namespace LEDSegments {
     }
 
     inline AngularMotion angular(AngleUnitsQ0_16 initial,
-                                 Modulation<FracQ16_16> speed) {
+                                 ScalarModulation speed) {
         return AngularMotion(initial, std::move(speed));
     }
 
-    inline ScalarMotion scalar(Modulation<FracQ16_16> delta) {
+    inline ScalarMotion scalar(ScalarModulation delta) {
         return ScalarMotion(std::move(delta));
     }
 }

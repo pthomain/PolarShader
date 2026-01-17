@@ -22,6 +22,14 @@
 #include "polar/pipeline/utils/MathUtils.h"
 
 namespace LEDSegments {
+
+    LinearVector::LinearVector()
+        : x(FracQ16_16(0)),
+          y(FracQ16_16(0)),
+          speed(FracQ16_16(0)),
+          direction(AngleUnitsQ0_16(0)) {
+    }
+
     LinearVector::LinearVector(FracQ16_16 x,
                                FracQ16_16 y,
                                FracQ16_16 speed,

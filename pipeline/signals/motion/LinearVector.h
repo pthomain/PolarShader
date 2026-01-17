@@ -26,6 +26,9 @@
 namespace LEDSegments {
     class LinearVector {
     public:
+
+        LinearVector();
+
         static LinearVector fromVelocity(FracQ16_16 speed,
                                          AngleUnitsQ0_16 direction);
 

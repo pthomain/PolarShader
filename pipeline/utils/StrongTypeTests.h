@@ -21,6 +21,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "MathUtils.h"
 #include "Units.h"
 #include "NoiseUtils.h"
 #include "polar/pipeline/signals/Modulation.h"
@@ -66,11 +67,25 @@ namespace LEDSegments::UnitsTest {
 
     inline bool phaseAccumulatorSmoothnessTest() {
         auto velocity = Constant(FracQ16_16::fromRaw(Q16_16_ONE / 4)); // 0.25 turns/sec
-        PhaseAccumulator acc(std::move(velocity));
+        detail::PhaseAccumulator acc(std::move(velocity));
         acc.advance(0);
         AngleTurnsUQ16_16 p1 = acc.advance(16);
         AngleTurnsUQ16_16 p2 = acc.advance(32);
         return ((raw(p1) & 0xFFFFu) != 0u) || ((raw(p2) & 0xFFFFu) != 0u);
+    }
+
+    inline bool phaseVelocityUnitTest() {
+        auto velocity = ConstantPhaseVelocity(FracQ16_16::fromRaw(Q16_16_ONE)); // 1 turn/sec
+        detail::PhaseAccumulator acc(std::move(velocity));
+        acc.advance(0);
+        AngleTurnsUQ16_16 after_one_sec = acc.advance(1000); // 1 second later
+        return raw(after_one_sec) == raw(ANGLE_TURNS_ONE_TURN);
+    }
+
+    inline bool clampQ16RangeTest() {
+        int64_t raw_value = static_cast<int64_t>(INT32_MAX) + 10;
+        FracQ16_16 result = clamp_q16_16_raw(raw_value);
+        return result.asRaw() == INT32_MAX;
     }
 
     inline bool wrapAddSignedTest() {
@@ -90,6 +105,8 @@ namespace LEDSegments::UnitsTest {
                && trigSamplingTest()
                && phaseTrigSamplingTest()
                && phaseAccumulatorSmoothnessTest()
+               && phaseVelocityUnitTest()
+               && clampQ16RangeTest()
                && wrapAddSignedTest()
                && noiseNormalizationTest();
     }

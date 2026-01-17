@@ -63,6 +63,10 @@ namespace LEDSegments {
 
     int64_t clamp_raw(int64_t value);
 
+    inline FracQ16_16 clamp_q16_16_raw(int64_t raw_value) {
+        return FracQ16_16::fromRaw(static_cast<int32_t>(clamp_raw(raw_value)));
+    }
+
     inline FracQ16_16 mulTrigQ1_15_SignalQ16_16(TrigQ1_15 t, FracQ16_16 amp) {
         int64_t scaled = static_cast<int64_t>(raw(t)) * amp.asRaw(); // Q1.15 * Q16.16 = Q17.31
         int64_t shifted = scaled >> 15;

@@ -144,6 +144,8 @@ namespace LEDSegments {
     */
     using AngleTurnsUQ16_16 = Strong<uint32_t, AngleTurnsUQ16_16_Tag>;
 
+    inline constexpr AngleTurnsUQ16_16 ANGLE_TURNS_ONE_TURN = AngleTurnsUQ16_16(Q16_16_ONE);
+
     /**
     *   The output of sin16/cos16 in signed fixed-point Q1.15:
     *
@@ -363,11 +365,11 @@ namespace LEDSegments {
 
     // --- Radius conversions ---
     constexpr RadiusQ0_16 toRadiusQ0_16(FracQ0_16 f) {
-        return RadiusQ0_16(static_cast<uint16_t>(f));
+        return RadiusQ0_16(f);
     }
 
     constexpr FracQ0_16 toFracQ0_16(RadiusQ0_16 r) {
-        return static_cast<FracQ0_16>(raw(r));
+        return raw(r);
     }
 
     // --- Phase wrap arithmetic (mod 2^32) ---
@@ -382,7 +384,7 @@ namespace LEDSegments {
 
     // --- Phase quantize/fold helpers ---
     inline AngleTurnsUQ16_16 mulPhaseWrap(AngleTurnsUQ16_16 p, uint8_t k) {
-        return AngleTurnsUQ16_16(static_cast<uint32_t>(raw(p) * static_cast<uint32_t>(k)));
+        return AngleTurnsUQ16_16(raw(p) * static_cast<uint32_t>(k));
     }
 
     inline AngleTurnsUQ16_16 quantizePhase(AngleTurnsUQ16_16 p, uint32_t binWidth) {
