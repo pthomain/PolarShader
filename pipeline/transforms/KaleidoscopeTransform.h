@@ -32,7 +32,7 @@ namespace LEDSegments {
      * The number of segments is controlled by a ValueMapper, which provides a
      * normalized 0-65535 value that this transform maps to the segment count.
      *
-     * Phase domain is PhaseTurnsUQ16_16 (wraps at 2^32). In kaleidoscope mode, phase is folded within
+     * Phase domain is AngleTurnsUQ16_16 (wraps at 2^32). In kaleidoscope mode, phase is folded within
      * each segment; in mandala mode, phase is multiplied by segment count and wraps. Mirroring treats
      * the folded boundary deterministically. Use when you need hard angular symmetry; beware of abrupt
      * folds if your source has discontinuities at 0/2π.
@@ -47,8 +47,8 @@ namespace LEDSegments {
 
         static constexpr uint8_t MAX_SEGMENTS = 8;
 
-        static Units::PhaseTurnsUQ16_16 foldPhaseKaleidoscope(
-            Units::PhaseTurnsUQ16_16 phase_q16,
+        static Units::AngleTurnsUQ16_16 foldPhaseKaleidoscope(
+            Units::AngleTurnsUQ16_16 phase_q16,
             fl::u8 nbSegments,
             bool isMirroring
         ) {

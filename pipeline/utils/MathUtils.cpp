@@ -81,7 +81,7 @@ namespace LEDSegments {
             return static_cast<int32_t>(temp);
         }
 
-        int16_t log2_f16(Units::FractQ0_16 val) {
+        int16_t log2_f16(Units::FracQ0_16 val) {
             static_assert(sizeof(int) == 4, "log2_f16 assumes 32-bit int for __builtin_clz");
             if (val == 0) return INT16_MIN;
             if (val >= (Units::FRACT_Q0_16_MAX - 1)) return 0;
@@ -94,7 +94,7 @@ namespace LEDSegments {
             return static_cast<int16_t>((int_part << 8) | frac_part);
         }
 
-        int32_t pow_q16(Units::FractQ0_16 base, Units::RawSignalQ16_16 exp_q16_16) {
+        int32_t pow_q16(Units::FracQ0_16 base, Units::RawFracQ16_16 exp_q16_16) {
             if (base == 0) return 0;
             if (base >= (Units::FRACT_Q0_16_MAX - 1) || exp_q16_16 == 0) {
                 return static_cast<int32_t>(Units::Q16_16_ONE);
@@ -108,7 +108,7 @@ namespace LEDSegments {
         }
     } // namespace
 
-    fl::i16 scale_i16_by_f16(fl::i16 value, Units::FractQ0_16 scale) {
+    fl::i16 scale_i16_by_f16(fl::i16 value, Units::FracQ0_16 scale) {
         if (scale == Units::FRACT_Q0_16_MAX) return value;
         int32_t result = static_cast<int32_t>(value) * static_cast<int32_t>(scale);
         result += (result >= 0) ? Units::U16_HALF : -Units::U16_HALF;
@@ -116,7 +116,7 @@ namespace LEDSegments {
         return static_cast<int16_t>(clamp_val(result, (int32_t) INT16_MIN, (int32_t) INT16_MAX));
     }
 
-    fl::i32 scale_i32_by_f16(fl::i32 value, Units::FractQ0_16 scale) {
+    fl::i32 scale_i32_by_f16(fl::i32 value, Units::FracQ0_16 scale) {
         if (scale == Units::FRACT_Q0_16_MAX) return value;
         int64_t result = static_cast<int64_t>(value) * static_cast<int64_t>(scale);
         result += (result >= 0) ? Units::U16_HALF : -Units::U16_HALF;
@@ -125,16 +125,16 @@ namespace LEDSegments {
         return static_cast<int32_t>(result);
     }
 
-    fl::i32 scale_i32_by_q16_16(fl::i32 value, Units::RawSignalQ16_16 scale) {
+    fl::i32 scale_i32_by_q16_16(fl::i32 value, Units::RawFracQ16_16 scale) {
         if (scale == 0) return 0;
-        if (scale == static_cast<Units::RawSignalQ16_16>(Units::Q16_16_ONE)) return value;
+        if (scale == static_cast<Units::RawFracQ16_16>(Units::Q16_16_ONE)) return value;
         int64_t result = static_cast<int64_t>(value) * static_cast<int64_t>(scale);
         result += (result >= 0) ? Units::U16_HALF : -Units::U16_HALF;
         result >>= 16;
         return static_cast<int32_t>(clamp_val(result, (int64_t) INT32_MIN, (int64_t) INT32_MAX));
     }
 
-    fl::i32 scale_q16_16_by_f16(fl::i32 value_q16_16, Units::FractQ0_16 scale_f16) {
+    fl::i32 scale_q16_16_by_f16(fl::i32 value_q16_16, Units::FracQ0_16 scale_f16) {
         if (scale_f16 == Units::FRACT_Q0_16_MAX) return value_q16_16;
         int64_t result = static_cast<int64_t>(value_q16_16) * static_cast<int64_t>(scale_f16);
         result += (result >= 0) ? Units::U16_HALF : -Units::U16_HALF;
@@ -142,16 +142,16 @@ namespace LEDSegments {
         return static_cast<int32_t>(clamp_val(result, (int64_t) INT32_MIN, (int64_t) INT32_MAX));
     }
 
-    Units::SignalQ16_16 mul_q16_16_sat(Units::SignalQ16_16 a, Units::SignalQ16_16 b) {
+    Units::FracQ16_16 mul_q16_16_sat(Units::FracQ16_16 a, Units::FracQ16_16 b) {
         // Straight Q16.16 multiply with rounding and saturation.
         int64_t result = static_cast<int64_t>(a.asRaw()) * static_cast<int64_t>(b.asRaw());
         result += (result >= 0) ? Units::U16_HALF : -Units::U16_HALF;
         result >>= 16;
         result = clamp_val(result, static_cast<int64_t>(INT32_MIN), static_cast<int64_t>(INT32_MAX));
-        return Units::SignalQ16_16::fromRaw(static_cast<int32_t>(result));
+        return Units::FracQ16_16::fromRaw(static_cast<int32_t>(result));
     }
 
-    Units::SignalQ16_16 mul_q16_16_wrap(Units::SignalQ16_16 a, Units::SignalQ16_16 b) {
+    Units::FracQ16_16 mul_q16_16_wrap(Units::FracQ16_16 a, Units::FracQ16_16 b) {
         int64_t result_i64 = (int64_t) a.asRaw() * (int64_t) b.asRaw();
         // Arithmetic shift right is implementation-defined for negatives; make it explicit by adding a bias
         // before shifting to mirror two's-complement behavior.
@@ -165,18 +165,18 @@ namespace LEDSegments {
         int32_t final_result;
         memcpy(&final_result, &result_u32, sizeof(final_result));
 
-        return Units::SignalQ16_16::fromRaw(final_result);
+        return Units::FracQ16_16::fromRaw(final_result);
     }
 
-    Units::RawSignalQ16_16 add_sat_q16_16(Units::RawSignalQ16_16 a, Units::RawSignalQ16_16 b) {
+    Units::RawFracQ16_16 add_sat_q16_16(Units::RawFracQ16_16 a, Units::RawFracQ16_16 b) {
         int64_t s = (int64_t) a + b;
         s = clamp_val(s, (int64_t) INT32_MIN, (int64_t) INT32_MAX);
-        return (Units::RawSignalQ16_16) s;
+        return (Units::RawFracQ16_16) s;
     }
 
-    Units::RawSignalQ16_16 add_wrap_q16_16(Units::RawSignalQ16_16 a, Units::RawSignalQ16_16 b) {
+    Units::RawFracQ16_16 add_wrap_q16_16(Units::RawFracQ16_16 a, Units::RawFracQ16_16 b) {
         uint32_t sum = static_cast<uint32_t>(a) + static_cast<uint32_t>(b);
-        Units::RawSignalQ16_16 result;
+        Units::RawFracQ16_16 result;
         memcpy(&result, &sum, sizeof(result));
         return result;
     }
@@ -204,15 +204,15 @@ namespace LEDSegments {
         return static_cast<uint16_t>(res);
     }
 
-    Units::FractQ0_16 divide_u16_as_fract16(fl::u16 numerator, fl::u16 denominator) {
+    Units::FracQ0_16 divide_u16_as_fract16(fl::u16 numerator, fl::u16 denominator) {
         if (denominator == 0) return UINT16_MAX;
         uint32_t temp = (static_cast<uint32_t>(numerator) << 16);
         temp = (temp + (denominator / 2)) / denominator;
         if (temp > UINT16_MAX) return UINT16_MAX;
-        return static_cast<Units::FractQ0_16>(temp);
+        return static_cast<Units::FracQ0_16>(temp);
     }
 
-    Units::AngleTurns16 atan2_turns_approx(int16_t y, int16_t x) {
+    Units::AngleUnitsQ0_16 atan2_turns_approx(int16_t y, int16_t x) {
         if (x == 0 && y == 0) return 0;
 
         uint16_t abs_x = (x < 0) ? static_cast<uint16_t>(-x) : static_cast<uint16_t>(x);
@@ -238,20 +238,64 @@ namespace LEDSegments {
             angle = Units::Q16_16_ONE - angle;
         }
 
-        return static_cast<Units::AngleTurns16>(angle & Units::ANGLE_U16_MAX);
+        return static_cast<Units::AngleUnitsQ0_16>(angle & Units::ANGLE_U16_MAX);
     }
 
     // Computes base^exp with guards for retention-style use: exp is assumed non-negative; result is clamped to [0,1].
-    Units::SignalQ16_16 pow_f16_q16(Units::FractQ0_16 base, Units::SignalQ16_16 exp) {
-        Units::RawSignalQ16_16 exp_raw = exp.asRaw();
+    Units::FracQ16_16 pow_f16_q16(Units::FracQ0_16 base, Units::FracQ16_16 exp) {
+        Units::RawFracQ16_16 exp_raw = exp.asRaw();
         if (exp_raw <= 0 || base >= Units::FRACT_Q0_16_MAX) {
-            return Units::SignalQ16_16::fromRaw(Units::Q16_16_ONE);
+            return Units::FracQ16_16::fromRaw(Units::Q16_16_ONE);
         }
         if (base == 0) {
-            return Units::SignalQ16_16(0);
+            return Units::FracQ16_16(0);
         }
 
         int32_t res_raw = pow_q16(base, exp_raw);
-        return Units::SignalQ16_16::fromRaw(res_raw);
+        return Units::FracQ16_16::fromRaw(res_raw);
+    }
+
+    uint64_t sqrt_u64(uint64_t value) {
+        uint64_t op = value;
+        uint64_t res = 0;
+        uint64_t one = 1ULL << 62;
+
+        while (one > op) {
+            one >>= 2;
+        }
+
+        while (one != 0) {
+            if (op >= res + one) {
+                op -= res + one;
+                res = (res >> 1) + one;
+            } else {
+                res >>= 1;
+            }
+            one >>= 2;
+        }
+        return res;
+    }
+
+    int64_t scale_q16_16_by_trig(Units::RawFracQ16_16 magnitude, int32_t trig_q1_15) {
+        int64_t product = static_cast<int64_t>(magnitude) * trig_q1_15;
+        if (product >= 0) {
+            product += (1LL << 14);
+        } else {
+            product -= (1LL << 14);
+        }
+        return product >> 15;
+    }
+
+    int16_t clamp_raw_to_i16(Units::RawFracQ16_16 raw) {
+        int32_t value = raw >> 16;
+        if (value > INT16_MAX) return INT16_MAX;
+        if (value < INT16_MIN) return INT16_MIN;
+        return static_cast<int16_t>(value);
+    }
+
+    int64_t clamp_raw(int64_t value) {
+        if (value > INT32_MAX) return INT32_MAX;
+        if (value < INT32_MIN) return INT32_MIN;
+        return value;
     }
 }

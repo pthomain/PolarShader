@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -24,15 +24,15 @@
 
 namespace LEDSegments {
     struct CurlFlowTransform::State {
-        LinearSignal amplitudeSignal;
+        ScalarMotion amplitudeSignal;
         uint8_t sampleShift;
 
-        State(LinearSignal amp, uint8_t shift)
+        State(ScalarMotion amp, uint8_t shift)
             : amplitudeSignal(std::move(amp)), sampleShift(shift) {
         }
     };
 
-    CurlFlowTransform::CurlFlowTransform(LinearSignal amplitude, uint8_t sampleShift)
+    CurlFlowTransform::CurlFlowTransform(ScalarMotion amplitude, uint8_t sampleShift)
         : state(std::make_shared<State>(std::move(amplitude), sampleShift)) {
     }
 
@@ -54,7 +54,7 @@ namespace LEDSegments {
             int32_t grad_y = (n_y1 - n_y0); // approximate d/dy
 
             // curl = (grad_y, -grad_x)
-            Units::RawSignalQ16_16 amp = state->amplitudeSignal.getRawValue();
+            Units::RawFracQ16_16 amp = state->amplitudeSignal.getRawValue();
             // Gradients are large (~±65535); scale them down before applying amp to avoid extreme warps.
             constexpr uint8_t GRAD_SCALE_SHIFT = 8; // damp gradient magnitude by 256
             int64_t offset_x = (static_cast<int64_t>(grad_y) * amp) >> (16 + GRAD_SCALE_SHIFT);

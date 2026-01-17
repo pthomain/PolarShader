@@ -23,28 +23,26 @@
 
 namespace LEDSegments {
     struct DomainWarpTransform::State {
-        LinearSignal warpXSignal;
-        LinearSignal warpYSignal;
+        LinearMotion warpSignal;
 
-        State(LinearSignal xWarp, LinearSignal yWarp)
-            : warpXSignal(std::move(xWarp)), warpYSignal(std::move(yWarp)) {
+        explicit State(LinearMotion warp)
+            : warpSignal(std::move(warp)) {
         }
     };
 
-    DomainWarpTransform::DomainWarpTransform(LinearSignal xWarp, LinearSignal yWarp)
-        : state(std::make_shared<State>(std::move(xWarp), std::move(yWarp))) {
+    DomainWarpTransform::DomainWarpTransform(LinearMotion warp)
+        : state(std::make_shared<State>(std::move(warp))) {
     }
 
     void DomainWarpTransform::advanceFrame(Units::TimeMillis timeInMillis) {
-        state->warpXSignal.advanceFrame(timeInMillis);
-        state->warpYSignal.advanceFrame(timeInMillis);
+        state->warpSignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer DomainWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
             // Get the integer part of the warp signal.
-            int32_t warpX = state->warpXSignal.getValue();
-            int32_t warpY = state->warpYSignal.getValue();
+            int32_t warpX = state->warpSignal.getX();
+            int32_t warpY = state->warpSignal.getY();
 
             // Add the original coordinate and the warp offset using 64-bit arithmetic
             // to prevent signed overflow, then perform a well-defined wrap to the 32-bit domain.

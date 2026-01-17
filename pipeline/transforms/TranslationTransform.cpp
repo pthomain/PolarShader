@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -20,30 +20,27 @@
 
 #include "TranslationTransform.h"
 #include <cstring>
-#include "polar/pipeline/utils/MathUtils.h"
 
 namespace LEDSegments {
     struct TranslationTransform::State {
-        LinearSignal dxSignal;
-        LinearSignal dySignal;
+        LinearMotion offsetSignal;
 
-        State(LinearSignal dx, LinearSignal dy)
-            : dxSignal(std::move(dx)), dySignal(std::move(dy)) {}
+        explicit State(LinearMotion offset)
+            : offsetSignal(std::move(offset)) {}
     };
 
-    TranslationTransform::TranslationTransform(LinearSignal dx, LinearSignal dy)
-        : state(std::make_shared<State>(std::move(dx), std::move(dy))) {
+    TranslationTransform::TranslationTransform(LinearMotion offset)
+        : state(std::make_shared<State>(std::move(offset))) {
     }
 
     void TranslationTransform::advanceFrame(Units::TimeMillis timeInMillis) {
-        state->dxSignal.advanceFrame(timeInMillis);
-        state->dySignal.advanceFrame(timeInMillis);
+        state->offsetSignal.advanceFrame(timeInMillis);
     }
 
     CartesianLayer TranslationTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            int32_t dx = state->dxSignal.getValue();
-            int32_t dy = state->dySignal.getValue();
+            int32_t dx = state->offsetSignal.getX();
+            int32_t dy = state->offsetSignal.getY();
 
             uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + dx);
             uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + dy);

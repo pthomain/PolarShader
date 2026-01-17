@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -20,31 +20,37 @@
 
 #include "ZoomTransform.h"
 #include <cstring>
+#include "polar/pipeline/signals/Fluctuation.h"
 #include "polar/pipeline/utils/FixMathUtils.h"
 #include "polar/pipeline/utils/MathUtils.h"
 
 namespace LEDSegments {
     struct ZoomTransform::State {
-        BoundedSignal scaleSignal;
+        ScalarMotion scaleSignal;
         bool useOsc = false;
-        Units::SignalQ16_16 base;
-        Units::SignalQ16_16 amp;
-        Units::PhaseVelAngleUnitsQ16_16 phaseVel;
-        Units::PhaseTurnsUQ16_16 phase = 0;
+        Units::FracQ16_16 base;
+        Units::FracQ16_16 amp;
+        Units::FracQ16_16 phaseVel;
+        Units::AngleTurnsUQ16_16 phase = 0;
         Units::TimeMillis lastTime = 0;
 
-        explicit State(BoundedSignal s) : scaleSignal(std::move(s)) {}
-        State(Units::SignalQ16_16 b, Units::SignalQ16_16 a, Units::PhaseVelAngleUnitsQ16_16 pv, Units::PhaseTurnsUQ16_16 p)
-            : scaleSignal(BoundedSignal(0)), useOsc(true), base(b), amp(a), phaseVel(pv), phase(p) {}
+        explicit State(ScalarMotion s) : scaleSignal(std::move(s)) {}
+        State(Units::FracQ16_16 b, Units::FracQ16_16 a, Units::FracQ16_16 pv, Units::AngleTurnsUQ16_16 p)
+            : scaleSignal(ScalarMotion(Fluctuations::ConstantSignal(0))),
+              useOsc(true),
+              base(b),
+              amp(a),
+              phaseVel(pv),
+              phase(p) {}
     };
 
-    ZoomTransform::ZoomTransform(BoundedSignal scale)
+    ZoomTransform::ZoomTransform(ScalarMotion scale)
         : state(std::make_shared<State>(std::move(scale))) {}
 
-    ZoomTransform::ZoomTransform(Units::SignalQ16_16 base,
-                                 Units::SignalQ16_16 amplitude,
-                                 Units::PhaseVelAngleUnitsQ16_16 phaseVelocity,
-                                 Units::PhaseTurnsUQ16_16 initialPhase)
+    ZoomTransform::ZoomTransform(Units::FracQ16_16 base,
+                                 Units::FracQ16_16 amplitude,
+                                 Units::FracQ16_16 phaseVelocity,
+                                 Units::AngleTurnsUQ16_16 initialPhase)
         : state(std::make_shared<State>(base, amplitude, phaseVelocity, initialPhase)) {}
 
     void ZoomTransform::advanceFrame(Units::TimeMillis timeInMillis) {
@@ -58,26 +64,28 @@ namespace LEDSegments {
         }
         Units::TimeMillis dt = timeInMillis - state->lastTime;
         state->lastTime = timeInMillis;
-        Units::SignalQ16_16 dt_q16 = millisToQ16_16(dt);
-        Units::RawSignalQ16_16 advance = mul_q16_16_wrap(state->phaseVel, dt_q16).asRaw();
+        Units::FracQ16_16 dt_q16 = millisToQ16_16(dt);
+        Units::RawFracQ16_16 advance = mul_q16_16_wrap(state->phaseVel, dt_q16).asRaw();
         state->phase += static_cast<uint32_t>(advance);
     }
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawSignalQ16_16 s_raw;
+            Units::RawFracQ16_16 s_raw;
             if (state->useOsc) {
-                Units::AngleTurns16 phase_sample = static_cast<Units::AngleTurns16>(static_cast<uint32_t>(state->phase) >> 16);
+                Units::AngleUnitsQ0_16 phase_sample = static_cast<Units::AngleUnitsQ0_16>(state->phase >> 16);
                 int32_t sin_val = sin16(phase_sample);
                 // amp (Q16.16) * sin (Q1.15) -> Q17.31; shift 15 -> Q17.16
                 int64_t delta = (static_cast<int64_t>(state->amp.asRaw()) * sin_val) >> 15;
-                int64_t scaled = static_cast<int64_t>(state->base.asRaw()) + delta;
+                int64_t scaled = state->base.asRaw() + delta;
                 // clamp to safe zoom bounds
-                if (scaled < ZoomTransform::ZOOM_MIN.asRaw()) scaled = ZoomTransform::ZOOM_MIN.asRaw();
-                if (scaled > ZoomTransform::ZOOM_MAX.asRaw()) scaled = ZoomTransform::ZOOM_MAX.asRaw();
-                s_raw = static_cast<Units::RawSignalQ16_16>(scaled);
+                if (scaled < ZOOM_MIN.asRaw()) scaled = ZOOM_MIN.asRaw();
+                if (scaled > ZOOM_MAX.asRaw()) scaled = ZOOM_MAX.asRaw();
+                s_raw = static_cast<Units::RawFracQ16_16>(scaled);
             } else {
                 s_raw = state->scaleSignal.getRawValue();
+                if (s_raw < ZOOM_MIN.asRaw()) s_raw = ZOOM_MIN.asRaw();
+                if (s_raw > ZOOM_MAX.asRaw()) s_raw = ZOOM_MAX.asRaw();
             }
             // Allow scale == 0 to collapse to origin; negative scales flip axes.
             int64_t sx = static_cast<int64_t>(x) * s_raw;

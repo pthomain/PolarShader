@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 
 namespace LEDSegments {
     /**
@@ -33,7 +33,7 @@ namespace LEDSegments {
      * This transform distorts the input coordinates by adding a time-varying offset,
      * creating a "warping" or "flowing" effect in the final pattern.
      *
-     * Parameters: two LinearSignals (Q16.16) for X/Y offsets.
+     * Parameters: one LinearMotion (Q16.16) providing X/Y offsets.
      * Input/output domain: CartesianLayer with 32-bit coordinates. Offsets are added with explicit
      * 32-bit wrap; no clamping occurs.
      * Recommended order: apply early, before other Cartesian transforms or polar conversion, so downstream
@@ -46,10 +46,9 @@ namespace LEDSegments {
     public:
         /**
          * @brief Constructs a new DomainWarpTransform.
-         * @param xWarp A signal that provides the X component of the warp.
-         * @param yWarp A signal that provides the Y component of the warp.
-         */
-        DomainWarpTransform(LinearSignal xWarp, LinearSignal yWarp);
+     * @param warp A motion that provides the X/Y components of the warp.
+     */
+        explicit DomainWarpTransform(LinearMotion warp);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

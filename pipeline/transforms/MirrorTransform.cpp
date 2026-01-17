@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -29,8 +29,7 @@ namespace LEDSegments {
     CartesianLayer MirrorTransform::operator()(const CartesianLayer &layer) const {
         return [mirrorX = this->mirrorX, mirrorY = this->mirrorY, layer](int32_t x, int32_t y) {
             auto abs_i32 = [](int32_t v) -> int32_t {
-                if (v == INT32_MIN) return INT32_MAX; // saturate to avoid UB on negation
-                return v < 0 ? -v : v;
+                return (v == INT32_MIN) ? INT32_MAX : (v < 0 ? -v : v);
             };
             int32_t mx = mirrorX && x < 0 ? abs_i32(x) : x;
             int32_t my = mirrorY && y < 0 ? abs_i32(y) : y;

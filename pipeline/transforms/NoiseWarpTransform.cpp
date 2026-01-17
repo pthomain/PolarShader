@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,15 +23,15 @@
 
 namespace LEDSegments {
     struct NoiseWarpTransform::State {
-        LinearSignal kxSignal;
-        LinearSignal kySignal;
+        ScalarMotion kxSignal;
+        ScalarMotion kySignal;
 
-        State(LinearSignal kx, LinearSignal ky)
+        State(ScalarMotion kx, ScalarMotion ky)
             : kxSignal(std::move(kx)), kySignal(std::move(ky)) {
         }
     };
 
-    NoiseWarpTransform::NoiseWarpTransform(LinearSignal kx, LinearSignal ky)
+    NoiseWarpTransform::NoiseWarpTransform(ScalarMotion kx, ScalarMotion ky)
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
@@ -42,8 +42,8 @@ namespace LEDSegments {
 
     CartesianLayer NoiseWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawSignalQ16_16 kx_raw = state->kxSignal.getRawValue();
-            Units::RawSignalQ16_16 ky_raw = state->kySignal.getRawValue();
+            Units::RawFracQ16_16 kx_raw = state->kxSignal.getRawValue();
+            Units::RawFracQ16_16 ky_raw = state->kySignal.getRawValue();
 
             int32_t signedNoise = static_cast<int32_t>(inoise16(x, y)) - Units::U16_HALF; // ~Q1.15 signed
 

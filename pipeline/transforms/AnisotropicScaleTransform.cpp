@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,15 +23,15 @@
 
 namespace LEDSegments {
     struct AnisotropicScaleTransform::State {
-        LinearSignal sxSignal;
-        LinearSignal sySignal;
+        ScalarMotion sxSignal;
+        ScalarMotion sySignal;
 
-        State(LinearSignal sx, LinearSignal sy)
+        State(ScalarMotion sx, ScalarMotion sy)
             : sxSignal(std::move(sx)), sySignal(std::move(sy)) {
         }
     };
 
-    AnisotropicScaleTransform::AnisotropicScaleTransform(LinearSignal sx, LinearSignal sy)
+    AnisotropicScaleTransform::AnisotropicScaleTransform(ScalarMotion sx, ScalarMotion sy)
         : state(std::make_shared<State>(std::move(sx), std::move(sy))) {
     }
 
@@ -42,8 +42,8 @@ namespace LEDSegments {
 
     CartesianLayer AnisotropicScaleTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawSignalQ16_16 sx_raw = state->sxSignal.getRawValue();
-            Units::RawSignalQ16_16 sy_raw = state->sySignal.getRawValue();
+            Units::RawFracQ16_16 sx_raw = state->sxSignal.getRawValue();
+            Units::RawFracQ16_16 sy_raw = state->sySignal.getRawValue();
 
             int64_t scaledX = static_cast<int64_t>(x) * sx_raw;
             int64_t scaledY = static_cast<int64_t>(y) * sy_raw;

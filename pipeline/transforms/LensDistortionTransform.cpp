@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -22,13 +22,13 @@
 
 namespace LEDSegments {
     struct LensDistortionTransform::State {
-        LinearSignal kSignal;
+        ScalarMotion kSignal;
 
-        explicit State(LinearSignal k) : kSignal(std::move(k)) {
+        explicit State(ScalarMotion k) : kSignal(std::move(k)) {
         }
     };
 
-    LensDistortionTransform::LensDistortionTransform(LinearSignal k)
+    LensDistortionTransform::LensDistortionTransform(ScalarMotion k)
         : state(std::make_shared<State>(std::move(k))) {
     }
 
@@ -37,15 +37,15 @@ namespace LEDSegments {
     }
 
     PolarLayer LensDistortionTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](Units::PhaseTurnsUQ16_16 angle_q16, Units::FractQ0_16 radius) {
-            Units::RawSignalQ16_16 k_raw = state->kSignal.getRawValue(); // Q16.16
+        return [state = this->state, layer](Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
+            Units::RawFracQ16_16 k_raw = state->kSignal.getRawValue(); // Q16.16
             // factor = 1 + k * r
             int64_t factor_q16 = static_cast<int64_t>(Units::Q16_16_ONE) + ((static_cast<int64_t>(k_raw) * radius) >> 16);
             int64_t scaled = factor_q16 * radius; // Q16.16 * Q0.16 = Q16.32
             scaled = (scaled + (1LL << 15)) >> 16; // round to Q16.16
             if (scaled < 0) scaled = 0;
             if (scaled > Units::FRACT_Q0_16_MAX) scaled = Units::FRACT_Q0_16_MAX;
-            Units::FractQ0_16 r_out = static_cast<Units::FractQ0_16>(scaled);
+            Units::FracQ0_16 r_out = static_cast<Units::FracQ0_16>(scaled);
             return layer(angle_q16, r_out);
         };
     }

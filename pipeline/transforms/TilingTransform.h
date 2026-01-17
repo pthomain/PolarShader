@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -27,6 +27,7 @@ namespace LEDSegments {
     /**
      * Tiles Cartesian space by wrapping coordinates into a tile of size (tileX, tileY)
      * using signed modulo; negative coordinates wrap back into [0, tileN).
+     * This produces an asymmetric mapping for negative inputs (not mirrored about zero).
      * Useful for repeating patterns. A tile dimension of 0 leaves that axis unchanged.
      *
      * Parameters: tileX, tileY (unsigned tile sizes in coordinate units).

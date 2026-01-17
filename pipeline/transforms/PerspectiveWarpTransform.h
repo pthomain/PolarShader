@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,15 +23,14 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
-#include "polar/pipeline/utils/MathUtils.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 
 namespace LEDSegments {
     /**
      * Applies a simple perspective warp: scales coordinates by a factor based on Y (vanishing point).
      * x' = x * scale, y' = y * scale where scale = 1 / (1 + k * y). Clamp to avoid divide-by-zero.
      *
-     * Parameters: k (LinearSignal, Q16.16). Positive k pulls far Y inward; negative pushes outward.
+     * Parameters: k (ScalarMotion, Q16.16). Positive k pulls far Y inward; negative pushes outward.
      * Recommended order: after base Cartesian warps (shear/scale), before tiling/mirroring or polar conversion.
      */
     class PerspectiveWarpTransform : public CartesianTransform {
@@ -39,7 +38,7 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        explicit PerspectiveWarpTransform(LinearSignal k);
+        explicit PerspectiveWarpTransform(ScalarMotion k);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

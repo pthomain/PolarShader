@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
@@ -31,7 +31,7 @@ namespace LEDSegments {
      * Divergence-free (curl) flow advection: approximates a curl of a low-frequency noise field and
      * offsets Cartesian coordinates accordingly. Useful for fluid-like motion with stable density.
      *
-     * Parameters: amplitude (LinearSignal, Q16.16), sampleShift (uint8, power-of-two divisor for sampling).
+     * Parameters: amplitude (ScalarMotion, Q16.16), sampleShift (uint8, power-of-two divisor for sampling).
      * Recommended order: early in Cartesian chain, before other warps/tiling, so downstream transforms
      * inherit the flow.
      */
@@ -40,7 +40,7 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        CurlFlowTransform(LinearSignal amplitude, uint8_t sampleShift = 3);
+        CurlFlowTransform(ScalarMotion amplitude, uint8_t sampleShift = 3);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

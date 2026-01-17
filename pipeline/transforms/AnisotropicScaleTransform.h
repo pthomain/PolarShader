@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,15 +23,14 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
-#include "polar/pipeline/utils/MathUtils.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 
 namespace LEDSegments {
     /**
      * Scales Cartesian coordinates independently on X and Y using Q16.16 scale factors
-     * (LinearSignals). Wrap is modulo 2^32 to match other domain warps.
+     * (ScalarMotions). Wrap is modulo 2^32 to match other domain warps.
      *
-     * Parameters: sx, sy (LinearSignals, Q16.16).
+     * Parameters: sx, sy (ScalarMotions, Q16.16).
      * Recommended order: early in Cartesian chain; combine with shear/tiling as needed before polar conversion.
      */
     class AnisotropicScaleTransform : public CartesianTransform {
@@ -39,7 +38,7 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        AnisotropicScaleTransform(LinearSignal sx, LinearSignal sy);
+        AnisotropicScaleTransform(ScalarMotion sx, ScalarMotion sy);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

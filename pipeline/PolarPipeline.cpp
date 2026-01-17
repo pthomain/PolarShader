@@ -40,13 +40,13 @@ namespace LEDSegments {
 
     ColourLayer PolarPipeline::blackLayer(const char *reason) {
         if (reason) Serial.println(reason);
-        return [](Units::PhaseTurnsUQ16_16, Units::FractQ0_16) {
+        return [](Units::AngleTurnsUQ16_16, Units::FracQ0_16) {
             return CRGB::Black;
         };
     }
 
     PolarLayer PolarPipeline::toPolarLayer(const CartesianLayer &layer) {
-        return [layer](Units::PhaseTurnsUQ16_16 angle_q16, Units::FractQ0_16 radius) {
+        return [layer](Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
             auto [x, y] = cartesianCoords(angle_q16, radius);
             return layer(x, y);
         };
@@ -129,8 +129,8 @@ namespace LEDSegments {
 
         // Final stage: sample the noise value and map it to a color from the palette.
         return [palette = palette, layer = currentPolar](
-            Units::PhaseTurnsUQ16_16 angle_q16,
-            Units::FractQ0_16 radius
+            Units::AngleTurnsUQ16_16 angle_q16,
+            Units::FracQ0_16 radius
         ) {
             Units::NoiseNormU16 value = layer(angle_q16, radius);
             uint8_t index = map16_to_8(value);

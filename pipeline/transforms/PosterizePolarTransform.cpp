@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -27,17 +27,17 @@ namespace LEDSegments {
 
     PolarLayer PosterizePolarTransform::operator()(const PolarLayer &layer) const {
         return [angleBins = this->angleBins, radiusBins = this->radiusBins, layer](
-            Units::PhaseTurnsUQ16_16 angle_q16, Units::FractQ0_16 radius) {
-            Units::PhaseTurnsUQ16_16 ang = angle_q16;
-            Units::FractQ0_16 rad = radius;
+            Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
+            Units::AngleTurnsUQ16_16 ang = angle_q16;
+            Units::FracQ0_16 rad = radius;
 
             if (angleBins > 1) {
                 uint32_t binWidth = static_cast<uint32_t>(Units::PHASE_FULL_TURN / angleBins);
-                ang = static_cast<Units::PhaseTurnsUQ16_16>((static_cast<uint64_t>(angle_q16) / binWidth) * binWidth);
+                ang = static_cast<Units::AngleTurnsUQ16_16>((static_cast<uint64_t>(angle_q16) / binWidth) * binWidth);
             }
             if (radiusBins > 1) {
                 uint32_t binWidth = static_cast<uint32_t>(Units::FRACT_Q0_16_MAX) / (radiusBins - 1);
-                rad = static_cast<Units::FractQ0_16>((radius / binWidth) * binWidth);
+                rad = static_cast<Units::FracQ0_16>((radius / binWidth) * binWidth);
             }
 
             return layer(ang, rad);

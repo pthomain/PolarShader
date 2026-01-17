@@ -23,17 +23,17 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 
 namespace LEDSegments {
     /**
      * @class RotationTransform
      * @brief Applies a dynamic rotation to the polar coordinates.
      *
-     * Expects and returns PolarLayer phases in PhaseTurnsUQ16_16 (AngleTurns16 in high 16 bits).
+     * Expects and returns PolarLayer phases in AngleTurnsUQ16_16 (AngleUnitsQ0_16 in high 16 bits).
      * Rotation signal is added full-resolution and wraps modulo 2^32. Negative velocities wrap via
      * unsigned addition.
-     * Parameters: AngularSignal rotation (Q16.16 angle-units per second).
+     * Parameters: AngularMotion rotation.
      * Recommended order: after Cartesian → Polar conversion and before kaleidoscope/mandala folding
      * so symmetry uses the rotated frame.
      */
@@ -46,7 +46,7 @@ namespace LEDSegments {
          * @brief Constructs a new RotationTransform.
          * @param rotation A signal that provides the rotation angle over time.
          */
-        explicit RotationTransform(AngularSignal rotation);
+        explicit RotationTransform(AngularMotion rotation);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

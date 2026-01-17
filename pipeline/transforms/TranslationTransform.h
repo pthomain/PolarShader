@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,14 +23,14 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 
 namespace LEDSegments {
     /**
      * Applies a simple Cartesian translation: (x, y) -> (x + dx, y + dy).
-     * Offsets are provided as LinearSignals (Q16.16); the integer part is used as the translation per frame.
+     * Offsets are provided by a LinearMotion (Q16.16); the integer part is used as the translation per frame.
      *
-     * Parameters: dx, dy (LinearSignal).
+     * Parameters: offset (LinearMotion).
      * Recommended order: early in the Cartesian chain before warps/tiling.
      */
     class TranslationTransform : public CartesianTransform {
@@ -38,7 +38,7 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        TranslationTransform(LinearSignal dx, LinearSignal dy);
+        explicit TranslationTransform(LinearMotion offset);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

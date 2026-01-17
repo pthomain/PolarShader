@@ -21,25 +21,24 @@
 #ifndef LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H
 #define LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H
 
-#include "../utils/FixMathUtils.h"
-#include "../utils/Units.h"
+#include <polar/pipeline/utils/Units.h>
 
 namespace LEDSegments {
 
     struct LinearPolicy {
-        void apply(Units::SignalQ16_16 &, Units::SignalQ16_16 &) const {}
+        void apply(Units::FracQ16_16 &, Units::FracQ16_16 &) const {}
     };
 
     struct ClampPolicy {
-        Units::SignalQ16_16 min_val;
-        Units::SignalQ16_16 max_val;
+        Units::FracQ16_16 min_val;
+        Units::FracQ16_16 max_val;
 
         // Default: effectively unbounded.
         ClampPolicy();
         ClampPolicy(int32_t min, int32_t max);
-        ClampPolicy(Units::SignalQ16_16 min, Units::SignalQ16_16 max);
+        ClampPolicy(Units::FracQ16_16 min, Units::FracQ16_16 max);
 
-        void apply(Units::SignalQ16_16 &position, Units::SignalQ16_16 &velocity) const;
+        void apply(Units::FracQ16_16 &position, Units::FracQ16_16 &velocity) const;
     };
 
     struct WrapPolicy {
@@ -47,7 +46,7 @@ namespace LEDSegments {
 
         explicit WrapPolicy(int32_t wrap = 65536);
 
-        void apply(Units::SignalQ16_16 &position, Units::SignalQ16_16 &) const;
+        void apply(Units::FracQ16_16 &position, Units::FracQ16_16 &) const;
     };
 }
 

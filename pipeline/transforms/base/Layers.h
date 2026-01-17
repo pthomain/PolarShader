@@ -25,10 +25,10 @@
 #include <polar/pipeline/utils/Units.h>
 
 namespace LEDSegments {
-    using PolarLayer = fl::function<Units::NoiseNormU16(Units::PhaseTurnsUQ16_16, Units::FractQ0_16)>;
+    using PolarLayer = fl::function<Units::NoiseNormU16(Units::AngleTurnsUQ16_16, Units::FracQ0_16)>;
     using CartesianLayer = fl::function<Units::NoiseNormU16(int32_t, int32_t)>;
     using NoiseLayer = fl::function<Units::NoiseNormU16(uint32_t, uint32_t)>;
-    using ColourLayer = fl::function<CRGB(Units::PhaseTurnsUQ16_16, Units::FractQ0_16)>;
+    using ColourLayer = fl::function<CRGB(Units::AngleTurnsUQ16_16, Units::FracQ0_16)>;
 }
 
 #endif //LED_SEGMENTS_TRANSFORMS_BASE_LAYERS_H

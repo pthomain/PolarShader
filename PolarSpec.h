@@ -95,7 +95,7 @@ public:
         uint16_t layoutId,
         uint16_t segmentIndex,
         uint16_t pixelIndex,
-        FractQ0_16 progress,
+        FracQ0_16 progress,
         const std::function<void(uint16_t)> &onLedMapped
     ) const override;
 

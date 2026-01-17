@@ -36,16 +36,16 @@ namespace LEDSegments {
     }
 
     CRGB PolarEffect::blendLayers(
-        Units::PhaseTurnsUQ16_16 angle_q16,
-        Units::FractQ0_16 radius,
+        Units::AngleTurnsUQ16_16 angle_q16,
+        Units::FracQ0_16 radius,
         const ColourLayer &layer
     ) {
         return layer(angle_q16, radius);
     }
 
     CRGB PolarEffect::blendLayers(
-        Units::PhaseTurnsUQ16_16 angle_q16,
-        Units::FractQ0_16 radius,
+        Units::AngleTurnsUQ16_16 angle_q16,
+        Units::FracQ0_16 radius,
         const fl::vector<ColourLayer> &layers
     ) {
         if (layers.empty()) return CRGB::Black;
@@ -70,13 +70,13 @@ namespace LEDSegments {
         CRGB *segmentArray,
         uint16_t segmentSize,
         uint16_t segmentIndex,
-        Units::FractQ0_16 progress,
+        Units::FracQ0_16 progress,
         Units::TimeMillis timeInMillis
     ) {
         pipeline.advanceFrame(timeInMillis);
         for (uint16_t pixelIndex = 0; pixelIndex < segmentSize; ++pixelIndex) {
             auto [angle_turns, radius] = context.polarCoordsMapper(pixelIndex);
-            Units::PhaseTurnsUQ16_16 angle_q16 = Units::angleTurnsToPhaseQ16_16(angle_turns);
+            Units::AngleTurnsUQ16_16 angle_q16 = Units::angleUnitsToAngleTurns(angle_turns);
             segmentArray[pixelIndex] = blendLayers(
                 angle_q16,
                 radius,

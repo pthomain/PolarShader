@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,13 +23,13 @@
 
 namespace LEDSegments {
     struct PerspectiveWarpTransform::State {
-        LinearSignal kSignal;
+        ScalarMotion kSignal;
 
-        explicit State(LinearSignal k) : kSignal(std::move(k)) {
+        explicit State(ScalarMotion k) : kSignal(std::move(k)) {
         }
     };
 
-    PerspectiveWarpTransform::PerspectiveWarpTransform(LinearSignal k)
+    PerspectiveWarpTransform::PerspectiveWarpTransform(ScalarMotion k)
         : state(std::make_shared<State>(std::move(k))) {
     }
 
@@ -39,7 +39,7 @@ namespace LEDSegments {
 
     CartesianLayer PerspectiveWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawSignalQ16_16 k_raw = state->kSignal.getRawValue();
+            Units::RawFracQ16_16 k_raw = state->kSignal.getRawValue();
             int64_t ky = (static_cast<int64_t>(k_raw) * y) >> 16;
             int64_t denom = static_cast<int64_t>(Units::Q16_16_ONE) + ky;
 

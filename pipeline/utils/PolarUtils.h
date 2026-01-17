@@ -34,14 +34,14 @@ namespace LEDSegments {
         CRGB16 &operator+=(const CRGB &rhs);
     };
 
-    // Phase stores AngleTurns16 in the high 16 bits; trig sampling uses (phase >> 16). Callers must
-    // pass a promoted PhaseTurnsUQ16_16; no auto-promotion happens here.
+    // Phase stores AngleUnitsQ0_16 in the high 16 bits; trig sampling uses (phase >> 16). Callers must
+    // pass a promoted AngleTurnsUQ16_16; no auto-promotion happens here.
     fl::pair<int32_t, int32_t> cartesianCoords(
-        Units::PhaseTurnsUQ16_16 angle_q16,
-        Units::FractQ0_16 radius
+        Units::AngleTurnsUQ16_16 angle_q16,
+        Units::FracQ0_16 radius
     );
 
-    fl::pair<Units::PhaseTurnsUQ16_16, Units::FractQ0_16> polarCoords(
+    fl::pair<Units::AngleTurnsUQ16_16, Units::FracQ0_16> polarCoords(
         fl::i32 x,
         fl::i32 y
     );

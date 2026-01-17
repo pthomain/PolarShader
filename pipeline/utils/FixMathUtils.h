@@ -38,16 +38,16 @@ namespace LEDSegments {
      * and avoid overflow, with proper rounding.
      *
      * @param millis The time in milliseconds.
-     * @return The equivalent time in seconds as a SignalQ16_16 value.
+     * @return The equivalent time in seconds as a FracQ16_16 value.
      */
-    inline Units::SignalQ16_16 millisToQ16_16(Units::TimeMillis millis) {
+    inline Units::FracQ16_16 millisToQ16_16(Units::TimeMillis millis) {
         // (millis / 1000) * 2^16
         // To maintain precision, this is calculated as:
         // (millis * 2^16) / 1000
         // with rounding.
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
-        return Units::SignalQ16_16::fromRaw(static_cast<Units::RawSignalQ16_16>(dt_raw));
+        return Units::FracQ16_16::fromRaw(static_cast<Units::RawFracQ16_16>(dt_raw));
     }
 }
 

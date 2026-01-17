@@ -50,7 +50,7 @@ void PolarSpec::mapLeds(
     uint16_t layoutId,
     uint16_t segmentIndex,
     uint16_t pixelIndex,
-    FractQ0_16 progress,
+    FracQ0_16 progress,
     const std::function<void(uint16_t)> &onLedMapped
 ) const {
     // Calculate the absolute LED index by summing the sizes of all previous segments.
@@ -77,11 +77,11 @@ PolarCoords PolarSpec::toPolarCoords(uint16_t pixelIndex) const {
             // The angle is the pixel's proportional position within its ring.
             // It's a uint16_t from 0 to 65535, representing 0 to 2PI radians.
             // For the center pixel (segment 0), the angle is 0.
-            const AngleTurns16 angleStep =
+            const AngleUnitsQ0_16 angleStep =
                     currentSegmentSize > 1 ? UINT16_MAX / currentSegmentSize : 0;
-            AngleTurns16 angle = pixelInSegment * angleStep;
+            AngleUnitsQ0_16 angle = pixelInSegment * angleStep;
 
-            FractQ0_16 radius = divide_u16_as_fract16(
+            FracQ0_16 radius = divide_u16_as_fract16(
                 segmentIndex,
                 numSegments > 1 ? numSegments - 1 : 1
             );

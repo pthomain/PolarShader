@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,16 +23,15 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
-#include "polar/pipeline/utils/MathUtils.h"
+#include "../signals/motion/Motion.h"
 
 namespace LEDSegments {
     /**
      * Applies a shear (skew) to Cartesian coordinates: x' = x + kx*y, y' = y + ky*x.
-     * Shear coefficients are LinearSignals (Q16.16), allowing animation. Wrap is explicit
+     * Shear coefficients are ScalarMotions (Q16.16), allowing animation. Wrap is explicit
      * modulo 2^32 to mirror other domain warps.
      *
-     * Parameters: kx, ky (LinearSignals, Q16.16).
+     * Parameters: kx, ky (ScalarMotions, Q16.16).
      * Recommended order: early in the Cartesian chain, before other warps/tiling, so downstream transforms
      * see the skewed space.
      */
@@ -41,7 +40,7 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        ShearTransform(LinearSignal kx, LinearSignal ky);
+        ShearTransform(ScalarMotion kx, ScalarMotion ky);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 

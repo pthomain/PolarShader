@@ -22,13 +22,13 @@
 
 namespace LEDSegments {
     struct RotationTransform::State {
-        AngularSignal rotationSignal;
+        AngularMotion rotationSignal;
 
-        explicit State(AngularSignal rotation) : rotationSignal(std::move(rotation)) {
+        explicit State(AngularMotion rotation) : rotationSignal(std::move(rotation)) {
         }
     };
 
-    RotationTransform::RotationTransform(AngularSignal rotation)
+    RotationTransform::RotationTransform(AngularMotion rotation)
         : state(std::make_shared<State>(std::move(rotation))) {
     }
 
@@ -37,10 +37,9 @@ namespace LEDSegments {
     }
 
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](Units::PhaseTurnsUQ16_16 angle_q16, Units::FractQ0_16 radius) {
+        return [state = this->state, layer](Units::AngleTurnsUQ16_16 angle_q16, Units::FracQ0_16 radius) {
             // Add the full Q16.16 rotation value to the angle
-            uint32_t delta = static_cast<uint32_t>(state->rotationSignal.getRawValue());
-            Units::PhaseTurnsUQ16_16 new_angle_q16 = angle_q16 + delta;
+            Units::AngleTurnsUQ16_16 new_angle_q16 = angle_q16 + state->rotationSignal.getPhase();
             return layer(new_angle_q16, radius);
         };
     }

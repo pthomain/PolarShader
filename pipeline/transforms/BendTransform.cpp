@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -20,19 +20,20 @@
 
 #include "BendTransform.h"
 #include <cstring>
+#include <cstdlib>
 #include <cstdint>
 
 namespace LEDSegments {
     struct BendTransform::State {
-        LinearSignal kxSignal;
-        LinearSignal kySignal;
+        ScalarMotion kxSignal;
+        ScalarMotion kySignal;
 
-        State(LinearSignal kx, LinearSignal ky)
+        State(ScalarMotion kx, ScalarMotion ky)
             : kxSignal(std::move(kx)), kySignal(std::move(ky)) {
         }
     };
 
-    BendTransform::BendTransform(LinearSignal kx, LinearSignal ky)
+    BendTransform::BendTransform(ScalarMotion kx, ScalarMotion ky)
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
@@ -43,34 +44,20 @@ namespace LEDSegments {
 
     CartesianLayer BendTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            Units::RawSignalQ16_16 kx_raw = state->kxSignal.getRawValue();
-            Units::RawSignalQ16_16 ky_raw = state->kySignal.getRawValue();
+            Units::RawFracQ16_16 kx_raw = state->kxSignal.getRawValue();
+            Units::RawFracQ16_16 ky_raw = state->kySignal.getRawValue();
 
-            auto clamp_i64 = [](int64_t v, int64_t lo, int64_t hi) -> int64_t {
-                if (v < lo) return lo;
-                if (v > hi) return hi;
-                return v;
+            auto safe_bend = [](int32_t k_raw, int32_t coord) -> int64_t {
+                if (k_raw == 0) return 0;
+                int64_t squared = static_cast<int64_t>(coord) * static_cast<int64_t>(coord);
+                int64_t abs_k = std::llabs(static_cast<int64_t>(k_raw));
+                int64_t limit = (abs_k == 0) ? 0 : (INT64_MAX / abs_k);
+                if (squared > limit) squared = limit;
+                return (squared * k_raw) >> 16;
             };
 
-            int64_t bendX = static_cast<int64_t>(y) * static_cast<int64_t>(y);
-            int64_t bendY = static_cast<int64_t>(x) * static_cast<int64_t>(x);
-
-            // Prevent UB by clamping before multiplying by potentially large k*_raw.
-            if (kx_raw != 0) {
-                int64_t limit = INT64_MAX / (std::llabs(kx_raw) + 1);
-                bendX = clamp_i64(bendX, -limit, limit);
-                bendX = (bendX * kx_raw) >> 16;
-            } else {
-                bendX = 0;
-            }
-
-            if (ky_raw != 0) {
-                int64_t limit = INT64_MAX / (std::llabs(ky_raw) + 1);
-                bendY = clamp_i64(bendY, -limit, limit);
-                bendY = (bendY * ky_raw) >> 16;
-            } else {
-                bendY = 0;
-            }
+            int64_t bendX = safe_bend(kx_raw, y);
+            int64_t bendY = safe_bend(ky_raw, x);
 
             uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + bendX);
             uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + bendY);

@@ -29,8 +29,8 @@
 namespace LEDSegments {
     using namespace Units;
     /**
-     * PolarEffect builds a PolarPipeline from the current palette and renders using PhaseTurnsUQ16_16 angles
-     * (AngleTurns16 stored in the upper 16 bits). Callers must promote AngleTurns16 -> PhaseTurnsUQ16_16
+     * PolarEffect builds a PolarPipeline from the current palette and renders using AngleTurnsUQ16_16 angles
+     * (AngleUnitsQ0_16 stored in the upper 16 bits). Callers must promote AngleUnitsQ0_16 -> AngleTurnsUQ16_16
      * once before entering the pipeline. The pipeline assumes incoming noise layers already produce
      * palette-ready intensities in [0..65535]; no normalization occurs past the source layer.
      */
@@ -39,14 +39,14 @@ namespace LEDSegments {
         ColourLayer colourLayer;
 
         static CRGB blendLayers(
-            Units::PhaseTurnsUQ16_16 angle_q16,
-            FractQ0_16 radius,
+            Units::AngleTurnsUQ16_16 angle_q16,
+            FracQ0_16 radius,
             const ColourLayer &layer
         );
 
         CRGB blendLayers(
-            Units::PhaseTurnsUQ16_16 angle_q16,
-            FractQ0_16 radius,
+            Units::AngleTurnsUQ16_16 angle_q16,
+            FracQ0_16 radius,
             const fl::vector<ColourLayer> &layers
         );
 
@@ -57,7 +57,7 @@ namespace LEDSegments {
             CRGB *segmentArray,
             uint16_t segmentSize,
             uint16_t segmentIndex,
-            FractQ0_16 progress,
+            FracQ0_16 progress,
             TimeMillis timeInMillis
         ) override;
 

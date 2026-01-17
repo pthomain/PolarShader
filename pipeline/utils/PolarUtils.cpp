@@ -34,12 +34,12 @@ namespace LEDSegments {
     }
 
     fl::pair<int32_t, int32_t> cartesianCoords(
-        Units::PhaseTurnsUQ16_16 angle_q16,
-        Units::FractQ0_16 radius
+        Units::AngleTurnsUQ16_16 angle_q16,
+        Units::FracQ0_16 radius
     ) {
         // FastLED trig expects a 16-bit angle sample where 65536 == one turn. Phase must have been promoted
-        // (AngleTurns16 << 16); otherwise the angle collapses to zero and artifacts appear.
-        Units::AngleTurns16 angle_turns = Units::phaseQ16_16ToAngleTurns(angle_q16);
+        // (AngleUnitsQ0_16 << 16); otherwise the angle collapses to zero and artifacts appear.
+        Units::AngleUnitsQ0_16 angle_turns = Units::angleTurnsToAngleUnits(angle_q16);
         Units::TrigQ1_15 cos_val = cos16(angle_turns);
         Units::TrigQ1_15 sin_val = sin16(angle_turns);
         int32_t x = scale_i32_by_f16(cos_val, radius);
@@ -47,15 +47,15 @@ namespace LEDSegments {
         return {x, y};
     }
 
-    fl::pair<Units::PhaseTurnsUQ16_16, Units::FractQ0_16> polarCoords(fl::i32 x, fl::i32 y) {
+    fl::pair<Units::AngleTurnsUQ16_16, Units::FracQ0_16> polarCoords(fl::i32 x, fl::i32 y) {
         int32_t clampedX = constrain(x, (int32_t)INT16_MIN, (int32_t)INT16_MAX);
         int32_t clampedY = constrain(y, (int32_t)INT16_MIN, (int32_t)INT16_MAX);
         int16_t x16 = static_cast<int16_t>(clampedX);
         int16_t y16 = static_cast<int16_t>(clampedY);
 
-        Units::AngleTurns16 angle_turns = atan2_turns_approx(y16, x16);
-        // Promote the 16-bit sample to phase (AngleTurns16 in high 16 bits).
-        Units::PhaseTurnsUQ16_16 angle_q16 = Units::angleTurnsToPhaseQ16_16(angle_turns);
+        Units::AngleUnitsQ0_16 angleUnits = atan2_turns_approx(y16, x16);
+        // Promote the 16-bit sample to phase (AngleUnitsQ0_16 in high 16 bits).
+        Units::AngleTurnsUQ16_16 angle_q16 = Units::angleUnitsToAngleTurns(angleUnits);
 
         int32_t dx = x16;
         int32_t dy = y16;
@@ -63,7 +63,7 @@ namespace LEDSegments {
         uint16_t magnitude = sqrt_u32(radius_squared);
         uint32_t radius_q16 = (static_cast<uint32_t>(magnitude) << 16) / static_cast<uint32_t>(Units::TRIG_Q1_15_MAX);
         if (radius_q16 > UINT16_MAX) radius_q16 = UINT16_MAX;
-        Units::FractQ0_16 radius = static_cast<Units::FractQ0_16>(radius_q16);
+        Units::FracQ0_16 radius = static_cast<Units::FracQ0_16>(radius_q16);
         return {angle_q16, radius};
     }
 }

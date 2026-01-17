@@ -1,5 +1,5 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
-//  Copyright (C) 2024 Pierre Thomain
+//  Copyright (C) 2023 Pierre Thomain
 
 /*
  * This file is part of LED Segments.
@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "polar/pipeline/signals/Signal.h"
+#include "polar/pipeline/signals/motion/Motion.h"
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
@@ -31,7 +31,7 @@ namespace LEDSegments {
      * Barrel/pincushion lens distortion on polar radius: r' = r * (1 + k * r), clamped to [0..FRACT_MAX].
      * Positive k produces barrel (expands outer radii), negative k produces pincushion (pulls in outer radii).
      *
-     * Parameters: k (LinearSignal, Q16.16).
+     * Parameters: k (ScalarMotion, Q16.16).
      * Recommended order: in polar chain before kaleidoscope/mandala so symmetry sees the distorted radius.
      */
     class LensDistortionTransform : public PolarTransform {
@@ -39,7 +39,7 @@ namespace LEDSegments {
         std::shared_ptr<State> state;
 
     public:
-        explicit LensDistortionTransform(LinearSignal k);
+        explicit LensDistortionTransform(ScalarMotion k);
 
         void advanceFrame(Units::TimeMillis timeInMillis) override;
 
