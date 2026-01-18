@@ -20,7 +20,7 @@
 
 #include "ZoomTransform.h"
 #include <cstring>
-#include "polar/pipeline/signals/Modulation.h"
+#include "polar/pipeline/signals/modulators/ScalarModulators.h"
 #include "polar/pipeline/utils/FixMathUtils.h"
 #include "polar/pipeline/utils/MathUtils.h"
 

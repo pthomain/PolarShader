@@ -18,38 +18,27 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_LINEARVECTOR_H
-#define LED_SEGMENTS_PIPELINE_SIGNALS_LINEARVECTOR_H
+#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_SCALAR_H
+#define  LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_SCALAR_H
 
+#include "polar/pipeline/signals/modulators/ScalarModulators.h"
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
-    class LinearVector {
+    class ScalarMotion {
     public:
+        explicit ScalarMotion(ScalarModulator delta);
 
-        LinearVector();
+        void advanceFrame(TimeMillis timeInMillis);
 
-        static LinearVector fromVelocity(FracQ16_16 speed,
-                                         AngleUnitsQ0_16 direction);
+        int32_t getValue() const { return static_cast<int32_t>(value.asRaw() >> 16); }
 
-        static LinearVector fromXY(FracQ16_16 x, FracQ16_16 y);
-
-        FracQ16_16 getX() const { return x; }
-        FracQ16_16 getY() const { return y; }
-        FracQ16_16 getSpeed() const { return speed; }
-        AngleUnitsQ0_16 getDirection() const { return direction; }
+        RawQ16_16 getRawValue() const { return RawQ16_16(value.asRaw()); }
 
     private:
-        LinearVector(FracQ16_16 x,
-                     FracQ16_16 y,
-                     FracQ16_16 speed,
-                     AngleUnitsQ0_16 direction);
-
-        FracQ16_16 x;
-        FracQ16_16 y;
-        FracQ16_16 speed;
-        AngleUnitsQ0_16 direction;
+        FracQ16_16 value = FracQ16_16(0);
+        ScalarModulator delta;
     };
 }
 
-#endif // LED_SEGMENTS_PIPELINE_SIGNALS_LINEARVECTOR_H
+#endif // LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_SCALAR_H

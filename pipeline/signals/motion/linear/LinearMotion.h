@@ -18,20 +18,14 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_H
-#define LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_H
+#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_LINEAR_H
+#define LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_LINEAR_H
 
 #include <utility>
-#include "LinearVector.h"
-#include "polar/pipeline/signals/Modulation.h"
+#include "polar/pipeline/signals/modulators/AngularModulators.h"
 #include "polar/pipeline/utils/Units.h"
 
 namespace LEDSegments {
-    using VelocityModulation = fl::function<LinearVector(TimeMillis)>;
-
-    inline VelocityModulation ConstantVelocity(LinearVector v) {
-        return [v](TimeMillis) { return v; };
-    }
 
     class LinearMotion {
     public:
@@ -47,8 +41,8 @@ namespace LEDSegments {
 
         void advanceFrame(TimeMillis timeInMillis);
 
-        int32_t getX() const { return positionX.asInt(); }
-        int32_t getY() const { return positionY.asInt(); }
+        int32_t getX() const { return static_cast<int32_t>(positionX.asRaw() >> 16); }
+        int32_t getY() const { return static_cast<int32_t>(positionY.asRaw() >> 16); }
 
         RawQ16_16 getRawX() const { return RawQ16_16(positionX.asRaw()); }
         RawQ16_16 getRawY() const { return RawQ16_16(positionY.asRaw()); }
@@ -56,7 +50,8 @@ namespace LEDSegments {
     protected:
         LinearMotion(FracQ16_16 initialX,
                      FracQ16_16 initialY,
-                     VelocityModulation velocity,
+                     ScalarModulator speed,
+                     AngleModulator direction,
                      bool clampEnabled,
                      FracQ16_16 maxRadius);
 
@@ -64,7 +59,8 @@ namespace LEDSegments {
 
         FracQ16_16 positionX;
         FracQ16_16 positionY;
-        VelocityModulation velocity;
+        ScalarModulator speed;
+        AngleModulator direction;
         TimeMillis lastTime = 0;
         bool hasLastTime = false;
         bool clampEnabled = false;
@@ -75,8 +71,9 @@ namespace LEDSegments {
     public:
         UnboundedLinearMotion(FracQ16_16 initialX,
                               FracQ16_16 initialY,
-                              VelocityModulation velocity)
-            : LinearMotion(initialX, initialY, std::move(velocity), false, FracQ16_16(0)) {
+                              ScalarModulator speed,
+                              AngleModulator direction)
+            : LinearMotion(initialX, initialY, std::move(speed), std::move(direction), false, FracQ16_16(0)) {
         }
     };
 
@@ -84,45 +81,12 @@ namespace LEDSegments {
     public:
         BoundedLinearMotion(FracQ16_16 initialX,
                             FracQ16_16 initialY,
-                            VelocityModulation velocity,
+                            ScalarModulator speed,
+                            AngleModulator direction,
                             FracQ16_16 maxRadius)
-            : LinearMotion(initialX, initialY, std::move(velocity), true, maxRadius) {
+            : LinearMotion(initialX, initialY, std::move(speed), std::move(direction), true, maxRadius) {
         }
-    };
-
-    class AngularMotion {
-    public:
-        AngularMotion(AngleUnitsQ0_16 initial,
-                      ScalarModulation speed);
-
-        void advanceFrame(TimeMillis timeInMillis);
-
-        AngleTurnsUQ16_16 getPhase() const { return phase; }
-
-        AngleUnitsQ0_16 getAngle() const { return angleTurnsToAngleUnits(phase); }
-
-    private:
-        // Delta-time is clamped using MAX_DELTA_TIME_MS; set to 0 to disable.
-        AngleTurnsUQ16_16 phase = AngleTurnsUQ16_16(0);
-        ScalarModulation speed;
-        TimeMillis lastTime = 0;
-        bool hasLastTime = false;
-    };
-
-    class ScalarMotion {
-    public:
-        explicit ScalarMotion(ScalarModulation delta);
-
-        void advanceFrame(TimeMillis timeInMillis);
-
-        int32_t getValue() const { return value.asInt(); }
-
-        RawQ16_16 getRawValue() const { return RawQ16_16(value.asRaw()); }
-
-    private:
-        FracQ16_16 value = FracQ16_16(0);
-        ScalarModulation delta;
     };
 }
 
-#endif //LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_H
+#endif //LED_SEGMENTS_PIPELINE_SIGNALS_MOTION_LINEAR_H

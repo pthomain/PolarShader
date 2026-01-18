@@ -23,7 +23,7 @@
 
 #include "base/Transforms.h"
 #include "polar/pipeline/utils/Units.h"
-#include "polar/pipeline/signals/motion/Motion.h"
+#include "polar/pipeline/signals/motion/scalar/ScalarMotion.h"
 
 namespace LEDSegments {
     /**

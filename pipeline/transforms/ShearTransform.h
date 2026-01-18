@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "../signals/motion/Motion.h"
+#include "polar/pipeline/signals/motion/scalar/ScalarMotion.h"
 
 namespace LEDSegments {
     /**

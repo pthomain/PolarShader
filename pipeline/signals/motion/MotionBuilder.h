@@ -22,46 +22,54 @@
 #define LED_SEGMENTS_PIPELINE_SIGNALS_MOTIONBUILDER_H
 
 #include <utility>
-#include "Motion.h"
+#include "linear/LinearMotion.h"
+#include "angular/AngularMotion.h"
+#include "scalar/ScalarMotion.h"
 
 namespace LEDSegments {
     inline UnboundedLinearMotion linearUnbounded(FracQ16_16 initialX,
                                                  FracQ16_16 initialY,
-                                                 VelocityModulation velocity) {
-        return UnboundedLinearMotion(initialX, initialY, std::move(velocity));
+                                                 ScalarModulator speed,
+                                                 AngleModulator direction) {
+        return UnboundedLinearMotion(initialX, initialY, std::move(speed), std::move(direction));
     }
 
     inline UnboundedLinearMotion linearUnbounded(int32_t initialX,
                                                  int32_t initialY,
-                                                 VelocityModulation velocity) {
+                                                 ScalarModulator speed,
+                                                 AngleModulator direction) {
         return linearUnbounded(FracQ16_16(initialX),
                                FracQ16_16(initialY),
-                               std::move(velocity));
+                               std::move(speed),
+                               std::move(direction));
     }
 
     inline BoundedLinearMotion linearBounded(FracQ16_16 initialX,
                                              FracQ16_16 initialY,
-                                             VelocityModulation velocity,
+                                             ScalarModulator speed,
+                                             AngleModulator direction,
                                              FracQ16_16 maxRadius) {
-        return BoundedLinearMotion(initialX, initialY, std::move(velocity), maxRadius);
+        return BoundedLinearMotion(initialX, initialY, std::move(speed), std::move(direction), maxRadius);
     }
 
     inline BoundedLinearMotion linearBounded(int32_t initialX,
                                              int32_t initialY,
-                                             VelocityModulation velocity,
+                                             ScalarModulator speed,
+                                             AngleModulator direction,
                                              FracQ16_16 maxRadius) {
         return linearBounded(FracQ16_16(initialX),
                              FracQ16_16(initialY),
-                             std::move(velocity),
+                             std::move(speed),
+                             std::move(direction),
                              maxRadius);
     }
 
     inline AngularMotion angular(AngleUnitsQ0_16 initial,
-                                 ScalarModulation speed) {
+                                 ScalarModulator speed) {
         return AngularMotion(initial, std::move(speed));
     }
 
-    inline ScalarMotion scalar(ScalarModulation delta) {
+    inline ScalarMotion scalar(ScalarModulator delta) {
         return ScalarMotion(std::move(delta));
     }
 }

@@ -22,12 +22,14 @@
 #include <cstring>
 
 namespace LEDSegments {
+    ClampPolicy::ClampPolicy() : min_val(INT32_MIN), max_val(INT32_MAX) {
+    }
 
-    ClampPolicy::ClampPolicy() : min_val(INT32_MIN), max_val(INT32_MAX) {}
+    ClampPolicy::ClampPolicy(int32_t min, int32_t max) : min_val(min), max_val(max) {
+    }
 
-    ClampPolicy::ClampPolicy(int32_t min, int32_t max) : min_val(min), max_val(max) {}
-
-    ClampPolicy::ClampPolicy(FracQ16_16 min, FracQ16_16 max) : min_val(min), max_val(max) {}
+    ClampPolicy::ClampPolicy(FracQ16_16 min, FracQ16_16 max) : min_val(min), max_val(max) {
+    }
 
     void ClampPolicy::apply(FracQ16_16 &position, FracQ16_16 &velocity) const {
         if (position < min_val) {
@@ -39,7 +41,8 @@ namespace LEDSegments {
         }
     }
 
-    WrapPolicy::WrapPolicy(int32_t wrap) : wrap_units(wrap) {}
+    WrapPolicy::WrapPolicy(int32_t wrap) : wrap_units(wrap) {
+    }
 
     void WrapPolicy::apply(FracQ16_16 &position, FracQ16_16 &) const {
         if (wrap_units <= 0) return;

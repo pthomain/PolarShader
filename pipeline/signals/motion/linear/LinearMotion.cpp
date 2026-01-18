@@ -18,7 +18,7 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "Motion.h"
+#include "LinearMotion.h"
 #include "polar/pipeline/utils/MathUtils.h"
 #include "polar/pipeline/utils/TimeUtils.h"
 
@@ -26,12 +26,14 @@ namespace LEDSegments {
     LinearMotion::LinearMotion(
         FracQ16_16 initialX,
         FracQ16_16 initialY,
-        VelocityModulation velocity,
+        ScalarModulator speed,
+        AngleModulator direction,
         bool clampEnabled,
         FracQ16_16 maxRadius
     ) : positionX(initialX),
         positionY(initialY),
-        velocity(std::move(velocity)),
+        speed(std::move(speed)),
+        direction(std::move(direction)),
         clampEnabled(clampEnabled),
         maxRadius(maxRadius) {
     }
@@ -50,19 +52,29 @@ namespace LEDSegments {
         if (deltaTime == 0) return;
 
         FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
-        LinearVector velocity_now = velocity(timeInMillis);
-        RawQ16_16 dx_raw = RawQ16_16(mul_q16_16_sat(velocity_now.getX(), dt_q16).asRaw());
-        RawQ16_16 dy_raw = RawQ16_16(mul_q16_16_sat(velocity_now.getY(), dt_q16).asRaw());
+        FracQ16_16 speed_now = speed(timeInMillis);
+        if (speed_now.asRaw() < 0) {
+            speed_now = FracQ16_16(0);
+        }
+
+        FracQ16_16 distance = mul_q16_16_sat(speed_now, dt_q16);
+        AngleTurnsUQ16_16 phase = direction(timeInMillis);
+        TrigQ1_15 cos_val = cosQ1_15(phase);
+        TrigQ1_15 sin_val = sinQ1_15(phase);
+        int64_t dx_raw = scale_q16_16_by_trig(RawQ16_16(distance.asRaw()), cos_val);
+        int64_t dy_raw = scale_q16_16_by_trig(RawQ16_16(distance.asRaw()), sin_val);
 
         if (clampEnabled) {
-            FracQ16_16 new_x = clamp_q16_16_raw(static_cast<int64_t>(positionX.asRaw()) + raw(dx_raw));
-            FracQ16_16 new_y = clamp_q16_16_raw(static_cast<int64_t>(positionY.asRaw()) + raw(dy_raw));
+            FracQ16_16 new_x = clamp_q16_16_raw(positionX.asRaw() + dx_raw);
+            FracQ16_16 new_y = clamp_q16_16_raw(positionY.asRaw() + dy_raw);
             positionX = new_x;
             positionY = new_y;
             applyRadialClamp();
         } else {
-            RawQ16_16 new_x_raw = add_wrap_q16_16(RawQ16_16(positionX.asRaw()), dx_raw);
-            RawQ16_16 new_y_raw = add_wrap_q16_16(RawQ16_16(positionY.asRaw()), dy_raw);
+            RawQ16_16 new_x_raw = add_wrap_q16_16(RawQ16_16(positionX.asRaw()),
+                                                  RawQ16_16(static_cast<int32_t>(dx_raw)));
+            RawQ16_16 new_y_raw = add_wrap_q16_16(RawQ16_16(positionY.asRaw()),
+                                                  RawQ16_16(static_cast<int32_t>(dy_raw)));
             positionX = FracQ16_16::fromRaw(raw(new_x_raw));
             positionY = FracQ16_16::fromRaw(raw(new_y_raw));
         }
@@ -81,9 +93,17 @@ namespace LEDSegments {
         int64_t y_raw = positionY.asRaw();
 
         uint64_t x_abs = static_cast<uint64_t>(
-            x_raw == INT32_MIN ? INT32_MAX : (x_raw < 0 ? -x_raw : x_raw));
+            x_raw == INT32_MIN
+                ? INT32_MAX
+                : (x_raw < 0 ? -x_raw : x_raw)
+        );
+
         uint64_t y_abs = static_cast<uint64_t>(
-            y_raw == INT32_MIN ? INT32_MAX : (y_raw < 0 ? -y_raw : y_raw));
+            y_raw == INT32_MIN
+                ? INT32_MAX
+                : (y_raw < 0 ? -y_raw : y_raw)
+        );
+
         // dist_sq and max_r_sq are in Q32.32 (raw Q16.16 squared); compare in the same scale.
         uint64_t dist_sq = x_abs * x_abs + y_abs * y_abs;
 
@@ -108,37 +128,5 @@ namespace LEDSegments {
 
         positionX = clamp_q16_16_raw(scaled_x);
         positionY = clamp_q16_16_raw(scaled_y);
-    }
-
-    AngularMotion::AngularMotion(AngleUnitsQ0_16 initial,
-                                 ScalarModulation speed)
-        : phase(angleUnitsToAngleTurns(initial)),
-          speed(std::move(speed)) {
-    }
-
-    void AngularMotion::advanceFrame(TimeMillis timeInMillis) {
-        if (!hasLastTime) {
-            lastTime = timeInMillis;
-            hasLastTime = true;
-            return;
-        }
-        TimeMillis deltaTime = timeInMillis - lastTime;
-        lastTime = timeInMillis;
-        if (deltaTime == 0) return;
-
-        deltaTime = clampDeltaTime(deltaTime);
-        if (deltaTime == 0) return;
-
-        FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
-        RawQ16_16 phase_advance = RawQ16_16(mul_q16_16_wrap(speed(timeInMillis), dt_q16).asRaw());
-        phase = wrapAddSigned(phase, raw(phase_advance));
-    }
-
-    ScalarMotion::ScalarMotion(ScalarModulation delta)
-        : delta(std::move(delta)) {
-    }
-
-    void ScalarMotion::advanceFrame(TimeMillis timeInMillis) {
-        value = delta(timeInMillis);
     }
 }

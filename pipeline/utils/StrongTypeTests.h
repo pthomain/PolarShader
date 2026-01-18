@@ -20,11 +20,12 @@
 
 #pragma once
 
-#include <stdint.h>
 #include "MathUtils.h"
 #include "Units.h"
 #include "NoiseUtils.h"
-#include "polar/pipeline/signals/Modulation.h"
+#include "polar/pipeline/signals/modulators/AngularModulators.h"
+#include "polar/pipeline/signals/modulators/ScalarModulators.h"
+#include "polar/pipeline/signals/motion/linear/LinearMotion.h"
 
 namespace LEDSegments::UnitsTest {
     inline bool anglePromotionTest() {
@@ -66,20 +67,70 @@ namespace LEDSegments::UnitsTest {
     }
 
     inline bool phaseAccumulatorSmoothnessTest() {
-        auto velocity = Constant(FracQ16_16::fromRaw(Q16_16_ONE / 4)); // 0.25 turns/sec
-        detail::PhaseAccumulator acc(std::move(velocity));
-        acc.advance(0);
-        AngleTurnsUQ16_16 p1 = acc.advance(16);
-        AngleTurnsUQ16_16 p2 = acc.advance(32);
+        auto phase = IntegrateAngle(Constant(FracQ16_16::fromRaw(Q16_16_ONE / 4)));
+        phase(0);
+        AngleTurnsUQ16_16 p1 = phase(16);
+        AngleTurnsUQ16_16 p2 = phase(32);
         return ((raw(p1) & 0xFFFFu) != 0u) || ((raw(p2) & 0xFFFFu) != 0u);
     }
 
     inline bool phaseVelocityUnitTest() {
-        auto velocity = ConstantPhaseVelocity(FracQ16_16::fromRaw(Q16_16_ONE)); // 1 turn/sec
-        detail::PhaseAccumulator acc(std::move(velocity));
-        acc.advance(0);
-        AngleTurnsUQ16_16 after_one_sec = acc.advance(1000); // 1 second later
-        return raw(after_one_sec) == raw(ANGLE_TURNS_ONE_TURN);
+        auto phase = IntegrateAngle(ConstantPhaseVelocity(FracQ16_16::fromRaw(Q16_16_ONE))); // 1 turn/sec
+        const TimeMillis samples[] = {0, 200, 400, 600, 800, 1000};
+        AngleTurnsUQ16_16 current = AngleTurnsUQ16_16(0);
+        for (TimeMillis t: samples) {
+            current = phase(t);
+        }
+        return raw(current) == raw(ANGLE_TURNS_ONE_TURN);
+    }
+
+    inline bool linearMotionAxisTest() {
+        FracQ16_16 speed_value = FracQ16_16::fromRaw(Q16_16_ONE); // 1 unit/sec
+        auto speed = Constant(speed_value);
+        auto direction = ConstantAngleUnits(AngleUnitsQ0_16(0));
+        UnboundedLinearMotion motion(FracQ16_16(0), FracQ16_16(0), speed, direction);
+        const TimeMillis samples[] = {0, 200, 400, 600, 800, 1000};
+        for (TimeMillis t: samples) {
+            motion.advanceFrame(t);
+        }
+        FracQ16_16 dt = millisToQ16_16(200);
+        FracQ16_16 step_distance = mul_q16_16_sat(speed_value, dt);
+        int64_t step_dx = scale_q16_16_by_trig(RawQ16_16(step_distance.asRaw()),
+                                               cosQ1_15(AngleTurnsUQ16_16(0)));
+        int32_t expected = static_cast<int32_t>(step_dx * 5);
+        return raw(motion.getRawX()) == expected && raw(motion.getRawY()) == 0;
+    }
+
+    inline bool linearMotionQuarterTurnTest() {
+        FracQ16_16 speed_value = FracQ16_16::fromRaw(Q16_16_ONE); // 1 unit/sec
+        auto speed = Constant(speed_value);
+        AngleUnitsQ0_16 quarter(QUARTER_TURN_U16);
+        auto direction = ConstantAngleUnits(quarter);
+        UnboundedLinearMotion motion(FracQ16_16(0), FracQ16_16(0), speed, direction);
+        const TimeMillis samples[] = {0, 200, 400, 600, 800, 1000};
+        for (TimeMillis t: samples) {
+            motion.advanceFrame(t);
+        }
+        AngleTurnsUQ16_16 phase = angleUnitsToAngleTurns(quarter);
+        FracQ16_16 dt = millisToQ16_16(200);
+        FracQ16_16 step_distance = mul_q16_16_sat(speed_value, dt);
+        int64_t step_dy = scale_q16_16_by_trig(RawQ16_16(step_distance.asRaw()), sinQ1_15(phase));
+        int32_t expected_y = static_cast<int32_t>(step_dy * 5);
+        int32_t x_raw = raw(motion.getRawX());
+        int32_t x_abs = x_raw < 0 ? -x_raw : x_raw;
+        return x_abs <= 4 && raw(motion.getRawY()) == expected_y;
+    }
+
+    inline bool linearMotionQuantizationTest() {
+        auto speed = Constant(FracQ16_16::fromRaw(256)); // small but non-zero speed
+        auto direction = ConstantAngleUnits(AngleUnitsQ0_16(0));
+        UnboundedLinearMotion motion(FracQ16_16(0), FracQ16_16(0), speed, direction);
+        TimeMillis t = 0;
+        for (int i = 0; i < 100; ++i) {
+            motion.advanceFrame(t);
+            t += 16;
+        }
+        return raw(motion.getRawX()) != 0;
     }
 
     inline bool clampQ16RangeTest() {
@@ -106,6 +157,9 @@ namespace LEDSegments::UnitsTest {
                && phaseTrigSamplingTest()
                && phaseAccumulatorSmoothnessTest()
                && phaseVelocityUnitTest()
+               && linearMotionAxisTest()
+               && linearMotionQuarterTurnTest()
+               && linearMotionQuantizationTest()
                && clampQ16RangeTest()
                && wrapAddSignedTest()
                && noiseNormalizationTest();

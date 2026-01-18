@@ -18,38 +18,15 @@
  * along with LED Segments. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H
-#define LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H
-
-#include <polar/pipeline/utils/Units.h>
+#include "ScalarMotion.h"
 
 namespace LEDSegments {
-    struct LinearPolicy {
-        void apply(FracQ16_16 &, FracQ16_16 &) const {
-        }
-    };
 
-    struct ClampPolicy {
-        FracQ16_16 min_val;
-        FracQ16_16 max_val;
+    ScalarMotion::ScalarMotion(ScalarModulator delta)
+        : delta(std::move(delta)) {
+    }
 
-        // Default: effectively unbounded.
-        ClampPolicy();
-
-        ClampPolicy(int32_t min, int32_t max);
-
-        ClampPolicy(FracQ16_16 min, FracQ16_16 max);
-
-        void apply(FracQ16_16 &position, FracQ16_16 &velocity) const;
-    };
-
-    struct WrapPolicy {
-        int32_t wrap_units;
-
-        explicit WrapPolicy(int32_t wrap = 65536);
-
-        void apply(FracQ16_16 &position, FracQ16_16 &) const;
-    };
+    void ScalarMotion::advanceFrame(TimeMillis timeInMillis) {
+        value = delta(timeInMillis);
+    }
 }
-
-#endif //LED_SEGMENTS_PIPELINE_SIGNALS_SIGNALPOLICIES_H

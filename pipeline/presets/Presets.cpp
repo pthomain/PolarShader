@@ -20,7 +20,8 @@
 
 #include "Presets.h"
 #include <polar/pipeline/CartesianNoiseLayers.h>
-#include <polar/pipeline/signals/Modulation.h>
+#include <polar/pipeline/signals/modulators/AngularModulators.h>
+#include <polar/pipeline/signals/modulators/ScalarModulators.h>
 #include <polar/pipeline/signals/motion/MotionBuilder.h>
 #include <polar/pipeline/transforms/AnisotropicScaleTransform.h>
 #include <polar/pipeline/transforms/BendTransform.h>
@@ -41,16 +42,9 @@
 #include <polar/pipeline/transforms/VortexTransform.h>
 #include <polar/pipeline/transforms/ZoomTransform.h>
 #include "polar/pipeline/PolarPipelineBuilder.h"
+#include "polar/pipeline/utils/MathUtils.h"
 
 namespace LEDSegments {
-    namespace {
-        // Helper to create Q16.16 values from rational fractions without floating point.
-        constexpr FracQ16_16 q16_frac(int32_t num, uint32_t den) {
-            return FracQ16_16::fromRaw(
-                static_cast<int32_t>((static_cast<int64_t>(num) << 16) / static_cast<int64_t>(den)));
-        }
-    }
-
     PolarPipeline buildDefaultPreset(const CRGBPalette16 &palette) {
         return PolarPipelineBuilder(noiseLayer, palette, "Default")
                 // Fixed zoom at mid-range for a stable baseline.
@@ -59,17 +53,12 @@ namespace LEDSegments {
                 .addCartesianTransform(TranslationTransform(
                     linearUnbounded(0,
                                     0,
-                                    ConstantVelocity(LinearVector::fromVelocity(
-                                        FracQ16_16(200),
-                                        AngleUnitsQ0_16(150)
-                                    )))))
+                                    Constant(FracQ16_16(200)),
+                                    ConstantAngleUnits(AngleUnitsQ0_16(150)))))
                 .build();
     }
 
     PolarPipeline buildBarrelTunnelPreset(const CRGBPalette16 &palette) {
-        LinearVector warp_velocity = LinearVector::fromXY(FracQ16_16(1500),
-                                                          FracQ16_16(-1200));
-
         // Mild domain warp + barrel distortion + kaleidoscope symmetry.
         return PolarPipelineBuilder(fBmLayer, palette, "BarrelTunnel")
                 // Low-frequency domain drift
@@ -77,7 +66,8 @@ namespace LEDSegments {
                     DomainWarpTransform(
                         linearUnbounded(0,
                                         0,
-                                        ConstantVelocity(warp_velocity))
+                                        Constant(1500),
+                                        ConstantAngleTurns(angleTurns_frac(800, 1)))
                     )
                 )
                 // Barrel distortion
