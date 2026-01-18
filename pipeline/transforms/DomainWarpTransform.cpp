@@ -40,14 +40,14 @@ namespace LEDSegments {
 
     CartesianLayer DomainWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            // Get the integer part of the warp signal.
-            int32_t warpX = state->warpSignal.getX();
-            int32_t warpY = state->warpSignal.getY();
+            // Use full Q16.16 offsets to preserve sub-pixel motion.
+            RawQ16_16 warpX = state->warpSignal.getRawX();
+            RawQ16_16 warpY = state->warpSignal.getRawY();
 
             // Add the original coordinate and the warp offset using 64-bit arithmetic
             // to prevent signed overflow, then perform a well-defined wrap to the 32-bit domain.
-            uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + warpX);
-            uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + warpY);
+            uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + raw(warpX));
+            uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + raw(warpY));
             int32_t finalX;
             int32_t finalY;
             memcpy(&finalX, &wrappedX, sizeof(finalX));

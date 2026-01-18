@@ -35,7 +35,7 @@ namespace LEDSegments {
     CartesianLayer TileJitterTransform::operator()(const CartesianLayer &layer) const {
         return [tileX = this->tileX, tileY = this->tileY, ampSignal = this->amplitudeSignal, layer](int32_t x, int32_t y) mutable {
             ampSignal.advanceFrame(0); // assumes caller advanced per frame; keep state in sync if reused
-            uint16_t amp = static_cast<uint16_t>(ampSignal.getValue());
+            RawQ16_16 amp_raw = ampSignal.getRawValue();
             // Use floor division for signed coordinates to ensure continuous tile indices across 0.
             auto floor_div = [](int32_t val, uint32_t div) -> int32_t {
                 if (div == 0) return 0;
@@ -59,8 +59,8 @@ namespace LEDSegments {
             int32_t signedJx = static_cast<int32_t>(raw(jitterX)) - U16_HALF;
             int32_t signedJy = static_cast<int32_t>(raw(jitterY)) - U16_HALF;
 
-            int32_t offsetX = amp ? (signedJx * amp) >> 15 : 0; // scale to amplitude
-            int32_t offsetY = amp ? (signedJy * amp) >> 15 : 0;
+            int32_t offsetX = raw(amp_raw) ? (signedJx * raw(amp_raw)) >> 15 : 0; // scale to Q16.16 amplitude
+            int32_t offsetY = raw(amp_raw) ? (signedJy * raw(amp_raw)) >> 15 : 0;
 
             uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + offsetX);
             uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + offsetY);

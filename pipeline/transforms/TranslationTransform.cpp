@@ -39,11 +39,11 @@ namespace LEDSegments {
 
     CartesianLayer TranslationTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            int32_t dx = state->offsetSignal.getX();
-            int32_t dy = state->offsetSignal.getY();
+            RawQ16_16 dx_raw = state->offsetSignal.getRawX();
+            RawQ16_16 dy_raw = state->offsetSignal.getRawY();
 
-            uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + dx);
-            uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + dy);
+            uint32_t wrappedX = static_cast<uint32_t>(static_cast<int64_t>(x) + raw(dx_raw));
+            uint32_t wrappedY = static_cast<uint32_t>(static_cast<int64_t>(y) + raw(dy_raw));
             int32_t finalX;
             int32_t finalY;
             memcpy(&finalX, &wrappedX, sizeof(finalX));

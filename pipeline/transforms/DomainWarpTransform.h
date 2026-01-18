@@ -34,8 +34,8 @@ namespace LEDSegments {
      * creating a "warping" or "flowing" effect in the final pattern.
      *
      * Parameters: one LinearMotion (Q16.16) providing X/Y offsets.
-     * Input/output domain: CartesianLayer with 32-bit coordinates. Offsets are added with explicit
-     * 32-bit wrap; no clamping occurs.
+     * Input/output domain: CartesianLayer with 32-bit coordinates. Offsets are added in raw Q16.16 with
+     * explicit 32-bit wrap; no clamping occurs.
      * Recommended order: apply early, before other Cartesian transforms or polar conversion, so downstream
      * transforms see the warped space.
      */

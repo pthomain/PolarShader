@@ -28,7 +28,7 @@
 namespace LEDSegments {
     /**
      * Applies a simple Cartesian translation: (x, y) -> (x + dx, y + dy).
-     * Offsets are provided by a LinearMotion (Q16.16); the integer part is used as the translation per frame.
+     * Offsets are provided by a LinearMotion (Q16.16) and applied as full Q16.16 values.
      *
      * Parameters: offset (LinearMotion).
      * Recommended order: early in the Cartesian chain before warps/tiling.

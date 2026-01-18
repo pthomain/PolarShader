@@ -48,13 +48,13 @@ namespace LEDSegments {
     PolarPipeline buildDefaultPreset(const CRGBPalette16 &palette) {
         return PolarPipelineBuilder(noiseLayer, palette, "Default")
                 // Fixed zoom at mid-range for a stable baseline.
-                .addCartesianTransform(ZoomTransform(scalar(Constant(0x8000))))
+                .addCartesianTransform(ZoomTransform(scalar(Constant(UINT16_MAX / 64))))
                 // Slow constant translation of the noise domain (diagonal drift).
                 .addCartesianTransform(TranslationTransform(
                     linearUnbounded(0,
                                     0,
-                                    Constant(FracQ16_16(200)),
-                                    ConstantAngleUnits(AngleUnitsQ0_16(150)))))
+                                    Constant(q16_frac(1, 2)),
+                                    ConstantAngleTurns(angleTurns_frac(1, 2)))))
                 .build();
     }
 
@@ -66,8 +66,8 @@ namespace LEDSegments {
                     DomainWarpTransform(
                         linearUnbounded(0,
                                         0,
-                                        Constant(1500),
-                                        ConstantAngleTurns(angleTurns_frac(800, 1)))
+                                        Constant(q16_frac(1, 4)),
+                                        ConstantAngleUnits(AngleUnitsQ0_16(800)))
                     )
                 )
                 // Barrel distortion
@@ -111,11 +111,17 @@ namespace LEDSegments {
         return PolarPipelineBuilder(noiseLayer, palette, "TiledMirrorMandala")
                 // Tile domain
                 .addCartesianTransform(TilingTransform(1u << 18, 1u << 18)) // tile at moderate scale
+                // Slow drift to keep features moving
+                .addCartesianTransform(TranslationTransform(
+                    linearUnbounded(0,
+                                    0,
+                                    Constant(q16_frac(1, 2)),
+                                    ConstantAngleUnits(AngleUnitsQ0_16(900)))))
                 // Mirror X for symmetry
                 .addCartesianTransform(MirrorTransform(true, false))
                 // Slow rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(1800)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 2)))))
                 // Mandala folding
                 .addPolarTransform(KaleidoscopeTransform(6, true, true))
                 .build();
@@ -154,7 +160,7 @@ namespace LEDSegments {
                     scalar(Constant(q16_frac(1, 96))))) // slight barrel
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(900)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 16)))))
                 .build();
     }
 
@@ -169,7 +175,7 @@ namespace LEDSegments {
                 // Breathing zoom
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Sine(
-                        ConstantPhaseVelocity(FracQ16_16(30)),
+                        ConstantPhaseVelocity(q16_frac(1, 6)),
                         ConstantRawQ16_16(RawQ16_16(500))))))
                 // oscillating zoom, raw 500 is tiny fraction
                 // Mild symmetry
@@ -191,7 +197,7 @@ namespace LEDSegments {
                     scalar(Constant(q16_frac(-1, 80))))) // mild pincushion
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(1600)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 8)))))
                 // Mandala fold
                 .addPolarTransform(KaleidoscopeTransform(4, true, true))
                 .build();
@@ -213,7 +219,7 @@ namespace LEDSegments {
                     scalar(Constant(q16_frac(1, 12)))))
                 // Fast rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(4500)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(3, 2)))))
                 // Mandala symmetry
                 .addPolarTransform(KaleidoscopeTransform(5, true, true))
                 .build();
@@ -225,7 +231,7 @@ namespace LEDSegments {
                 // Pulsed radial zoom
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Pulse(
-                        ConstantPhaseVelocity(FracQ16_16(40)),
+                        ConstantPhaseVelocity(q16_frac(1, 5)),
                         ConstantRawQ16_16(RawQ16_16(2000))))))
                 // Angular symmetry
                 .addPolarTransform(KaleidoscopeTransform(6, false, true))
@@ -262,7 +268,7 @@ namespace LEDSegments {
                 // Oscillating radial scale
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Sine(
-                        ConstantPhaseVelocity(FracQ16_16(25)),
+                        ConstantPhaseVelocity(q16_frac(1, 8)),
                         ConstantRawQ16_16(RawQ16_16(1500))))))
                 // Mirror both axes (Cartesian symmetry before polar conversion)
                 .addCartesianTransform(MirrorTransform(true, true))
@@ -270,7 +276,7 @@ namespace LEDSegments {
                 .addPolarTransform(KaleidoscopeTransform(8, false, false))
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(1200)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 12)))))
                 .build();
     }
 
@@ -301,11 +307,11 @@ namespace LEDSegments {
                 // Pulsed radius
                 .addPolarTransform(RadialScaleTransform(
                     scalar(Pulse(
-                        ConstantPhaseVelocity(FracQ16_16(60)),
+                        ConstantPhaseVelocity(q16_frac(1, 4)),
                         ConstantRawQ16_16(RawQ16_16(2500))))))
                 // Medium rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(2500)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 2)))))
                 // Symmetry
                 .addPolarTransform(KaleidoscopeTransform(5, false, true))
                 // Lens
@@ -345,7 +351,7 @@ namespace LEDSegments {
                 .addPolarTransform(KaleidoscopeTransform(4, false, true))
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(1200)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 10)))))
                 .build();
     }
 
@@ -359,7 +365,7 @@ namespace LEDSegments {
                     scalar(Constant(q16_frac(1, 40)))))
                 // Rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(FracQ16_16(1500)))))
+                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 6)))))
                 .build();
     }
 
