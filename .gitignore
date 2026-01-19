@@ -1,1 +1,13 @@
 .pio
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.vscode
+.idea
+*.code-workspace
+.DS_Store
+build
+out
+*.swp
+*.bak
