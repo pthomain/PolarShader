@@ -1,0 +1,45 @@
+{
+  "name": "PolarShader",
+  "version": "1.0.0",
+  "description": "Fixed-point, shader-like rendering library for polar LED effects on microcontrollers.",
+  "keywords": [
+    "led",
+    "shader",
+    "polar",
+    "fixed-point",
+    "deterministic",
+    "rendering",
+    "effects"
+  ],
+  "authors": {
+    "name": "Pierre Thomain",
+    "url": "https://github.com/pthomain"
+  },
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/pthomain/PolarShader",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pthomain/PolarShader.git"
+  },
+  "frameworks": "arduino",
+  "platforms": [
+    "atmelsam",
+    "atmelavr",
+    "espressif32"
+  ],
+  "build": {
+    "flags": [
+      "-std=c++17"
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "fastled/FastLED",
+      "version": "^3.10.0"
+    },
+    {
+      "name": "tomcombriat/FixMath",
+      "version": "^1.0.9"
+    }
+  ]
+}

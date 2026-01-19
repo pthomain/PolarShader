@@ -1,0 +1,31 @@
+# Syntax Coloring Map
+# Datatypes (KEYWORD1)
+# Methods and Functions (KEYWORD2)
+# Constants (LITERAL1)
+
+PolarShader	KEYWORD1
+PolarDisplay	KEYWORD1
+PolarDisplaySpec	KEYWORD1
+DefaultPolarDisplaySpec	KEYWORD1
+PolarRenderer	KEYWORD1
+PolarPipeline	KEYWORD1
+PolarPipelineBuilder	KEYWORD1
+
+AnisotropicScaleTransform	KEYWORD2
+BendTransform	KEYWORD2
+CurlFlowTransform	KEYWORD2
+DomainWarpTransform	KEYWORD2
+KaleidoscopeTransform	KEYWORD2
+LensDistortionTransform	KEYWORD2
+MirrorTransform	KEYWORD2
+NoiseWarpTransform	KEYWORD2
+PerspectiveWarpTransform	KEYWORD2
+PosterizePolarTransform	KEYWORD2
+RadialScaleTransform	KEYWORD2
+RotationTransform	KEYWORD2
+ShearTransform	KEYWORD2
+TileJitterTransform	KEYWORD2
+TilingTransform	KEYWORD2
+TranslationTransform	KEYWORD2
+VortexTransform	KEYWORD2
+ZoomTransform	KEYWORD2
