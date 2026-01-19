@@ -18,20 +18,24 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLARSHADER_POLARDISPLAYSPEC_H
+#define POLARSHADER_POLARDISPLAYSPEC_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "FastLED.h"
+#include "renderer/PolarRenderer.h"
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    class PolarDisplaySpec {
+    public:
+        virtual uint16_t numSegments() const = 0;
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+        virtual uint16_t nbLeds() const = 0;
+
+        virtual uint16_t segmentSize(uint16_t segmentIndex) const = 0;
+
+        virtual PolarCoords toPolarCoords(uint16_t pixelIndex) const = 0;
+
+        virtual ~PolarDisplaySpec() = default;
+    };
 }
-
-void loop() {
-    display->loop();
-}
+#endif //POLARSHADER_POLARDISPLAYSPEC_H

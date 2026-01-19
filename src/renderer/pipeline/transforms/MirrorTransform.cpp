@@ -18,20 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#include "MirrorTransform.h"
+#include <cstdint>
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+namespace PolarShader {
 
-static PolarDisplay *display = nullptr;
+    MirrorTransform::MirrorTransform(bool mirrorX, bool mirrorY)
+        : mirrorX(mirrorX), mirrorY(mirrorY) {}
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
-}
-
-void loop() {
-    display->loop();
+    CartesianLayer MirrorTransform::operator()(const CartesianLayer &layer) const {
+        return [mirrorX = this->mirrorX, mirrorY = this->mirrorY, layer](int32_t x, int32_t y) {
+            auto abs_i32 = [](int32_t v) -> int32_t {
+                return (v == INT32_MIN) ? INT32_MAX : (v < 0 ? -v : v);
+            };
+            int32_t mx = mirrorX && x < 0 ? abs_i32(x) : x;
+            int32_t my = mirrorY && y < 0 ? abs_i32(y) : y;
+            return layer(mx, my);
+        };
+    }
 }

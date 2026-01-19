@@ -18,20 +18,24 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#pragma once
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+namespace PolarShader {
+    template<typename Rep, typename Tag>
+    class Strong {
+    public:
+        using rep_type = Rep;
 
-static PolarDisplay *display = nullptr;
+        constexpr Strong() : v_(0) {}
+        explicit constexpr Strong(Rep raw) : v_(raw) {}
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
-}
+        constexpr Rep raw() const { return v_; }
 
-void loop() {
-    display->loop();
-}
+        friend constexpr bool operator==(Strong a, Strong b) { return a.v_ == b.v_; }
+        friend constexpr bool operator!=(Strong a, Strong b) { return a.v_ != b.v_; }
+        friend constexpr bool operator<(Strong a, Strong b) { return a.v_ < b.v_; }
+
+    private:
+        Rep v_;
+    };
+} // namespace PolarShader::Units

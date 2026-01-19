@@ -18,20 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#include "NoiseUtils.h"
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+namespace PolarShader {
 
-static PolarDisplay *display = nullptr;
+    // These bounds are specific to the typical output of inoise16() and may
+    // need tuning if a different noise function is used.
+    const uint16_t MIN_NOISE = 12000;
+    const uint16_t MAX_NOISE = 54000;
+    const uint16_t RANGE = MAX_NOISE - MIN_NOISE;
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
-}
+    NoiseNormU16 normaliseNoise16(NoiseRawU16 value) {
+        uint16_t noise_raw = raw(value);
+        if (noise_raw <= MIN_NOISE) return NoiseNormU16(0);
+        if (noise_raw >= MAX_NOISE) return NoiseNormU16(FRACT_Q0_16_MAX);
 
-void loop() {
-    display->loop();
+        uint32_t temp = static_cast<uint32_t>(noise_raw - MIN_NOISE) * FRACT_Q0_16_MAX;
+        return NoiseNormU16(static_cast<uint16_t>(temp / RANGE));
+    }
 }

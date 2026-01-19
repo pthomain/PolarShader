@@ -18,20 +18,27 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#include "TilingTransform.h"
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+namespace PolarShader {
 
-static PolarDisplay *display = nullptr;
+    TilingTransform::TilingTransform(uint32_t tileX, uint32_t tileY)
+        : tileX(tileX), tileY(tileY) {
+    }
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
-}
+    CartesianLayer TilingTransform::operator()(const CartesianLayer &layer) const {
+        return [tileX = this->tileX, tileY = this->tileY, layer](int32_t x, int32_t y) {
+            auto tile_mod = [](int32_t v, uint32_t tile) -> int32_t {
+                if (tile == 0) return v;
+                int32_t m = v % static_cast<int32_t>(tile);
+                if (m < 0) m += static_cast<int32_t>(tile);
+                return m;
+            };
 
-void loop() {
-    display->loop();
+            int32_t finalX = tile_mod(x, tileX);
+            int32_t finalY = tile_mod(y, tileY);
+
+            return layer(finalX, finalY);
+        };
+    }
 }

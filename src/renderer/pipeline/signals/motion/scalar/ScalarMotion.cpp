@@ -18,20 +18,15 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#include "ScalarMotion.h"
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+namespace PolarShader {
 
-static PolarDisplay *display = nullptr;
+    ScalarMotion::ScalarMotion(ScalarModulator delta)
+        : delta(std::move(delta)) {
+    }
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
-}
-
-void loop() {
-    display->loop();
+    void ScalarMotion::advanceFrame(TimeMillis timeInMillis) {
+        value = delta(timeInMillis);
+    }
 }

@@ -18,20 +18,29 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
+#define POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "Layers.h"
+#include <renderer/pipeline/utils/Units.h>
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    class FrameTransform {
+    public:
+        virtual ~FrameTransform() = default;
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+        virtual void advanceFrame(TimeMillis timeInMillis) {};
+    };
+
+    class CartesianTransform : public FrameTransform {
+    public:
+        virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
+    };
+
+    class PolarTransform : public FrameTransform {
+    public:
+        virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
+    };
 }
 
-void loop() {
-    display->loop();
-}
+#endif //POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H

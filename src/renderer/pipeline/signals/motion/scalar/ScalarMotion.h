@@ -18,20 +18,27 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_SIGNALS_MOTION_SCALAR_H
+#define  POLAR_SHADER_PIPELINE_SIGNALS_MOTION_SCALAR_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "renderer/pipeline/signals/modulators/ScalarModulators.h"
+#include "renderer/pipeline/utils/Units.h"
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    class ScalarMotion {
+    public:
+        explicit ScalarMotion(ScalarModulator delta);
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+        void advanceFrame(TimeMillis timeInMillis);
+
+        int32_t getValue() const { return static_cast<int32_t>(value.asRaw() >> 16); }
+
+        RawQ16_16 getRawValue() const { return RawQ16_16(value.asRaw()); }
+
+    private:
+        FracQ16_16 value = FracQ16_16(0);
+        ScalarModulator delta;
+    };
 }
 
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_SIGNALS_MOTION_SCALAR_H

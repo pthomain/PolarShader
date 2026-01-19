@@ -18,20 +18,17 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "FastLED.h"
+#include <renderer/pipeline/utils/Units.h>
 
-static PolarDisplay *display = nullptr;
-
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+namespace PolarShader {
+    using PolarLayer = fl::function<NoiseNormU16(AngleTurnsUQ16_16, RadiusQ0_16)>;
+    using CartesianLayer = fl::function<NoiseNormU16(int32_t, int32_t)>;
+    using NoiseLayer = fl::function<NoiseNormU16(uint32_t, uint32_t)>;
+    using ColourLayer = fl::function<CRGB(AngleTurnsUQ16_16, RadiusQ0_16)>;
 }
 
-void loop() {
-    display->loop();
-}
+#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
