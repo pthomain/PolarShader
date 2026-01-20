@@ -1,6 +1,7 @@
 # PolarShader
 
-**PolarShader** is a fixed-point, shader-like rendering library for microcontrollers.  
+**PolarShader** is a fixed-point, shader-like rendering library for Arduino.
+
 It provides a **polar-centric transform pipeline**, **deterministic fixed-point math**, and a **composable API** inspired by GPU shaders—designed specifically for **resource-constrained MCUs** driving LED displays and spatial light sculptures.
 
 ---
