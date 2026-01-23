@@ -18,15 +18,10 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "ScalarMotion.h"
+#include <Arduino.h>
 
-namespace PolarShader {
+void setup() {
+}
 
-    ScalarMotion::ScalarMotion(ScalarModulator delta)
-        : delta(std::move(delta)) {
-    }
-
-    void ScalarMotion::advanceFrame(TimeMillis timeInMillis) {
-        value = delta(timeInMillis);
-    }
+void loop() {
 }

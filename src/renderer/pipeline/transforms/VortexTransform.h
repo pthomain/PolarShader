@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
@@ -31,9 +31,8 @@ namespace PolarShader {
      * @brief Applies a radius-dependent angular offset (twist) to the polar coordinates.
      *
      * Expects PolarLayer with AngleTurnsUQ16_16 phase. Multiplies vortex strength (Q16.16) by radius (Q0.16)
-     * and adds the result modulo 2^32; large strengths can wrap. Use when you want radial twist; set bounds
-     * on the ScalarMotion to avoid unexpected wrap artifacts.
-     * Parameters: ScalarMotion vortex (Q16.16 angle-units per second).
+     * and adds the result modulo 2^32; large strengths can wrap. Use when you want radial twist.
+     * Parameters: vortex (BoundedScalarSignal, Q0.16) mapped to an internal range.
      * Recommended order: after rotation and before kaleidoscope so the twist participates in symmetry folding.
      */
     class VortexTransform : public PolarTransform {
@@ -41,15 +40,11 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        // Clamp to +/- 1.0 turn at unit radius to prevent multi-turn wrap artifacts.
-        inline static const FracQ16_16 VORTEX_MIN = FracQ16_16(-1);
-        inline static const FracQ16_16 VORTEX_MAX = FracQ16_16(1);
-
         /**
          * @brief Constructs a new VortexTransform.
          * @param vortex A signal that provides the vortex strength over time.
          */
-        explicit VortexTransform(ScalarMotion vortex);
+        explicit VortexTransform(BoundedScalarSignal vortex);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

@@ -20,30 +20,39 @@
 
 #include "NoiseWarpTransform.h"
 #include <cstring>
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct NoiseWarpTransform::State {
-        ScalarMotion kxSignal;
-        ScalarMotion kySignal;
+    namespace {
+        constexpr UnboundedScalar kWarpMin = UnboundedScalar::fromRaw(-static_cast<int32_t>(Q16_16_ONE / 4));
+        constexpr UnboundedScalar kWarpMax = UnboundedScalar::fromRaw(Q16_16_ONE / 4);
+    }
 
-        State(ScalarMotion kx, ScalarMotion ky)
+    struct NoiseWarpTransform::State {
+        BoundedScalarSignal kxSignal;
+        BoundedScalarSignal kySignal;
+        UnboundedScalar kxValue = kWarpMin;
+        UnboundedScalar kyValue = kWarpMin;
+
+        State(BoundedScalarSignal kx, BoundedScalarSignal ky)
             : kxSignal(std::move(kx)), kySignal(std::move(ky)) {
         }
     };
 
-    NoiseWarpTransform::NoiseWarpTransform(ScalarMotion kx, ScalarMotion ky)
+    NoiseWarpTransform::NoiseWarpTransform(BoundedScalarSignal kx, BoundedScalarSignal ky)
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
     void NoiseWarpTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->kxSignal.advanceFrame(timeInMillis);
-        state->kySignal.advanceFrame(timeInMillis);
+        state->kxValue = unbound(state->kxSignal(timeInMillis), kWarpMin, kWarpMax);
+        state->kyValue = unbound(state->kySignal(timeInMillis), kWarpMin, kWarpMax);
     }
 
     CartesianLayer NoiseWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            RawQ16_16 kx_raw = state->kxSignal.getRawValue();
-            RawQ16_16 ky_raw = state->kySignal.getRawValue();
+            RawQ16_16 kx_raw = RawQ16_16(state->kxValue.asRaw());
+            RawQ16_16 ky_raw = RawQ16_16(state->kyValue.asRaw());
 
             NoiseRawU16 rawNoise = NoiseRawU16(inoise16(x, y));
             int32_t signedNoise = static_cast<int32_t>(raw(rawNoise)) - U16_HALF; // ~Q1.15 signed

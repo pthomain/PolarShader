@@ -20,26 +20,34 @@
 
 #include "PerspectiveWarpTransform.h"
 #include <cstring>
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct PerspectiveWarpTransform::State {
-        ScalarMotion kSignal;
+    namespace {
+        constexpr UnboundedScalar kWarpMin = UnboundedScalar::fromRaw(-static_cast<int32_t>(Q16_16_ONE / 4));
+        constexpr UnboundedScalar kWarpMax = UnboundedScalar::fromRaw(Q16_16_ONE / 4);
+    }
 
-        explicit State(ScalarMotion k) : kSignal(std::move(k)) {
+    struct PerspectiveWarpTransform::State {
+        BoundedScalarSignal kSignal;
+        UnboundedScalar kValue = kWarpMin;
+
+        explicit State(BoundedScalarSignal k) : kSignal(std::move(k)) {
         }
     };
 
-    PerspectiveWarpTransform::PerspectiveWarpTransform(ScalarMotion k)
+    PerspectiveWarpTransform::PerspectiveWarpTransform(BoundedScalarSignal k)
         : state(std::make_shared<State>(std::move(k))) {
     }
 
     void PerspectiveWarpTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->kSignal.advanceFrame(timeInMillis);
+        state->kValue = unbound(state->kSignal(timeInMillis), kWarpMin, kWarpMax);
     }
 
     CartesianLayer PerspectiveWarpTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            RawQ16_16 k_raw = state->kSignal.getRawValue();
+            RawQ16_16 k_raw = RawQ16_16(state->kValue.asRaw());
             int64_t ky = (static_cast<int64_t>(raw(k_raw)) * y) >> 16;
             int64_t denom = static_cast<int64_t>(Q16_16_ONE) + ky;
 

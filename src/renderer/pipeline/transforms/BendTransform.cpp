@@ -19,30 +19,40 @@
  */
 
 #include "BendTransform.h"
+#include <cstring>
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct BendTransform::State {
-        ScalarMotion kxSignal;
-        ScalarMotion kySignal;
+    namespace {
+        constexpr UnboundedScalar kBendMin = UnboundedScalar::fromRaw(-static_cast<int32_t>(Q16_16_ONE / 32));
+        constexpr UnboundedScalar kBendMax = UnboundedScalar::fromRaw(Q16_16_ONE / 32);
+    }
 
-        State(ScalarMotion kx, ScalarMotion ky)
+    struct BendTransform::State {
+        BoundedScalarSignal kxSignal;
+        BoundedScalarSignal kySignal;
+        UnboundedScalar kxValue = kBendMin;
+        UnboundedScalar kyValue = kBendMin;
+
+        State(BoundedScalarSignal kx, BoundedScalarSignal ky)
             : kxSignal(std::move(kx)), kySignal(std::move(ky)) {
         }
     };
 
-    BendTransform::BendTransform(ScalarMotion kx, ScalarMotion ky)
+    BendTransform::BendTransform(BoundedScalarSignal kx, BoundedScalarSignal ky)
         : state(std::make_shared<State>(std::move(kx), std::move(ky))) {
     }
 
     void BendTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->kxSignal.advanceFrame(timeInMillis);
-        state->kySignal.advanceFrame(timeInMillis);
+        state->kxValue = unbound(state->kxSignal(timeInMillis), kBendMin, kBendMax);
+        state->kyValue = unbound(state->kySignal(timeInMillis), kBendMin, kBendMax);
     }
 
     CartesianLayer BendTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            RawQ16_16 kx_raw = state->kxSignal.getRawValue();
-            RawQ16_16 ky_raw = state->kySignal.getRawValue();
+            RawQ16_16 kx_raw = RawQ16_16(state->kxValue.asRaw());
+            RawQ16_16 ky_raw = RawQ16_16(state->kyValue.asRaw());
 
             auto safe_bend = [](RawQ16_16 k_raw, int32_t coord) -> int64_t {
                 int32_t k_val = raw(k_raw);

@@ -40,9 +40,9 @@ namespace PolarShader {
         pipeline.advanceFrame(timeInMillis);
         for (uint16_t pixelIndex = 0; pixelIndex < nbLeds; ++pixelIndex) {
             auto [angle_turns, radius_raw] = coordsMapper(pixelIndex);
-            AngleUnitsQ0_16 angle_units(angle_turns);
-            RadiusQ0_16 radius = toRadiusQ0_16(radius_raw);
-            AngleTurnsUQ16_16 angle_q16 = angleUnitsToAngleTurns(angle_units);
+            BoundedAngle angle_units(angle_turns);
+            BoundedScalar radius = BoundedScalar(radius_raw);
+            UnboundedAngle angle_q16 = unbindAngle(angle_units);
             outputArray[pixelIndex] = colourLayer(angle_q16, radius);
         }
     }

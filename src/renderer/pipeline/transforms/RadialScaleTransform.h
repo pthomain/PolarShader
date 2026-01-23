@@ -23,14 +23,14 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/AngularSignals.h"
 
 namespace PolarShader {
     /**
-     * Scales polar radius by a radial function: r' = r + (k * r) where k is a ScalarMotion (Q16.16).
+     * Scales polar radius by a radial function: r' = r + (k * r), k in Q16.16.
      * Useful for tunnel/zoom effects. Output radius is clamped to [0, FRACT_Q0_16_MAX].
      *
-     * Parameters: k (ScalarMotion, Q16.16 factor).
+     * Parameters: k (BoundedAngleSignal, Q0.16) mapped to an internal range.
      * Recommended order: in polar chain before kaleidoscope/mandala; combines well with vortex/rotation.
      */
     class RadialScaleTransform : public PolarTransform {
@@ -38,7 +38,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        explicit RadialScaleTransform(ScalarMotion k);
+        explicit RadialScaleTransform(BoundedAngleSignal k);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

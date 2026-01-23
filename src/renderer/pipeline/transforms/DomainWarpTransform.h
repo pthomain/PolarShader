@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/linear/LinearMotion.h"
+#include "renderer/pipeline/modulators/scalar/BoundedScalarModulator.h"
 
 namespace PolarShader {
     /**
@@ -33,7 +33,7 @@ namespace PolarShader {
      * This transform distorts the input coordinates by adding a time-varying offset,
      * creating a "warping" or "flowing" effect in the final pattern.
      *
-     * Parameters: one LinearMotion (Q16.16) providing X/Y offsets.
+     * Parameters: one BoundedScalarModulator (Q16.16) providing X/Y offsets.
      * Input/output domain: CartesianLayer with 32-bit coordinates. Offsets are added in raw Q16.16 with
      * explicit 32-bit wrap; no clamping occurs.
      * Recommended order: apply early, before other Cartesian transforms or polar conversion, so downstream
@@ -48,7 +48,7 @@ namespace PolarShader {
          * @brief Constructs a new DomainWarpTransform.
      * @param warp A motion that provides the X/Y components of the warp.
      */
-        explicit DomainWarpTransform(LinearMotion warp);
+        explicit DomainWarpTransform(BoundedScalarModulator warp);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

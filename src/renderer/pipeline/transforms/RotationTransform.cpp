@@ -22,13 +22,13 @@
 
 namespace PolarShader {
     struct RotationTransform::State {
-        AngularMotion rotationSignal;
+        BoundedAngularModulator rotationSignal;
 
-        explicit State(AngularMotion rotation) : rotationSignal(std::move(rotation)) {
+        explicit State(BoundedAngularModulator rotation) : rotationSignal(std::move(rotation)) {
         }
     };
 
-    RotationTransform::RotationTransform(AngularMotion rotation)
+    RotationTransform::RotationTransform(BoundedAngularModulator rotation)
         : state(std::make_shared<State>(std::move(rotation))) {
     }
 
@@ -37,9 +37,9 @@ namespace PolarShader {
     }
 
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
-            // Add the full Q16.16 rotation value to the angle
-            AngleTurnsUQ16_16 new_angle_q16 = wrapAdd(angle_q16, raw(state->rotationSignal.getPhase()));
+        return [state = this->state, layer](UnboundedAngle angle_q16, BoundedScalar radius) {
+            UnboundedAngle rotation = unbindAngle(state->rotationSignal.getPhase());
+            UnboundedAngle new_angle_q16 = wrapAdd(angle_q16, raw(rotation));
             return layer(new_angle_q16, radius);
         };
     }

@@ -24,23 +24,46 @@
 #include <renderer/pipeline/utils/Units.h>
 
 namespace PolarShader {
+
     struct LinearPolicy {
-        void apply(FracQ16_16 &, FracQ16_16 &) const {
+        static void apply(UnboundedScalar &, UnboundedScalar &) {
         }
     };
 
+    struct SaturatingClampPolicy {
+        static void apply(UnboundedScalar &position_x,
+                          UnboundedScalar &position_y,
+                          int64_t dx_raw,
+                          int64_t dy_raw);
+    };
+
+    struct WrapAddPolicy {
+        static void apply(UnboundedScalar &position_x,
+                          UnboundedScalar &position_y,
+                          int64_t dx_raw,
+                          int64_t dy_raw);
+    };
+
+    struct RadialClampPolicy {
+        UnboundedScalar max_radius;
+
+        explicit RadialClampPolicy(UnboundedScalar maxRadius = UnboundedScalar(0));
+
+        void apply(UnboundedScalar &position_x, UnboundedScalar &position_y) const;
+    };
+
     struct ClampPolicy {
-        FracQ16_16 min_val;
-        FracQ16_16 max_val;
+        UnboundedScalar min_val;
+        UnboundedScalar max_val;
 
         // Default: effectively unbounded.
         ClampPolicy();
 
         ClampPolicy(int32_t min, int32_t max);
 
-        ClampPolicy(FracQ16_16 min, FracQ16_16 max);
+        ClampPolicy(UnboundedScalar min, UnboundedScalar max);
 
-        void apply(FracQ16_16 &position, FracQ16_16 &velocity) const;
+        void apply(UnboundedScalar &position, UnboundedScalar &velocity) const;
     };
 
     struct WrapPolicy {
@@ -48,7 +71,11 @@ namespace PolarShader {
 
         explicit WrapPolicy(int32_t wrap = 65536);
 
-        void apply(FracQ16_16 &position, FracQ16_16 &) const;
+        void apply(UnboundedScalar &position, UnboundedScalar &) const;
+    };
+
+    struct AngleWrapPolicy {
+        static void apply(UnboundedAngle &phase, RawQ16_16 phase_advance);
     };
 }
 

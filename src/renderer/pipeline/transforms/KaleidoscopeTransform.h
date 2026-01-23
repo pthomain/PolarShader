@@ -46,8 +46,8 @@ namespace PolarShader {
 
         static constexpr uint8_t MAX_SEGMENTS = 8;
 
-        static AngleTurnsUQ16_16 foldPhaseKaleidoscope(
-            AngleTurnsUQ16_16 phase_q16,
+        static UnboundedAngle foldPhaseKaleidoscope(
+            UnboundedAngle phase_q16,
             fl::u8 nbSegments,
             bool isMirroring
         ) {
@@ -61,11 +61,11 @@ namespace PolarShader {
             if (isMirroring && isOdd) {
                 uint32_t mirrored = segmentPhase - foldedPhase;
                 // Handle the boundary case where foldedPhase is 0.
-                return (mirrored == segmentPhase) ? AngleTurnsUQ16_16(0)
-                                                  : AngleTurnsUQ16_16(mirrored);
+                return (mirrored == segmentPhase) ? UnboundedAngle(0)
+                                                  : UnboundedAngle(mirrored);
             }
 
-            return AngleTurnsUQ16_16(foldedPhase);
+            return UnboundedAngle(foldedPhase);
         }
 
     public:

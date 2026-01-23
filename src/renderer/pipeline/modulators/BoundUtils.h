@@ -17,12 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
 
-#ifndef POLAR_SHADER_PIPELINE_UTILS_FIXMATHUTILS_H
-#define POLAR_SHADER_PIPELINE_UTILS_FIXMATHUTILS_H
+#ifndef POLAR_SHADER_PIPELINE_SIGNALS_MOTION_BOUNDUTILS_H
+#define POLAR_SHADER_PIPELINE_SIGNALS_MOTION_BOUNDUTILS_H
 
-#include "Units.h"
+#include "renderer/pipeline/utils/Units.h"
 
 namespace PolarShader {
     // Constant conversion factor: milliseconds per second.
@@ -40,14 +39,14 @@ namespace PolarShader {
      * Notes:
      * - Uses 64-bit intermediates and rounds to the nearest Q16.16 value.
      */
-    inline FracQ16_16 millisToQ16_16(TimeMillis millis) {
+    inline UnboundedScalar millisToUnboundedScalar(TimeMillis millis) {
         // (millis / 1000) * 2^16
         // To maintain precision, this is calculated as:
         // (millis * 2^16) / 1000
         // with rounding.
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
-        return FracQ16_16::fromRaw(static_cast<int32_t>(dt_raw));
+        return UnboundedScalar::fromRaw(static_cast<int32_t>(dt_raw));
     }
 
     /**
@@ -59,9 +58,35 @@ namespace PolarShader {
      * Avoid when:
      * - den can be zero without a safe fallback; this returns 0 on den==0.
      */
-    constexpr FracQ16_16 q16_frac(int32_t num, uint32_t den) {
-        if (den == 0) return FracQ16_16(0);
-        return FracQ16_16::fromRaw(static_cast<int32_t>((static_cast<int64_t>(num) << 16) / static_cast<int64_t>(den)));
+    constexpr UnboundedScalar unboundedScalar(int32_t num, uint32_t den) {
+        if (den == 0) return UnboundedScalar(0);
+        return UnboundedScalar::fromRaw(
+            static_cast<int32_t>((static_cast<int64_t>(num) << 16) / static_cast<int64_t>(den))
+        );
+    }
+
+    /**
+     * @brief Create a Q0.16 bounded scalar from a rational fraction without floating point.
+     *
+     * Use when:
+     * - You need a compile-time or constexpr BoundedScalar from num/den.
+     *
+     * Avoid when:
+     * - den can be zero without a safe fallback; this returns 0 on den==0.
+     */
+    constexpr BoundedScalar boundedScalar(uint32_t num, uint32_t den) {
+        if (den == 0) return BoundedScalar(0);
+        uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(num) * FRACT_Q0_16_MAX) / den);
+        return BoundedScalar(static_cast<uint16_t>(raw_value));
+    }
+
+    /**
+     * @brief Create a bounded angle (AngleUnitsQ0_16) from a rational fraction without floating point.
+     */
+    constexpr BoundedAngle boundedAngle(uint32_t num, uint32_t den) {
+        if (den == 0) return BoundedAngle(0);
+        uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(num) * FRACT_Q0_16_MAX) / den);
+        return BoundedAngle(static_cast<uint16_t>(raw_value));
     }
 
     /**
@@ -77,11 +102,10 @@ namespace PolarShader {
      * Use when:
      * - You need explicit control over the fractional bits.
      */
-    constexpr FracQ16_16 q16_parts(int32_t integer, uint16_t fractional) {
-        int32_t raw = static_cast<int32_t>(integer << 16);
-        raw = (integer < 0) ? static_cast<int32_t>(raw - fractional)
-                            : static_cast<int32_t>(raw + fractional);
-        return FracQ16_16::fromRaw(raw);
+    constexpr UnboundedScalar unboundedScalarParts(int32_t integer, uint16_t fractional) {
+        int32_t raw = integer << 16;
+        raw = (integer < 0) ? raw - fractional : raw + fractional;
+        return UnboundedScalar::fromRaw(raw);
     }
 
     /**
@@ -93,9 +117,9 @@ namespace PolarShader {
      * Avoid when:
      * - den can be zero without a safe fallback; this returns 0 on den==0.
      */
-    constexpr AngleTurnsUQ16_16 angleTurns_frac(uint32_t num, uint32_t den) {
-        if (den == 0) return AngleTurnsUQ16_16(0);
-        return AngleTurnsUQ16_16(static_cast<uint32_t>((static_cast<uint64_t>(num) << 16) / den));
+    constexpr UnboundedAngle unboundedAngle(uint32_t num, uint32_t den) {
+        if (den == 0) return UnboundedAngle(0);
+        return UnboundedAngle(static_cast<uint32_t>((static_cast<uint64_t>(num) << 16) / den));
     }
 
     /**
@@ -108,9 +132,13 @@ namespace PolarShader {
      * Use when:
      * - You need explicit control over turn fractions without float math.
      */
-    constexpr AngleTurnsUQ16_16 angleTurns_parts(uint32_t integer, uint16_t fractional) {
-        return AngleTurnsUQ16_16(static_cast<uint32_t>((integer << 16) | fractional));
+    constexpr UnboundedAngle unboundedAngleParts(uint32_t integer, uint16_t fractional) {
+        return UnboundedAngle(integer << 16 | fractional);
     }
+
+    UnboundedScalar unbound(BoundedScalar t, UnboundedScalar min_val, UnboundedScalar max_val);
+
+    BoundedScalar bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val);
 }
 
-#endif //POLAR_SHADER_PIPELINE_UTILS_FIXMATHUTILS_H
+#endif // POLAR_SHADER_PIPELINE_SIGNALS_MOTION_BOUNDUTILS_H

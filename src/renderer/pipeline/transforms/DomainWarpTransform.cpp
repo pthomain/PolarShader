@@ -23,14 +23,14 @@
 
 namespace PolarShader {
     struct DomainWarpTransform::State {
-        LinearMotion warpSignal;
+        BoundedScalarModulator warpSignal;
 
-        explicit State(LinearMotion warp)
+        explicit State(BoundedScalarModulator warp)
             : warpSignal(std::move(warp)) {
         }
     };
 
-    DomainWarpTransform::DomainWarpTransform(LinearMotion warp)
+    DomainWarpTransform::DomainWarpTransform(BoundedScalarModulator warp)
         : state(std::make_shared<State>(std::move(warp))) {
     }
 

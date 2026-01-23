@@ -18,23 +18,26 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "AngularMotion.h"
+#include "UnboundedAngularModulator.h"
+#include "renderer/pipeline/modulators/BoundUtils.h"
 #include "renderer/pipeline/utils/MathUtils.h"
 #include "renderer/pipeline/utils/TimeUtils.h"
 
 namespace PolarShader {
-    AngularMotion::AngularMotion(AngleUnitsQ0_16 initial,
-                                 ScalarModulator speed)
-        : phase(angleUnitsToAngleTurns(initial)),
-          speed(std::move(speed)) {
+    UnboundedAngularModulator::UnboundedAngularModulator(
+        BoundedAngle initialPhase,
+        BoundedScalarSignal speed
+    ) : phase(unbindAngle(initialPhase)),
+        speed(std::move(speed)) {
     }
 
-    void AngularMotion::advanceFrame(TimeMillis timeInMillis) {
+    void UnboundedAngularModulator::advanceFrame(TimeMillis timeInMillis) {
         if (!hasLastTime) {
             lastTime = timeInMillis;
             hasLastTime = true;
             return;
         }
+
         TimeMillis deltaTime = timeInMillis - lastTime;
         lastTime = timeInMillis;
         if (deltaTime == 0) return;
@@ -42,8 +45,10 @@ namespace PolarShader {
         deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        FracQ16_16 dt_q16 = millisToQ16_16(deltaTime);
-        RawQ16_16 phase_advance = RawQ16_16(mul_q16_16_wrap(speed(timeInMillis), dt_q16).asRaw());
-        phase = wrapAddSigned(phase, raw(phase_advance));
+        UnboundedScalar dt_q16 = millisToUnboundedScalar(deltaTime);
+        UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
+        RawQ16_16 phase_advance = RawQ16_16(mul_q16_16_wrap(speed_now, dt_q16).asRaw());
+
+        wrapPolicy.apply(phase, phase_advance);
     }
 }

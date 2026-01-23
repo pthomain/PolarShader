@@ -23,7 +23,7 @@
 namespace PolarShader {
     PolarLayer KaleidoscopeTransform::operator()(const PolarLayer &layer) const {
         return [nbSegments = this->nbSegments, isMandala = this->isMandala, isMirroring = this->isMirroring, layer](
-            AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
+            UnboundedAngle angle_q16, BoundedScalar radius) {
             auto clamp_u8 = [](uint8_t v, uint8_t lo, uint8_t hi) -> uint8_t {
                 if (v < lo) return lo;
                 if (v > hi) return hi;
@@ -31,7 +31,7 @@ namespace PolarShader {
             };
             uint8_t segments = clamp_u8(nbSegments, 1, MAX_SEGMENTS);
 
-            AngleTurnsUQ16_16 newAngle_q16;
+            UnboundedAngle newAngle_q16;
             if (isMandala) {
                 // Multiply the angle by the number of segments. The uint32_t accumulator
                 // will naturally wrap, creating the intended mandala effect.

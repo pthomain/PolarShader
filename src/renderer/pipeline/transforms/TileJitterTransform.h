@@ -23,22 +23,24 @@
 
 #include "base/Transforms.h"
 #include "renderer/pipeline/utils/Units.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
      * Adds a small, per-tile offset after tiling to break repetition. Uses tile index noise to jitter.
      *
-     * Parameters: tileX, tileY (tile sizes), amplitude (ScalarMotion jitter magnitude in coordinate units).
+     * Parameters: tileX, tileY (tile sizes), amplitude (BoundedScalarSignal, Q0.16) mapped to
+     * an internal range in coordinate units.
      * Recommended order: immediately after TilingTransform in the Cartesian chain.
      */
     class TileJitterTransform : public CartesianTransform {
         uint32_t tileX;
         uint32_t tileY;
-        ScalarMotion amplitudeSignal;
+        BoundedScalarSignal amplitudeSignal;
+        UnboundedScalar amplitudeValue = UnboundedScalar(0);
 
     public:
-        TileJitterTransform(uint32_t tileX, uint32_t tileY, ScalarMotion amplitude);
+        TileJitterTransform(uint32_t tileX, uint32_t tileY, BoundedScalarSignal amplitude);
 
         void advanceFrame(TimeMillis timeInMillis) override;
         CartesianLayer operator()(const CartesianLayer &layer) const override;

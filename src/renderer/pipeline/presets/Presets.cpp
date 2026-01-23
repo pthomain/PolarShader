@@ -20,9 +20,10 @@
 
 #include "Presets.h"
 #include <renderer/pipeline/CartesianNoiseLayers.h>
-#include <renderer/pipeline/signals/modulators/AngularModulators.h>
-#include <renderer/pipeline/signals/modulators/ScalarModulators.h>
-#include <renderer/pipeline/signals/motion/MotionBuilder.h>
+#include <renderer/pipeline/modulators/signals/AngularSignals.h>
+#include <renderer/pipeline/modulators/signals/ScalarSignals.h>
+#include <renderer/pipeline/modulators/angular/BoundedAngularModulator.h>
+#include <renderer/pipeline/modulators/scalar/BoundedScalarModulator.h>
 #include <renderer/pipeline/transforms/AnisotropicScaleTransform.h>
 #include <renderer/pipeline/transforms/BendTransform.h>
 #include <renderer/pipeline/transforms/CurlFlowTransform.h>
@@ -41,19 +42,23 @@
 #include <renderer/pipeline/transforms/TranslationTransform.h>
 #include <renderer/pipeline/transforms/VortexTransform.h>
 #include <renderer/pipeline/transforms/ZoomTransform.h>
+#include <renderer/pipeline/modulators/BoundUtils.h>
 #include "renderer/pipeline/PolarPipelineBuilder.h"
 
 namespace PolarShader {
     PolarPipeline buildDefaultPreset(const CRGBPalette16 &palette) {
         return PolarPipelineBuilder(noiseLayer, palette, "Default")
                 // Fixed zoom at mid-range for a stable baseline.
-                .addCartesianTransform(ZoomTransform(scalar(Constant(UINT16_MAX / 64))))
+                .addCartesianTransform(ZoomTransform(
+                    constant(boundedScalar(1, 2))))
                 // Slow constant translation of the noise domain (diagonal drift).
                 .addCartesianTransform(TranslationTransform(
-                    linearUnbounded(0,
-                                    0,
-                                    Constant(q16_frac(1, 2)),
-                                    ConstantAngleTurns(angleTurns_frac(1, 2)))))
+                    BoundedScalarModulator(BoundedScalar(0),
+                                           BoundedScalar(0),
+                                           constant(bound(unboundedScalar(1, 2),
+                                                          BoundedScalarModulator::SPEED_MIN,
+                                                          BoundedScalarModulator::SPEED_MAX)),
+                                           constant(bindAngle(unboundedAngle(1, 2))))))
                 .build();
     }
 
@@ -63,18 +68,20 @@ namespace PolarShader {
                 // Low-frequency domain drift
                 .addCartesianTransform(
                     DomainWarpTransform(
-                        linearUnbounded(0,
-                                        0,
-                                        Constant(q16_frac(1, 4)),
-                                        ConstantAngleUnits(AngleUnitsQ0_16(800)))
+                        BoundedScalarModulator(BoundedScalar(0),
+                                               BoundedScalar(0),
+                                               constant(bound(unboundedScalar(1, 4),
+                                                              BoundedScalarModulator::SPEED_MIN,
+                                                              BoundedScalarModulator::SPEED_MAX)),
+                                               constant(BoundedAngle(800)))
                     )
                 )
                 // Barrel distortion
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 64))))) // subtle barrel
+                    constant(boundedScalar(9, 16)))) // subtle barrel
                 // Gentle outward zoom
                 .addPolarTransform(RadialScaleTransform(
-                    scalar(Constant(q16_frac(1, 32))))) // subtle outward zoom
+                    constant(boundedAngle(17, 32)))) // subtle outward zoom
                 // Angular symmetry
                 .addPolarTransform(KaleidoscopeTransform(5, false, true))
                 .build();
@@ -85,23 +92,25 @@ namespace PolarShader {
         return PolarPipelineBuilder(fBmLayer, palette, "NoiseWarpFlame")
                 // Turbulent warp
                 .addCartesianTransform(
-                    NoiseWarpTransform(scalar(Constant(q16_frac(1, 20))),
-                                       scalar(Constant(q16_frac(3, 100)))))
+                    NoiseWarpTransform(
+                        constant(boundedScalar(3, 5)),
+                        constant(boundedScalar(14, 25))))
                 // Stretch vertically
                 .addCartesianTransform(AnisotropicScaleTransform(
-                    scalar(Constant(FracQ16_16(1))),
-                    scalar(Constant(FracQ16_16(2)))))
+                    constant(boundedScalar(1, 4)),
+                    constant(boundedScalar(1, 2))))
                 // stretch Y
                 // Curve along X
-                .addCartesianTransform(BendTransform(scalar(Constant(q16_frac(1, 100))),
-                                                     scalar(Constant(FracQ16_16(0)))))
+                .addCartesianTransform(BendTransform(
+                    constant(boundedScalar(33, 50)),
+                    constant(boundedScalar(1, 2))))
                 // gentle curve along X
                 // Slight barrel
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 128))))) // slight barrel
+                    constant(boundedScalar(17, 32)))) // slight barrel
                 // Slow twist
                 .addPolarTransform(VortexTransform(
-                    scalar(Constant(q16_frac(1, 96)))))
+                    constant(boundedScalar(97, 192))))
                 .build();
     }
 
@@ -112,15 +121,21 @@ namespace PolarShader {
                 .addCartesianTransform(TilingTransform(1u << 18, 1u << 18)) // tile at moderate scale
                 // Slow drift to keep features moving
                 .addCartesianTransform(TranslationTransform(
-                    linearUnbounded(0,
-                                    0,
-                                    Constant(q16_frac(1, 2)),
-                                    ConstantAngleUnits(AngleUnitsQ0_16(900)))))
+                    BoundedScalarModulator(BoundedScalar(0),
+                                           BoundedScalar(0),
+                                           constant(bound(unboundedScalar(1, 2),
+                                                          BoundedScalarModulator::SPEED_MIN,
+                                                          BoundedScalarModulator::SPEED_MAX)),
+                                           constant(BoundedAngle(900)))))
                 // Mirror X for symmetry
                 .addCartesianTransform(MirrorTransform(true, false))
                 // Slow rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 2)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 2),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 // Mandala folding
                 .addPolarTransform(KaleidoscopeTransform(6, true, true))
                 .build();
@@ -130,19 +145,21 @@ namespace PolarShader {
         // Flowing marble: slow noise warp + shear + anisotropic stretch + gentle vortex.
         return PolarPipelineBuilder(noiseLayer, palette, "LiquidMarble")
                 // Low-amplitude warp
-                .addCartesianTransform(NoiseWarpTransform(scalar(Constant(q16_frac(1, 24))),
-                                                          scalar(Constant(q16_frac(1, 32)))))
+                .addCartesianTransform(NoiseWarpTransform(
+                    constant(boundedScalar(7, 12)),
+                    constant(boundedScalar(9, 16))))
                 // Skew the domain
-                .addCartesianTransform(ShearTransform(scalar(Constant(q16_frac(1, 12))),
-                                                      scalar(Constant(q16_frac(-1, 16)))))
+                .addCartesianTransform(ShearTransform(
+                    constant(boundedScalar(2, 3)),
+                    constant(boundedScalar(3, 8))))
                 // Compress Y
                 .addCartesianTransform(AnisotropicScaleTransform(
-                    scalar(Constant(FracQ16_16(1))),
-                    scalar(Constant(q16_frac(3, 5)))))
+                    constant(boundedScalar(1, 4)),
+                    constant(boundedScalar(3, 20))))
                 // stretch Y ~0.6
                 // Gentle twist
                 .addPolarTransform(VortexTransform(
-                    scalar(Constant(q16_frac(1, 64)))))
+                    constant(boundedScalar(65, 128))))
                 // Symmetry
                 .addPolarTransform(KaleidoscopeTransform(4, false, true))
                 .build();
@@ -152,14 +169,19 @@ namespace PolarShader {
         // Subtle bend + lens distortion + slow rotation for heat shimmer.
         return PolarPipelineBuilder(fBmLayer, palette, "HeatShimmer")
                 // Slight curvature
-                .addCartesianTransform(BendTransform(scalar(Constant(q16_frac(1, 128))),
-                                                     scalar(Constant(FracQ16_16(0)))))
+                .addCartesianTransform(BendTransform(
+                    constant(boundedScalar(5, 8)),
+                    constant(boundedScalar(1, 2))))
                 // Light barrel
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 96))))) // slight barrel
+                    constant(boundedScalar(13, 24)))) // slight barrel
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 16)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 16),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 .build();
     }
 
@@ -169,13 +191,14 @@ namespace PolarShader {
                 // Tile domain
                 .addCartesianTransform(TilingTransform(1u << 17, 1u << 17))
                 // Subtle warp
-                .addCartesianTransform(NoiseWarpTransform(scalar(Constant(q16_frac(1, 32))),
-                                                          scalar(Constant(q16_frac(1, 48)))))
+                .addCartesianTransform(NoiseWarpTransform(
+                    constant(boundedScalar(9, 16)),
+                    constant(boundedScalar(13, 24))))
                 // Breathing zoom
                 .addPolarTransform(RadialScaleTransform(
-                    scalar(Sine(
-                        ConstantPhaseVelocity(q16_frac(1, 6)),
-                        ConstantRawQ16_16(RawQ16_16(500))))))
+                    sine(
+                        constant(boundedScalar(1, 6)),
+                        constant(BoundedScalar(500)))))
                 // oscillating zoom, raw 500 is tiny fraction
                 // Mild symmetry
                 .addPolarTransform(KaleidoscopeTransform(3, false, false))
@@ -186,17 +209,22 @@ namespace PolarShader {
         // Slanted arms with vortex and mandala symmetry.
         return PolarPipelineBuilder(fBmLayer, palette, "SpiralGalaxy")
                 // Slant arms
-                .addCartesianTransform(ShearTransform(scalar(Constant(q16_frac(1, 8))),
-                                                      scalar(Constant(FracQ16_16(0)))))
+                .addCartesianTransform(ShearTransform(
+                    constant(boundedScalar(3, 4)),
+                    constant(boundedScalar(1, 2))))
                 // Strong twist
                 .addPolarTransform(VortexTransform(
-                    scalar(Constant(q16_frac(1, 24)))))
+                    constant(boundedScalar(25, 48))))
                 // Pincushion
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(-1, 80))))) // mild pincushion
+                    constant(boundedScalar(9, 20)))) // mild pincushion
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 8)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 8),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 // Mandala fold
                 .addPolarTransform(KaleidoscopeTransform(4, true, true))
                 .build();
@@ -207,18 +235,23 @@ namespace PolarShader {
         return PolarPipelineBuilder(fBmLayer, palette, "ElectricTunnel")
                 // Heavy Y stretch
                 .addCartesianTransform(AnisotropicScaleTransform(
-                    scalar(Constant(FracQ16_16(1))),
-                    scalar(Constant(FracQ16_16(3)))))
+                    constant(boundedScalar(1, 4)),
+                    constant(boundedScalar(3, 4))))
                 // heavy Y stretch
                 // Intense warp
-                .addCartesianTransform(NoiseWarpTransform(scalar(Constant(q16_frac(1, 16))),
-                                                          scalar(Constant(q16_frac(1, 20)))))
+                .addCartesianTransform(NoiseWarpTransform(
+                    constant(boundedScalar(5, 8)),
+                    constant(boundedScalar(3, 5))))
                 // Outward push
                 .addPolarTransform(RadialScaleTransform(
-                    scalar(Constant(q16_frac(1, 12)))))
+                    constant(boundedAngle(7, 12))))
                 // Fast rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(3, 2)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(3, 2),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 // Mandala symmetry
                 .addPolarTransform(KaleidoscopeTransform(5, true, true))
                 .build();
@@ -229,14 +262,14 @@ namespace PolarShader {
         return PolarPipelineBuilder(noiseLayer, palette, "StarburstPulse")
                 // Pulsed radial zoom
                 .addPolarTransform(RadialScaleTransform(
-                    scalar(Pulse(
-                        ConstantPhaseVelocity(q16_frac(1, 5)),
-                        ConstantRawQ16_16(RawQ16_16(2000))))))
+                    pulse(
+                        constant(boundedScalar(1, 5)),
+                        constant(BoundedScalar(2000)))))
                 // Angular symmetry
                 .addPolarTransform(KaleidoscopeTransform(6, false, true))
                 // Barrel pop
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 72)))))
+                    constant(boundedScalar(5, 9))))
                 .build();
     }
 
@@ -244,20 +277,22 @@ namespace PolarShader {
         // Strong shear/stretch to create slanted rain bands with subtle warp.
         return PolarPipelineBuilder(noiseLayer, palette, "RainShear")
                 // Heavy shear
-                .addCartesianTransform(ShearTransform(scalar(Constant(q16_frac(1, 6))),
-                                                      scalar(Constant(FracQ16_16(0)))))
+                .addCartesianTransform(ShearTransform(
+                    constant(boundedScalar(5, 6)),
+                    constant(boundedScalar(1, 2))))
                 // heavy X shear
                 // Tall stretch
                 .addCartesianTransform(AnisotropicScaleTransform(
-                    scalar(Constant(FracQ16_16(1))),
-                    scalar(Constant(FracQ16_16(4)))))
+                    constant(boundedScalar(1, 4)),
+                    constant(boundedScalar(1, 1))))
                 // tall Y
                 // Light warp
-                .addCartesianTransform(NoiseWarpTransform(scalar(Constant(q16_frac(1, 40))),
-                                                          scalar(Constant(q16_frac(1, 64)))))
+                .addCartesianTransform(NoiseWarpTransform(
+                    constant(boundedScalar(11, 20)),
+                    constant(boundedScalar(17, 32))))
                 // Gentle lens
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 96)))))
+                    constant(boundedScalar(13, 24))))
                 .build();
     }
 
@@ -266,16 +301,20 @@ namespace PolarShader {
         return PolarPipelineBuilder(fBmLayer, palette, "RippleRing")
                 // Oscillating radial scale
                 .addPolarTransform(RadialScaleTransform(
-                    scalar(Sine(
-                        ConstantPhaseVelocity(q16_frac(1, 8)),
-                        ConstantRawQ16_16(RawQ16_16(1500))))))
+                    sine(
+                        constant(boundedScalar(1, 8)),
+                        constant(BoundedScalar(1500)))))
                 // Mirror both axes (Cartesian symmetry before polar conversion)
                 .addCartesianTransform(MirrorTransform(true, true))
                 // Many petals
                 .addPolarTransform(KaleidoscopeTransform(8, false, false))
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 12)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 12),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 .build();
     }
 
@@ -285,18 +324,20 @@ namespace PolarShader {
                 // Tile domain
                 .addCartesianTransform(TilingTransform(1u << 17, 1u << 17))
                 // Break up with warp
-                .addCartesianTransform(NoiseWarpTransform(scalar(Constant(q16_frac(1, 32))),
-                                                          scalar(Constant(q16_frac(1, 32)))))
+                .addCartesianTransform(NoiseWarpTransform(
+                    constant(boundedScalar(9, 16)),
+                    constant(boundedScalar(9, 16))))
                 // Mirror X
                 .addCartesianTransform(MirrorTransform(true, false))
                 // Small bend
-                .addCartesianTransform(BendTransform(scalar(Constant(q16_frac(1, 96))),
-                                                     scalar(Constant(FracQ16_16(0)))))
+                .addCartesianTransform(BendTransform(
+                    constant(boundedScalar(2, 3)),
+                    constant(boundedScalar(1, 2))))
                 // Mandala
                 .addPolarTransform(KaleidoscopeTransform(6, true, true))
                 // Pincushion
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(-1, 96)))))
+                    constant(boundedScalar(11, 24))))
                 .build();
     }
 
@@ -305,17 +346,21 @@ namespace PolarShader {
         return PolarPipelineBuilder(noiseLayer, palette, "StutterPulse")
                 // Pulsed radius
                 .addPolarTransform(RadialScaleTransform(
-                    scalar(Pulse(
-                        ConstantPhaseVelocity(q16_frac(1, 4)),
-                        ConstantRawQ16_16(RawQ16_16(2500))))))
+                    pulse(
+                        constant(boundedScalar(1, 4)),
+                        constant(BoundedScalar(2500)))))
                 // Medium rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 2)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 2),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 // Symmetry
                 .addPolarTransform(KaleidoscopeTransform(5, false, true))
                 // Lens
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 80)))))
+                    constant(boundedScalar(11, 20))))
                 .build();
     }
 
@@ -324,16 +369,18 @@ namespace PolarShader {
         return PolarPipelineBuilder(fBmLayer, palette, "CurlFlowSmoke")
                 // Curl advection
                 .addCartesianTransform(CurlFlowTransform(
-                    scalar(Constant(q16_frac(1, 24))), 3))
+                    constant(boundedScalar(7, 12)),
+                    3))
                 // Additional warp
-                .addCartesianTransform(NoiseWarpTransform(scalar(Constant(q16_frac(1, 40))),
-                                                          scalar(Constant(q16_frac(1, 40)))))
+                .addCartesianTransform(NoiseWarpTransform(
+                    constant(boundedScalar(11, 20)),
+                    constant(boundedScalar(11, 20))))
                 // Twist
                 .addPolarTransform(VortexTransform(
-                    scalar(Constant(q16_frac(1, 80)))))
+                    constant(boundedScalar(81, 160))))
                 // Lens
                 .addPolarTransform(LensDistortionTransform(
-                    scalar(Constant(q16_frac(1, 96)))))
+                    constant(boundedScalar(13, 24))))
                 .build();
     }
 
@@ -342,15 +389,20 @@ namespace PolarShader {
         return PolarPipelineBuilder(noiseLayer, palette, "PerspectiveDepth")
                 // Perspective scale
                 .addCartesianTransform(PerspectiveWarpTransform(
-                    scalar(Constant(q16_frac(1, 12)))))
+                    constant(boundedScalar(2, 3))))
                 // Slight shear
-                .addCartesianTransform(ShearTransform(scalar(Constant(q16_frac(1, 14))),
-                                                      scalar(Constant(FracQ16_16(0)))))
+                .addCartesianTransform(ShearTransform(
+                    constant(boundedScalar(9, 14)),
+                    constant(boundedScalar(1, 2))))
                 // Symmetry
                 .addPolarTransform(KaleidoscopeTransform(4, false, true))
                 // Slow spin
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 10)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 10),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 .build();
     }
 
@@ -361,10 +413,14 @@ namespace PolarShader {
                 .addPolarTransform(PosterizePolarTransform(12, 6))
                 // Twist
                 .addPolarTransform(VortexTransform(
-                    scalar(Constant(q16_frac(1, 40)))))
+                    constant(boundedScalar(41, 80))))
                 // Rotation
                 .addPolarTransform(RotationTransform(
-                    angular(AngleUnitsQ0_16(0), ConstantPhaseVelocity(q16_frac(1, 6)))))
+                    BoundedAngularModulator(
+                        BoundedAngle(0),
+                        constant(bound(unboundedScalar(1, 6),
+                                       BoundedAngularModulator::SPEED_MIN,
+                                       BoundedAngularModulator::SPEED_MAX)))))
                 .build();
     }
 
@@ -377,7 +433,7 @@ namespace PolarShader {
                 .addCartesianTransform(TileJitterTransform(
                     1u << 17,
                     1u << 17,
-                    scalar(Constant(FracQ16_16(1024))) // constant amplitude via signal
+                    constant(boundedScalar(1, 1)) // constant amplitude via signal
                 ))
                 // Mandala fold
                 .addPolarTransform(KaleidoscopeTransform(5, true, true))

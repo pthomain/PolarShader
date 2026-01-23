@@ -27,9 +27,9 @@ namespace PolarShader {
 
     PolarLayer PosterizePolarTransform::operator()(const PolarLayer &layer) const {
         return [angleBins = this->angleBins, radiusBins = this->radiusBins, layer](
-            AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
-            AngleTurnsUQ16_16 ang = angle_q16;
-            RadiusQ0_16 rad = radius;
+            UnboundedAngle angle_q16, BoundedScalar radius) {
+            UnboundedAngle ang = angle_q16;
+            BoundedScalar rad = radius;
 
             if (angleBins > 1) {
                 uint32_t binWidth = static_cast<uint32_t>(PHASE_FULL_TURN / angleBins);
@@ -39,7 +39,7 @@ namespace PolarShader {
                 uint32_t binWidth = static_cast<uint32_t>(FRACT_Q0_16_MAX) / (radiusBins - 1);
                 uint32_t r = raw(radius);
                 uint32_t quant = (r / binWidth) * binWidth;
-                rad = RadiusQ0_16(static_cast<uint16_t>(quant));
+                rad = BoundedScalar(static_cast<uint16_t>(quant));
             }
 
             return layer(ang, rad);

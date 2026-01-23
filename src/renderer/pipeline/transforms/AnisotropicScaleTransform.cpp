@@ -19,30 +19,41 @@
  */
 
 #include "AnisotropicScaleTransform.h"
+#include <cstring>
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct AnisotropicScaleTransform::State {
-        ScalarMotion sxSignal;
-        ScalarMotion sySignal;
+    namespace {
+        constexpr UnboundedScalar kScaleMin = UnboundedScalar(0);
+        constexpr UnboundedScalar kScaleMax = UnboundedScalar(4);
+    }
 
-        State(ScalarMotion sx, ScalarMotion sy)
+    struct AnisotropicScaleTransform::State {
+        BoundedScalarSignal sxSignal;
+        BoundedScalarSignal sySignal;
+        UnboundedScalar sxValue = kScaleMin;
+        UnboundedScalar syValue = kScaleMin;
+
+        State(BoundedScalarSignal sx, BoundedScalarSignal sy)
             : sxSignal(std::move(sx)), sySignal(std::move(sy)) {
         }
     };
 
-    AnisotropicScaleTransform::AnisotropicScaleTransform(ScalarMotion sx, ScalarMotion sy)
+    AnisotropicScaleTransform::AnisotropicScaleTransform(BoundedScalarSignal sx,
+                                                         BoundedScalarSignal sy)
         : state(std::make_shared<State>(std::move(sx), std::move(sy))) {
     }
 
     void AnisotropicScaleTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->sxSignal.advanceFrame(timeInMillis);
-        state->sySignal.advanceFrame(timeInMillis);
+        state->sxValue = unbound(state->sxSignal(timeInMillis), kScaleMin, kScaleMax);
+        state->syValue = unbound(state->sySignal(timeInMillis), kScaleMin, kScaleMax);
     }
 
     CartesianLayer AnisotropicScaleTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            RawQ16_16 sx_raw = state->sxSignal.getRawValue();
-            RawQ16_16 sy_raw = state->sySignal.getRawValue();
+            RawQ16_16 sx_raw = RawQ16_16(state->sxValue.asRaw());
+            RawQ16_16 sy_raw = RawQ16_16(state->syValue.asRaw());
 
             int64_t scaledX = static_cast<int64_t>(x) * raw(sx_raw);
             int64_t scaledY = static_cast<int64_t>(y) * raw(sy_raw);

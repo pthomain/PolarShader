@@ -23,15 +23,15 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
      * Applies a shear (skew) to Cartesian coordinates: x' = x + kx*y, y' = y + ky*x.
-     * Shear coefficients are ScalarMotions (Q16.16), allowing animation. Wrap is explicit
+     * Shear coefficients are bounded modulators mapped to an internal range. Wrap is explicit
      * modulo 2^32 to mirror other domain warps.
      *
-     * Parameters: kx, ky (ScalarMotions, Q16.16).
+     * Parameters: kx, ky (BoundedScalarSignal, Q0.16).
      * Recommended order: early in the Cartesian chain, before other warps/tiling, so downstream transforms
      * see the skewed space.
      */
@@ -40,7 +40,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        ShearTransform(ScalarMotion kx, ScalarMotion ky);
+        ShearTransform(BoundedScalarSignal kx, BoundedScalarSignal ky);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

@@ -21,21 +21,28 @@
 #include "TileJitterTransform.h"
 #include <cstring>
 #include "FastLED.h"
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
+    namespace {
+        constexpr UnboundedScalar kJitterMin = UnboundedScalar(0);
+        constexpr UnboundedScalar kJitterMax = UnboundedScalar::fromRaw(Q16_16_ONE / 4);
+    }
 
-    TileJitterTransform::TileJitterTransform(uint32_t tileX, uint32_t tileY, ScalarMotion amplitude)
-        : tileX(tileX), tileY(tileY), amplitudeSignal(std::move(amplitude)) {
+    TileJitterTransform::TileJitterTransform(uint32_t tileX, uint32_t tileY, BoundedScalarSignal amplitude)
+        : tileX(tileX), tileY(tileY), amplitudeSignal(std::move(amplitude)), amplitudeValue(kJitterMin) {
     }
 
     void TileJitterTransform::advanceFrame(TimeMillis timeInMillis) {
-        amplitudeSignal.advanceFrame(timeInMillis);
+        amplitudeValue = unbound(amplitudeSignal(timeInMillis), kJitterMin, kJitterMax);
     }
 
     CartesianLayer TileJitterTransform::operator()(const CartesianLayer &layer) const {
-        return [tileX = this->tileX, tileY = this->tileY, ampSignal = this->amplitudeSignal, layer](int32_t x, int32_t y) mutable {
-            ampSignal.advanceFrame(0); // assumes caller advanced per frame; keep state in sync if reused
-            RawQ16_16 amp_raw = ampSignal.getRawValue();
+        return [tileX = this->tileX,
+                tileY = this->tileY,
+                amp_raw = RawQ16_16(this->amplitudeValue.asRaw()),
+                layer](int32_t x, int32_t y) {
             // Use floor division for signed coordinates to ensure continuous tile indices across 0.
             auto floor_div = [](int32_t val, uint32_t div) -> int32_t {
                 if (div == 0) return 0;

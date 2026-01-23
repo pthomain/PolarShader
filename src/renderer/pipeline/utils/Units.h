@@ -55,7 +55,7 @@ namespace PolarShader {
     struct AngleTurnsUQ16_16_Tag {
     };
 
-    struct RadiusQ0_16_Tag {
+    struct FracQ0_16_Tag {
     };
 
     struct NoiseRawU16_Tag {
@@ -101,7 +101,7 @@ namespace PolarShader {
     *
     *       It is modular: arithmetic wraps naturally at 16 bits.
     */
-    using AngleUnitsQ0_16 = Strong<uint16_t, AngleUnitsQ0_16_Tag>;
+    using BoundedAngle = Strong<uint16_t, AngleUnitsQ0_16_Tag>;
 
     /**
     *   A higher-resolution phase accumulator in AngleUnitsQ0_16 using unsigned Q16.16 semantics:
@@ -142,9 +142,9 @@ namespace PolarShader {
     *
     *   This is precisely the choke-point that must be correct in the pipeline.
     */
-    using AngleTurnsUQ16_16 = Strong<uint32_t, AngleTurnsUQ16_16_Tag>;
+    using UnboundedAngle = Strong<uint32_t, AngleTurnsUQ16_16_Tag>;
 
-    inline constexpr AngleTurnsUQ16_16 ANGLE_TURNS_ONE_TURN = AngleTurnsUQ16_16(Q16_16_ONE);
+    inline constexpr UnboundedAngle ANGLE_TURNS_ONE_TURN = UnboundedAngle(Q16_16_ONE);
 
     /**
     *   The output of sin16/cos16 in signed fixed-point Q1.15:
@@ -171,7 +171,7 @@ namespace PolarShader {
     *   • Key differences
     *
     *       Signed bipolar waveform centered at 0.
-    *       Different scaling from FracQ0_16 and from Q16.16 signals.
+    *       Different scaling from BoundedScalar and from Q16.16 signals.
     */
     using TrigQ1_15 = Strong<int16_t, TrigQ1_15_Tag>;
 
@@ -199,23 +199,7 @@ namespace PolarShader {
     *       Unsigned, non-negative, normalized.
     *       Often used with FastLED scale helpers and blends.
     */
-    using FracQ0_16 = fract16;
-
-    /**
-    *   A normalized radius in Q0.16 used exclusively for polar coordinates.
-    *
-    *       0x0000 = center
-    *       0xFFFF ≈ outer edge
-    *
-    *   • Where it is used:
-    *
-    *       - Polar layer radius inputs.
-    *
-    *   • Key property:
-    *
-    *       Distinguishes radius from other generic Q0.16 fractions.
-    */
-    using RadiusQ0_16 = Strong<uint16_t, RadiusQ0_16_Tag>;
+    using BoundedScalar = Strong<uint16_t, FracQ0_16_Tag>;
 
     /**
     *   A signed fixed-point scalar with:
@@ -248,7 +232,7 @@ namespace PolarShader {
     *       
     *       When you require modulo wrap semantics (use explicit wrap operations on raw, or unsigned types).
     */
-    using FracQ16_16 = SFix<16, 16>;
+    using UnboundedScalar = SFix<16, 16>;
 
     /**
     *   The underlying “raw bits” representation of a signed Q16.16 number.
@@ -270,7 +254,7 @@ namespace PolarShader {
     *
     *   • Key differences:
     *
-    *       Same numeric meaning as FracQ16_16, but without type safety.
+    *       Same numeric meaning as UnboundedScalar, but without type safety.
     *       Wrap/overflow behavior depends entirely on the operations you choose.
     */
     using RawQ16_16 = Strong<int32_t, RawQ16_16_Tag>;
@@ -323,75 +307,66 @@ namespace PolarShader {
     using TimeMillis = unsigned long; // Arduino millis()
 
     // --- Raw extractors (avoid generic templates). ---
-    constexpr uint16_t raw(AngleUnitsQ0_16 a) { return a.raw(); }
-    constexpr uint32_t raw(AngleTurnsUQ16_16 p) { return p.raw(); }
-    constexpr uint16_t raw(RadiusQ0_16 r) { return r.raw(); }
+    constexpr uint16_t raw(BoundedAngle a) { return a.raw(); }
+    constexpr uint32_t raw(UnboundedAngle p) { return p.raw(); }
+    constexpr uint16_t raw(BoundedScalar f) { return f.raw(); }
     constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
     constexpr uint16_t raw(NoiseNormU16 n) { return n.raw(); }
     constexpr int16_t raw(TrigQ1_15 t) { return t.raw(); }
     constexpr int32_t raw(RawQ16_16 v) { return v.raw(); }
 
     // --- Angle/phase promotion and sampling ---
-    constexpr AngleTurnsUQ16_16 angleUnitsToAngleTurns(AngleUnitsQ0_16 units) {
-        return AngleTurnsUQ16_16(static_cast<uint32_t>(raw(units)) << 16);
+    constexpr UnboundedAngle unbindAngle(BoundedAngle units) {
+        return UnboundedAngle(static_cast<uint32_t>(raw(units)) << 16);
     }
 
-    constexpr AngleUnitsQ0_16 angleTurnsToAngleUnits(AngleTurnsUQ16_16 turns) {
-        return AngleUnitsQ0_16(static_cast<uint16_t>(raw(turns) >> 16));
+    constexpr BoundedAngle bindAngle(UnboundedAngle turns) {
+        return BoundedAngle(static_cast<uint16_t>(raw(turns) >> 16));
     }
 
     // FastLED trig sampling helpers (explicit angle/phase conversions).
-    constexpr uint16_t toFastLedPhase(AngleUnitsQ0_16 a) { return raw(a); }
+    constexpr uint16_t toFastLedPhase(BoundedAngle a) { return raw(a); }
 
-    constexpr uint16_t toFastLedPhase(AngleTurnsUQ16_16 p) {
+    constexpr uint16_t toFastLedPhase(UnboundedAngle p) {
         return static_cast<uint16_t>(raw(p) >> 16);
     }
 
-    inline TrigQ1_15 sinQ1_15(AngleUnitsQ0_16 a) {
+    inline TrigQ1_15 sinQ1_15(BoundedAngle a) {
         return TrigQ1_15(sin16(toFastLedPhase(a)));
     }
 
-    inline TrigQ1_15 sinQ1_15(AngleTurnsUQ16_16 p) {
+    inline TrigQ1_15 sinQ1_15(UnboundedAngle p) {
         return TrigQ1_15(sin16(toFastLedPhase(p)));
     }
 
-    inline TrigQ1_15 cosQ1_15(AngleUnitsQ0_16 a) {
+    inline TrigQ1_15 cosQ1_15(BoundedAngle a) {
         return TrigQ1_15(cos16(toFastLedPhase(a)));
     }
 
-    inline TrigQ1_15 cosQ1_15(AngleTurnsUQ16_16 p) {
+    inline TrigQ1_15 cosQ1_15(UnboundedAngle p) {
         return TrigQ1_15(cos16(toFastLedPhase(p)));
     }
 
-    // --- Radius conversions ---
-    constexpr RadiusQ0_16 toRadiusQ0_16(FracQ0_16 f) {
-        return RadiusQ0_16(f);
-    }
-
-    constexpr FracQ0_16 toFracQ0_16(RadiusQ0_16 r) {
-        return raw(r);
-    }
-
     // --- Phase wrap arithmetic (mod 2^32) ---
-    constexpr AngleTurnsUQ16_16 wrapAdd(AngleTurnsUQ16_16 a, uint32_t delta) {
-        return AngleTurnsUQ16_16(raw(a) + delta);
+    constexpr UnboundedAngle wrapAdd(UnboundedAngle a, uint32_t delta) {
+        return UnboundedAngle(raw(a) + delta);
     }
 
     // Wrap-add using signed raw delta (Q16.16), interpreted via two's-complement.
-    constexpr AngleTurnsUQ16_16 wrapAddSigned(AngleTurnsUQ16_16 a, int32_t delta_raw_q16_16) {
-        return AngleTurnsUQ16_16(raw(a) + static_cast<uint32_t>(delta_raw_q16_16));
+    constexpr UnboundedAngle wrapAddSigned(UnboundedAngle a, int32_t delta_raw_q16_16) {
+        return UnboundedAngle(raw(a) + static_cast<uint32_t>(delta_raw_q16_16));
     }
 
     // --- Phase quantize/fold helpers ---
-    inline AngleTurnsUQ16_16 mulPhaseWrap(AngleTurnsUQ16_16 p, uint8_t k) {
-        return AngleTurnsUQ16_16(raw(p) * static_cast<uint32_t>(k));
+    inline UnboundedAngle mulPhaseWrap(UnboundedAngle p, uint8_t k) {
+        return UnboundedAngle(raw(p) * static_cast<uint32_t>(k));
     }
 
-    inline AngleTurnsUQ16_16 quantizePhase(AngleTurnsUQ16_16 p, uint32_t binWidth) {
+    inline UnboundedAngle quantizePhase(UnboundedAngle p, uint32_t binWidth) {
         if (binWidth == 0) return p;
         uint32_t v = raw(p);
         uint32_t q = static_cast<uint32_t>((static_cast<uint64_t>(v) / binWidth) * binWidth);
-        return AngleTurnsUQ16_16(q);
+        return UnboundedAngle(q);
     }
 }
 

@@ -23,14 +23,14 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
-     * Scales Cartesian coordinates independently on X and Y using Q16.16 scale factors
-     * (ScalarMotions). Wrap is modulo 2^32 to match other domain warps.
+     * Scales Cartesian coordinates independently on X and Y using Q16.16 scale factors.
+     * Inputs are bounded Q0.16 modulators mapped to an internal range.
      *
-     * Parameters: sx, sy (ScalarMotions, Q16.16).
+     * Parameters: sx, sy (BoundedScalarSignal, Q0.16).
      * Recommended order: early in Cartesian chain; combine with shear/tiling as needed before polar conversion.
      */
     class AnisotropicScaleTransform : public CartesianTransform {
@@ -38,7 +38,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        AnisotropicScaleTransform(ScalarMotion sx, ScalarMotion sy);
+        AnisotropicScaleTransform(BoundedScalarSignal sx, BoundedScalarSignal sy);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

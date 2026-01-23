@@ -23,14 +23,14 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/linear/LinearMotion.h"
+#include "renderer/pipeline/modulators/scalar/BoundedScalarModulator.h"
 
 namespace PolarShader {
     /**
      * Applies a simple Cartesian translation: (x, y) -> (x + dx, y + dy).
-     * Offsets are provided by a LinearMotion (Q16.16) and applied as full Q16.16 values.
+     * Offsets are provided by a BoundedScalarModulator (Q16.16) and applied as full Q16.16 values.
      *
-     * Parameters: offset (LinearMotion).
+     * Parameters: offset (BoundedScalarModulator).
      * Recommended order: early in the Cartesian chain before warps/tiling.
      */
     class TranslationTransform : public CartesianTransform {
@@ -38,7 +38,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        explicit TranslationTransform(LinearMotion offset);
+        explicit TranslationTransform(BoundedScalarModulator offset);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/angular/AngularMotion.h"
+#include "renderer/pipeline/modulators/angular/BoundedAngularModulator.h"
 
 namespace PolarShader {
     /**
@@ -33,7 +33,7 @@ namespace PolarShader {
      * Expects and returns PolarLayer phases in AngleTurnsUQ16_16 (AngleUnitsQ0_16 in high 16 bits).
      * Rotation signal is added full-resolution and wraps modulo 2^32. Negative velocities wrap via
      * unsigned addition.
-     * Parameters: AngularMotion rotation.
+     * Parameters: BoundedAngularModulator rotation.
      * Recommended order: after Cartesian → Polar conversion and before kaleidoscope/mandala folding
      * so symmetry uses the rotated frame.
      */
@@ -46,7 +46,7 @@ namespace PolarShader {
          * @brief Constructs a new RotationTransform.
          * @param rotation A signal that provides the rotation angle over time.
          */
-        explicit RotationTransform(AngularMotion rotation);
+        explicit RotationTransform(BoundedAngularModulator rotation);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

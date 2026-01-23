@@ -23,15 +23,16 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
      * Noise-weighted warp of Cartesian coordinates: x' = x + noise(x,y)*kx, y' = y + noise(x,y)*ky.
-     * Uses raw inoise16 deviation around midpoint; coefficients are ScalarMotions (Q16.16).
+     * Uses raw inoise16 deviation around midpoint; coefficients are bounded modulators mapped to
+     * an internal range.
      * Useful for smoke/liquid-like distortion. Wrap is explicit modulo 2^32.
      *
-     * Parameters: kx, ky (ScalarMotions, Q16.16).
+     * Parameters: kx, ky (BoundedScalarSignal, Q0.16).
      * Recommended order: apply to source coordinates before sampling noise or tiling to avoid self-warp feedback.
      */
     class NoiseWarpTransform : public CartesianTransform {
@@ -39,7 +40,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        NoiseWarpTransform(ScalarMotion kx, ScalarMotion ky);
+        NoiseWarpTransform(BoundedScalarSignal kx, BoundedScalarSignal ky);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

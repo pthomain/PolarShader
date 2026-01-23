@@ -23,13 +23,13 @@
 
 namespace PolarShader {
     struct TranslationTransform::State {
-        LinearMotion offsetSignal;
+        BoundedScalarModulator offsetSignal;
 
-        explicit State(LinearMotion offset)
+        explicit State(BoundedScalarModulator offset)
             : offsetSignal(std::move(offset)) {}
     };
 
-    TranslationTransform::TranslationTransform(LinearMotion offset)
+    TranslationTransform::TranslationTransform(BoundedScalarModulator offset)
         : state(std::make_shared<State>(std::move(offset))) {
     }
 

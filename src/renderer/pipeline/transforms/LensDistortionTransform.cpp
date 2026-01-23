@@ -19,26 +19,34 @@
  */
 
 #include "LensDistortionTransform.h"
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct LensDistortionTransform::State {
-        ScalarMotion kSignal;
+    namespace {
+        constexpr UnboundedScalar kDistortMin = UnboundedScalar::fromRaw(-static_cast<int32_t>(Q16_16_ONE / 8));
+        constexpr UnboundedScalar kDistortMax = UnboundedScalar::fromRaw(Q16_16_ONE / 8);
+    }
 
-        explicit State(ScalarMotion k) : kSignal(std::move(k)) {
+    struct LensDistortionTransform::State {
+        BoundedScalarSignal kSignal;
+        UnboundedScalar kValue = kDistortMin;
+
+        explicit State(BoundedScalarSignal k) : kSignal(std::move(k)) {
         }
     };
 
-    LensDistortionTransform::LensDistortionTransform(ScalarMotion k)
+    LensDistortionTransform::LensDistortionTransform(BoundedScalarSignal k)
         : state(std::make_shared<State>(std::move(k))) {
     }
 
     void LensDistortionTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->kSignal.advanceFrame(timeInMillis);
+        state->kValue = unbound(state->kSignal(timeInMillis), kDistortMin, kDistortMax);
     }
 
     PolarLayer LensDistortionTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
-            RawQ16_16 k_raw = state->kSignal.getRawValue(); // Q16.16
+        return [state = this->state, layer](UnboundedAngle angle_q16, BoundedScalar radius) {
+            RawQ16_16 k_raw = RawQ16_16(state->kValue.asRaw()); // Q16.16
             // factor = 1 + k * r
             int64_t factor_q16 = static_cast<int64_t>(Q16_16_ONE)
                                  + ((static_cast<int64_t>(raw(k_raw)) * raw(radius)) >> 16);
@@ -46,7 +54,7 @@ namespace PolarShader {
             scaled = (scaled + (1LL << 15)) >> 16; // round to Q16.16
             if (scaled < 0) scaled = 0;
             if (scaled > FRACT_Q0_16_MAX) scaled = FRACT_Q0_16_MAX;
-            RadiusQ0_16 r_out = RadiusQ0_16(static_cast<uint16_t>(scaled));
+            BoundedScalar r_out = BoundedScalar(static_cast<uint16_t>(scaled));
             return layer(angle_q16, r_out);
         };
     }

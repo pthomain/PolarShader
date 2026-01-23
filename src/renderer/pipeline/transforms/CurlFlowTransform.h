@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 #include "renderer/pipeline/utils/Units.h"
 
 namespace PolarShader {
@@ -31,7 +31,8 @@ namespace PolarShader {
      * Divergence-free (curl) flow advection: approximates a curl of a low-frequency noise field and
      * offsets Cartesian coordinates accordingly. Useful for fluid-like motion with stable density.
      *
-     * Parameters: amplitude (ScalarMotion, Q16.16), sampleShift (uint8, power-of-two divisor for sampling).
+     * Parameters: amplitude (BoundedScalarSignal, Q0.16) mapped to an internal range,
+     * sampleShift (uint8, power-of-two divisor for sampling).
      * Recommended order: early in Cartesian chain, before other warps/tiling, so downstream transforms
      * inherit the flow.
      */
@@ -40,7 +41,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        CurlFlowTransform(ScalarMotion amplitude, uint8_t sampleShift = 3);
+        CurlFlowTransform(BoundedScalarSignal amplitude, uint8_t sampleShift = 3);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

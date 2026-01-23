@@ -23,14 +23,15 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
      * Applies a simple perspective warp: scales coordinates by a factor based on Y (vanishing point).
      * x' = x * scale, y' = y * scale where scale = 1 / (1 + k * y). Clamp to avoid divide-by-zero.
      *
-     * Parameters: k (ScalarMotion, Q16.16). Positive k pulls far Y inward; negative pushes outward.
+     * Parameters: k (BoundedScalarSignal, Q0.16) mapped to an internal range.
+     * Positive k pulls far Y inward; negative pushes outward.
      * Recommended order: after base Cartesian warps (shear/scale), before tiling/mirroring or polar conversion.
      */
     class PerspectiveWarpTransform : public CartesianTransform {
@@ -38,7 +39,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        explicit PerspectiveWarpTransform(ScalarMotion k);
+        explicit PerspectiveWarpTransform(BoundedScalarSignal k);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

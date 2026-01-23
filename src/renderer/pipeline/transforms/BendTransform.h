@@ -23,14 +23,15 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 
 namespace PolarShader {
     /**
      * Applies a simple bend/curve to Cartesian coordinates: x' = x + k * y^2 (and/or y' = y + k' * x^2).
-     * Bend coefficients are ScalarMotions (Q16.16). Inputs are clamped to int32; wraps modulo 2^32.
+     * Bend coefficients are bounded modulators mapped to an internal range. Inputs are clamped to int32;
+     * wraps modulo 2^32.
      *
-     * Parameters: kx, ky (ScalarMotions, Q16.16).
+     * Parameters: kx, ky (BoundedScalarSignal, Q0.16).
      * Recommended order: after basic scale/shear, before polar conversion, to impose curvature on the domain.
      */
     class BendTransform : public CartesianTransform {
@@ -38,7 +39,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        BendTransform(ScalarMotion kx, ScalarMotion ky);
+        BendTransform(BoundedScalarSignal kx, BoundedScalarSignal ky);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

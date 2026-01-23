@@ -23,7 +23,7 @@
 
 #include <memory>
 #include "base/Transforms.h"
-#include "renderer/pipeline/signals/motion/scalar/ScalarMotion.h"
+#include "../modulators/signals/ScalarSignals.h"
 #include "renderer/pipeline/utils/Units.h"
 
 namespace PolarShader {
@@ -31,7 +31,7 @@ namespace PolarShader {
      * Barrel/pincushion lens distortion on polar radius: r' = r * (1 + k * r), clamped to [0..FRACT_MAX].
      * Positive k produces barrel (expands outer radii), negative k produces pincushion (pulls in outer radii).
      *
-     * Parameters: k (ScalarMotion, Q16.16).
+     * Parameters: k (BoundedScalarSignal, Q0.16) mapped to an internal range.
      * Recommended order: in polar chain before kaleidoscope/mandala so symmetry sees the distorted radius.
      */
     class LensDistortionTransform : public PolarTransform {
@@ -39,7 +39,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        explicit LensDistortionTransform(ScalarMotion k);
+        explicit LensDistortionTransform(BoundedScalarSignal k);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

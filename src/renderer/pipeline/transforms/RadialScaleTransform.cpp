@@ -19,26 +19,35 @@
  */
 
 #include "RadialScaleTransform.h"
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct RadialScaleTransform::State {
-        ScalarMotion kSignal;
+    namespace {
+        constexpr UnboundedScalar kScaleMin = UnboundedScalar::fromRaw(-static_cast<int32_t>(Q16_16_ONE / 2));
+        constexpr UnboundedScalar kScaleMax = UnboundedScalar::fromRaw(Q16_16_ONE / 2);
+    }
 
-        explicit State(ScalarMotion k) : kSignal(std::move(k)) {
+    struct RadialScaleTransform::State {
+        BoundedAngleSignal kSignal;
+        UnboundedScalar kValue = kScaleMin;
+
+        explicit State(BoundedAngleSignal k) : kSignal(std::move(k)) {
         }
     };
 
-    RadialScaleTransform::RadialScaleTransform(ScalarMotion k)
+    RadialScaleTransform::RadialScaleTransform(BoundedAngleSignal k)
         : state(std::make_shared<State>(std::move(k))) {
     }
 
     void RadialScaleTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->kSignal.advanceFrame(timeInMillis);
+        BoundedScalar k_bounded = BoundedScalar(raw(state->kSignal(timeInMillis)));
+        state->kValue = unbound(k_bounded, kScaleMin, kScaleMax);
     }
 
     PolarLayer RadialScaleTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](AngleTurnsUQ16_16 angle_q16, RadiusQ0_16 radius) {
-            RawQ16_16 k_raw = state->kSignal.getRawValue();
+        return [state = this->state, layer](UnboundedAngle angle_q16, BoundedScalar radius) {
+            RawQ16_16 k_raw = RawQ16_16(state->kValue.asRaw());
 
             int64_t delta = (static_cast<int64_t>(raw(k_raw)) * static_cast<int64_t>(raw(radius))) >> 16;
             int64_t new_radius = static_cast<int64_t>(raw(radius)) + delta;
@@ -46,7 +55,7 @@ namespace PolarShader {
             if (new_radius < 0) new_radius = 0;
             if (new_radius > FRACT_Q0_16_MAX) new_radius = FRACT_Q0_16_MAX;
 
-            RadiusQ0_16 r_out = RadiusQ0_16(static_cast<uint16_t>(new_radius));
+            BoundedScalar r_out = BoundedScalar(static_cast<uint16_t>(new_radius));
             return layer(angle_q16, r_out);
         };
     }

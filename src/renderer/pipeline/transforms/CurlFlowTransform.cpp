@@ -21,23 +21,31 @@
 #include "CurlFlowTransform.h"
 #include <cstring>
 #include "FastLED.h"
+#include "../modulators/BoundUtils.h"
+#include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
-    struct CurlFlowTransform::State {
-        ScalarMotion amplitudeSignal;
-        uint8_t sampleShift;
+    namespace {
+        constexpr UnboundedScalar kAmpMin = UnboundedScalar::fromRaw(-static_cast<int32_t>(Q16_16_ONE / 4));
+        constexpr UnboundedScalar kAmpMax = UnboundedScalar::fromRaw(Q16_16_ONE / 4);
+    }
 
-        State(ScalarMotion amp, uint8_t shift)
+    struct CurlFlowTransform::State {
+        BoundedScalarSignal amplitudeSignal;
+        uint8_t sampleShift;
+        UnboundedScalar amplitudeValue = kAmpMin;
+
+        State(BoundedScalarSignal amp, uint8_t shift)
             : amplitudeSignal(std::move(amp)), sampleShift(shift) {
         }
     };
 
-    CurlFlowTransform::CurlFlowTransform(ScalarMotion amplitude, uint8_t sampleShift)
+    CurlFlowTransform::CurlFlowTransform(BoundedScalarSignal amplitude, uint8_t sampleShift)
         : state(std::make_shared<State>(std::move(amplitude), sampleShift)) {
     }
 
     void CurlFlowTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->amplitudeSignal.advanceFrame(timeInMillis);
+        state->amplitudeValue = unbound(state->amplitudeSignal(timeInMillis), kAmpMin, kAmpMax);
     }
 
     CartesianLayer CurlFlowTransform::operator()(const CartesianLayer &layer) const {
@@ -58,7 +66,7 @@ namespace PolarShader {
             int32_t grad_y = (n_y1 - n_y0); // approximate d/dy
 
             // curl = (grad_y, -grad_x)
-            RawQ16_16 amp = state->amplitudeSignal.getRawValue();
+            RawQ16_16 amp = RawQ16_16(state->amplitudeValue.asRaw());
             // Gradients are large (~±65535); scale them down before applying amp to avoid extreme warps.
             constexpr uint8_t GRAD_SCALE_SHIFT = 8; // damp gradient magnitude by 256
             int64_t offset_x = (static_cast<int64_t>(grad_y) * raw(amp)) >> (16 + GRAD_SCALE_SHIFT);

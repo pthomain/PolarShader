@@ -20,79 +20,34 @@
 
 #include "ZoomTransform.h"
 #include <cstring>
-#include "renderer/pipeline/signals/modulators/ScalarModulators.h"
-#include "renderer/pipeline/utils/FixMathUtils.h"
+#include "../modulators/BoundUtils.h"
 #include "renderer/pipeline/utils/MathUtils.h"
 
 namespace PolarShader {
+    namespace {
+        constexpr UnboundedScalar kZoomMin = UnboundedScalar::fromRaw(Q16_16_ONE >> 4); // 0.0625x
+        constexpr UnboundedScalar kZoomMax = UnboundedScalar::fromRaw(Q16_16_ONE); // 1.0x
+    }
+
     struct ZoomTransform::State {
-        ScalarMotion scaleSignal;
-        bool useOsc = false;
-        FracQ16_16 base;
-        FracQ16_16 amp;
-        FracQ16_16 phaseVel;
-        AngleTurnsUQ16_16 phase = AngleTurnsUQ16_16(0);
-        TimeMillis lastTime = 0;
-        bool hasLastTime = false;
+        BoundedScalarSignal scaleSignal;
+        UnboundedScalar scaleValue = kZoomMin;
 
-        explicit State(ScalarMotion s) : scaleSignal(std::move(s)) {
-        }
-
-        State(FracQ16_16 b, FracQ16_16 a, FracQ16_16 pv, AngleTurnsUQ16_16 p)
-            : scaleSignal(ScalarMotion(Constant(FracQ16_16(0)))),
-              useOsc(true),
-              base(b),
-              amp(a),
-              phaseVel(pv),
-              phase(p) {
+        explicit State(BoundedScalarSignal s) : scaleSignal(std::move(s)) {
         }
     };
 
-    ZoomTransform::ZoomTransform(ScalarMotion scale)
+    ZoomTransform::ZoomTransform(BoundedScalarSignal scale)
         : state(std::make_shared<State>(std::move(scale))) {
     }
 
-    ZoomTransform::ZoomTransform(FracQ16_16 base,
-                                 FracQ16_16 amplitude,
-                                 FracQ16_16 phaseVelocity,
-                                 AngleTurnsUQ16_16 initialPhase)
-        : state(std::make_shared<State>(base, amplitude, phaseVelocity, initialPhase)) {
-    }
-
     void ZoomTransform::advanceFrame(TimeMillis timeInMillis) {
-        if (!state->useOsc) {
-            state->scaleSignal.advanceFrame(timeInMillis);
-            return;
-        }
-        if (!state->hasLastTime) {
-            state->lastTime = timeInMillis;
-            state->hasLastTime = true;
-            return;
-        }
-        TimeMillis dt = timeInMillis - state->lastTime;
-        state->lastTime = timeInMillis;
-        FracQ16_16 dt_q16 = millisToQ16_16(dt);
-        RawQ16_16 advance = RawQ16_16(mul_q16_16_wrap(state->phaseVel, dt_q16).asRaw());
-        state->phase = wrapAddSigned(state->phase, raw(advance));
+        state->scaleValue = unbound(state->scaleSignal(timeInMillis), kZoomMin, kZoomMax);
     }
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            RawQ16_16 s_raw = RawQ16_16(0);
-            if (state->useOsc) {
-                AngleUnitsQ0_16 phase_sample = angleTurnsToAngleUnits(state->phase);
-                TrigQ1_15 sin_val = sinQ1_15(phase_sample);
-                FracQ16_16 delta = mulTrigQ1_15_SignalQ16_16(sin_val, state->amp);
-                int64_t scaled = state->base.asRaw() + delta.asRaw();
-                // clamp to safe zoom bounds
-                if (scaled < ZOOM_MIN.asRaw()) scaled = ZOOM_MIN.asRaw();
-                if (scaled > ZOOM_MAX.asRaw()) scaled = ZOOM_MAX.asRaw();
-                s_raw = RawQ16_16(static_cast<int32_t>(scaled));
-            } else {
-                s_raw = state->scaleSignal.getRawValue();
-                if (raw(s_raw) < ZOOM_MIN.asRaw()) s_raw = RawQ16_16(ZOOM_MIN.asRaw());
-                if (raw(s_raw) > ZOOM_MAX.asRaw()) s_raw = RawQ16_16(ZOOM_MAX.asRaw());
-            }
+            RawQ16_16 s_raw = RawQ16_16(state->scaleValue.asRaw());
             // Allow scale == 0 to collapse to origin; negative scales flip axes.
             int64_t sx = static_cast<int64_t>(x) * raw(s_raw);
             int64_t sy = static_cast<int64_t>(y) * raw(s_raw);
