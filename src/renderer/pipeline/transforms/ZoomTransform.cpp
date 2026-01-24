@@ -23,13 +23,13 @@
 
 namespace PolarShader {
     namespace {
-        constexpr ScalarQ0_16 kZoomMin = ScalarQ0_16(Q0_16_ONE >> 4); // 0.0625x
-        constexpr ScalarQ0_16 kZoomMax = ScalarQ0_16(Q0_16_MAX); // ~1.0x
+        constexpr SFracQ0_16 kZoomMin = SFracQ0_16(Q0_16_ONE >> 4); // 0.0625x
+        constexpr SFracQ0_16 kZoomMax = SFracQ0_16(Q0_16_MAX); // ~1.0x
     }
 
     struct ZoomTransform::State {
         FracQ0_16Signal scaleSignal;
-        ScalarQ0_16 scaleValue = kZoomMin;
+        SFracQ0_16 scaleValue = kZoomMin;
 
         explicit State(FracQ0_16Signal s) : scaleSignal(std::move(s)) {
         }

@@ -58,8 +58,8 @@ namespace PolarShader {
             deltaTime = clampDeltaTime(deltaTime);
             if (deltaTime == 0) return phase;
 
-            ScalarQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
-            ScalarQ0_16 phase_advance = scalarMulQ0_16Wrap(phaseVelocity(time), dt_q0_16);
+            SFracQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
+            SFracQ0_16 phase_advance = scalarMulQ0_16Wrap(phaseVelocity(time), dt_q0_16);
             phase = angleWrapAddSigned(phase, raw(phase_advance));
             return phase;
         }

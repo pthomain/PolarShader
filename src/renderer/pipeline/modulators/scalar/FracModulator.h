@@ -28,8 +28,8 @@
 namespace PolarShader {
     class FracModulator {
     public:
-        inline static const ScalarQ0_16 SPEED_MIN = ScalarQ0_16(0);
-        inline static const ScalarQ0_16 SPEED_MAX = ScalarQ0_16(Q0_16_MAX);
+        inline static const SFracQ0_16 SPEED_MIN = SFracQ0_16(0);
+        inline static const SFracQ0_16 SPEED_MAX = SFracQ0_16(Q0_16_MAX);
 
         FracModulator(const FracModulator &) = default;
 

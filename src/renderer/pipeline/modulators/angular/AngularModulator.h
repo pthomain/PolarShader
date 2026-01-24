@@ -27,8 +27,8 @@
 namespace PolarShader {
     class AngularModulator {
     public:
-        inline static const ScalarQ0_16 SPEED_MIN = ScalarQ0_16(Q0_16_MIN);
-        inline static const ScalarQ0_16 SPEED_MAX = ScalarQ0_16(Q0_16_MAX);
+        inline static const SFracQ0_16 SPEED_MIN = SFracQ0_16(Q0_16_MIN);
+        inline static const SFracQ0_16 SPEED_MAX = SFracQ0_16(Q0_16_MAX);
 
         AngularModulator(AngleQ0_16 initialPhase,
                          FracQ0_16Signal speed);

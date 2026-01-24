@@ -45,7 +45,7 @@ namespace PolarShader {
     ) {
         auto signal = createSignal( //TODO use existing mapper
             [phaseVelocity = std::move(phaseVelocity)](TimeMillis time) {
-                return ScalarQ0_16(raw(phaseVelocity(time)));
+                return SFracQ0_16(raw(phaseVelocity(time)));
             },
             std::move(amplitude),
             std::move(offset),
@@ -65,7 +65,7 @@ namespace PolarShader {
     ) {
         auto signal = createSignal(//TODO use existing mapper
             [phaseVelocity = std::move(phaseVelocity)](TimeMillis time) {
-                return ScalarQ0_16(raw(phaseVelocity(time)));
+                return SFracQ0_16(raw(phaseVelocity(time)));
             },
             std::move(amplitude),
             std::move(offset),

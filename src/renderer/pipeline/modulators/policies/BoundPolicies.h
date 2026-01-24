@@ -26,44 +26,44 @@
 namespace PolarShader {
 
     struct LinearPolicy {
-        static void apply(ScalarQ0_16 &, ScalarQ0_16 &) {
+        static void apply(SFracQ0_16 &, SFracQ0_16 &) {
         }
     };
 
     struct SaturatingClampPolicy {
-        static void apply(ScalarQ0_16 &position_x,
-                          ScalarQ0_16 &position_y,
+        static void apply(SFracQ0_16 &position_x,
+                          SFracQ0_16 &position_y,
                           int32_t dx_raw,
                           int32_t dy_raw);
     };
 
     struct WrapAddPolicy {
-        static void apply(ScalarQ0_16 &position_x,
-                          ScalarQ0_16 &position_y,
+        static void apply(SFracQ0_16 &position_x,
+                          SFracQ0_16 &position_y,
                           int32_t dx_raw,
                           int32_t dy_raw);
     };
 
     struct RadialClampPolicy {
-        ScalarQ0_16 max_radius;
+        SFracQ0_16 max_radius;
 
-        explicit RadialClampPolicy(ScalarQ0_16 maxRadius = ScalarQ0_16(0));
+        explicit RadialClampPolicy(SFracQ0_16 maxRadius = SFracQ0_16(0));
 
-        void apply(ScalarQ0_16 &position_x, ScalarQ0_16 &position_y) const;
+        void apply(SFracQ0_16 &position_x, SFracQ0_16 &position_y) const;
     };
 
     struct ClampPolicy {
-        ScalarQ0_16 min_val;
-        ScalarQ0_16 max_val;
+        SFracQ0_16 min_val;
+        SFracQ0_16 max_val;
 
         // Default: effectively unbounded.
         ClampPolicy();
 
         ClampPolicy(int32_t min, int32_t max);
 
-        ClampPolicy(ScalarQ0_16 min, ScalarQ0_16 max);
+        ClampPolicy(SFracQ0_16 min, SFracQ0_16 max);
 
-        void apply(ScalarQ0_16 &position, ScalarQ0_16 &velocity) const;
+        void apply(SFracQ0_16 &position, SFracQ0_16 &velocity) const;
     };
 
     struct WrapPolicy {
@@ -71,7 +71,7 @@ namespace PolarShader {
 
         explicit WrapPolicy(int32_t wrap = Q0_16_ONE);
 
-        void apply(ScalarQ0_16 &position, ScalarQ0_16 &) const;
+        void apply(SFracQ0_16 &position, SFracQ0_16 &) const;
     };
 
     struct AngleWrapPolicy {
