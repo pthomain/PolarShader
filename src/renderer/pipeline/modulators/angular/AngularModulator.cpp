@@ -23,10 +23,9 @@
 
 namespace PolarShader {
     AngularModulator::AngularModulator(
-        BoundedAngle initialPhase,
-        BoundedScalarSignal speed
-    ) : phase_accum(angleToPhase(initialPhase)),
-        phase(initialPhase),
+        AngleQ0_16 initialPhase,
+        FracQ0_16Signal speed
+    ) : phase(initialPhase),
         speed(std::move(speed)) {
     }
 
@@ -44,10 +43,9 @@ namespace PolarShader {
         deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
+        UnboundedScalar dt_q0_16 = timeMillisToScalar(deltaTime);
         UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
-        RawQ16_16 phase_advance = RawQ16_16(scalarMulQ16_16Wrap(speed_now, dt_q16).asRaw());
-        phase_accum = phaseWrapAddSigned(phase_accum, raw(phase_advance));
-        phase = phaseToAngle(phase_accum);
+        UnboundedScalar phase_advance = scalarMulQ0_16Wrap(speed_now, dt_q0_16);
+        phase = angleWrapAddSigned(phase, raw(phase_advance));
     }
 }

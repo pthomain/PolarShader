@@ -27,17 +27,16 @@ namespace PolarShader {
     // Represents the midpoint of a 16-bit unsigned integer range, often used for remapping.
     inline constexpr uint16_t U16_HALF = 0x8000;
 
-    // The maximum positive value for a Q1.15 signed integer, used in FastLED's trig functions.
-    inline constexpr int16_t TRIG_Q1_15_MAX = 32767;
+    // The maximum positive value for a Q0.16 signed integer stored in a 32-bit raw format.
+    inline constexpr int32_t Q0_16_MAX = (1 << 16) - 1;
+    inline constexpr int32_t Q0_16_MIN = -(1 << 16);
+    inline constexpr int32_t Q0_16_ONE = 1 << 16;
 
     // The maximum value for a Q0.16 unsigned fraction, representing the value closest to 1.0.
     inline constexpr uint16_t FRACT_Q0_16_MAX = 0xFFFF;
 
-    // Scalar 1.0 in Q16.16 fixed-point format.
-    inline constexpr uint32_t Q16_16_ONE = 1u << 16;
-
-    // A full revolution in the phase accumulator: angle units stored in the high 16 bits, wraps at 2^32.
-    inline constexpr uint64_t PHASE_FULL_TURN = 1ULL << 32;
+    // Full turn in the 16-bit angle domain.
+    inline constexpr uint32_t ANGLE_FULL_TURN_U32 = 1u << 16;
 
     // --- Angle domain constants (uint16_t) ---
     // The domain for 16-bit angle samples is [0..65535], where 65536 represents a full circle (the modulus).

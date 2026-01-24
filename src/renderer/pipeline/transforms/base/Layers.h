@@ -25,10 +25,10 @@
 #include <renderer/pipeline/units/Units.h>
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(UnboundedAngle, BoundedScalar)>;
+    using PolarLayer = fl::function<NoiseNormU16(AngleQ0_16, FracQ0_16)>;
     using CartesianLayer = fl::function<NoiseNormU16(int32_t, int32_t)>;
     using NoiseLayer = fl::function<NoiseNormU16(uint32_t, uint32_t)>;
-    using ColourLayer = fl::function<CRGB(UnboundedAngle, BoundedScalar)>;
+    using ColourLayer = fl::function<CRGB(AngleQ0_16, FracQ0_16)>;
 }
 
 #endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H

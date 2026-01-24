@@ -26,14 +26,12 @@
 #include "renderer/pipeline/units/ScalarUnits.h"
 
 namespace PolarShader {
-    // Phase stores angle units in the high 16 bits; trig sampling uses (phase >> 16). Callers must
-    // pass a promoted phase value; no auto-promotion happens here.
     fl::pair<int32_t, int32_t> polarToCartesian(
-        UnboundedAngle angle_phase,
-        BoundedScalar radius
+        AngleQ0_16 angle_turns,
+        FracQ0_16 radius
     );
 
-    fl::pair<UnboundedAngle, BoundedScalar> cartesianToPolar(
+    fl::pair<AngleQ0_16, FracQ0_16> cartesianToPolar(
         fl::i32 x,
         fl::i32 y
     );

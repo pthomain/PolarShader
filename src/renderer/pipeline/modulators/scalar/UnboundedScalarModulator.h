@@ -31,7 +31,7 @@ namespace PolarShader {
     class UnboundedScalarModulator {
     public:
         inline static const UnboundedScalar SPEED_MIN = UnboundedScalar(0);
-        inline static const UnboundedScalar SPEED_MAX = UnboundedScalar(2);
+        inline static const UnboundedScalar SPEED_MAX = UnboundedScalar(Q0_16_MAX);
 
         UnboundedScalarModulator(const UnboundedScalarModulator &) = default;
 
@@ -45,21 +45,18 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis timeInMillis);
 
-        int32_t getX() const { return static_cast<int32_t>(positionX.asRaw() >> 16); }
-        int32_t getY() const { return static_cast<int32_t>(positionY.asRaw() >> 16); }
-
-        RawQ16_16 getRawX() const { return RawQ16_16(positionX.asRaw()); }
-        RawQ16_16 getRawY() const { return RawQ16_16(positionY.asRaw()); }
+        int32_t getX() const { return raw(positionX); }
+        int32_t getY() const { return raw(positionY); }
 
         UnboundedScalarModulator(UnboundedScalar initialX,
                                  UnboundedScalar initialY,
-                                 BoundedScalarSignal speed,
-                                 BoundedAngleSignal direction);
+                                 FracQ0_16Signal speed,
+                                 AngleQ0_16Signal direction);
 
         UnboundedScalar positionX;
         UnboundedScalar positionY;
-        BoundedScalarSignal speed;
-        BoundedAngleSignal direction;
+        FracQ0_16Signal speed;
+        AngleQ0_16Signal direction;
         TimeMillis lastTime = 0;
         bool hasLastTime = false;
         WrapAddPolicy wrapPolicy;

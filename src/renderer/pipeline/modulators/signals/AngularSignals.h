@@ -27,79 +27,59 @@
 
 namespace PolarShader {
     /**
-     * @brief Time-indexed angular phase signal (turns in Q16.16).
-     *
-     * Use when:
-     * - You need a canonical phase that preserves fractional turns.
-     * - You will sample trig using UnboundedAngle overloads.
-     *
-     * Avoid when:
-     * - You only need a raw BoundedAngle; promote at the boundary instead.
+     * @brief Time-indexed angular signal bounded to AngleQ0_16.
      */
-    using UnboundedAngleSignal = fl::function<UnboundedAngle(TimeMillis)>;
+    using AngleQ0_16Signal = fl::function<AngleQ0_16(TimeMillis)>;
 
     /**
-     * @brief Time-indexed angular signal bounded to BoundedAngle.
+     * @brief Constant angular phase from AngleQ0_16.
      */
-    using BoundedAngleSignal = fl::function<BoundedAngle(TimeMillis)>;
-
-    /**
-     * @brief Constant angular phase.
-     */
-    inline UnboundedAngleSignal constant(UnboundedAngle phase) {
-        return [phase](TimeMillis) { return phase; };
-    }
-
-    /**
-     * @brief Constant angular phase from BoundedAngle.
-     */
-    inline BoundedAngleSignal constant(BoundedAngle angle) {
+    inline AngleQ0_16Signal constant(AngleQ0_16 angle) {
         return [angle](TimeMillis) { return angle; };
     }
 
-    inline BoundedAngleSignal sine(
-        BoundedScalarSignal phaseVelocity,
-        BoundedScalarSignal amplitude,
-        BoundedScalarSignal offset = constant(BoundedScalar(U16_HALF))
+    inline AngleQ0_16Signal sine(
+        FracQ0_16Signal phaseVelocity,
+        FracQ0_16Signal amplitude,
+        FracQ0_16Signal offset = constant(FracQ0_16(U16_HALF))
     ) {
         auto signal = createSignal( //TODO use existing mapper
             [phaseVelocity = std::move(phaseVelocity)](TimeMillis time) {
-                return UnboundedScalar::fromRaw(static_cast<int32_t>(raw(phaseVelocity(time))));
+                return UnboundedScalar(raw(phaseVelocity(time)));
             },
             std::move(amplitude),
             std::move(offset),
-            [](UnboundedAngle phase) -> TrigQ1_15 {
-                return angleSinQ1_15(phase);
+            [](AngleQ0_16 phase) -> TrigQ0_16 {
+                return angleSinQ0_16(phase);
             }
         );
         return [signal = std::move(signal)](TimeMillis time) {
-            return BoundedAngle(raw(signal(time)));
+            return AngleQ0_16(raw(signal(time)));
         };
     }
 
-    inline BoundedAngleSignal pulse(
-        BoundedScalarSignal phaseVelocity,
-        BoundedScalarSignal amplitude,
-        BoundedScalarSignal offset = constant(BoundedScalar(U16_HALF))
+    inline AngleQ0_16Signal pulse(
+        FracQ0_16Signal phaseVelocity,
+        FracQ0_16Signal amplitude,
+        FracQ0_16Signal offset = constant(FracQ0_16(U16_HALF))
     ) {
         auto signal = createSignal(//TODO use existing mapper
             [phaseVelocity = std::move(phaseVelocity)](TimeMillis time) {
-                return UnboundedScalar::fromRaw(static_cast<int32_t>(raw(phaseVelocity(time))));
+                return UnboundedScalar(raw(phaseVelocity(time)));
             },
             std::move(amplitude),
             std::move(offset),
-            [](UnboundedAngle phase) -> TrigQ1_15 {
-                BoundedAngle saw = phaseToAngle(phase);
-                uint16_t saw_raw = raw(saw);
+            [](AngleQ0_16 phase) -> TrigQ0_16 {
+                uint16_t saw_raw = raw(phase);
                 uint16_t pulse_raw = (saw_raw < HALF_TURN_U16)
                                          ? static_cast<uint16_t>(saw_raw << 1)
                                          : static_cast<uint16_t>((ANGLE_U16_MAX - saw_raw) << 1);
                 int16_t signedPulse = static_cast<int16_t>(static_cast<int32_t>(pulse_raw) - U16_HALF);
-                return TrigQ1_15(signedPulse);
+                return TrigQ0_16(static_cast<int32_t>(signedPulse) << 1);
             }
         );
         return [signal = std::move(signal)](TimeMillis time) {
-            return BoundedAngle(raw(signal(time)));
+            return AngleQ0_16(raw(signal(time)));
         };
     }
 }

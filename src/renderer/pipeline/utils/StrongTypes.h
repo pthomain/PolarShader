@@ -34,6 +34,9 @@ namespace PolarShader {
         friend constexpr bool operator==(Strong a, Strong b) { return a.v_ == b.v_; }
         friend constexpr bool operator!=(Strong a, Strong b) { return a.v_ != b.v_; }
         friend constexpr bool operator<(Strong a, Strong b) { return a.v_ < b.v_; }
+        friend constexpr bool operator>(Strong a, Strong b) { return a.v_ > b.v_; }
+        friend constexpr bool operator<=(Strong a, Strong b) { return a.v_ <= b.v_; }
+        friend constexpr bool operator>=(Strong a, Strong b) { return a.v_ >= b.v_; }
 
     private:
         Rep v_;

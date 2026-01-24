@@ -25,8 +25,8 @@ namespace PolarShader {
     UnboundedScalarModulator::UnboundedScalarModulator(
         UnboundedScalar initialX,
         UnboundedScalar initialY,
-        BoundedScalarSignal speed,
-        BoundedAngleSignal direction
+        FracQ0_16Signal speed,
+        AngleQ0_16Signal direction
     ) : positionX(initialX),
         positionY(initialY),
         speed(std::move(speed)),
@@ -46,15 +46,15 @@ namespace PolarShader {
         deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
+        UnboundedScalar dt_q0_16 = timeMillisToScalar(deltaTime);
         UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
 
-        UnboundedScalar distance = scalarMulQ16_16Sat(speed_now, dt_q16);
-        BoundedAngle phase = direction(timeInMillis);
-        TrigQ1_15 cos_val = angleCosQ1_15(phase);
-        TrigQ1_15 sin_val = angleSinQ1_15(phase);
-        int64_t dx_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), cos_val);
-        int64_t dy_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), sin_val);
+        UnboundedScalar distance = scalarMulQ0_16Sat(speed_now, dt_q0_16);
+        AngleQ0_16 phase = direction(timeInMillis);
+        TrigQ0_16 cos_val = angleCosQ0_16(phase);
+        TrigQ0_16 sin_val = angleSinQ0_16(phase);
+        int32_t dx_raw = scalarScaleQ0_16ByTrig(distance, cos_val);
+        int32_t dy_raw = scalarScaleQ0_16ByTrig(distance, sin_val);
 
         wrapPolicy.apply(positionX, positionY, dx_raw, dy_raw);
     }

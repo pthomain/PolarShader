@@ -33,10 +33,10 @@ namespace PolarShader {
      *
      * Use when:
      * - You need a value that changes over time (e.g., speed, amplitude, offsets).
-     * - The consumer expects Q16.16 fixed-point semantics.
+     * - The consumer expects signed Q0.16 semantics.
      *
      * Avoid when:
-     * - You need angular phase; use UnboundedAngleSignal instead.
+     * - You need angular phase; use AngleQ0_16Signal instead.
      * - You need per-frame stateful integration; use a modulator class instead.
      */
     using UnboundedScalarSignal = fl::function<UnboundedScalar(TimeMillis)>;
@@ -47,10 +47,10 @@ namespace PolarShader {
      * Use when:
      * - The consumer maps the output into its own min/max range.
      */
-    using BoundedScalarSignal = fl::function<BoundedScalar(TimeMillis)>;
+    using FracQ0_16Signal = fl::function<FracQ0_16(TimeMillis)>;
 
     /**
-     * @brief Constant scalar signal (Q16.16).
+     * @brief Constant scalar signal (Q0.16).
      */
     inline UnboundedScalarSignal constant(UnboundedScalar value) {
         return [value](TimeMillis) { return value; };
@@ -59,26 +59,26 @@ namespace PolarShader {
     /**
      * @brief Constant bounded scalar signal (Q0.16).
      */
-    inline BoundedScalarSignal constant(BoundedScalar value) {
+    inline FracQ0_16Signal constant(FracQ0_16 value) {
         return [value](TimeMillis) { return value; };
     }
 
-    inline BoundedScalarSignal noise(
-        BoundedScalarSignal phaseVelocity,
-        BoundedScalarSignal amplitude,
-        BoundedScalarSignal offset = constant(BoundedScalar(U16_HALF))
+    inline FracQ0_16Signal noise(
+        FracQ0_16Signal phaseVelocity,
+        FracQ0_16Signal amplitude,
+        FracQ0_16Signal offset = constant(FracQ0_16(U16_HALF))
     ) {
         return createSignal(
             [phaseVelocity = std::move(phaseVelocity)](TimeMillis time) {
-                return UnboundedScalar::fromRaw(static_cast<int32_t>(raw(phaseVelocity(time))));
+                return UnboundedScalar(raw(phaseVelocity(time)));
             },
             std::move(amplitude),
             std::move(offset),
-            [](UnboundedAngle phase) -> TrigQ1_15 {
+            [](AngleQ0_16 phase) -> TrigQ0_16 {
                 NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(phase)));
                 NoiseNormU16 normNoise = noiseNormaliseU16(rawNoise);
                 int16_t signedNoise = static_cast<int16_t>(static_cast<int32_t>(raw(normNoise)) - U16_HALF);
-                return TrigQ1_15(signedNoise);
+                return TrigQ0_16(static_cast<int32_t>(signedNoise) << 1);
             }
         );
     }

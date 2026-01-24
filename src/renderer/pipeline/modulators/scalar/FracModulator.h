@@ -21,44 +21,40 @@
 #ifndef POLAR_SHADER_PIPELINE_SIGNALS_MOTION_BOUNDED_SCALAR_MODULATOR_H
 #define POLAR_SHADER_PIPELINE_SIGNALS_MOTION_BOUNDED_SCALAR_MODULATOR_H
 
-#include "../signals/AngularSignals.h"
-#include "../signals/ScalarSignals.h"
+#include <renderer/pipeline/modulators/signals/AngularSignals.h>
+#include <renderer/pipeline/modulators/signals/ScalarSignals.h>
 #include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
-
-    class BoundedScalarModulator {
+    class FracModulator {
     public:
         inline static const UnboundedScalar SPEED_MIN = UnboundedScalar(0);
-        inline static const UnboundedScalar SPEED_MAX = UnboundedScalar(2);
+        inline static const UnboundedScalar SPEED_MAX = UnboundedScalar(Q0_16_MAX);
 
-        BoundedScalarModulator(const BoundedScalarModulator &) = default;
+        FracModulator(const FracModulator &) = default;
 
-        BoundedScalarModulator &operator=(const BoundedScalarModulator &) = default;
+        FracModulator &operator=(const FracModulator &) = default;
 
-        BoundedScalarModulator(BoundedScalarModulator &&) = default;
+        FracModulator(FracModulator &&) = default;
 
-        BoundedScalarModulator &operator=(BoundedScalarModulator &&) = default;
+        FracModulator &operator=(FracModulator &&) = default;
 
-        ~BoundedScalarModulator() = default;
+        ~FracModulator() = default;
 
         void advanceFrame(TimeMillis timeInMillis);
 
         int32_t getX() const { return raw(positionX); }
         int32_t getY() const { return raw(positionY); }
 
-        RawQ16_16 getRawX() const { return RawQ16_16(raw(positionX)); }
-        RawQ16_16 getRawY() const { return RawQ16_16(raw(positionY)); }
+        FracModulator(FracQ0_16 initialX,
+                      FracQ0_16 initialY,
+                      FracQ0_16Signal speed,
+                      AngleQ0_16Signal direction);
 
-        BoundedScalarModulator(BoundedScalar initialX,
-                               BoundedScalar initialY,
-                               BoundedScalarSignal speed,
-                               BoundedAngleSignal direction);
-
-        BoundedScalar positionX;
-        BoundedScalar positionY;
-        BoundedScalarSignal speed;
-        BoundedAngleSignal direction;
+        FracQ0_16 positionX;
+        FracQ0_16 positionY;
+        FracQ0_16Signal speed;
+        AngleQ0_16Signal direction;
         TimeMillis lastTime = 0;
         bool hasLastTime = false;
     };

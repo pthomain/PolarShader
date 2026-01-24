@@ -28,61 +28,49 @@
 
 namespace PolarShader {
     // Applies a Q0.16 scale to an int32 raw value (units are caller-defined).
-    fl::i32 scalarScaleByBounded(fl::i32 value, BoundedScalar scale);
+    fl::i32 scalarScaleByBounded(fl::i32 value, FracQ0_16 scale);
 
-    UnboundedScalar scalarMulQ16_16Sat(UnboundedScalar a, UnboundedScalar b);
+    UnboundedScalar scalarMulQ0_16Sat(UnboundedScalar a, UnboundedScalar b);
 
-    UnboundedScalar scalarMulQ16_16Wrap(UnboundedScalar a, UnboundedScalar b);
-
-    RawQ16_16 scalarAddWrapQ16_16(RawQ16_16 a, RawQ16_16 b);
+    UnboundedScalar scalarMulQ0_16Wrap(UnboundedScalar a, UnboundedScalar b);
 
     uint16_t scalarSqrtU32(uint32_t value);
 
     uint64_t scalarSqrtU64(uint64_t value);
 
-    int64_t scalarScaleQ16_16ByTrig(RawQ16_16 magnitude, TrigQ1_15 trig_q1_15);
+    int32_t scalarScaleQ0_16ByTrig(UnboundedScalar magnitude, TrigQ0_16 trig_q0_16);
 
-    UnboundedScalar scalarClampQ16_16Raw(int64_t raw_value);
-
-    /**
-     * @brief Create a Q16.16 value from a rational fraction without floating point.
-     */
-    // constexpr UnboundedScalar scalarFromRatioUnbounded(int32_t num, uint32_t den) {
-    //     if (den == 0) return UnboundedScalar(0);
-    //     return UnboundedScalar::fromRaw(
-    //         static_cast<int32_t>((static_cast<int64_t>(num) << 16) / static_cast<int64_t>(den))
-    //     );
-    // }
+    UnboundedScalar scalarClampQ0_16Raw(int64_t raw_value);
 
     /**
      * @brief Create a Q0.16 bounded scalar from a rational fraction without floating point.
      */
-    constexpr BoundedScalar boundedFrac(uint32_t numerator, uint32_t denominator) {
-        if (numerator == 0 || denominator == 0) return BoundedScalar(0);
+    constexpr FracQ0_16 fracQ0_16(uint32_t numerator, uint32_t denominator) {
+        if (numerator == 0 || denominator == 0) return FracQ0_16(0);
         uint64_t raw_value = (static_cast<uint64_t>(FRACT_Q0_16_MAX) * numerator) / denominator;
         if (raw_value > FRACT_Q0_16_MAX) raw_value = FRACT_Q0_16_MAX;
-        return BoundedScalar(static_cast<uint16_t>(raw_value));
+        return FracQ0_16(static_cast<uint16_t>(raw_value));
     }
 
-    constexpr BoundedScalar boundedFrac(uint32_t denominator) {
-        return boundedFrac(1u, denominator);
+    constexpr FracQ0_16 fracQ0_16(uint32_t denominator) {
+        return fracQ0_16(1u, denominator);
     }
 
-    constexpr BoundedScalar boundedPerMil(uint16_t perMil) {
-        if (perMil == 0) return BoundedScalar(0);
+    constexpr FracQ0_16 boundedPerMil(uint16_t perMil) {
+        if (perMil == 0) return FracQ0_16(0);
         uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * perMil) / 1000);
-        return BoundedScalar(static_cast<uint16_t>(raw_value));
+        return FracQ0_16(static_cast<uint16_t>(raw_value));
     }
 
     /**
      * @brief Map a bounded scalar into an unbounded scalar range.
      */
-    UnboundedScalar unbound(BoundedScalar t, UnboundedScalar min_val, UnboundedScalar max_val);
+    UnboundedScalar unbound(FracQ0_16 t, UnboundedScalar min_val, UnboundedScalar max_val);
 
     /**
      * @brief Map an unbounded scalar into a bounded scalar range.
      */
-    BoundedScalar bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val);
+    FracQ0_16 bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val);
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_SCALARMATHS_H

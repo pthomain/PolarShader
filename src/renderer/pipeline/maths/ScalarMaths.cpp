@@ -19,64 +19,40 @@
  */
 
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include <climits>
-#include <cstring>
 
 namespace PolarShader {
     namespace {
-        template<typename T>
-        constexpr T clamp_val(T v, T lo, T hi) {
-            return (v < lo) ? lo : (v > hi ? hi : v);
-        }
-
-        inline int64_t clamp_raw_i64(int64_t value) {
-            if (value > INT32_MAX) return INT32_MAX;
-            if (value < INT32_MIN) return INT32_MIN;
+        int64_t clamp_raw_q0_16_i64(int64_t value) {
+            if (value > Q0_16_MAX) return Q0_16_MAX;
+            if (value < Q0_16_MIN) return Q0_16_MIN;
             return value;
         }
     } // namespace
 
-    fl::i32 scalarScaleByBounded(fl::i32 value, BoundedScalar scale) {
+    fl::i32 scalarScaleByBounded(fl::i32 value, FracQ0_16 scale) {
         uint16_t scale_raw = raw(scale);
         if (scale_raw == FRACT_Q0_16_MAX) return value;
         int64_t result = static_cast<int64_t>(value) * static_cast<int64_t>(scale_raw);
         result += (result >= 0) ? U16_HALF : -U16_HALF;
         result >>= 16;
-        result = clamp_val(result, static_cast<int64_t>(INT32_MIN), static_cast<int64_t>(INT32_MAX));
+        result = clamp_raw_q0_16_i64(result);
         return static_cast<int32_t>(result);
     }
 
-    UnboundedScalar scalarMulQ16_16Sat(UnboundedScalar a, UnboundedScalar b) {
-        // Straight Q16.16 multiply with rounding and saturation.
-        int64_t result = static_cast<int64_t>(a.asRaw()) * static_cast<int64_t>(b.asRaw());
+    UnboundedScalar scalarMulQ0_16Sat(UnboundedScalar a, UnboundedScalar b) {
+        // Straight Q0.16 multiply with rounding and saturation.
+        int64_t result = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
         result += (result >= 0) ? U16_HALF : -U16_HALF;
         result >>= 16;
-        result = clamp_val(result, static_cast<int64_t>(INT32_MIN), static_cast<int64_t>(INT32_MAX));
-        return UnboundedScalar::fromRaw(static_cast<int32_t>(result));
+        result = clamp_raw_q0_16_i64(result);
+        return UnboundedScalar(static_cast<int32_t>(result));
     }
 
-    UnboundedScalar scalarMulQ16_16Wrap(UnboundedScalar a, UnboundedScalar b) {
-        int64_t result_i64 = (int64_t) a.asRaw() * (int64_t) b.asRaw();
-        // Arithmetic shift right is implementation-defined for negatives; make it explicit by adding a bias
-        // before shifting to mirror two's-complement behaviour.
+    UnboundedScalar scalarMulQ0_16Wrap(UnboundedScalar a, UnboundedScalar b) {
+        int64_t result_i64 = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
         result_i64 += (result_i64 >= 0) ? (1LL << 15) : -(1LL << 15);
         result_i64 >>= 16;
-
-        // Use memcpy for a well-defined, portable bit-cast from uint32_t to int32_t,
-        // preserving modulo-2^32 wrap. Interpretation of negative values assumes two's complement
-        // (true on our targets).
-        uint32_t result_u32 = static_cast<uint32_t>(result_i64);
-        int32_t final_result;
-        memcpy(&final_result, &result_u32, sizeof(final_result));
-
-        return UnboundedScalar::fromRaw(final_result);
-    }
-
-    RawQ16_16 scalarAddWrapQ16_16(RawQ16_16 a, RawQ16_16 b) {
-        uint32_t sum = static_cast<uint32_t>(raw(a)) + static_cast<uint32_t>(raw(b));
-        int32_t signed_sum;
-        memcpy(&signed_sum, &sum, sizeof(signed_sum));
-        return RawQ16_16(signed_sum);
+        return UnboundedScalar(static_cast<int32_t>(result_i64));
     }
 
     uint16_t scalarSqrtU32(uint32_t value) {
@@ -123,41 +99,42 @@ namespace PolarShader {
         return res;
     }
 
-    int64_t scalarScaleQ16_16ByTrig(RawQ16_16 magnitude, TrigQ1_15 trig_q1_15) {
-        int64_t result = static_cast<int64_t>(raw(magnitude)) * static_cast<int64_t>(raw(trig_q1_15));
-        result += (result >= 0) ? (1LL << 14) : -(1LL << 14);
-        result >>= 15; // Q16.16 * Q1.15 => Q17.31 -> Q16.16
-        return result;
+    int32_t scalarScaleQ0_16ByTrig(UnboundedScalar magnitude, TrigQ0_16 trig_q0_16) {
+        int64_t result = static_cast<int64_t>(raw(magnitude)) * static_cast<int64_t>(raw(trig_q0_16));
+        result += (result >= 0) ? U16_HALF : -U16_HALF;
+        result >>= 16; // Q0.16 * Q0.16 => Q0.16
+        result = clamp_raw_q0_16_i64(result);
+        return static_cast<int32_t>(result);
     }
 
-    UnboundedScalar scalarClampQ16_16Raw(int64_t raw_value) {
-        return UnboundedScalar::fromRaw(static_cast<int32_t>(clamp_raw_i64(raw_value)));
+    UnboundedScalar scalarClampQ0_16Raw(int64_t raw_value) {
+        return UnboundedScalar(static_cast<int32_t>(clamp_raw_q0_16_i64(raw_value)));
     }
 
-    UnboundedScalar unbound(BoundedScalar t, UnboundedScalar min_val, UnboundedScalar max_val) {
-        int64_t min_raw = min_val.asRaw();
-        int64_t max_raw = max_val.asRaw();
+    UnboundedScalar unbound(FracQ0_16 t, UnboundedScalar min_val, UnboundedScalar max_val) {
+        int64_t min_raw = raw(min_val);
+        int64_t max_raw = raw(max_val);
         int64_t span = max_raw - min_raw;
         if (span <= 0) return min_val;
 
         uint32_t t_raw = raw(t);
         int64_t scaled = (span * static_cast<int64_t>(t_raw)) >> 16;
-        return scalarClampQ16_16Raw(min_raw + scaled);
+        return scalarClampQ0_16Raw(min_raw + scaled);
     }
 
-    BoundedScalar bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val) {
-        int64_t min_raw = min_val.asRaw();
-        int64_t max_raw = max_val.asRaw();
+    FracQ0_16 bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val) {
+        int64_t min_raw = raw(min_val);
+        int64_t max_raw = raw(max_val);
         int64_t span = max_raw - min_raw;
-        if (span <= 0) return BoundedScalar(0);
+        if (span <= 0) return FracQ0_16(0);
 
-        int64_t val_raw = value.asRaw();
+        int64_t val_raw = raw(value);
         if (val_raw < min_raw) val_raw = min_raw;
         if (val_raw > max_raw) val_raw = max_raw;
 
         uint64_t num = static_cast<uint64_t>(val_raw - min_raw) << 16;
         uint64_t t = num / static_cast<uint64_t>(span);
         if (t > 0xFFFFu) t = 0xFFFFu;
-        return BoundedScalar(static_cast<uint16_t>(t));
+        return FracQ0_16(static_cast<uint16_t>(t));
     }
 }

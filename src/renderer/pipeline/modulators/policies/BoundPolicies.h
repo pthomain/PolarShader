@@ -33,15 +33,15 @@ namespace PolarShader {
     struct SaturatingClampPolicy {
         static void apply(UnboundedScalar &position_x,
                           UnboundedScalar &position_y,
-                          int64_t dx_raw,
-                          int64_t dy_raw);
+                          int32_t dx_raw,
+                          int32_t dy_raw);
     };
 
     struct WrapAddPolicy {
         static void apply(UnboundedScalar &position_x,
                           UnboundedScalar &position_y,
-                          int64_t dx_raw,
-                          int64_t dy_raw);
+                          int32_t dx_raw,
+                          int32_t dy_raw);
     };
 
     struct RadialClampPolicy {
@@ -69,13 +69,13 @@ namespace PolarShader {
     struct WrapPolicy {
         int32_t wrap_units;
 
-        explicit WrapPolicy(int32_t wrap = 65536);
+        explicit WrapPolicy(int32_t wrap = Q0_16_ONE);
 
         void apply(UnboundedScalar &position, UnboundedScalar &) const;
     };
 
     struct AngleWrapPolicy {
-        static void apply(UnboundedAngle &phase, RawQ16_16 phase_advance);
+        static void apply(AngleQ0_16 &phase, int32_t phase_advance_raw);
     };
 }
 

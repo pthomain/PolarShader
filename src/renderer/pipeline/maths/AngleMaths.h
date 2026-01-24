@@ -25,44 +25,24 @@
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    TrigQ1_15 angleSinQ1_15(BoundedAngle a);
+    TrigQ0_16 angleSinQ0_16(AngleQ0_16 a);
 
-    TrigQ1_15 angleSinQ1_15(UnboundedAngle p);
+    TrigQ0_16 angleCosQ0_16(AngleQ0_16 a);
 
-    TrigQ1_15 angleCosQ1_15(BoundedAngle a);
+    AngleQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x);
 
-    TrigQ1_15 angleCosQ1_15(UnboundedAngle p);
-
-    BoundedAngle angleAtan2TurnsApprox(int16_t y, int16_t x);
-
-    /**
-     * @brief Create a bounded angle from a rational fraction without floating point.
-     */
-    constexpr BoundedAngle angleFromRatioBounded(uint32_t num, uint32_t den) {
-        if (den == 0) return BoundedAngle(0);
-        uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(num) * FRACT_Q0_16_MAX) / den);
-        return BoundedAngle(static_cast<uint16_t>(raw_value));
+    constexpr AngleQ0_16 angleFrac(uint32_t denominator) {
+        if (denominator == 0) return AngleQ0_16(0);
+        return AngleQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(ANGLE_FULL_TURN_U32)) / denominator));
     }
 
-    /**
-     * @brief Create an unbounded angle (Q16.16 turns) from a rational fraction without floating point.
-     */
-    constexpr BoundedAngle angleFrac(uint32_t denominator) {
-        if (denominator == 0) return BoundedAngle(0);
-        return BoundedAngle(static_cast<uint32_t>((static_cast<uint64_t>(1) << 16) / denominator));
-    }
-
-    constexpr BoundedAngle angleFrac360(uint16_t angleDegrees) {
-        if (angleDegrees == 0) return BoundedAngle(0);
-        return BoundedAngle(static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * angleDegrees) / 360));
+    constexpr AngleQ0_16 angleFrac360(uint16_t angleDegrees) {
+        if (angleDegrees == 0) return AngleQ0_16(0);
+        return AngleQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * angleDegrees) / 360));
     }
 
     // FastLED trig sampling helpers (explicit angle/phase conversions).
-    constexpr uint16_t angleToFastLedPhase(BoundedAngle a) { return raw(a); }
-
-    constexpr uint16_t angleToFastLedPhase(UnboundedAngle p) {
-        return static_cast<uint16_t>(raw(p) >> 16);
-    }
+    constexpr uint16_t angleToFastLedPhase(AngleQ0_16 a) { return raw(a); }
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H

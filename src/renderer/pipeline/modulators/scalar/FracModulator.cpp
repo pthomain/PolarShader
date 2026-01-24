@@ -18,22 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "BoundedScalarModulator.h"
+#include "FracModulator.h"
 #include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
-    BoundedScalarModulator::BoundedScalarModulator(
-        BoundedScalar initialX,
-        BoundedScalar initialY,
-        BoundedScalarSignal speed,
-        BoundedAngleSignal direction
+    FracModulator::FracModulator(
+        FracQ0_16 initialX,
+        FracQ0_16 initialY,
+        FracQ0_16Signal speed,
+        AngleQ0_16Signal direction
     ) : positionX(initialX),
         positionY(initialY),
         speed(std::move(speed)),
         direction(std::move(direction)) {
     }
 
-    void BoundedScalarModulator::advanceFrame(TimeMillis timeInMillis) {
+    void FracModulator::advanceFrame(TimeMillis timeInMillis) {
         if (!hasLastTime) {
             lastTime = timeInMillis;
             hasLastTime = true;
@@ -46,21 +46,19 @@ namespace PolarShader {
         deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
+        UnboundedScalar dt_q0_16 = timeMillisToScalar(deltaTime);
         UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
 
-        UnboundedScalar distance = scalarMulQ16_16Sat(speed_now, dt_q16);
-        BoundedAngle phase = direction(timeInMillis);
-        TrigQ1_15 cos_val = angleCosQ1_15(phase);
-        TrigQ1_15 sin_val = angleSinQ1_15(phase);
-        int64_t dx_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), cos_val);
-        int64_t dy_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), sin_val);
+        UnboundedScalar distance = scalarMulQ0_16Sat(speed_now, dt_q0_16);
+        AngleQ0_16 phase = direction(timeInMillis);
+        TrigQ0_16 cos_val = angleCosQ0_16(phase);
+        TrigQ0_16 sin_val = angleSinQ0_16(phase);
+        int32_t dx_raw = scalarScaleQ0_16ByTrig(distance, cos_val);
+        int32_t dy_raw = scalarScaleQ0_16ByTrig(distance, sin_val);
 
-        int32_t dx_q16 = static_cast<int32_t>(dx_raw);
-        int32_t dy_q16 = static_cast<int32_t>(dy_raw);
-        uint32_t new_x = static_cast<uint32_t>(raw(positionX)) + static_cast<uint32_t>(dx_q16);
-        uint32_t new_y = static_cast<uint32_t>(raw(positionY)) + static_cast<uint32_t>(dy_q16);
-        positionX = BoundedScalar(static_cast<uint16_t>(new_x));
-        positionY = BoundedScalar(static_cast<uint16_t>(new_y));
+        int32_t new_x = static_cast<int32_t>(raw(positionX)) + dx_raw;
+        int32_t new_y = static_cast<int32_t>(raw(positionY)) + dy_raw;
+        positionX = FracQ0_16(static_cast<uint16_t>(new_x));
+        positionY = FracQ0_16(static_cast<uint16_t>(new_y));
     }
 }

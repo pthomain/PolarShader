@@ -19,24 +19,23 @@
  */
 
 #include "ZoomTransform.h"
-#include <cstring>
 #include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
     namespace {
-        constexpr UnboundedScalar kZoomMin = UnboundedScalar::fromRaw(Q16_16_ONE >> 4); // 0.0625x
-        constexpr UnboundedScalar kZoomMax = UnboundedScalar::fromRaw(Q16_16_ONE); // 1.0x
+        constexpr UnboundedScalar kZoomMin = UnboundedScalar(Q0_16_ONE >> 4); // 0.0625x
+        constexpr UnboundedScalar kZoomMax = UnboundedScalar(Q0_16_MAX); // ~1.0x
     }
 
     struct ZoomTransform::State {
-        BoundedScalarSignal scaleSignal;
+        FracQ0_16Signal scaleSignal;
         UnboundedScalar scaleValue = kZoomMin;
 
-        explicit State(BoundedScalarSignal s) : scaleSignal(std::move(s)) {
+        explicit State(FracQ0_16Signal s) : scaleSignal(std::move(s)) {
         }
     };
 
-    ZoomTransform::ZoomTransform(BoundedScalarSignal scale)
+    ZoomTransform::ZoomTransform(FracQ0_16Signal scale)
         : state(std::make_shared<State>(std::move(scale))) {
     }
 
@@ -46,18 +45,12 @@ namespace PolarShader {
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {
         return [state = this->state, layer](int32_t x, int32_t y) {
-            RawQ16_16 s_raw = RawQ16_16(state->scaleValue.asRaw());
             // Allow scale == 0 to collapse to origin; negative scales flip axes.
-            int64_t sx = static_cast<int64_t>(x) * raw(s_raw);
-            int64_t sy = static_cast<int64_t>(y) * raw(s_raw);
+            int64_t sx = static_cast<int64_t>(x) * static_cast<int64_t>(raw(state->scaleValue));
+            int64_t sy = static_cast<int64_t>(y) * static_cast<int64_t>(raw(state->scaleValue));
 
-            uint32_t wrappedX = static_cast<uint32_t>(sx >> 16);
-            uint32_t wrappedY = static_cast<uint32_t>(sy >> 16);
-
-            int32_t finalX;
-            int32_t finalY;
-            memcpy(&finalX, &wrappedX, sizeof(finalX));
-            memcpy(&finalY, &wrappedY, sizeof(finalY));
+            int32_t finalX = static_cast<int32_t>(sx >> 16);
+            int32_t finalY = static_cast<int32_t>(sy >> 16);
             return layer(finalX, finalY);
         };
     }

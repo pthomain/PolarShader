@@ -29,7 +29,7 @@ namespace PolarShader {
     inline constexpr uint16_t MILLIS_PER_SECOND = 1000;
 
     /**
-     * @brief Converts milliseconds to a Q16.16 fixed-point representation of seconds.
+     * @brief Converts milliseconds to a Q0.16 fixed-point representation of seconds.
      */
     inline UnboundedScalar timeMillisToScalar(TimeMillis millis) {
         // (millis / 1000) * 2^16
@@ -38,7 +38,7 @@ namespace PolarShader {
         // with rounding.
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
-        return UnboundedScalar::fromRaw(static_cast<int32_t>(dt_raw));
+        return UnboundedScalar(static_cast<int32_t>(dt_raw));
     }
 }
 

@@ -25,14 +25,13 @@
 #include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {
-    using PolarCoords = fl::pair<BoundedAngle, BoundedScalar>;
+    using PolarCoords = fl::pair<AngleQ0_16, FracQ0_16>;
     using PolarCoordsMapper = fl::function<PolarCoords(uint16_t pixelIndex)>;
 
     /**
-     * PolarRenderer builds a PolarPipeline from the current palette and renders using AngleTurnsUQ16_16 angles
-     * (AngleUnitsQ0_16 stored in the upper 16 bits). Callers must promote AngleUnitsQ0_16 -> AngleTurnsUQ16_16
-     * once before entering the pipeline. The pipeline assumes incoming noise layers already produce
-     * palette-ready intensities in [0..65535]; no normalization occurs past the source layer.
+     * PolarRenderer builds a PolarPipeline from the current palette and renders using 16-bit turn angles
+     * (Q0.16). The pipeline assumes incoming noise layers already produce palette-ready intensities in
+     * [0..65535]; no normalization occurs past the source layer.
      */
     class PolarRenderer {
         const PolarCoordsMapper coordsMapper;

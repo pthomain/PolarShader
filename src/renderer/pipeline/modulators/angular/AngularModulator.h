@@ -21,29 +21,26 @@
 #ifndef POLAR_SHADER_PIPELINE_SIGNALS_MOTION_ANGULAR_MODULATOR_H
 #define  POLAR_SHADER_PIPELINE_SIGNALS_MOTION_ANGULAR_MODULATOR_H
 
-#include "../signals/ScalarSignals.h"
+#include <renderer/pipeline/modulators/signals/ScalarSignals.h>
 #include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     class AngularModulator {
     public:
-        inline static const UnboundedScalar SPEED_MIN = UnboundedScalar(-1);
-        inline static const UnboundedScalar SPEED_MAX = UnboundedScalar(1);
+        inline static const UnboundedScalar SPEED_MIN = UnboundedScalar(Q0_16_MIN);
+        inline static const UnboundedScalar SPEED_MAX = UnboundedScalar(Q0_16_MAX);
 
-        AngularModulator(BoundedAngle initialPhase,
-                         BoundedScalarSignal speed);
+        AngularModulator(AngleQ0_16 initialPhase,
+                         FracQ0_16Signal speed);
 
         void advanceFrame(TimeMillis timeInMillis);
 
-        BoundedAngle getPhase() const { return phase; }
-
-        UnboundedAngle getPhaseAccum() const { return phase_accum; }
+        AngleQ0_16 getPhase() const { return phase; }
 
     private:
         // Delta-time is clamped using MAX_DELTA_TIME_MS; set to 0 to disable.
-        UnboundedAngle phase_accum = UnboundedAngle(0);
-        BoundedAngle phase = BoundedAngle(0);
-        BoundedScalarSignal speed;
+        AngleQ0_16 phase = AngleQ0_16(0);
+        FracQ0_16Signal speed;
         TimeMillis lastTime = 0;
         bool hasLastTime = false;
     };

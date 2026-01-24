@@ -28,24 +28,24 @@
 
 namespace PolarShader {
 
-    // PhaseAccumulator assumes modulo-2^32 wrap semantics and is only valid for angular/phase domains.
+    // PhaseAccumulator wraps in 16-bit turn space and is only valid for angular/phase domains.
     template<typename VelocitySignal>
     class PhaseAccumulator {
     public:
-        UnboundedAngle phase{0};
+        AngleQ0_16 phase{0};
         TimeMillis lastTime{0};
         bool hasLastTime{false};
-        // phaseVelocity returns signed turns-per-second in Q16.16.
+        // phaseVelocity returns signed turns-per-second in Q0.16.
         VelocitySignal phaseVelocity;
 
         explicit PhaseAccumulator(
             VelocitySignal velocity,
-            const UnboundedAngle initialPhase = UnboundedAngle(0)
+            const AngleQ0_16 initialPhase = AngleQ0_16(0)
         ) : phase(initialPhase),
             phaseVelocity(std::move(velocity)) {
         }
 
-        UnboundedAngle advance(TimeMillis time) {
+        AngleQ0_16 advance(TimeMillis time) {
             if (!hasLastTime) {
                 lastTime = time;
                 hasLastTime = true;
@@ -58,15 +58,15 @@ namespace PolarShader {
             deltaTime = clampDeltaTime(deltaTime);
             if (deltaTime == 0) return phase;
 
-            UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
-            RawQ16_16 phase_advance = RawQ16_16(scalarMulQ16_16Wrap(phaseVelocity(time), dt_q16).asRaw());
-            phase = phaseWrapAddSigned(phase, raw(phase_advance));
+            UnboundedScalar dt_q0_16 = timeMillisToScalar(deltaTime);
+            UnboundedScalar phase_advance = scalarMulQ0_16Wrap(phaseVelocity(time), dt_q0_16);
+            phase = angleWrapAddSigned(phase, raw(phase_advance));
             return phase;
         }
     };
 
     template<typename PhaseVelocitySignal, typename AmplitudeSignal, typename OffsetSignal, typename SampleFn>
-    fl::function<BoundedScalar(TimeMillis)> createSignal(
+    fl::function<FracQ0_16(TimeMillis)> createSignal(
         PhaseVelocitySignal phaseVelocity,
         AmplitudeSignal amplitude,
         OffsetSignal offset,
@@ -78,18 +78,19 @@ namespace PolarShader {
                     amplitude = std::move(amplitude),
                     offset = std::move(offset),
                     sample = std::move(sample)
-                ](TimeMillis time) mutable -> BoundedScalar {
-            UnboundedAngle phase = acc.advance(time);
-            TrigQ1_15 v = sample(phase);
+                ](TimeMillis time) mutable -> FracQ0_16 {
+            AngleQ0_16 phase = acc.advance(time);
+            TrigQ0_16 v = sample(phase);
 
-            uint16_t sample_u16 = static_cast<uint16_t>(static_cast<int32_t>(raw(v)) + 0x8000);
+            int32_t sample_raw = raw(v);
+            uint32_t sample_u16 = static_cast<uint32_t>((sample_raw + Q0_16_ONE) >> 1);
             uint32_t amp = raw(amplitude(time));
             uint32_t off = raw(offset(time));
 
-            uint32_t scaled = (static_cast<uint32_t>(sample_u16) * amp) >> 16;
+            uint32_t scaled = (sample_u16 * amp) >> 16;
             uint32_t sum = scaled + off;
             if (sum > 0xFFFFu) sum = 0xFFFFu;
-            return BoundedScalar(static_cast<uint16_t>(sum));
+            return FracQ0_16(static_cast<uint16_t>(sum));
         };
     }
 } // namespace PolarShader

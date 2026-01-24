@@ -23,24 +23,18 @@
 
 namespace PolarShader {
 
-    TrigQ1_15 angleSinQ1_15(BoundedAngle a) {
-        return TrigQ1_15(sin16(angleToFastLedPhase(a)));
+    TrigQ0_16 angleSinQ0_16(AngleQ0_16 a) {
+        int16_t raw_q1_15 = sin16(angleToFastLedPhase(a));
+        return TrigQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
-    TrigQ1_15 angleSinQ1_15(UnboundedAngle p) {
-        return TrigQ1_15(sin16(angleToFastLedPhase(p)));
+    TrigQ0_16 angleCosQ0_16(AngleQ0_16 a) {
+        int16_t raw_q1_15 = cos16(angleToFastLedPhase(a));
+        return TrigQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
-    TrigQ1_15 angleCosQ1_15(BoundedAngle a) {
-        return TrigQ1_15(cos16(angleToFastLedPhase(a)));
-    }
-
-    TrigQ1_15 angleCosQ1_15(UnboundedAngle p) {
-        return TrigQ1_15(cos16(angleToFastLedPhase(p)));
-    }
-
-    BoundedAngle angleAtan2TurnsApprox(int16_t y, int16_t x) {
-        if (x == 0 && y == 0) return BoundedAngle(0);
+    AngleQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x) {
+        if (x == 0 && y == 0) return AngleQ0_16(0);
 
         uint16_t abs_x = (x < 0) ? static_cast<uint16_t>(-x) : static_cast<uint16_t>(x);
         uint16_t abs_y = (y < 0) ? static_cast<uint16_t>(-y) : static_cast<uint16_t>(y);
@@ -49,9 +43,9 @@ namespace PolarShader {
         uint16_t min_val = (abs_x > abs_y) ? abs_y : abs_x;
 
         uint32_t z = (static_cast<uint32_t>(min_val) << 16) / max_val; // Q0.16
-        uint32_t one_minus_z = Q16_16_ONE - z;
+        uint32_t one_minus_z = ANGLE_FULL_TURN_U32 - z;
 
-        static constexpr uint32_t A_Q16 = Q16_16_ONE / 8; // 0.125 turns in Q0.16
+        static constexpr uint32_t A_Q16 = ANGLE_FULL_TURN_U32 / 8; // 0.125 turns in Q0.16
         static constexpr uint32_t B_Q16 = 2847u; // 0.04345 turns in Q0.16
 
         uint32_t inner = A_Q16 + ((B_Q16 * one_minus_z) >> 16);
@@ -62,9 +56,9 @@ namespace PolarShader {
             angle = HALF_TURN_U16 - angle;
         }
         if (y < 0) {
-            angle = Q16_16_ONE - angle;
+            angle = ANGLE_FULL_TURN_U32 - angle;
         }
 
-        return BoundedAngle(static_cast<uint16_t>(angle & ANGLE_U16_MAX));
+        return AngleQ0_16(static_cast<uint16_t>(angle & ANGLE_U16_MAX));
     }
 }
