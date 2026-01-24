@@ -26,8 +26,8 @@
 
 namespace PolarShader {
     void SaturatingClampPolicy::apply(
-        UnboundedScalar &position_x,
-        UnboundedScalar &position_y,
+        ScalarQ0_16 &position_x,
+        ScalarQ0_16 &position_y,
         int32_t dx_raw,
         int32_t dy_raw
     ) {
@@ -36,28 +36,28 @@ namespace PolarShader {
     }
 
     void WrapAddPolicy::apply(
-        UnboundedScalar &position_x,
-        UnboundedScalar &position_y,
+        ScalarQ0_16 &position_x,
+        ScalarQ0_16 &position_y,
         int32_t dx_raw,
         int32_t dy_raw
     ) {
         uint32_t sum_x = static_cast<uint32_t>(raw(position_x)) + static_cast<uint32_t>(dx_raw);
         uint32_t sum_y = static_cast<uint32_t>(raw(position_y)) + static_cast<uint32_t>(dy_raw);
-        position_x = UnboundedScalar(static_cast<int32_t>(sum_x));
-        position_y = UnboundedScalar(static_cast<int32_t>(sum_y));
+        position_x = ScalarQ0_16(static_cast<int32_t>(sum_x));
+        position_y = ScalarQ0_16(static_cast<int32_t>(sum_y));
     }
 
-    RadialClampPolicy::RadialClampPolicy(UnboundedScalar maxRadius)
+    RadialClampPolicy::RadialClampPolicy(ScalarQ0_16 maxRadius)
         : max_radius(maxRadius) {
     }
 
     void RadialClampPolicy::apply(
-        UnboundedScalar &position_x,
-        UnboundedScalar &position_y
+        ScalarQ0_16 &position_x,
+        ScalarQ0_16 &position_y
     ) const {
         if (raw(max_radius) <= 0) {
-            position_x = UnboundedScalar(0);
-            position_y = UnboundedScalar(0);
+            position_x = ScalarQ0_16(0);
+            position_y = ScalarQ0_16(0);
             return;
         }
 
@@ -88,8 +88,8 @@ namespace PolarShader {
 
         uint64_t dist = scalarSqrtU64(dist_sq);
         if (dist == 0) {
-            position_x = UnboundedScalar(0);
-            position_y = UnboundedScalar(0);
+            position_x = ScalarQ0_16(0);
+            position_y = ScalarQ0_16(0);
             return;
         }
 
@@ -108,23 +108,23 @@ namespace PolarShader {
     ClampPolicy::ClampPolicy(int32_t min, int32_t max) : min_val(min), max_val(max) {
     }
 
-    ClampPolicy::ClampPolicy(UnboundedScalar min, UnboundedScalar max) : min_val(min), max_val(max) {
+    ClampPolicy::ClampPolicy(ScalarQ0_16 min, ScalarQ0_16 max) : min_val(min), max_val(max) {
     }
 
-    void ClampPolicy::apply(UnboundedScalar &position, UnboundedScalar &velocity) const {
+    void ClampPolicy::apply(ScalarQ0_16 &position, ScalarQ0_16 &velocity) const {
         if (raw(position) < raw(min_val)) {
             position = min_val;
-            velocity = UnboundedScalar(0);
+            velocity = ScalarQ0_16(0);
         } else if (raw(position) > raw(max_val)) {
             position = max_val;
-            velocity = UnboundedScalar(0);
+            velocity = ScalarQ0_16(0);
         }
     }
 
     WrapPolicy::WrapPolicy(int32_t wrap) : wrap_units(wrap) {
     }
 
-    void WrapPolicy::apply(UnboundedScalar &position, UnboundedScalar &) const {
+    void WrapPolicy::apply(ScalarQ0_16 &position, ScalarQ0_16 &) const {
         if (wrap_units <= 0) return;
 
         const int64_t wrap_raw = wrap_units;
@@ -136,7 +136,7 @@ namespace PolarShader {
                 pos64 += wrap_raw;
             }
         }
-        position = UnboundedScalar(static_cast<int32_t>(pos64));
+        position = ScalarQ0_16(static_cast<int32_t>(pos64));
     }
 
     void AngleWrapPolicy::apply(AngleQ0_16 &phase, int32_t phase_advance_raw) {

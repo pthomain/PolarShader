@@ -41,11 +41,10 @@ namespace PolarShader {
         if (deltaTime == 0) return;
 
         deltaTime = clampDeltaTime(deltaTime);
-        if (deltaTime == 0) return;
 
-        UnboundedScalar dt_q0_16 = timeMillisToScalar(deltaTime);
-        UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
-        UnboundedScalar phase_advance = scalarMulQ0_16Wrap(speed_now, dt_q0_16);
+        ScalarQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
+        ScalarQ0_16 speed_now = toScalar(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
+        ScalarQ0_16 phase_advance = scalarMulQ0_16Wrap(speed_now, dt_q0_16);
         phase = angleWrapAddSigned(phase, raw(phase_advance));
     }
 }

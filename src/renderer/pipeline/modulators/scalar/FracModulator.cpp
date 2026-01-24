@@ -44,12 +44,11 @@ namespace PolarShader {
         if (deltaTime == 0) return;
 
         deltaTime = clampDeltaTime(deltaTime);
-        if (deltaTime == 0) return;
 
-        UnboundedScalar dt_q0_16 = timeMillisToScalar(deltaTime);
-        UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
+        ScalarQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
+        ScalarQ0_16 speed_now = toScalar(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
 
-        UnboundedScalar distance = scalarMulQ0_16Sat(speed_now, dt_q0_16);
+        ScalarQ0_16 distance = scalarMulQ0_16Sat(speed_now, dt_q0_16);
         AngleQ0_16 phase = direction(timeInMillis);
         TrigQ0_16 cos_val = angleCosQ0_16(phase);
         TrigQ0_16 sin_val = angleSinQ0_16(phase);

@@ -39,20 +39,20 @@ namespace PolarShader {
         return static_cast<int32_t>(result);
     }
 
-    UnboundedScalar scalarMulQ0_16Sat(UnboundedScalar a, UnboundedScalar b) {
+    ScalarQ0_16 scalarMulQ0_16Sat(ScalarQ0_16 a, ScalarQ0_16 b) {
         // Straight Q0.16 multiply with rounding and saturation.
         int64_t result = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
         result += (result >= 0) ? U16_HALF : -U16_HALF;
         result >>= 16;
         result = clamp_raw_q0_16_i64(result);
-        return UnboundedScalar(static_cast<int32_t>(result));
+        return ScalarQ0_16(static_cast<int32_t>(result));
     }
 
-    UnboundedScalar scalarMulQ0_16Wrap(UnboundedScalar a, UnboundedScalar b) {
+    ScalarQ0_16 scalarMulQ0_16Wrap(ScalarQ0_16 a, ScalarQ0_16 b) {
         int64_t result_i64 = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
         result_i64 += (result_i64 >= 0) ? (1LL << 15) : -(1LL << 15);
         result_i64 >>= 16;
-        return UnboundedScalar(static_cast<int32_t>(result_i64));
+        return ScalarQ0_16(static_cast<int32_t>(result_i64));
     }
 
     uint16_t scalarSqrtU32(uint32_t value) {
@@ -99,7 +99,7 @@ namespace PolarShader {
         return res;
     }
 
-    int32_t scalarScaleQ0_16ByTrig(UnboundedScalar magnitude, TrigQ0_16 trig_q0_16) {
+    int32_t scalarScaleQ0_16ByTrig(ScalarQ0_16 magnitude, TrigQ0_16 trig_q0_16) {
         int64_t result = static_cast<int64_t>(raw(magnitude)) * static_cast<int64_t>(raw(trig_q0_16));
         result += (result >= 0) ? U16_HALF : -U16_HALF;
         result >>= 16; // Q0.16 * Q0.16 => Q0.16
@@ -107,11 +107,11 @@ namespace PolarShader {
         return static_cast<int32_t>(result);
     }
 
-    UnboundedScalar scalarClampQ0_16Raw(int64_t raw_value) {
-        return UnboundedScalar(static_cast<int32_t>(clamp_raw_q0_16_i64(raw_value)));
+    ScalarQ0_16 scalarClampQ0_16Raw(int64_t raw_value) {
+        return ScalarQ0_16(static_cast<int32_t>(clamp_raw_q0_16_i64(raw_value)));
     }
 
-    UnboundedScalar unbound(FracQ0_16 t, UnboundedScalar min_val, UnboundedScalar max_val) {
+    ScalarQ0_16 toScalar(FracQ0_16 t, ScalarQ0_16 min_val, ScalarQ0_16 max_val) {
         int64_t min_raw = raw(min_val);
         int64_t max_raw = raw(max_val);
         int64_t span = max_raw - min_raw;
@@ -122,7 +122,7 @@ namespace PolarShader {
         return scalarClampQ0_16Raw(min_raw + scaled);
     }
 
-    FracQ0_16 bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val) {
+    FracQ0_16 toFrac(ScalarQ0_16 value, ScalarQ0_16 min_val, ScalarQ0_16 max_val) {
         int64_t min_raw = raw(min_val);
         int64_t max_raw = raw(max_val);
         int64_t span = max_raw - min_raw;

@@ -39,7 +39,7 @@ namespace PolarShader {
      * - You need angular phase; use AngleQ0_16Signal instead.
      * - You need per-frame stateful integration; use a modulator class instead.
      */
-    using UnboundedScalarSignal = fl::function<UnboundedScalar(TimeMillis)>;
+    using ScalarQ0_16Signal = fl::function<ScalarQ0_16(TimeMillis)>;
 
     /**
      * @brief Time-indexed scalar signal bounded to Q0.16.
@@ -52,7 +52,7 @@ namespace PolarShader {
     /**
      * @brief Constant scalar signal (Q0.16).
      */
-    inline UnboundedScalarSignal constant(UnboundedScalar value) {
+    inline ScalarQ0_16Signal constant(ScalarQ0_16 value) {
         return [value](TimeMillis) { return value; };
     }
 
@@ -70,7 +70,7 @@ namespace PolarShader {
     ) {
         return createSignal(
             [phaseVelocity = std::move(phaseVelocity)](TimeMillis time) {
-                return UnboundedScalar(raw(phaseVelocity(time)));
+                return ScalarQ0_16(raw(phaseVelocity(time)));
             },
             std::move(amplitude),
             std::move(offset),

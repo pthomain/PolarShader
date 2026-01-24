@@ -39,11 +39,11 @@ namespace PolarShader {
     /**
     *   Signed Q0.16 fixed-point scalar stored in a 32-bit raw value.
     */
-    using UnboundedScalar = Strong<int32_t, ScalarQ0_16_Tag>;
+    using ScalarQ0_16 = Strong<int32_t, ScalarQ0_16_Tag>;
 
     // --- Raw extractors ---
     constexpr uint16_t raw(FracQ0_16 f) { return f.raw(); }
-    constexpr int32_t raw(UnboundedScalar v) { return v.raw(); }
+    constexpr int32_t raw(ScalarQ0_16 v) { return v.raw(); }
 }
 
 #endif // POLAR_SHADER_PIPELINE_UNITS_SCALARUNITS_H

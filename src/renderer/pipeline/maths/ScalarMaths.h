@@ -30,33 +30,33 @@ namespace PolarShader {
     // Applies a Q0.16 scale to an int32 raw value (units are caller-defined).
     fl::i32 scalarScaleByBounded(fl::i32 value, FracQ0_16 scale);
 
-    UnboundedScalar scalarMulQ0_16Sat(UnboundedScalar a, UnboundedScalar b);
+    ScalarQ0_16 scalarMulQ0_16Sat(ScalarQ0_16 a, ScalarQ0_16 b);
 
-    UnboundedScalar scalarMulQ0_16Wrap(UnboundedScalar a, UnboundedScalar b);
+    ScalarQ0_16 scalarMulQ0_16Wrap(ScalarQ0_16 a, ScalarQ0_16 b);
 
     uint16_t scalarSqrtU32(uint32_t value);
 
     uint64_t scalarSqrtU64(uint64_t value);
 
-    int32_t scalarScaleQ0_16ByTrig(UnboundedScalar magnitude, TrigQ0_16 trig_q0_16);
+    int32_t scalarScaleQ0_16ByTrig(ScalarQ0_16 magnitude, TrigQ0_16 trig_q0_16);
 
-    UnboundedScalar scalarClampQ0_16Raw(int64_t raw_value);
+    ScalarQ0_16 scalarClampQ0_16Raw(int64_t raw_value);
 
     /**
      * @brief Create a Q0.16 bounded scalar from a rational fraction without floating point.
      */
-    constexpr FracQ0_16 fracQ0_16(uint32_t numerator, uint32_t denominator) {
+    constexpr FracQ0_16 frac(uint32_t numerator, uint32_t denominator) {
         if (numerator == 0 || denominator == 0) return FracQ0_16(0);
         uint64_t raw_value = (static_cast<uint64_t>(FRACT_Q0_16_MAX) * numerator) / denominator;
         if (raw_value > FRACT_Q0_16_MAX) raw_value = FRACT_Q0_16_MAX;
         return FracQ0_16(static_cast<uint16_t>(raw_value));
     }
 
-    constexpr FracQ0_16 fracQ0_16(uint32_t denominator) {
-        return fracQ0_16(1u, denominator);
+    constexpr FracQ0_16 frac(uint32_t denominator) {
+        return frac(1u, denominator);
     }
 
-    constexpr FracQ0_16 boundedPerMil(uint16_t perMil) {
+    constexpr FracQ0_16 perMil(uint16_t perMil) {
         if (perMil == 0) return FracQ0_16(0);
         uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * perMil) / 1000);
         return FracQ0_16(static_cast<uint16_t>(raw_value));
@@ -65,12 +65,12 @@ namespace PolarShader {
     /**
      * @brief Map a bounded scalar into an unbounded scalar range.
      */
-    UnboundedScalar unbound(FracQ0_16 t, UnboundedScalar min_val, UnboundedScalar max_val);
+    ScalarQ0_16 toScalar(FracQ0_16 t, ScalarQ0_16 min_val, ScalarQ0_16 max_val);
 
     /**
      * @brief Map an unbounded scalar into a bounded scalar range.
      */
-    FracQ0_16 bound(UnboundedScalar value, UnboundedScalar min_val, UnboundedScalar max_val);
+    FracQ0_16 toFrac(ScalarQ0_16 value, ScalarQ0_16 min_val, ScalarQ0_16 max_val);
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_SCALARMATHS_H

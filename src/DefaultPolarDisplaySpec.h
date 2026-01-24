@@ -71,7 +71,7 @@ namespace PolarShader {
                     uint32_t angle_raw = static_cast<uint32_t>(pixelInSegment) * angle_step_raw;
                     AngleQ0_16 angle(angle_raw & 0xFFFFu);
 
-                    FracQ0_16 radius = fracQ0_16(
+                    FracQ0_16 radius = frac(
                         segmentIndex,
                         NB_SEGMENTS > 1 ? NB_SEGMENTS - 1 : 1
                     );

@@ -23,13 +23,13 @@
 
 namespace PolarShader {
     namespace {
-        constexpr UnboundedScalar kZoomMin = UnboundedScalar(Q0_16_ONE >> 4); // 0.0625x
-        constexpr UnboundedScalar kZoomMax = UnboundedScalar(Q0_16_MAX); // ~1.0x
+        constexpr ScalarQ0_16 kZoomMin = ScalarQ0_16(Q0_16_ONE >> 4); // 0.0625x
+        constexpr ScalarQ0_16 kZoomMax = ScalarQ0_16(Q0_16_MAX); // ~1.0x
     }
 
     struct ZoomTransform::State {
         FracQ0_16Signal scaleSignal;
-        UnboundedScalar scaleValue = kZoomMin;
+        ScalarQ0_16 scaleValue = kZoomMin;
 
         explicit State(FracQ0_16Signal s) : scaleSignal(std::move(s)) {
         }
@@ -40,7 +40,7 @@ namespace PolarShader {
     }
 
     void ZoomTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->scaleValue = unbound(state->scaleSignal(timeInMillis), kZoomMin, kZoomMax);
+        state->scaleValue = toScalar(state->scaleSignal(timeInMillis), kZoomMin, kZoomMax);
     }
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {
