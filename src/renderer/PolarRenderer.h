@@ -21,11 +21,11 @@
 #ifndef POLAR_SHADER_POLAREFFECT_H
 #define POLAR_SHADER_POLAREFFECT_H
 
-#include <renderer/pipeline/utils/Units.h>
+#include <renderer/pipeline/units/Units.h>
 #include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {
-    using PolarCoords = fl::pair<uint16_t, fract16>;
+    using PolarCoords = fl::pair<BoundedAngle, BoundedScalar>;
     using PolarCoordsMapper = fl::function<PolarCoords(uint16_t pixelIndex)>;
 
     /**

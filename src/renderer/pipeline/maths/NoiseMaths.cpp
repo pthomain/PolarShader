@@ -18,17 +18,23 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-
-#include "FastLED.h"
-#include <renderer/pipeline/units/Units.h>
+#include "renderer/pipeline/maths/NoiseMaths.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(UnboundedAngle, BoundedScalar)>;
-    using CartesianLayer = fl::function<NoiseNormU16(int32_t, int32_t)>;
-    using NoiseLayer = fl::function<NoiseNormU16(uint32_t, uint32_t)>;
-    using ColourLayer = fl::function<CRGB(UnboundedAngle, BoundedScalar)>;
-}
+    namespace {
+        // These bounds are specific to the typical output of inoise16() and may
+        // need tuning if a different noise function is used.
+        constexpr uint16_t MIN_NOISE = 12000;
+        constexpr uint16_t MAX_NOISE = 54000;
+        constexpr uint16_t RANGE = MAX_NOISE - MIN_NOISE;
+    }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+    NoiseNormU16 noiseNormaliseU16(NoiseRawU16 value) {
+        uint16_t noise_raw = raw(value);
+        if (noise_raw <= MIN_NOISE) return NoiseNormU16(0);
+        if (noise_raw >= MAX_NOISE) return NoiseNormU16(FRACT_Q0_16_MAX);
+
+        uint32_t temp = static_cast<uint32_t>(noise_raw - MIN_NOISE) * FRACT_Q0_16_MAX;
+        return NoiseNormU16(static_cast<uint16_t>(temp / RANGE));
+    }
+}

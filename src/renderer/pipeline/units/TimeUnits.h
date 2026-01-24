@@ -18,20 +18,19 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_UNITS_TIMEUNITS_H
+#define POLAR_SHADER_PIPELINE_UNITS_TIMEUNITS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+namespace PolarShader {
+    // Time
+    using TimeMillis = unsigned long; // Arduino millis()
 
-static PolarDisplay *display = nullptr;
+    inline constexpr TimeMillis MAX_DELTA_TIME_MS = 200; // 0 disables delta-time clamping.
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+    inline TimeMillis clampDeltaTime(TimeMillis deltaTime) {
+        if (MAX_DELTA_TIME_MS == 0) return deltaTime;
+        return (deltaTime > MAX_DELTA_TIME_MS) ? MAX_DELTA_TIME_MS : deltaTime;
+    }
 }
 
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_UNITS_TIMEUNITS_H

@@ -19,8 +19,8 @@
  */
 
 #include "PolarPipeline.h"
-#include "utils/NoiseUtils.h"
-#include "utils/PolarUtils.h"
+#include "renderer/pipeline/maths/NoiseMaths.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
 #include <Arduino.h>
 #include "FastLED.h"
 
@@ -47,14 +47,14 @@ namespace PolarShader {
 
     PolarLayer PolarPipeline::toPolarLayer(const CartesianLayer &layer) {
         return [layer](UnboundedAngle angle_q16, BoundedScalar radius) {
-            auto [x, y] = cartesianCoords(angle_q16, radius);
+            auto [x, y] = polarToCartesian(angle_q16, radius);
             return layer(x, y);
         };
     }
 
     CartesianLayer PolarPipeline::toCartesianLayer(const PolarLayer &layer) {
         return [layer](int32_t x, int32_t y) {
-            auto [angle_q16, radius] = polarCoords(x, y);
+            auto [angle_q16, radius] = cartesianToPolar(x, y);
             return layer(angle_q16, radius);
         };
     }

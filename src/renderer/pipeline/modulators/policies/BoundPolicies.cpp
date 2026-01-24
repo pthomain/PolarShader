@@ -21,25 +21,25 @@
 #include "BoundPolicies.h"
 
 #include "FastLED.h"
-#include "renderer/pipeline/utils/MathUtils.h"
-#include "renderer/pipeline/utils/Units.h"
+#include "renderer/pipeline/maths/Maths.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     void SaturatingClampPolicy::apply(UnboundedScalar &position_x,
                                       UnboundedScalar &position_y,
                                       int64_t dx_raw,
                                       int64_t dy_raw) {
-        position_x = clamp_q16_16_raw(position_x.asRaw() + dx_raw);
-        position_y = clamp_q16_16_raw(position_y.asRaw() + dy_raw);
+        position_x = scalarClampQ16_16Raw(position_x.asRaw() + dx_raw);
+        position_y = scalarClampQ16_16Raw(position_y.asRaw() + dy_raw);
     }
 
     void WrapAddPolicy::apply(UnboundedScalar &position_x,
                               UnboundedScalar &position_y,
                               int64_t dx_raw,
                               int64_t dy_raw) {
-        RawQ16_16 new_x_raw = add_wrap_q16_16(RawQ16_16(position_x.asRaw()),
+        RawQ16_16 new_x_raw = scalarAddWrapQ16_16(RawQ16_16(position_x.asRaw()),
                                               RawQ16_16(static_cast<int32_t>(dx_raw)));
-        RawQ16_16 new_y_raw = add_wrap_q16_16(RawQ16_16(position_y.asRaw()),
+        RawQ16_16 new_y_raw = scalarAddWrapQ16_16(RawQ16_16(position_y.asRaw()),
                                               RawQ16_16(static_cast<int32_t>(dy_raw)));
         position_x = UnboundedScalar::fromRaw(raw(new_x_raw));
         position_y = UnboundedScalar::fromRaw(raw(new_y_raw));
@@ -81,7 +81,7 @@ namespace PolarShader {
             return;
         }
 
-        uint64_t dist = sqrt_u64(dist_sq);
+        uint64_t dist = scalarSqrtU64(dist_sq);
         if (dist == 0) {
             position_x = UnboundedScalar(0);
             position_y = UnboundedScalar(0);
@@ -93,8 +93,8 @@ namespace PolarShader {
         int64_t scaled_x = (position_x.asRaw() * static_cast<int64_t>(factor)) >> 16;
         int64_t scaled_y = (position_y.asRaw() * static_cast<int64_t>(factor)) >> 16;
 
-        position_x = clamp_q16_16_raw(scaled_x);
-        position_y = clamp_q16_16_raw(scaled_y);
+        position_x = scalarClampQ16_16Raw(scaled_x);
+        position_y = scalarClampQ16_16Raw(scaled_y);
     }
 
     ClampPolicy::ClampPolicy() : min_val(INT32_MIN), max_val(INT32_MAX) {
@@ -135,6 +135,6 @@ namespace PolarShader {
     }
 
     void AngleWrapPolicy::apply(UnboundedAngle &phase, RawQ16_16 phase_advance) {
-        phase = wrapAddSigned(phase, raw(phase_advance));
+        phase = phaseWrapAddSigned(phase, raw(phase_advance));
     }
 }

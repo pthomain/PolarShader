@@ -21,14 +21,13 @@
 #include "PolarRenderer.h"
 #include <utility>
 #include <renderer/pipeline/presets/Presets.h>
-#include <renderer/pipeline/utils/PolarUtils.h>
 
 namespace PolarShader {
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
         PolarCoordsMapper coordsMapper
     ) : coordsMapper(std::move(coordsMapper)),
-        pipeline(buildDefaultPreset(Rainbow_gp)),
+        pipeline(buildBarrelTunnelPreset(Rainbow_gp)),
         colourLayer(pipeline.build()),
         nbLeds(nbLeds) {
     }
@@ -42,7 +41,7 @@ namespace PolarShader {
             auto [angle_turns, radius_raw] = coordsMapper(pixelIndex);
             BoundedAngle angle_units(angle_turns);
             BoundedScalar radius = BoundedScalar(radius_raw);
-            UnboundedAngle angle_q16 = unbindAngle(angle_units);
+            UnboundedAngle angle_q16 = angleToPhase(angle_units);
             outputArray[pixelIndex] = colourLayer(angle_q16, radius);
         }
     }

@@ -18,20 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
+#define POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "FastLED.h"
+#include "renderer/pipeline/units/AngleUnits.h"
+#include "renderer/pipeline/units/ScalarUnits.h"
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    // Phase stores angle units in the high 16 bits; trig sampling uses (phase >> 16). Callers must
+    // pass a promoted phase value; no auto-promotion happens here.
+    fl::pair<int32_t, int32_t> polarToCartesian(
+        UnboundedAngle angle_phase,
+        BoundedScalar radius
+    );
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+    fl::pair<UnboundedAngle, BoundedScalar> cartesianToPolar(
+        fl::i32 x,
+        fl::i32 y
+    );
 }
 
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H

@@ -22,8 +22,9 @@
 #define POLAR_SHADER_PIPELINE_SIGNALS_MODULATORS_SCALARSIGNALS_H
 
 #include <utility>
-#include "renderer/pipeline/utils/NoiseUtils.h"
-#include "renderer/pipeline/utils/Units.h"
+#include "FastLED.h"
+#include "renderer/pipeline/maths/AngleMaths.h"
+#include "renderer/pipeline/maths/NoiseMaths.h"
 #include "PhaseAccumulator.h"
 
 namespace PolarShader {
@@ -74,8 +75,8 @@ namespace PolarShader {
             std::move(amplitude),
             std::move(offset),
             [](UnboundedAngle phase) -> TrigQ1_15 {
-                NoiseRawU16 rawNoise = NoiseRawU16(inoise16(toFastLedPhase(phase)));
-                NoiseNormU16 normNoise = normaliseNoise16(rawNoise);
+                NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(phase)));
+                NoiseNormU16 normNoise = noiseNormaliseU16(rawNoise);
                 int16_t signedNoise = static_cast<int16_t>(static_cast<int32_t>(raw(normNoise)) - U16_HALF);
                 return TrigQ1_15(signedNoise);
             }

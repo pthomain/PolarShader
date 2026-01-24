@@ -18,20 +18,19 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#define POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "renderer/pipeline/units/NoiseUnits.h"
+#include "renderer/pipeline/units/UnitConstants.h"
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+    /**
+     * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
+     */
+    NoiseNormU16 noiseNormaliseU16(NoiseRawU16 value);
 }
 
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H

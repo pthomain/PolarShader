@@ -18,27 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "UnboundedScalarModulator.h"
+#include "AngularModulator.h"
 #include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
-    UnboundedScalarModulator::UnboundedScalarModulator(
-        UnboundedScalar initialX,
-        UnboundedScalar initialY,
-        BoundedScalarSignal speed,
-        BoundedAngleSignal direction
-    ) : positionX(initialX),
-        positionY(initialY),
-        speed(std::move(speed)),
-        direction(std::move(direction)) {
+    AngularModulator::AngularModulator(
+        BoundedAngle initialPhase,
+        BoundedScalarSignal speed
+    ) : phase_accum(angleToPhase(initialPhase)),
+        phase(initialPhase),
+        speed(std::move(speed)) {
     }
 
-    void UnboundedScalarModulator::advanceFrame(TimeMillis timeInMillis) {
+    void AngularModulator::advanceFrame(TimeMillis timeInMillis) {
         if (!hasLastTime) {
             lastTime = timeInMillis;
             hasLastTime = true;
             return;
         }
+
         TimeMillis deltaTime = timeInMillis - lastTime;
         lastTime = timeInMillis;
         if (deltaTime == 0) return;
@@ -48,14 +46,8 @@ namespace PolarShader {
 
         UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
         UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
-
-        UnboundedScalar distance = scalarMulQ16_16Sat(speed_now, dt_q16);
-        BoundedAngle phase = direction(timeInMillis);
-        TrigQ1_15 cos_val = angleCosQ1_15(phase);
-        TrigQ1_15 sin_val = angleSinQ1_15(phase);
-        int64_t dx_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), cos_val);
-        int64_t dy_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), sin_val);
-
-        wrapPolicy.apply(positionX, positionY, dx_raw, dy_raw);
+        RawQ16_16 phase_advance = RawQ16_16(scalarMulQ16_16Wrap(speed_now, dt_q16).asRaw());
+        phase_accum = phaseWrapAddSigned(phase_accum, raw(phase_advance));
+        phase = phaseToAngle(phase_accum);
     }
 }

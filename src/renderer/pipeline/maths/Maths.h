@@ -18,20 +18,13 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_MATHS_MATHS_H
+#define POLAR_SHADER_PIPELINE_MATHS_MATHS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include "renderer/pipeline/maths/AngleMaths.h"
+#include "renderer/pipeline/maths/NoiseMaths.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
+#include "renderer/pipeline/maths/TimeMaths.h"
 
-static PolarDisplay *display = nullptr;
-
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
-}
-
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_MATHS_MATHS_H

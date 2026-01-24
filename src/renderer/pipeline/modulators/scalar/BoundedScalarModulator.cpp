@@ -19,9 +19,7 @@
  */
 
 #include "BoundedScalarModulator.h"
-#include "renderer/pipeline/modulators/BoundUtils.h"
-#include "renderer/pipeline/utils/MathUtils.h"
-#include "renderer/pipeline/utils/TimeUtils.h"
+#include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
     BoundedScalarModulator::BoundedScalarModulator(
@@ -48,15 +46,15 @@ namespace PolarShader {
         deltaTime = clampDeltaTime(deltaTime);
         if (deltaTime == 0) return;
 
-        UnboundedScalar dt_q16 = millisToUnboundedScalar(deltaTime);
+        UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
         UnboundedScalar speed_now = unbound(speed(timeInMillis), SPEED_MIN, SPEED_MAX);
 
-        UnboundedScalar distance = mul_q16_16_sat(speed_now, dt_q16);
+        UnboundedScalar distance = scalarMulQ16_16Sat(speed_now, dt_q16);
         BoundedAngle phase = direction(timeInMillis);
-        TrigQ1_15 cos_val = cosQ1_15(phase);
-        TrigQ1_15 sin_val = sinQ1_15(phase);
-        int64_t dx_raw = scale_q16_16_by_trig(RawQ16_16(distance.asRaw()), cos_val);
-        int64_t dy_raw = scale_q16_16_by_trig(RawQ16_16(distance.asRaw()), sin_val);
+        TrigQ1_15 cos_val = angleCosQ1_15(phase);
+        TrigQ1_15 sin_val = angleSinQ1_15(phase);
+        int64_t dx_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), cos_val);
+        int64_t dy_raw = scalarScaleQ16_16ByTrig(RawQ16_16(distance.asRaw()), sin_val);
 
         int32_t dx_q16 = static_cast<int32_t>(dx_raw);
         int32_t dy_q16 = static_cast<int32_t>(dy_raw);

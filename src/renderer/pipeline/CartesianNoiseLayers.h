@@ -21,15 +21,16 @@
 #ifndef POLAR_SHADER_PIPELINE_CARTESIANNOISELAYERS_H
 #define POLAR_SHADER_PIPELINE_CARTESIANNOISELAYERS_H
 
-#include "utils/NoiseUtils.h"
-#include "utils/Units.h"
+#include "FastLED.h"
+#include "renderer/pipeline/maths/NoiseMaths.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     // All Cartesian noise layers return 16-bit intensities in [0..65535] suitable for palette mapping.
     // noiseLayer/fBm normalize raw inoise16(); turbulence/ridged derive palette-ready intensities directly.
     inline NoiseNormU16 noiseLayer(uint32_t x, uint32_t y) {
         // Normalize once at the source so downstream layers/palette mapping can assume 0..65535.
-        return normaliseNoise16(NoiseRawU16(inoise16(x, y)));
+        return noiseNormaliseU16(NoiseRawU16(inoise16(x, y)));
     }
 
     inline NoiseNormU16 fBmLayer(uint32_t x, uint32_t y) {
@@ -37,7 +38,7 @@ namespace PolarShader {
         uint32_t r = 0;
         uint16_t amplitude = U16_HALF;
         for (int o = 0; o < octaves; o++) {
-            NoiseNormU16 n = normaliseNoise16(NoiseRawU16(inoise16(x, y)));
+            NoiseNormU16 n = noiseNormaliseU16(NoiseRawU16(inoise16(x, y)));
             r += (static_cast<uint32_t>(raw(n)) * amplitude) >> 16;
             x <<= 1;
             y <<= 1;

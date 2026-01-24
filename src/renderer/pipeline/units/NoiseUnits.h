@@ -18,20 +18,32 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H
+#define POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include <cstdint>
+#include "renderer/pipeline/utils/StrongTypes.h"
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    struct NoiseRawU16_Tag {
+    };
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance);
+    struct NoiseNormU16_Tag {
+    };
+
+    /**
+    *   The raw 16-bit output of FastLED's inoise16.
+    */
+    using NoiseRawU16 = Strong<uint16_t, NoiseRawU16_Tag>;
+
+    /**
+    *   A 16-bit value intended to represent noise mapped to the full 0..65535 domain.
+    */
+    using NoiseNormU16 = Strong<uint16_t, NoiseNormU16_Tag>;
+
+    // --- Raw extractors ---
+    constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
+    constexpr uint16_t raw(NoiseNormU16 n) { return n.raw(); }
 }
 
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H

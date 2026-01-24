@@ -23,7 +23,7 @@
 
 #include "../signals/AngularSignals.h"
 #include "../signals/ScalarSignals.h"
-#include "renderer/pipeline/utils/Units.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
 
@@ -44,11 +44,11 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis timeInMillis);
 
-        int32_t getX() const { return static_cast<int32_t>(raw(positionX)); }
-        int32_t getY() const { return static_cast<int32_t>(raw(positionY)); }
+        int32_t getX() const { return raw(positionX); }
+        int32_t getY() const { return raw(positionY); }
 
-        RawQ16_16 getRawX() const { return RawQ16_16(static_cast<int32_t>(raw(positionX))); }
-        RawQ16_16 getRawY() const { return RawQ16_16(static_cast<int32_t>(raw(positionY))); }
+        RawQ16_16 getRawX() const { return RawQ16_16(raw(positionX)); }
+        RawQ16_16 getRawY() const { return RawQ16_16(raw(positionY)); }
 
         BoundedScalarModulator(BoundedScalar initialX,
                                BoundedScalar initialY,

@@ -18,29 +18,37 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
+#ifndef POLAR_SHADER_PIPELINE_UNITS_SCALARUNITS_H
+#define POLAR_SHADER_PIPELINE_UNITS_SCALARUNITS_H
 
-#include "Layers.h"
-#include <renderer/pipeline/units/Units.h>
+#include <FixMath.h>
+#include "renderer/pipeline/utils/StrongTypes.h"
 
 namespace PolarShader {
-    class FrameTransform {
-    public:
-        virtual ~FrameTransform() = default;
-
-        virtual void advanceFrame(TimeMillis timeInMillis) {};
+    struct FracQ0_16_Tag {
     };
 
-    class CartesianTransform : public FrameTransform {
-    public:
-        virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
+    struct RawQ16_16_Tag {
     };
 
-    class PolarTransform : public FrameTransform {
-    public:
-        virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
-    };
+    /**
+    *   An unsigned fraction in Q0.16, typically interpreted as [0, 1).
+    */
+    using BoundedScalar = Strong<uint16_t, FracQ0_16_Tag>;
+
+    /**
+    *   Signed Q16.16 fixed-point scalar.
+    */
+    using UnboundedScalar = SFix<16, 16>;
+
+    /**
+    *   The underlying raw bits representation of a signed Q16.16 number.
+    */
+    using RawQ16_16 = Strong<int32_t, RawQ16_16_Tag>;
+
+    // --- Raw extractors ---
+    constexpr uint16_t raw(BoundedScalar f) { return f.raw(); }
+    constexpr int32_t raw(RawQ16_16 v) { return v.raw(); }
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
+#endif // POLAR_SHADER_PIPELINE_UNITS_SCALARUNITS_H

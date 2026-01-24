@@ -20,8 +20,7 @@
 
 #include "ZoomTransform.h"
 #include <cstring>
-#include "../modulators/BoundUtils.h"
-#include "renderer/pipeline/utils/MathUtils.h"
+#include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
     namespace {

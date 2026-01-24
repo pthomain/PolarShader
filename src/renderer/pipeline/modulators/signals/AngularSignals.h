@@ -23,7 +23,7 @@
 
 #include <utility>
 #include "ScalarSignals.h"
-#include "renderer/pipeline/utils/Units.h"
+#include "renderer/pipeline/maths/AngleMaths.h"
 
 namespace PolarShader {
     /**
@@ -69,7 +69,7 @@ namespace PolarShader {
             std::move(amplitude),
             std::move(offset),
             [](UnboundedAngle phase) -> TrigQ1_15 {
-                return sinQ1_15(phase);
+                return angleSinQ1_15(phase);
             }
         );
         return [signal = std::move(signal)](TimeMillis time) {
@@ -89,7 +89,7 @@ namespace PolarShader {
             std::move(amplitude),
             std::move(offset),
             [](UnboundedAngle phase) -> TrigQ1_15 {
-                BoundedAngle saw = bindAngle(phase);
+                BoundedAngle saw = phaseToAngle(phase);
                 uint16_t saw_raw = raw(saw);
                 uint16_t pulse_raw = (saw_raw < HALF_TURN_U16)
                                          ? static_cast<uint16_t>(saw_raw << 1)

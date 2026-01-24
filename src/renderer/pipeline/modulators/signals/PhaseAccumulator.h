@@ -23,10 +23,8 @@
 
 #include <utility>
 
-#include "renderer/pipeline/modulators/BoundUtils.h"
-#include "renderer/pipeline/utils/MathUtils.h"
-#include "renderer/pipeline/utils/TimeUtils.h"
-#include "renderer/pipeline/utils/Units.h"
+#include "renderer/pipeline/maths/Maths.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
 
@@ -60,9 +58,9 @@ namespace PolarShader {
             deltaTime = clampDeltaTime(deltaTime);
             if (deltaTime == 0) return phase;
 
-            UnboundedScalar dt_q16 = millisToUnboundedScalar(deltaTime);
-            RawQ16_16 phase_advance = RawQ16_16(mul_q16_16_wrap(phaseVelocity(time), dt_q16).asRaw());
-            phase = wrapAddSigned(phase, raw(phase_advance));
+            UnboundedScalar dt_q16 = timeMillisToScalar(deltaTime);
+            RawQ16_16 phase_advance = RawQ16_16(scalarMulQ16_16Wrap(phaseVelocity(time), dt_q16).asRaw());
+            phase = phaseWrapAddSigned(phase, raw(phase_advance));
             return phase;
         }
     };
