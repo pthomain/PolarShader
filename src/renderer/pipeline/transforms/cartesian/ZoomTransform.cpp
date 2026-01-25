@@ -23,13 +23,16 @@
 
 namespace PolarShader {
     namespace {
-        constexpr int32_t kZoomMinRaw = Q0_16_ONE >> 8;
-        constexpr int32_t kZoomMaxRaw = Q0_16_MAX;
+        // Smaller scale => higher noise frequency (zooming out shows more detail).
+        const int32_t MIN_SCALE = scale32(Q0_16_MAX, frac(80)); //0.0125x
+        const int32_t MAX_SCALE = Q0_16_ONE * 3; //3x
+        const int32_t ZOOM_SMOOTH_ALPHA_MIN = Q0_16_ONE / 32; // 0.03125 in Q0.16
+        const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
     }
 
     struct ZoomTransform::State {
         SFracQ0_16Signal scaleSignal;
-        SFracQ0_16 scaleValue = SFracQ0_16(kZoomMinRaw);
+        SFracQ0_16 scaleValue = SFracQ0_16(MIN_SCALE);
 
         explicit State(SFracQ0_16Signal s)
             : scaleSignal(std::move(s)) {
@@ -37,24 +40,41 @@ namespace PolarShader {
     };
 
     ZoomTransform::ZoomTransform(SFracQ0_16Signal scale)
-        : CartesianTransform(Range::scalarRange(kZoomMinRaw, kZoomMaxRaw)),
+        : CartesianTransform(Range::scalarRange(MIN_SCALE, MAX_SCALE)),
           state(std::make_shared<State>(std::move(scale))) {
     }
 
     void ZoomTransform::advanceFrame(TimeMillis timeInMillis) {
-        int32_t scale_raw = mapScalar(state->scaleSignal(timeInMillis));
-        state->scaleValue = SFracQ0_16(scale_raw);
+        int32_t target_raw = mapScalar(state->scaleSignal(timeInMillis));
+        int32_t current_raw = raw(state->scaleValue);
+        int32_t delta = target_raw - current_raw;
+        int64_t span = static_cast<int64_t>(MAX_SCALE) - static_cast<int64_t>(MIN_SCALE);
+        int64_t alpha_span = static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MAX) - static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MIN);
+        int64_t t = static_cast<int64_t>(target_raw) - static_cast<int64_t>(MIN_SCALE);
+
+        if (t < 0) t = 0;
+        if (span > 0 && t > span) t = span;
+
+        // Increase smoothing as scale decreases (higher noise frequency).
+        int64_t alpha = ZOOM_SMOOTH_ALPHA_MAX;
+        if (span > 0) alpha -= (alpha_span * t) / span;
+
+        int64_t step = static_cast<int64_t>(delta) * alpha;
+        step = (step >= 0) ? (step + U16_HALF) : (step - U16_HALF);
+        step >>= 16;
+
+        state->scaleValue = SFracQ0_16(static_cast<int32_t>(static_cast<int64_t>(current_raw) + step));
     }
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {
-        return [state = this->state, layer](int32_t x, int32_t y) {
-            // Allow scale == 0 to collapse to origin; negative scales flip axes.
-            int64_t sx = static_cast<int64_t>(x) * static_cast<int64_t>(raw(state->scaleValue));
-            int64_t sy = static_cast<int64_t>(y) * static_cast<int64_t>(raw(state->scaleValue));
+        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y) {
+            // Apply Q0.16 scale to Q24.8 coords, preserving fractional precision.
+            int64_t sx = static_cast<int64_t>(raw(x)) * static_cast<int64_t>(raw(state->scaleValue));
+            int64_t sy = static_cast<int64_t>(raw(y)) * static_cast<int64_t>(raw(state->scaleValue));
 
             int32_t finalX = static_cast<int32_t>(sx >> 16);
             int32_t finalY = static_cast<int32_t>(sy >> 16);
-            return layer(finalX, finalY);
+            return layer(CartQ24_8(finalX), CartQ24_8(finalY));
         };
     }
 }

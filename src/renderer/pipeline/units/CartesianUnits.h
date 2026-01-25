@@ -18,20 +18,27 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#ifndef POLAR_SHADER_PIPELINE_UNITS_CARTESIANUNITS_H
+#define POLAR_SHADER_PIPELINE_UNITS_CARTESIANUNITS_H
 
-using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+#include <cstdint>
+#include "renderer/pipeline/utils/StrongTypes.h"
 
-static PolarDisplay *display = nullptr;
+namespace PolarShader {
+    struct CartQ24_8_Tag {
+    };
 
-void setup() {
-    static DefaultPolarDisplaySpec specInstance;
-    display = new PolarDisplay(specInstance, 30);
+    struct CartesianUQ24_8_Tag {
+    };
+
+    // Signed Cartesian coordinates in Q24.8; value represents Q0.16 lattice units with extra precision.
+    using CartQ24_8 = Strong<int32_t, CartQ24_8_Tag>;
+
+    // Unsigned Cartesian coordinates in Q24.8 for noise sampling.
+    using CartesianUQ24_8 = Strong<uint32_t, CartesianUQ24_8_Tag>;
+
+    constexpr int32_t raw(CartQ24_8 v) { return v.raw(); }
+    constexpr uint32_t raw(CartesianUQ24_8 v) { return v.raw(); }
 }
 
-void loop() {
-    display->loop();
-}
+#endif // POLAR_SHADER_PIPELINE_UNITS_CARTESIANUNITS_H

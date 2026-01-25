@@ -58,6 +58,7 @@ namespace PolarShader {
         uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * perMil) / 1000);
         return FracQ0_16(static_cast<uint16_t>(raw_value));
     }
+
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_SCALARMATHS_H

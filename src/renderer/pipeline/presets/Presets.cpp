@@ -29,7 +29,10 @@ namespace PolarShader {
     namespace {
         PolarPipeline buildSimplePreset(const CRGBPalette16 &palette, const char *name) {
             return PolarPipelineBuilder(noiseLayer, palette, name)
-                    .addCartesianTransform(ZoomTransform(constant(frac(2))))
+                    .addCartesianTransform(ZoomTransform(sine(
+                        constant(perMil(100)),
+                        constant(perMil(1000))
+                    )))
                     .build();
         }
     } // namespace

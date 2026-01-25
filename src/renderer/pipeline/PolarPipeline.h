@@ -33,7 +33,7 @@ namespace PolarShader {
      *
      * Chains transforms across Cartesian and Polar domains and maps palette-ready noise intensities
      * to CRGB. Expects NoiseLayer to output 16-bit intensities in [0..65535]; no normalization is done here.
-     * Angles are represented as 16-bit turns (Q0.16). Any domain conversion (polar<->cartesian)
+     * Angles are represented as 16-bit turns (Q0.16). Cartesian coords are Q24.8. Any domain conversion (polar<->cartesian)
      * happens at explicit PipelineStep boundaries.
      */
     class PolarPipeline {

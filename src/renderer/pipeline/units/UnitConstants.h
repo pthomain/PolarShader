@@ -38,6 +38,10 @@ namespace PolarShader {
     // Full turn in the 16-bit angle domain.
     inline constexpr uint32_t ANGLE_FULL_TURN_U32 = 1u << 16;
 
+    // Cartesian coordinate fixed-point fractional bits (Q24.8).
+    // These coordinates represent Q0.16 lattice units with extra fractional precision.
+    inline constexpr uint8_t CARTESIAN_FRAC_BITS = 8;
+
     // --- Angle domain constants (uint16_t) ---
     // The domain for 16-bit angle samples is [0..65535], where 65536 represents a full circle (the modulus).
     inline constexpr uint16_t QUARTER_TURN_U16 = 16384u;

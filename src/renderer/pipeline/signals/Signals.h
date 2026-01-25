@@ -23,6 +23,7 @@
 
 #include "FastLED.h"
 #include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
@@ -45,19 +46,19 @@ namespace PolarShader {
     SFracQ0_16Signal noise(
         SFracQ0_16Signal phaseVelocity,
         SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset = constant(SFracQ0_16(U16_HALF))
+        SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );
 
     SFracQ0_16Signal sine(
         SFracQ0_16Signal phaseVelocity,
         SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset = constant(SFracQ0_16(U16_HALF))
+        SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );
 
     SFracQ0_16Signal pulse(
         SFracQ0_16Signal phaseVelocity,
         SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset = constant(SFracQ0_16(U16_HALF))
+        SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );
 }
 

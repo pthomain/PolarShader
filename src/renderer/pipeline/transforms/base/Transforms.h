@@ -35,7 +35,7 @@ namespace PolarShader {
 
     class CartesianTransform : public FrameTransform {
     public:
-        explicit CartesianTransform(Range range = Range::scalarRange(0, 0)) : range(std::move(range)) {}
+        explicit CartesianTransform(Range range = Range::scalarRange(0, 0)) : range(range) {}
 
         virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
 
@@ -51,7 +51,7 @@ namespace PolarShader {
     class PolarTransform : public FrameTransform {
     public:
         explicit PolarTransform(Range range = Range::polarRange(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)))
-            : range(std::move(range)) {}
+            : range(range) {}
 
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
 
