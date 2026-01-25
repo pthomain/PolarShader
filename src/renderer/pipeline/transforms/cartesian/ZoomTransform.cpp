@@ -23,24 +23,27 @@
 
 namespace PolarShader {
     namespace {
-        constexpr SFracQ0_16 kZoomMin = SFracQ0_16(Q0_16_ONE >> 4); // 0.0625x
-        constexpr SFracQ0_16 kZoomMax = SFracQ0_16(Q0_16_MAX); // ~1.0x
+        constexpr int32_t kZoomMinRaw = Q0_16_ONE >> 8;
+        constexpr int32_t kZoomMaxRaw = Q0_16_MAX;
     }
 
     struct ZoomTransform::State {
-        FracQ0_16Signal scaleSignal;
-        SFracQ0_16 scaleValue = kZoomMin;
+        SFracQ0_16Signal scaleSignal;
+        SFracQ0_16 scaleValue = SFracQ0_16(kZoomMinRaw);
 
-        explicit State(FracQ0_16Signal s) : scaleSignal(std::move(s)) {
+        explicit State(SFracQ0_16Signal s)
+            : scaleSignal(std::move(s)) {
         }
     };
 
-    ZoomTransform::ZoomTransform(FracQ0_16Signal scale)
-        : state(std::make_shared<State>(std::move(scale))) {
+    ZoomTransform::ZoomTransform(SFracQ0_16Signal scale)
+        : CartesianTransform(Range::scalarRange(kZoomMinRaw, kZoomMaxRaw)),
+          state(std::make_shared<State>(std::move(scale))) {
     }
 
     void ZoomTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->scaleValue = toScalar(state->scaleSignal(timeInMillis), kZoomMin, kZoomMax);
+        int32_t scale_raw = mapScalar(state->scaleSignal(timeInMillis));
+        state->scaleValue = SFracQ0_16(scale_raw);
     }
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {

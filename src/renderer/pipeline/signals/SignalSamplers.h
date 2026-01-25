@@ -18,17 +18,15 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#ifndef POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
+#define POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
 
-#include "FastLED.h"
-#include <renderer/pipeline/units/Units.h>
+#include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(FracQ0_16, FracQ0_16)>;
-    using CartesianLayer = fl::function<NoiseNormU16(int32_t, int32_t)>;
-    using NoiseLayer = fl::function<NoiseNormU16(uint32_t, uint32_t)>;
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
+    SampleSignal sampleNoise();
+    SampleSignal sampleSine();
+    SampleSignal samplePulse();
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#endif // POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H

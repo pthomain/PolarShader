@@ -21,21 +21,12 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_ANGLEUNITS_H
 #define POLAR_SHADER_PIPELINE_UNITS_ANGLEUNITS_H
 
-#include "renderer/pipeline/utils/StrongTypes.h"
+#include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    // --- Strong type tags ---
-    struct AngleQ0_16_Tag {
-    };
-
     struct TrigQ0_16_Tag {
     };
-
-    /**
-    *   A phase angle expressed as a fraction of a full turn, quantized to 16 bits.
-    */
-    using AngleQ0_16 = Strong<uint16_t, AngleQ0_16_Tag>;
 
     /**
     *   The output of sin16/cos16 scaled to signed Q0.16 in a 32-bit raw value.
@@ -43,18 +34,17 @@ namespace PolarShader {
     using TrigQ0_16 = Strong<int32_t, TrigQ0_16_Tag>;
 
     // --- Raw extractors ---
-    constexpr uint16_t raw(AngleQ0_16 a) { return a.raw(); }
     constexpr int32_t raw(TrigQ0_16 t) { return t.raw(); }
 
     // --- Angle wrap arithmetic (mod 2^16) ---
-    constexpr AngleQ0_16 angleWrapAdd(AngleQ0_16 a, uint16_t delta) {
-        return AngleQ0_16(static_cast<uint16_t>(raw(a) + delta));
+    constexpr FracQ0_16 angleWrapAdd(FracQ0_16 a, uint16_t delta) {
+        return FracQ0_16(static_cast<uint16_t>(raw(a) + delta));
     }
 
     // Wrap-add using signed raw delta (Q0.16), interpreted via two's-complement.
-    constexpr AngleQ0_16 angleWrapAddSigned(AngleQ0_16 a, int32_t delta_raw_q0_16) {
+    constexpr FracQ0_16 angleWrapAddSigned(FracQ0_16 a, int32_t delta_raw_q0_16) {
         uint32_t sum = static_cast<uint32_t>(raw(a)) + static_cast<uint32_t>(delta_raw_q0_16);
-        return AngleQ0_16(static_cast<uint16_t>(sum));
+        return FracQ0_16(static_cast<uint16_t>(sum));
     }
 }
 

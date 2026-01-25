@@ -23,6 +23,7 @@
 
 #include "Layers.h"
 #include <renderer/pipeline/units/Units.h>
+#include <utility>
 
 namespace PolarShader {
     class FrameTransform {
@@ -34,12 +35,30 @@ namespace PolarShader {
 
     class CartesianTransform : public FrameTransform {
     public:
+        explicit CartesianTransform(Range range = Range::scalarRange(0, 0)) : range(std::move(range)) {}
+
         virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
+
+    protected:
+        int32_t mapScalar(SFracQ0_16 t) const { return range.mapScalar(t); }
+        SPoint32 mapCartesian(SFracQ0_16 direction, SFracQ0_16 velocity) const {
+            return range.mapCartesian(direction, velocity);
+        }
+
+        Range range;
     };
 
     class PolarTransform : public FrameTransform {
     public:
+        explicit PolarTransform(Range range = Range::polarRange(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)))
+            : range(std::move(range)) {}
+
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
+
+    protected:
+        FracQ0_16 mapPolar(SFracQ0_16 t) const { return range.map(t); }
+
+        Range range;
     };
 }
 

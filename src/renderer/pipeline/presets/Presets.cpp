@@ -21,9 +21,9 @@
 #include "Presets.h"
 #include <renderer/pipeline/CartesianNoiseLayers.h>
 #include <renderer/pipeline/maths/Maths.h>
-#include <renderer/pipeline/modulators/signals/ScalarSignals.h>
-#include <renderer/pipeline/transforms/ZoomTransform.h>
+#include <renderer/pipeline/signals/Signals.h>
 #include "renderer/pipeline/PolarPipelineBuilder.h"
+#include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
 
 namespace PolarShader {
     namespace {

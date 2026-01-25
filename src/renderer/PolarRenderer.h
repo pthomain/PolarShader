@@ -25,7 +25,7 @@
 #include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {
-    using PolarCoords = fl::pair<AngleQ0_16, FracQ0_16>;
+    using PolarCoords = fl::pair<FracQ0_16, FracQ0_16>;
     using PolarCoordsMapper = fl::function<PolarCoords(uint16_t pixelIndex)>;
 
     /**

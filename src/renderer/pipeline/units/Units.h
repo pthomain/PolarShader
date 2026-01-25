@@ -27,4 +27,46 @@
 #include "renderer/pipeline/units/TimeUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 
+namespace PolarShader {
+    struct SPoint32 {
+        int32_t x;
+        int32_t y;
+    };
+
+    class Range {
+    public:
+        static Range polarRange(FracQ0_16 min, FracQ0_16 max);
+        static Range scalarRange(int32_t min, int32_t max);
+        static Range cartesianRange(SPoint32 center, int32_t radius);
+        static Range timeRange(TimeMillis durationMs = 30000);
+
+        FracQ0_16 map(SFracQ0_16 t) const;
+        int32_t mapScalar(SFracQ0_16 t) const;
+        SPoint32 mapCartesian(SFracQ0_16 direction, SFracQ0_16 velocity) const;
+        TimeMillis mapTime(SFracQ0_16 t) const;
+
+    private:
+        enum class Kind {
+            Polar,
+            Scalar,
+            Cartesian,
+            Time
+        };
+
+        explicit Range(Kind kind);
+        Range(FracQ0_16 min, FracQ0_16 max);
+        Range(int32_t min, int32_t max);
+        Range(SPoint32 center, int32_t radius);
+
+        Kind kind = Kind::Polar;
+        FracQ0_16 min_frac = FracQ0_16(0);
+        FracQ0_16 max_frac = FracQ0_16(FRACT_Q0_16_MAX);
+        int32_t min_scalar = 0;
+        int32_t max_scalar = 0;
+        SPoint32 center{0, 0};
+        int32_t radius = 0;
+        TimeMillis duration_ms = 0;
+    };
+}
+
 #endif // POLAR_SHADER_PIPELINE_UNITS_UNITS_H

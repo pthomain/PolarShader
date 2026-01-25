@@ -22,15 +22,15 @@
 #define POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
 
 #include <memory>
-#include "base/Transforms.h"
-#include <renderer/pipeline/modulators/signals/ScalarSignals.h>
+#include <renderer/pipeline/transforms/base/Transforms.h>
+#include <renderer/pipeline/signals/Signals.h>
 
 namespace PolarShader {
     /**
      * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in Q0.16.
      * s in 0..~1 scales towards the origin; negative values flip axes.
      *
-     * Parameters: scale (FracQ0_16Signal, Q0.16), mapped to the transform's zoom range.
+     * Parameters: scale (SFracQ0_16Signal, Q0.16), mapped to the transform's zoom range.
      * Recommended order: early in Cartesian chain before warps/tiling.
      */
     class ZoomTransform : public CartesianTransform {
@@ -38,7 +38,7 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
-        explicit ZoomTransform(FracQ0_16Signal scale);
+        explicit ZoomTransform(SFracQ0_16Signal scale);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

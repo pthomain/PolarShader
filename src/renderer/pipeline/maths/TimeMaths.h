@@ -25,17 +25,12 @@
 #include "renderer/pipeline/units/TimeUnits.h"
 
 namespace PolarShader {
-    // Constant conversion factor: milliseconds per second.
     inline constexpr uint16_t MILLIS_PER_SECOND = 1000;
 
     /**
      * @brief Converts milliseconds to a Q0.16 fixed-point representation of seconds.
      */
     inline SFracQ0_16 timeMillisToScalar(TimeMillis millis) {
-        // (millis / 1000) * 2^16
-        // To maintain precision, this is calculated as:
-        // (millis * 2^16) / 1000
-        // with rounding.
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
         return SFracQ0_16(static_cast<int32_t>(dt_raw));

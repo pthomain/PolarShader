@@ -25,24 +25,24 @@
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    TrigQ0_16 angleSinQ0_16(AngleQ0_16 a);
+    TrigQ0_16 angleSinQ0_16(FracQ0_16 a);
 
-    TrigQ0_16 angleCosQ0_16(AngleQ0_16 a);
+    TrigQ0_16 angleCosQ0_16(FracQ0_16 a);
 
-    AngleQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x);
+    FracQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x);
 
-    constexpr AngleQ0_16 angleFrac(uint32_t denominator) {
-        if (denominator == 0) return AngleQ0_16(0);
-        return AngleQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(ANGLE_FULL_TURN_U32)) / denominator));
+    constexpr FracQ0_16 angleFrac(uint32_t denominator) {
+        if (denominator == 0) return FracQ0_16(0);
+        return FracQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(ANGLE_FULL_TURN_U32)) / denominator));
     }
 
-    constexpr AngleQ0_16 angleFrac360(uint16_t angleDegrees) {
-        if (angleDegrees == 0) return AngleQ0_16(0);
-        return AngleQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * angleDegrees) / 360));
+    constexpr FracQ0_16 angleFrac360(uint16_t angleDegrees) {
+        if (angleDegrees == 0) return FracQ0_16(0);
+        return FracQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * angleDegrees) / 360));
     }
 
     // FastLED trig sampling helpers (explicit angle/phase conversions).
-    constexpr uint16_t angleToFastLedPhase(AngleQ0_16 a) { return raw(a); }
+    constexpr uint16_t angleToFastLedPhase(FracQ0_16 a) { return raw(a); }
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H

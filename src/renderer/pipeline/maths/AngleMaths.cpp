@@ -22,19 +22,18 @@
 #include <FastLED.h>
 
 namespace PolarShader {
-
-    TrigQ0_16 angleSinQ0_16(AngleQ0_16 a) {
+    TrigQ0_16 angleSinQ0_16(FracQ0_16 a) {
         int16_t raw_q1_15 = sin16(angleToFastLedPhase(a));
         return TrigQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
-    TrigQ0_16 angleCosQ0_16(AngleQ0_16 a) {
+    TrigQ0_16 angleCosQ0_16(FracQ0_16 a) {
         int16_t raw_q1_15 = cos16(angleToFastLedPhase(a));
         return TrigQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
-    AngleQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x) {
-        if (x == 0 && y == 0) return AngleQ0_16(0);
+    FracQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x) {
+        if (x == 0 && y == 0) return FracQ0_16(0);
 
         uint16_t abs_x = (x < 0) ? static_cast<uint16_t>(-x) : static_cast<uint16_t>(x);
         uint16_t abs_y = (y < 0) ? static_cast<uint16_t>(-y) : static_cast<uint16_t>(y);
@@ -52,13 +51,10 @@ namespace PolarShader {
         uint32_t base = (z * inner) >> 16; // 0..0.125 turns
 
         uint32_t angle = (abs_x >= abs_y) ? base : (QUARTER_TURN_U16 - base);
-        if (x < 0) {
-            angle = HALF_TURN_U16 - angle;
-        }
-        if (y < 0) {
-            angle = ANGLE_FULL_TURN_U32 - angle;
-        }
 
-        return AngleQ0_16(static_cast<uint16_t>(angle & ANGLE_U16_MAX));
+        if (x < 0) angle = HALF_TURN_U16 - angle;
+        if (y < 0) angle = ANGLE_FULL_TURN_U32 - angle;
+
+        return FracQ0_16(static_cast<uint16_t>(angle & ANGLE_U16_MAX));
     }
 }

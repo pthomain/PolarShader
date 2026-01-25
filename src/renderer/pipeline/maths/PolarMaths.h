@@ -27,11 +27,11 @@
 
 namespace PolarShader {
     fl::pair<int32_t, int32_t> polarToCartesian(
-        AngleQ0_16 angle_turns,
+        FracQ0_16 angle_turns,
         FracQ0_16 radius
     );
 
-    fl::pair<AngleQ0_16, FracQ0_16> cartesianToPolar(
+    fl::pair<FracQ0_16, FracQ0_16> cartesianToPolar(
         fl::i32 x,
         fl::i32 y
     );

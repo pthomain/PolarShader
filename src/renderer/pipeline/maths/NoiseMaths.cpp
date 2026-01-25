@@ -22,8 +22,6 @@
 
 namespace PolarShader {
     namespace {
-        // These bounds are specific to the typical output of inoise16() and may
-        // need tuning if a different noise function is used.
         constexpr uint16_t MIN_NOISE = 12000;
         constexpr uint16_t MAX_NOISE = 54000;
         constexpr uint16_t RANGE = MAX_NOISE - MIN_NOISE;

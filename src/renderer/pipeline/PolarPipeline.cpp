@@ -40,13 +40,13 @@ namespace PolarShader {
 
     ColourLayer PolarPipeline::blackLayer(const char *reason) {
         if (reason) Serial.println(reason);
-        return [](AngleQ0_16, FracQ0_16) {
+        return [](FracQ0_16, FracQ0_16) {
             return CRGB::Black;
         };
     }
 
     PolarLayer PolarPipeline::toPolarLayer(const CartesianLayer &layer) {
-        return [layer](AngleQ0_16 angle, FracQ0_16 radius) {
+        return [layer](FracQ0_16 angle, FracQ0_16 radius) {
             auto [x, y] = polarToCartesian(angle, radius);
             return layer(x, y);
         };
@@ -129,7 +129,7 @@ namespace PolarShader {
 
         // Final stage: sample the noise value and map it to a color from the palette.
         return [palette = palette, layer = currentPolar](
-            AngleQ0_16 angle,
+            FracQ0_16 angle,
             FracQ0_16 radius
         ) {
             NoiseNormU16 value = layer(angle, radius);
