@@ -34,7 +34,7 @@ namespace PolarShader {
 
     class Range {
     public:
-        static Range polarRange(FracQ0_16 min, FracQ0_16 max);
+        static Range polarRange(FracQ0_16 min = FracQ0_16(0), FracQ0_16 max = FracQ0_16(FRACT_Q0_16_MAX));
 
         static Range scalarRange(int32_t min, int32_t max);
 

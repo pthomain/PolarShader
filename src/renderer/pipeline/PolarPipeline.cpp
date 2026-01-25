@@ -29,13 +29,23 @@ namespace PolarShader {
         NoiseLayer sourceLayer,
         const CRGBPalette16 &palette,
         fl::vector<PipelineStep> steps,
-        const char *name
+        const char *name,
+        std::shared_ptr<PipelineContext> context
     ) : sourceLayer(std::move(sourceLayer)),
         palette(palette),
         steps(std::move(steps)),
-        name(name ? name : "unnamed") {
+        name(name ? name : "unnamed"),
+        context(std::move(context)) {
         Serial.print("Building pipeline: ");
         Serial.println(this->name);
+
+        if (!this->context) {
+            this->context = std::make_shared<PipelineContext>();
+        }
+        for (auto &step: this->steps) {
+            if (step.cartesianTransform) step.cartesianTransform->setContext(this->context);
+            if (step.polarTransform) step.polarTransform->setContext(this->context);
+        }
     }
 
     ColourLayer PolarPipeline::blackLayer(const char *reason) {

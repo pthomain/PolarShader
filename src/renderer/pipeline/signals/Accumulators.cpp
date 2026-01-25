@@ -25,7 +25,7 @@ namespace PolarShader {
     PhaseAccumulator::PhaseAccumulator(
         SFracQ0_16Signal velocity,
         SFracQ0_16 initialPhase
-    ) : phase(initialPhase),
+    ) : phaseRaw32(static_cast<uint32_t>(raw(initialPhase)) << 16),
         phaseVelocity(std::move(velocity)) {
     }
 
@@ -33,20 +33,18 @@ namespace PolarShader {
         if (!hasLastTime) {
             lastTime = time;
             hasLastTime = true;
-            return phase;
+            return SFracQ0_16(static_cast<int32_t>(phaseRaw32 >> 16));
         }
         TimeMillis deltaTime = time - lastTime;
         lastTime = time;
-        if (deltaTime == 0) return phase;
+        if (deltaTime == 0) return SFracQ0_16(static_cast<int32_t>(phaseRaw32 >> 16));
 
         deltaTime = clampDeltaTime(deltaTime);
-        if (deltaTime == 0) return phase;
 
         SFracQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
-        SFracQ0_16 phase_advance = mulSFracWrap(phaseVelocity(time), dt_q0_16);
-        uint32_t sum = static_cast<uint32_t>(raw(phase)) + static_cast<uint32_t>(raw(phase_advance));
-        phase = SFracQ0_16(static_cast<int32_t>(sum & 0xFFFFu));
-        return phase;
+        int64_t increment = static_cast<int64_t>(raw(phaseVelocity(time))) * static_cast<int64_t>(raw(dt_q0_16));
+        phaseRaw32 = static_cast<uint32_t>(static_cast<int64_t>(phaseRaw32) + increment);
+        return SFracQ0_16(static_cast<int32_t>(phaseRaw32 >> 16));
     }
 
     CartesianMotionAccumulator::CartesianMotionAccumulator(

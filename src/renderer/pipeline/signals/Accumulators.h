@@ -46,7 +46,7 @@ namespace PolarShader {
         SFracQ0_16 advance(TimeMillis time);
 
     private:
-        SFracQ0_16 phase{0};
+        uint32_t phaseRaw32{0};
         TimeMillis lastTime{0};
         bool hasLastTime{false};
         // phaseVelocity returns turns-per-second in Q0.16.

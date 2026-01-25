@@ -23,10 +23,17 @@
 #include "renderer/pipeline/transforms/base/Transforms.h"
 
 namespace PolarShader {
+    namespace {
+        // Smoothing controls when zoom is at minimum (highest noise frequency).
+        const int32_t TRANSLATION_SMOOTH_ALPHA_MIN = Q0_16_ONE / 16;
+        const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = Q0_16_ONE / 2;
+    }
+
     struct TranslationTransform::State {
         Range velocityRange;
         CartesianMotionAccumulator motion;
         SPoint32 offset{0, 0};
+        bool hasSmoothed{false};
 
         State(
             Range range,
@@ -53,7 +60,27 @@ namespace PolarShader {
     }
 
     void TranslationTransform::advanceFrame(TimeMillis timeInMillis) {
-        state->offset = state->motion.advance(timeInMillis);
+        SPoint32 target = state->motion.advance(timeInMillis);
+        if (!state->hasSmoothed) {
+            state->offset = target;
+            state->hasSmoothed = true;
+            return;
+        }
+
+        int32_t zoom_norm_raw = Q0_16_ONE;
+        if (context) zoom_norm_raw = raw(context->zoomNormalized);
+
+        int64_t alpha_span = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MAX) -
+                             static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN);
+        int64_t alpha = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN) +
+                        ((alpha_span * static_cast<int64_t>(zoom_norm_raw)) >> 16);
+
+        int64_t dx = static_cast<int64_t>(target.x) - static_cast<int64_t>(state->offset.x);
+        int64_t dy = static_cast<int64_t>(target.y) - static_cast<int64_t>(state->offset.y);
+        dx = (dx * alpha) >> 16;
+        dy = (dy * alpha) >> 16;
+        state->offset.x = static_cast<int32_t>(static_cast<int64_t>(state->offset.x) + dx);
+        state->offset.y = static_cast<int32_t>(static_cast<int64_t>(state->offset.y) + dy);
     }
 
     CartesianLayer TranslationTransform::operator()(const CartesianLayer &layer) const {

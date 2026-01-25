@@ -53,6 +53,20 @@ namespace PolarShader {
         return frac(1u, denominator);
     }
 
+    /**
+     * @brief Create a signed Q0.16 scalar from a rational fraction without floating point.
+     */
+    constexpr SFracQ0_16 sFrac(uint32_t numerator, uint32_t denominator) {
+        if (numerator == 0 || denominator == 0) return SFracQ0_16(0);
+        uint64_t raw_value = (static_cast<uint64_t>(FRACT_Q0_16_MAX) * numerator) / denominator;
+        if (raw_value > FRACT_Q0_16_MAX) raw_value = FRACT_Q0_16_MAX;
+        return SFracQ0_16(static_cast<int32_t>(raw_value));
+    }
+
+    constexpr SFracQ0_16 sFrac(uint32_t denominator) {
+        return sFrac(1u, denominator);
+    }
+
     constexpr FracQ0_16 perMil(uint16_t perMil) {
         if (perMil == 0) return FracQ0_16(0);
         uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * perMil) / 1000);

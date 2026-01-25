@@ -21,6 +21,7 @@
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 #include <utility>
 
 namespace PolarShader {
@@ -41,19 +42,31 @@ namespace PolarShader {
             TrigQ0_16 v = sample(phase);
 
             int32_t sample_raw = raw(v);
-            uint32_t sample_u16 = static_cast<uint32_t>((sample_raw + Q0_16_ONE) >> 1);
             int32_t amp_raw = raw(amplitude(time));
             int32_t off_raw = raw(offset(time));
             uint32_t amp = (amp_raw < 0) ? 0u : static_cast<uint32_t>(amp_raw);
-            uint32_t off = (off_raw < 0) ? 0u : static_cast<uint32_t>(off_raw);
             if (amp > FRACT_Q0_16_MAX) amp = FRACT_Q0_16_MAX;
-            if (off > FRACT_Q0_16_MAX) off = FRACT_Q0_16_MAX;
 
+            uint32_t sample_u16 = static_cast<uint32_t>((sample_raw + Q0_16_ONE) >> 1);
+            uint32_t off = (off_raw < 0) ? 0u : static_cast<uint32_t>(off_raw);
+            if (off > FRACT_Q0_16_MAX) off = FRACT_Q0_16_MAX;
             uint32_t scaled = (sample_u16 * amp) >> 16;
             uint32_t sum = scaled + off;
             if (sum > 0xFFFFu) sum = 0xFFFFu;
             return SFracQ0_16(static_cast<int32_t>(sum));
         };
+    }
+
+    SFracQ0_16Signal floor() {
+        return constant(frac(0));
+    }
+
+    SFracQ0_16Signal midPoint() {
+        return constant(frac(2));
+    }
+
+    SFracQ0_16Signal ceiling() {
+        return constant(frac(1));
     }
 
     SFracQ0_16Signal constant(SFracQ0_16 value) {
@@ -64,13 +77,25 @@ namespace PolarShader {
         return [value](TimeMillis) { return SFracQ0_16(raw(value)); };
     }
 
+    SFracQ0_16Signal cFrac(uint32_t value) {
+        return constant(frac(value));
+    }
+
+    SFracQ0_16Signal cSFrac(uint32_t value) {
+        return constant(sFrac(value));
+    }
+
+    SFracQ0_16Signal cPerMil(uint16_t value) {
+        return constant(perMil(value));
+    }
+
     SFracQ0_16Signal noise(
-        SFracQ0_16Signal phaseVelocity,
+        const SFracQ0_16Signal &phaseVelocity,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset
     ) {
         return createSignal(
-            std::move(phaseVelocity),
+            phaseVelocity,
             std::move(amplitude),
             std::move(offset),
             sampleNoise()
@@ -169,6 +194,12 @@ namespace PolarShader {
             if (value <= 0) return SFracQ0_16(max);
             if (value >= max) return SFracQ0_16(0);
             return SFracQ0_16(max - value);
+        };
+    }
+
+    SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor) {
+        return [signal = std::move(signal), factor](TimeMillis time) mutable {
+            return mulSFracSat(signal(time), SFracQ0_16(raw(factor)));
         };
     }
 }

@@ -22,6 +22,7 @@
 #define POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 
 #include "transforms/base/Transforms.h"
+#include "PipelineContext.h"
 #include "renderer/pipeline/units/Range.h"
 #include "PipelineStep.h"
 
@@ -41,6 +42,7 @@ namespace PolarShader {
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         const char *name;
+        std::shared_ptr<PipelineContext> context;
 
         static ColourLayer blackLayer(const char *reason);
 
@@ -52,7 +54,8 @@ namespace PolarShader {
             NoiseLayer sourceLayer,
             const CRGBPalette16 &palette,
             fl::vector<PipelineStep> steps,
-            const char *name
+            const char *name,
+            std::shared_ptr<PipelineContext> context
         );
 
         friend class PolarPipelineBuilder;

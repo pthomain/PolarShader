@@ -20,22 +20,21 @@
 
 #include "Presets.h"
 #include <renderer/pipeline/CartesianNoiseLayers.h>
-#include <renderer/pipeline/maths/Maths.h>
 #include <renderer/pipeline/signals/Signals.h>
 #include "renderer/pipeline/PolarPipelineBuilder.h"
-#include "renderer/pipeline/transforms/cartesian/TranslationTransform.h"
+#include "renderer/pipeline/transforms/polar/RotationTransform.h"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
 
 namespace PolarShader {
     namespace {
         PolarPipeline buildSimplePreset(const CRGBPalette16 &palette, const char *name) {
-            return PolarPipelineBuilder(noiseLayer, Rainbow_gp, name)
-                    .addCartesianTransform(ZoomTransform(sine(constant(perMil(100)))))
-                    // .addCartesianTransform(
-                    //     TranslationTransform(
-                    //         constant(perMil(100)),
-                    //         constant(perMil(100))
-                    //     ))
+            return PolarPipelineBuilder(noiseLayer, palette, name)
+                    .addCartesianTransform(ZoomTransform(
+                        sine(cPerMil(100))
+                    ))
+                    .addPolarTransform(RotationTransform(
+                        sine(cPerMil(100))
+                    ))
                     .build();
         }
     } // namespace

@@ -18,39 +18,30 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
-#define POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
+#ifndef POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H
+#define POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H
 
+#include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/signals/Accumulators.h"
 #include <memory>
-#include <renderer/pipeline/transforms/base/Transforms.h>
-#include <renderer/pipeline/signals/Signals.h>
 
 namespace PolarShader {
-    enum class ZoomAnchor {
-        Floor,
-        MidPoint,
-        Ceiling
-    };
-
     /**
-     * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in Q0.16.
-     * s in 0..~1 scales towards the origin; negative values flip axes.
+     * Polar rotation using a turn-based signal in Q0.16.
      *
-     * Parameters: scale (SFracQ0_16Signal, Q0.16), mapped to the transform's zoom range.
-     * Recommended order: early in Cartesian chain before warps/tiling.
+     * The signal is interpreted as turns (0..1) and mapped to a full rotation.
      */
-    class ZoomTransform : public CartesianTransform {
+    class RotationTransform : public PolarTransform {
         struct State;
         std::shared_ptr<State> state;
-        ZoomAnchor anchor;
 
     public:
-        explicit ZoomTransform(SFracQ0_16Signal scale, ZoomAnchor anchor = ZoomAnchor::MidPoint);
+        explicit RotationTransform(SFracQ0_16Signal angle);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 
-        CartesianLayer operator()(const CartesianLayer &layer) const override;
+        PolarLayer operator()(const PolarLayer &layer) const override;
     };
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
+#endif // POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H

@@ -21,7 +21,10 @@
 #ifndef POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
 #define POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
 
+#include <memory>
+
 #include "Layers.h"
+#include "renderer/pipeline/PipelineContext.h"
 #include <renderer/pipeline/units/Range.h>
 #include <utility>
 
@@ -30,35 +33,48 @@ namespace PolarShader {
     public:
         virtual ~FrameTransform() = default;
 
-        virtual void advanceFrame(TimeMillis timeInMillis) {};
+        virtual void advanceFrame(TimeMillis timeInMillis) {
+        };
+
+        virtual void setContext(std::shared_ptr<PipelineContext> context) { (void) context; }
     };
 
     class CartesianTransform : public FrameTransform {
     public:
-        explicit CartesianTransform(Range range = Range::scalarRange(0, 0)) : range(range) {}
+        explicit CartesianTransform(Range range = Range::scalarRange(0, 0)) : range(range) {
+        }
 
         virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
 
+        void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
+
     protected:
         int32_t mapScalar(SFracQ0_16 t) const { return range.mapScalar(t); }
+
         SPoint32 mapCartesian(SFracQ0_16 direction, SFracQ0_16 velocity) const {
             return range.mapCartesian(direction, velocity);
         }
 
         Range range;
+        std::shared_ptr<PipelineContext> context;
     };
 
     class PolarTransform : public FrameTransform {
     public:
-        explicit PolarTransform(Range range = Range::polarRange(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)))
-            : range(range) {}
+        explicit PolarTransform(
+            const Range &range = Range::polarRange(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX))
+        ) : range(range) {
+        }
 
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
+
+        void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
 
     protected:
         FracQ0_16 mapPolar(SFracQ0_16 t) const { return range.map(t); }
 
         Range range;
+        std::shared_ptr<PipelineContext> context;
     };
 }
 

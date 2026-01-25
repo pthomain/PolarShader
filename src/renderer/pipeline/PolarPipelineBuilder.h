@@ -22,6 +22,7 @@
 #define POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
 
 #include "PolarPipeline.h"
+#include "PipelineContext.h"
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -40,6 +41,7 @@ namespace PolarShader {
         BuilderDomain currentDomain = BuilderDomain::Cartesian;
         // Must point to a string with static storage duration (presets use literals).
         const char *name;
+        std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
 
         void ensureFinalPolarDomain() {
             if (currentDomain == BuilderDomain::Cartesian) {
