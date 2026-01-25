@@ -23,11 +23,9 @@
 
 #include "FastLED.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/units/Range.h"
 
 namespace PolarShader {
-    // Controls the base noise frequency by scaling input coordinates before sampling.
-    // Increase to traverse more lattice cells (more variation); decrease for smoother fields.
     // Bilinear interpolation on the noise lattice using Q24.8 coordinates.
     // Integer part selects the lattice cell; fractional part blends between corners.
     inline NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
@@ -54,28 +52,28 @@ namespace PolarShader {
 
     // All Cartesian noise layers return 16-bit intensities in [0..65535] suitable for palette mapping.
     // Inputs are unsigned Q24.8 coordinates (see CARTESIAN_FRAC_BITS).
-    // noiseLayer/fBm normalize raw inoise16(); turbulence/ridged derive palette-ready intensities directly.
-    inline NoiseNormU16 noiseLayer(CartesianUQ24_8 x, CartesianUQ24_8 y) {
+    // noiseLayer/fBm normalize the raw inoise16 range before palette mapping.
+    inline NoiseNormU16 noiseLayer(CartUQ24_8 x, CartUQ24_8 y) {
         // Bilinear sampling already yields 0..65535; avoid extra clamping.
         return noiseNormaliseU16(sampleNoiseBilinear(raw(x), raw(y)));
     }
 
-    inline NoiseNormU16 fBmLayer(CartesianUQ24_8 x, CartesianUQ24_8 y) {
+    inline NoiseNormU16 fBmLayer(CartUQ24_8 x, CartUQ24_8 y) {
         static fl::u8 octaves = 4;
         uint32_t r = 0;
         uint16_t amplitude = U16_HALF;
         for (int o = 0; o < octaves; o++) {
             auto n = sampleNoiseBilinear(raw(x), raw(y));
             r += (static_cast<uint32_t>(raw(n)) * amplitude) >> 16;
-            x = CartesianUQ24_8(raw(x) << 1);
-            y = CartesianUQ24_8(raw(y) << 1);
+            x = CartUQ24_8(raw(x) << 1);
+            y = CartUQ24_8(raw(y) << 1);
             amplitude >>= 1;
         }
         if (r > UINT16_MAX) r = UINT16_MAX;
         return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(r)));
     }
 
-    inline NoiseNormU16 turbulenceLayer(CartesianUQ24_8 x, CartesianUQ24_8 y) {
+    inline NoiseNormU16 turbulenceLayer(CartUQ24_8 x, CartUQ24_8 y) {
         NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseBilinear(raw(x), raw(y)));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
@@ -84,7 +82,7 @@ namespace PolarShader {
         return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(doubled)));
     }
 
-    inline NoiseNormU16 ridgedLayer(CartesianUQ24_8 x, CartesianUQ24_8 y) {
+    inline NoiseNormU16 ridgedLayer(CartUQ24_8 x, CartUQ24_8 y) {
         NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseBilinear(raw(x), raw(y)));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);

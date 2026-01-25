@@ -22,7 +22,7 @@
 #define POLAR_SHADER_PIPELINE_UNITS_CARTESIANUNITS_H
 
 #include <cstdint>
-#include "renderer/pipeline/utils/StrongTypes.h"
+#include "StrongTypes.h"
 
 namespace PolarShader {
     struct CartQ24_8_Tag {
@@ -35,10 +35,10 @@ namespace PolarShader {
     using CartQ24_8 = Strong<int32_t, CartQ24_8_Tag>;
 
     // Unsigned Cartesian coordinates in Q24.8 for noise sampling.
-    using CartesianUQ24_8 = Strong<uint32_t, CartesianUQ24_8_Tag>;
+    using CartUQ24_8 = Strong<uint32_t, CartesianUQ24_8_Tag>;
 
     constexpr int32_t raw(CartQ24_8 v) { return v.raw(); }
-    constexpr uint32_t raw(CartesianUQ24_8 v) { return v.raw(); }
+    constexpr uint32_t raw(CartUQ24_8 v) { return v.raw(); }
 }
 
 #endif // POLAR_SHADER_PIPELINE_UNITS_CARTESIANUNITS_H

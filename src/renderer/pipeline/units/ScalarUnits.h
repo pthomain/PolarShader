@@ -22,7 +22,7 @@
 #define POLAR_SHADER_PIPELINE_UNITS_SCALARUNITS_H
 
 #include <cstdint>
-#include "renderer/pipeline/utils/StrongTypes.h"
+#include "StrongTypes.h"
 
 namespace PolarShader {
     struct FracQ0_16_Tag {

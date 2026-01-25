@@ -88,7 +88,7 @@ namespace PolarShader {
             int64_t sy = static_cast<int64_t>(raw(y)) + offset;
             uint32_t ux = static_cast<uint32_t>(sx);
             uint32_t uy = static_cast<uint32_t>(sy);
-            return sourceLayer(CartesianUQ24_8(ux), CartesianUQ24_8(uy));
+            return sourceLayer(CartUQ24_8(ux), CartUQ24_8(uy));
         };
 
         CartesianLayer currentCartesian = adaptedSource;

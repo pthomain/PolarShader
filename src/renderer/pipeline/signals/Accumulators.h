@@ -22,7 +22,9 @@
 #define POLAR_SHADER_PIPELINE_SIGNALS_ACCUMULATORS_H
 
 #include "FastLED.h"
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/units/TimeUnits.h"
+#include "renderer/pipeline/units/Range.h"
 
 namespace PolarShader {
     /**
@@ -56,7 +58,7 @@ namespace PolarShader {
         /**
          * @brief Integrates direction + velocity into a cartesian position.
          *
-         * velocityRange radius is the max speed in units/sec (center is ignored).
+         * velocityRange radius is the max speed in units/sec.
          */
         CartesianMotionAccumulator(
             SPoint32 initialPosition,

@@ -22,7 +22,7 @@
 #define POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H
 
 #include <cstdint>
-#include "renderer/pipeline/utils/StrongTypes.h"
+#include "StrongTypes.h"
 
 namespace PolarShader {
     struct NoiseRawU16_Tag {

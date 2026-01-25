@@ -102,4 +102,73 @@ namespace PolarShader {
             samplePulse()
         );
     }
+
+    namespace {
+        uint32_t normalizeLooped(TimeMillis time, TimeMillis durationMs) {
+            if (durationMs == 0) return FRACT_Q0_16_MAX;
+            TimeMillis t = time % durationMs;
+            uint64_t scaled = (static_cast<uint64_t>(t) * FRACT_Q0_16_MAX) / durationMs;
+            if (scaled > FRACT_Q0_16_MAX) scaled = FRACT_Q0_16_MAX;
+            return static_cast<uint32_t>(scaled);
+        }
+
+        uint32_t easeInQuadRaw(uint32_t t) {
+            uint64_t tt = static_cast<uint64_t>(t) * static_cast<uint64_t>(t);
+            return static_cast<uint32_t>(tt >> 16);
+        }
+
+        uint32_t easeOutQuadRaw(uint32_t t) {
+            uint32_t one = Q0_16_ONE;
+            uint32_t two = Q0_16_ONE * 2u;
+            uint64_t value = static_cast<uint64_t>(t) * static_cast<uint64_t>(two - t);
+            uint32_t result = static_cast<uint32_t>(value >> 16);
+            return (result > one) ? one : result;
+        }
+
+        uint32_t easeInOutQuadRaw(uint32_t t) {
+            if (t < U16_HALF) {
+                uint64_t tt = static_cast<uint64_t>(t) * static_cast<uint64_t>(t);
+                return static_cast<uint32_t>(tt >> 15);
+            }
+            uint32_t one = Q0_16_ONE;
+            uint32_t u = one - t;
+            uint64_t uu = static_cast<uint64_t>(u) * static_cast<uint64_t>(u);
+            uint32_t tail = static_cast<uint32_t>(uu >> 15);
+            return (tail > one) ? 0u : (one - tail);
+        }
+    } // namespace
+
+    SFracQ0_16Signal linear(TimeMillis durationMs) {
+        return [durationMs](TimeMillis time) {
+            return SFracQ0_16(static_cast<int32_t>(normalizeLooped(time, durationMs)));
+        };
+    }
+
+    SFracQ0_16Signal easeIn(TimeMillis durationMs) {
+        return [durationMs](TimeMillis time) {
+            return SFracQ0_16(static_cast<int32_t>(easeInQuadRaw(normalizeLooped(time, durationMs))));
+        };
+    }
+
+    SFracQ0_16Signal easeOut(TimeMillis durationMs) {
+        return [durationMs](TimeMillis time) {
+            return SFracQ0_16(static_cast<int32_t>(easeOutQuadRaw(normalizeLooped(time, durationMs))));
+        };
+    }
+
+    SFracQ0_16Signal easeInOut(TimeMillis durationMs) {
+        return [durationMs](TimeMillis time) {
+            return SFracQ0_16(static_cast<int32_t>(easeInOutQuadRaw(normalizeLooped(time, durationMs))));
+        };
+    }
+
+    SFracQ0_16Signal invert(SFracQ0_16Signal signal) {
+        return [signal = std::move(signal)](TimeMillis time) mutable {
+            int32_t value = raw(signal(time));
+            const int32_t max = static_cast<int32_t>(FRACT_Q0_16_MAX);
+            if (value <= 0) return SFracQ0_16(max);
+            if (value >= max) return SFracQ0_16(0);
+            return SFracQ0_16(max - value);
+        };
+    }
 }

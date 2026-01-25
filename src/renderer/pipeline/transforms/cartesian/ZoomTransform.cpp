@@ -24,8 +24,8 @@
 namespace PolarShader {
     namespace {
         // Smaller scale => higher noise frequency (zooming out shows more detail).
-        const int32_t MIN_SCALE = scale32(Q0_16_MAX, frac(80)); //0.0125x
-        const int32_t MAX_SCALE = Q0_16_ONE * 3; //3x
+        const int32_t MIN_SCALE = scale32(Q0_16_MAX, frac(160)); //0.00625x
+        const int32_t MAX_SCALE = Q0_16_ONE * 4; //4x
         const int32_t ZOOM_SMOOTH_ALPHA_MIN = Q0_16_ONE / 32; // 0.03125 in Q0.16
         const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
     }
@@ -50,14 +50,14 @@ namespace PolarShader {
         int32_t delta = target_raw - current_raw;
         int64_t span = static_cast<int64_t>(MAX_SCALE) - static_cast<int64_t>(MIN_SCALE);
         int64_t alpha_span = static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MAX) - static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MIN);
-        int64_t t = static_cast<int64_t>(target_raw) - static_cast<int64_t>(MIN_SCALE);
+        int64_t freq_bias = static_cast<int64_t>(MAX_SCALE) - static_cast<int64_t>(target_raw);
 
-        if (t < 0) t = 0;
-        if (span > 0 && t > span) t = span;
+        if (freq_bias < 0) freq_bias = 0;
+        if (span > 0 && freq_bias > span) freq_bias = span;
 
-        // Increase smoothing as scale decreases (higher noise frequency).
+        // Increase smoothing as noise frequency rises (lower scale => lower alpha).
         int64_t alpha = ZOOM_SMOOTH_ALPHA_MAX;
-        if (span > 0) alpha -= (alpha_span * t) / span;
+        if (span > 0) alpha -= (alpha_span * freq_bias) / span;
 
         int64_t step = static_cast<int64_t>(delta) * alpha;
         step = (step >= 0) ? (step + U16_HALF) : (step - U16_HALF);

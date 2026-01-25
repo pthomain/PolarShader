@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/units/Range.h"
 #include "renderer/pipeline/maths/AngleMaths.h"
 
 namespace PolarShader {
@@ -30,8 +30,8 @@ namespace PolarShader {
         return Range(min, max);
     }
 
-    Range Range::cartesianRange(SPoint32 center, int32_t radius) {
-        return Range(center, radius);
+    Range Range::cartesianRange(int32_t radius) {
+        return Range(radius);
     }
 
     Range::Range(Kind kind) : kind(kind) {
@@ -47,8 +47,7 @@ namespace PolarShader {
         max_scalar = max;
     }
 
-    Range::Range(SPoint32 center, int32_t radius) : Range(Kind::Cartesian) {
-        this->center = center;
+    Range::Range(int32_t radius) : Range(Kind::Cartesian) {
         this->radius = radius;
     }
 
