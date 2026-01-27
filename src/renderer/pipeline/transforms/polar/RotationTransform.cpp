@@ -24,7 +24,7 @@
 namespace PolarShader {
     struct RotationTransform::State {
         SFracQ0_16Signal angleSignal;
-        FracQ0_16 angleOffset = FracQ0_16(0);
+        MappedSignal<FracQ0_16> angleOffset = MappedSignal(FracQ0_16(0));
 
         explicit State(SFracQ0_16Signal s)
             : angleSignal(std::move(s)) {
@@ -32,7 +32,7 @@ namespace PolarShader {
     };
 
     RotationTransform::RotationTransform(SFracQ0_16Signal angle)
-        : PolarTransform(Range::polarRange()),
+        : PolarTransform(PolarRange()),
           state(std::make_shared<State>(std::move(angle))) {
     }
 
@@ -43,7 +43,7 @@ namespace PolarShader {
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
         return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
             uint16_t angle_raw = raw(angle);
-            uint16_t offset_raw = raw(state->angleOffset);
+            uint16_t offset_raw = raw(state->angleOffset.get());
             uint16_t new_angle = static_cast<uint16_t>(angle_raw + offset_raw);
             return layer(FracQ0_16(new_angle), radius);
         };

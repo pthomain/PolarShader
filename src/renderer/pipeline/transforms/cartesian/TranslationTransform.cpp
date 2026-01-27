@@ -21,6 +21,7 @@
 #include "TranslationTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/units/CartesianRange.h"
 
 namespace PolarShader {
     namespace {
@@ -30,13 +31,13 @@ namespace PolarShader {
     }
 
     struct TranslationTransform::State {
-        Range velocityRange;
+        CartesianRange velocityRange;
         CartesianMotionAccumulator motion;
         SPoint32 offset{0, 0};
         bool hasSmoothed{false};
 
         State(
-            Range range,
+            CartesianRange range,
             SFracQ0_16Signal direction,
             SFracQ0_16Signal velocity
         ) : velocityRange(std::move(range)),
@@ -53,7 +54,7 @@ namespace PolarShader {
         SFracQ0_16Signal direction,
         SFracQ0_16Signal velocity
     ) : state(std::make_shared<State>(
-        Range::cartesianRange(),
+        CartesianRange(),
         std::move(direction),
         std::move(velocity)
     )) {

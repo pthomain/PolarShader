@@ -18,21 +18,23 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-
-#include "FastLED.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/NoiseUnits.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
+#include "TimeRange.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(FracQ0_16, FracQ0_16)>;
-    // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
-    using CartesianLayer = fl::function<NoiseNormU16(CartQ24_8, CartQ24_8)>;
-    // Noise layer expects unsigned Q24.8 coordinates.
-    using NoiseLayer = fl::function<NoiseNormU16(CartUQ24_8, CartUQ24_8)>;
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
-}
+    namespace {
+        uint32_t clamp_frac_raw(int32_t raw_value) {
+            if (raw_value <= 0) return 0u;
+            if (raw_value >= static_cast<int32_t>(FRACT_Q0_16_MAX)) return FRACT_Q0_16_MAX;
+            return static_cast<uint32_t>(raw_value);
+        }
+    }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+    TimeRange::TimeRange(TimeMillis durationMs)
+        : duration_ms(durationMs) {
+    }
+
+    MappedSignal<TimeMillis> TimeRange::map(SFracQ0_16 t) const {
+        uint64_t scaled = (static_cast<uint64_t>(duration_ms) * static_cast<uint64_t>(clamp_frac_raw(raw(t)))) >> 16;
+        return MappedSignal(static_cast<TimeMillis>(scaled));
+    }
+}

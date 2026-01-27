@@ -23,15 +23,14 @@
 #include <renderer/pipeline/signals/Signals.h>
 #include "renderer/pipeline/PolarPipelineBuilder.h"
 #include "renderer/pipeline/transforms/polar/RotationTransform.h"
-#include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
 
 namespace PolarShader {
     namespace {
         PolarPipeline buildSimplePreset(const CRGBPalette16 &palette, const char *name) {
             return PolarPipelineBuilder(noiseLayer, palette, name)
-                    .addCartesianTransform(ZoomTransform(
-                        sine(cPerMil(100))
-                    ))
+                    // .addCartesianTransform(ZoomTransform(
+                    //     sine(cPerMil(100))
+                    // ))
                     .addPolarTransform(RotationTransform(
                         sine(cPerMil(100))
                     ))

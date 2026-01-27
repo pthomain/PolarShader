@@ -18,21 +18,33 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#ifndef POLAR_SHADER_PIPELINE_UNITS_TIME_RANGE_H
+#define POLAR_SHADER_PIPELINE_UNITS_TIME_RANGE_H
 
-#include "FastLED.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/NoiseUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/units/StrongTypes.h"
+#include "renderer/pipeline/units/TimeUnits.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(FracQ0_16, FracQ0_16)>;
-    // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
-    using CartesianLayer = fl::function<NoiseNormU16(CartQ24_8, CartQ24_8)>;
-    // Noise layer expects unsigned Q24.8 coordinates.
-    using NoiseLayer = fl::function<NoiseNormU16(CartUQ24_8, CartUQ24_8)>;
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
+    /**
+     * @brief Maps signals to time durations (TimeMillis).
+     *
+     * Clamps negative signal values to 0, as negative time durations are invalid in this context.
+     */
+    class TimeRange {
+    public:
+        TimeRange(TimeMillis durationMs = 30000);
+
+        /**
+         * @brief Maps a signed signal value [-1, 1] to a time duration.
+         * @param t The input signal value.
+         * @return A MappedSignal containing the resulting time duration.
+         */
+        MappedSignal<TimeMillis> map(SFracQ0_16 t) const;
+
+    private:
+        TimeMillis duration_ms = 0;
+    };
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#endif // POLAR_SHADER_PIPELINE_UNITS_TIME_RANGE_H

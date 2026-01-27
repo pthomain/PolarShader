@@ -18,21 +18,34 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#ifndef POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H
+#define POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H
 
-#include "FastLED.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/units/NoiseUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/units/StrongTypes.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(FracQ0_16, FracQ0_16)>;
-    // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
-    using CartesianLayer = fl::function<NoiseNormU16(CartQ24_8, CartQ24_8)>;
-    // Noise layer expects unsigned Q24.8 coordinates.
-    using NoiseLayer = fl::function<NoiseNormU16(CartUQ24_8, CartUQ24_8)>;
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
+    /**
+     * @brief Maps signals to scalar integer values (int32_t).
+     *
+     * Linearly interpolates the input signal [-1, 1] to the target range [min, max].
+     */
+    class ScalarRange {
+    public:
+        ScalarRange(int32_t min, int32_t max);
+
+        /**
+         * @brief Maps a signed signal value [-1, 1] to a scalar in the specified range.
+         * @param t The input signal value.
+         * @return A MappedSignal containing the resulting scalar.
+         */
+        MappedSignal<int32_t> map(SFracQ0_16 t) const;
+
+    private:
+        int32_t min_scalar = 0;
+        int32_t max_scalar = 0;
+    };
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#endif // POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H

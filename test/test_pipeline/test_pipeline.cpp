@@ -20,22 +20,22 @@
 
 #include <Arduino.h>
 #include <unity.h>
-
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/units/PolarRange.h"
+#include "renderer/pipeline/units/CartesianRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 
 using namespace PolarShader;
 
 void test_range_wraps_across_zero() {
-    Range range = Range::polarRange(FracQ0_16(0xC000u), FracQ0_16(0x4000u));
-    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(SFracQ0_16(0))));
-    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(SFracQ0_16(0x8000))));
+    PolarRange range(FracQ0_16(0xC000u), FracQ0_16(0x4000u));
+    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(SFracQ0_16(0)).get()));
+    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(SFracQ0_16(0x8000)).get()));
 }
 
 void test_cartesian_motion_uses_direction_and_velocity() {
     SFracQ0_16Signal direction = constant(SFracQ0_16(0));
     SFracQ0_16Signal velocity = constant(SFracQ0_16(0x8000));
-    Range velocityRange = Range::cartesianRange(SPoint32{0, 0}, 1000);
+    CartesianRange velocityRange(1000);
     CartesianMotionAccumulator acc(SPoint32{0, 0}, velocityRange, direction, velocity);
 
     acc.advance(0);

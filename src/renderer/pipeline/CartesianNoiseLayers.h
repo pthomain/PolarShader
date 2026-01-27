@@ -23,7 +23,6 @@
 
 #include "FastLED.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
-#include "renderer/pipeline/units/Range.h"
 
 namespace PolarShader {
     // Bilinear interpolation on the noise lattice using Q24.8 coordinates.

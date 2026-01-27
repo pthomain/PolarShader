@@ -21,7 +21,6 @@
 #ifndef POLAR_SHADER_POLAREFFECT_H
 #define POLAR_SHADER_POLAREFFECT_H
 
-#include <renderer/pipeline/units/Range.h>
 #include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {

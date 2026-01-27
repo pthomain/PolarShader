@@ -24,7 +24,7 @@
 #include "FastLED.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/TimeUnits.h"
-#include "renderer/pipeline/units/Range.h"
+#include "renderer/pipeline/units/CartesianRange.h"
 
 namespace PolarShader {
     /**
@@ -62,7 +62,7 @@ namespace PolarShader {
          */
         CartesianMotionAccumulator(
             SPoint32 initialPosition,
-            Range velocityRange,
+            CartesianRange velocityRange,
             SFracQ0_16Signal direction,
             SFracQ0_16Signal velocity
         );
@@ -75,7 +75,7 @@ namespace PolarShader {
         SPoint32 pos{0, 0};
         TimeMillis lastTime{0};
         bool hasLastTime{false};
-        Range velocityRange;
+        CartesianRange velocityRange;
         SFracQ0_16Signal directionSignal;
         SFracQ0_16Signal velocitySignal;
     };

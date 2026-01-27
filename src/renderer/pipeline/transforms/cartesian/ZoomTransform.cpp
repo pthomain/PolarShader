@@ -46,8 +46,7 @@ namespace PolarShader {
     };
 
     ZoomTransform::ZoomTransform(SFracQ0_16Signal scale, ZoomAnchor anchor)
-        : CartesianTransform(Range::scalarRange(MIN_SCALE, MAX_SCALE)),
-          state(std::make_shared<State>(std::move(scale))),
+        : state(std::make_shared<State>(std::move(scale))),
           anchor(anchor) {
     }
 

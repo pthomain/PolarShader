@@ -41,4 +41,15 @@ namespace PolarShader {
     private:
         Rep v_;
     };
+
+    template<typename T>
+    class MappedSignal {
+    public:
+        explicit constexpr MappedSignal(T value) : value_(value) {}
+
+        constexpr T get() const { return value_; }
+
+    private:
+        T value_;
+    };
 } // namespace PolarShader::Units

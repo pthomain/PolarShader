@@ -49,7 +49,7 @@ namespace PolarShader {
 
     CartesianMotionAccumulator::CartesianMotionAccumulator(
         SPoint32 initialPosition,
-        Range velocityRange,
+        CartesianRange velocityRange,
         SFracQ0_16Signal direction,
         SFracQ0_16Signal velocity
     ) : pos(initialPosition),
@@ -74,7 +74,7 @@ namespace PolarShader {
         SFracQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
         SFracQ0_16 direction = directionSignal(time);
         SFracQ0_16 velocity = velocitySignal(time);
-        SPoint32 velocity_vec = velocityRange.mapCartesian(direction, velocity);
+        SPoint32 velocity_vec = velocityRange.map(direction, velocity).get();
 
         int64_t dx = static_cast<int64_t>(velocity_vec.x) * static_cast<int64_t>(raw(dt_q0_16));
         int64_t dy = static_cast<int64_t>(velocity_vec.y) * static_cast<int64_t>(raw(dt_q0_16));
