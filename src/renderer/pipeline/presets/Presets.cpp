@@ -19,15 +19,21 @@
  */
 
 #include "Presets.h"
-#include <renderer/pipeline/CartesianNoiseLayers.h>
+#include <renderer/pipeline/patterns/cartesian/CartesianNoisePattern.h>
 #include <renderer/pipeline/signals/Signals.h>
 #include "renderer/pipeline/PolarPipelineBuilder.h"
 #include "renderer/pipeline/transforms/polar/RotationTransform.h"
+#include <memory>
 
 namespace PolarShader {
     namespace {
         PolarPipeline buildSimplePreset(const CRGBPalette16 &palette, const char *name) {
-            return PolarPipelineBuilder(noiseLayer, palette, name)
+            auto noisePattern = std::make_unique<CartesianNoisePattern>(CartesianNoisePattern::NoiseType::Basic);
+            return PolarPipelineBuilder(
+                    std::move(noisePattern),
+                    palette,
+                    name
+            )
                     // .addCartesianTransform(ZoomTransform(
                     //     sine(cPerMil(100))
                     // ))
@@ -47,7 +53,16 @@ namespace PolarShader {
     }
 
     PolarPipeline buildNoiseWarpFlamePreset(const CRGBPalette16 &palette) {
-        return buildSimplePreset(palette, "Noise Warp Flame");
+        auto noisePattern = std::make_unique<CartesianNoisePattern>(CartesianNoisePattern::NoiseType::FBm, 4);
+        return PolarPipelineBuilder(
+                std::move(noisePattern),
+                palette,
+                "Noise Warp Flame"
+        )
+                .addPolarTransform(RotationTransform(
+                    sine(cPerMil(100))
+                ))
+                .build();
     }
 
     PolarPipeline buildTiledMirrorMandalaPreset(const CRGBPalette16 &palette) {

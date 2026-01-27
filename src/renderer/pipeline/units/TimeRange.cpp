@@ -19,6 +19,7 @@
  */
 
 #include "TimeRange.h"
+#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     namespace {

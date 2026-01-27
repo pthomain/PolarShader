@@ -27,7 +27,7 @@ namespace PolarShader {
         return [](SFracQ0_16 phase) -> TrigQ0_16 {
             uint16_t phase_u16 = static_cast<uint16_t>(raw(phase));
             NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(FracQ0_16(phase_u16))));
-            NoiseNormU16 normNoise = noiseNormaliseU16(rawNoise);
+            PatternNormU16 normNoise = noiseNormaliseU16(rawNoise);
             int16_t signedNoise = static_cast<int16_t>(static_cast<int32_t>(raw(normNoise)) - U16_HALF);
             return TrigQ0_16(static_cast<int32_t>(signedNoise) << 1);
         };

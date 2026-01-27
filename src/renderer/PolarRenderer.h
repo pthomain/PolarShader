@@ -29,8 +29,8 @@ namespace PolarShader {
 
     /**
      * PolarRenderer builds a PolarPipeline from the current palette and renders using 16-bit turn angles
-     * (Q0.16). The pipeline assumes incoming noise layers already produce palette-ready intensities in
-     * [0..65535]; no normalization occurs past the source layer.
+     * (Q0.16). The pipeline assumes base patterns already produce palette-ready intensities in
+     * [0..65535]; no normalization occurs past the base pattern.
      */
     class PolarRenderer {
         const PolarCoordsMapper coordsMapper;

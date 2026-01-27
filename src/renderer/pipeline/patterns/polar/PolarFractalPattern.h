@@ -18,19 +18,28 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARFRACTALPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARFRACTALPATTERN_H
 
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
-    inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
+    class PolarFractalPattern : public PolarPattern {
+        struct FractalStub {
+            PatternNormU16 operator()(FracQ0_16, FracQ0_16) const {
+                return PatternNormU16(0);
+            }
+        };
 
-    /**
-     * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
-     */
-    PatternNormU16 noiseNormaliseU16(NoiseRawU16 value);
+    public:
+        PolarFractalPattern()
+            : PolarPattern(PatternKind::Fractal, OutputSemantic::Field) {
+        }
+
+        PolarLayer layer() const override {
+            return FractalStub{};
+        }
+    };
 }
 
-#endif // POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARFRACTALPATTERN_H

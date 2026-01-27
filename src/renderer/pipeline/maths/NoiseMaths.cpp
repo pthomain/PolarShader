@@ -19,20 +19,16 @@
  */
 
 #include "renderer/pipeline/maths/NoiseMaths.h"
+#include "renderer/pipeline/units/Range.h"
 
 namespace PolarShader {
     namespace {
+        // The empirical min/max output of FastLED's inoise16 function.
         constexpr uint16_t MIN_NOISE = 12000;
         constexpr uint16_t MAX_NOISE = 54000;
-        constexpr uint16_t RANGE = MAX_NOISE - MIN_NOISE;
     }
 
-    NoiseNormU16 noiseNormaliseU16(NoiseRawU16 value) {
-        uint16_t noise_raw = raw(value);
-        if (noise_raw <= MIN_NOISE) return NoiseNormU16(0);
-        if (noise_raw >= MAX_NOISE) return NoiseNormU16(FRACT_Q0_16_MAX);
-
-        uint32_t temp = static_cast<uint32_t>(noise_raw - MIN_NOISE) * FRACT_Q0_16_MAX;
-        return NoiseNormU16(static_cast<uint16_t>(temp / RANGE));
+    PatternNormU16 noiseNormaliseU16(NoiseRawU16 value) {
+        return PatternRange(MIN_NOISE, MAX_NOISE).normalize(raw(value));
     }
 }

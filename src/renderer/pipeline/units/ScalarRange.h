@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H
 #define POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H
 
-#include "renderer/pipeline/units/NoiseUnits.h"
+#include "renderer/pipeline/units/PatternUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/StrongTypes.h"
 

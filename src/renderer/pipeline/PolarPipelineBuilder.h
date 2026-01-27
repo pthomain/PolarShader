@@ -22,6 +22,7 @@
 #define POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
 
 #include "PolarPipeline.h"
+#include "patterns/BasePattern.h"
 #include "PipelineContext.h"
 #include <memory>
 #include <type_traits>
@@ -34,7 +35,7 @@ namespace PolarShader {
             Polar
         };
 
-        NoiseLayer sourceLayer;
+        std::unique_ptr<PatternBase> basePattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         bool built = false;
@@ -52,12 +53,23 @@ namespace PolarShader {
 
     public:
         PolarPipelineBuilder(
-            NoiseLayer sourceLayer,
+            std::unique_ptr<CartesianPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
-        ) : sourceLayer(std::move(sourceLayer)),
+        ) : basePattern(std::move(pattern)),
             palette(palette),
             name(name ? name : "unnamed") {
+            currentDomain = BuilderDomain::Cartesian;
+        }
+
+        PolarPipelineBuilder(
+            std::unique_ptr<PolarPattern> pattern,
+            const CRGBPalette16 &palette,
+            const char *name
+        ) : basePattern(std::move(pattern)),
+            palette(palette),
+            name(name ? name : "unnamed") {
+            currentDomain = BuilderDomain::Polar;
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >

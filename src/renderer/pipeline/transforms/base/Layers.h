@@ -23,15 +23,15 @@
 
 #include "FastLED.h"
 #include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/NoiseUnits.h"
+#include "renderer/pipeline/units/PatternUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<NoiseNormU16(FracQ0_16, FracQ0_16)>;
+    using PolarLayer = fl::function<PatternNormU16(FracQ0_16, FracQ0_16)>;
     // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
-    using CartesianLayer = fl::function<NoiseNormU16(CartQ24_8, CartQ24_8)>;
+    using CartesianLayer = fl::function<PatternNormU16(CartQ24_8, CartQ24_8)>;
     // Noise layer expects unsigned Q24.8 coordinates.
-    using NoiseLayer = fl::function<NoiseNormU16(CartUQ24_8, CartUQ24_8)>;
+    using NoiseLayer = fl::function<PatternNormU16(CartUQ24_8, CartUQ24_8)>;
     using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
 }
 

@@ -22,22 +22,22 @@
 #define POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 
 #include "transforms/base/Transforms.h"
+#include "patterns/BasePattern.h"
 #include "PipelineContext.h"
 #include "PipelineStep.h"
-
-struct PipelineStep;
+#include <memory>
 
 namespace PolarShader {
     /**
      * @brief Manages the rendering pipeline for polar effects.
      *
-     * Chains transforms across Cartesian and Polar domains and maps palette-ready noise intensities
-     * to CRGB. Expects NoiseLayer to output 16-bit intensities in [0..65535]; no normalization is done here.
+     * Chains transforms across Cartesian and Polar domains and maps palette-ready pattern intensities
+     * to CRGB. Expects the base pattern to output 16-bit intensities in [0..65535]; no normalization is done here.
      * Angles are represented as 16-bit turns (Q0.16). Cartesian coords are Q24.8. Any domain conversion (polar<->cartesian)
      * happens at explicit PipelineStep boundaries.
      */
     class PolarPipeline {
-        NoiseLayer sourceLayer;
+        std::unique_ptr<PatternBase> basePattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         const char *name;
@@ -50,7 +50,7 @@ namespace PolarShader {
         static CartesianLayer toCartesianLayer(const PolarLayer &layer);
 
         PolarPipeline(
-            NoiseLayer sourceLayer,
+            std::unique_ptr<PatternBase> basePattern,
             const CRGBPalette16 &palette,
             fl::vector<PipelineStep> steps,
             const char *name,

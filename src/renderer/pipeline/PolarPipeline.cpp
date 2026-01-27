@@ -19,19 +19,18 @@
  */
 
 #include "PolarPipeline.h"
-#include "renderer/pipeline/maths/NoiseMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include <Arduino.h>
 #include "FastLED.h"
 
 namespace PolarShader {
     PolarPipeline::PolarPipeline(
-        NoiseLayer sourceLayer,
+        std::unique_ptr<PatternBase> basePattern,
         const CRGBPalette16 &palette,
         fl::vector<PipelineStep> steps,
         const char *name,
         std::shared_ptr<PipelineContext> context
-    ) : sourceLayer(std::move(sourceLayer)),
+    ) : basePattern(std::move(basePattern)),
         palette(palette),
         steps(std::move(steps)),
         name(name ? name : "unnamed"),
@@ -89,22 +88,20 @@ namespace PolarShader {
 
     ColourLayer PolarPipeline::build() const {
         if (steps.empty()) return blackLayer("PolarPipeline::build has no steps.");
+        if (!basePattern) return blackLayer("PolarPipeline::build has no base pattern.");
 
-        CartesianLayer adaptedSource = [sourceLayer = sourceLayer](CartQ24_8 x, CartQ24_8 y) {
-            // Perform addition in signed space to correctly offset negative coordinates,
-            // then cast to unsigned for the noise function with explicit wrap.
-            int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
-            int64_t sx = static_cast<int64_t>(raw(x)) + offset;
-            int64_t sy = static_cast<int64_t>(raw(y)) + offset;
-            uint32_t ux = static_cast<uint32_t>(sx);
-            uint32_t uy = static_cast<uint32_t>(sy);
-            return sourceLayer(CartUQ24_8(ux), CartUQ24_8(uy));
-        };
-
-        CartesianLayer currentCartesian = adaptedSource;
+        CartesianLayer currentCartesian;
         PolarLayer currentPolar;
-        bool hasCartesian = true;
+        bool hasCartesian = false;
         bool hasPolar = false;
+
+        if (basePattern->domain() == PatternDomain::Cartesian) {
+            currentCartesian = static_cast<CartesianPattern*>(basePattern.get())->layer();
+            hasCartesian = true;
+        } else {
+            currentPolar = static_cast<PolarPattern*>(basePattern.get())->layer();
+            hasPolar = true;
+        }
 
         // Apply transforms in the order they were added by the builder.
         for (const auto &step: steps) {
@@ -145,12 +142,12 @@ namespace PolarShader {
 
         if (!hasPolar) return blackLayer("PolarPipeline::build ended without a Polar layer.");
 
-        // Final stage: sample the noise value and map it to a color from the palette.
-        return [palette = palette, layer = currentPolar](
+        // Final stage: sample the pattern value and map it to a color from the palette.
+        return [palette = palette, layer = std::move(currentPolar)](
             FracQ0_16 angle,
             FracQ0_16 radius
         ) {
-            NoiseNormU16 value = layer(angle, radius);
+            PatternNormU16 value = layer(angle, radius);
             uint8_t index = map16_to_8(raw(value));
             return ColorFromPalette(palette, index, 255, LINEARBLEND);
         };

@@ -22,8 +22,8 @@
 #define POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 
 #include "FastLED.h"
-#include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     fl::pair<int32_t, int32_t> polarToCartesian(
@@ -35,6 +35,35 @@ namespace PolarShader {
         fl::i32 x,
         fl::i32 y
     );
+
+    /**
+     * @brief Provides explicit, safe helpers for polar coordinate arithmetic.
+     *
+     * Using these helpers is crucial for avoiding seam artifacts when working with
+     * angles that wrap around.
+     */
+    namespace PolarMaths {
+
+        /**
+         * @brief Calculates the shortest distance between two angles in a wraparound domain.
+         *
+         * For example, the shortest distance between 350 degrees and 10 degrees is 20 degrees,
+         * not 340. This is essential for creating seamless polar patterns.
+         *
+         * @param a The first angle (FracQ0_16, 0-65535 representing 0-360 deg).
+         * @param b The second angle (FracQ0_16).
+         * @return The shortest distance between the angles (FracQ0_16, 0-32767).
+         */
+        inline FracQ0_16 shortest_angle_dist(FracQ0_16 a, FracQ0_16 b) {
+            uint16_t dist = raw(a) > raw(b) ? raw(a) - raw(b) : raw(b) - raw(a);
+            if (dist > U16_HALF) {
+                uint32_t wrap = ANGLE_FULL_TURN_U32 - dist;
+                dist = static_cast<uint16_t>(wrap);
+            }
+            return FracQ0_16(dist);
+        }
+
+    } // namespace PolarMaths
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H

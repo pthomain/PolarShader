@@ -18,19 +18,32 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#ifndef POLAR_SHADER_PIPELINE_UNITS_PATTERNUNITS_H
+#define POLAR_SHADER_PIPELINE_UNITS_PATTERNUNITS_H
 
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include <cstdint>
+#include "StrongTypes.h"
 
 namespace PolarShader {
-    inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
+    struct NoiseRawU16_Tag {
+    };
+
+    struct PatternNormU16_Tag {
+    };
 
     /**
-     * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
-     */
-    PatternNormU16 noiseNormaliseU16(NoiseRawU16 value);
+    *   The raw 16-bit output of FastLED's inoise16.
+    */
+    using NoiseRawU16 = Strong<uint16_t, NoiseRawU16_Tag>;
+
+    /**
+    *   A 16-bit value intended to represent a normalized pattern intensity in the full 0..65535 domain.
+    */
+    using PatternNormU16 = Strong<uint16_t, PatternNormU16_Tag>;
+
+    // --- Raw extractors ---
+    constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
+    constexpr uint16_t raw(PatternNormU16 n) { return n.raw(); }
 }
 
-#endif // POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#endif // POLAR_SHADER_PIPELINE_UNITS_PATTERNUNITS_H

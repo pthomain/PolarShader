@@ -18,32 +18,28 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H
-#define POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANSPACEFILLINGCURVEPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANSPACEFILLINGCURVEPATTERN_H
 
-#include <cstdint>
-#include "StrongTypes.h"
+#include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
-    struct NoiseRawU16_Tag {
+    class CartesianSpaceFillingCurvePattern : public CartesianPattern {
+        struct SpaceFillingCurveStub {
+            PatternNormU16 operator()(CartQ24_8, CartQ24_8) const {
+                return PatternNormU16(0);
+            }
+        };
+
+    public:
+        CartesianSpaceFillingCurvePattern()
+            : CartesianPattern(PatternKind::SpaceFillingCurve, OutputSemantic::Id) {
+        }
+
+        CartesianLayer layer() const override {
+            return SpaceFillingCurveStub{};
+        }
     };
-
-    struct NoiseNormU16_Tag {
-    };
-
-    /**
-    *   The raw 16-bit output of FastLED's inoise16.
-    */
-    using NoiseRawU16 = Strong<uint16_t, NoiseRawU16_Tag>;
-
-    /**
-    *   A 16-bit value intended to represent noise mapped to the full 0..65535 domain.
-    */
-    using NoiseNormU16 = Strong<uint16_t, NoiseNormU16_Tag>;
-
-    // --- Raw extractors ---
-    constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
-    constexpr uint16_t raw(NoiseNormU16 n) { return n.raw(); }
 }
 
-#endif // POLAR_SHADER_PIPELINE_UNITS_NOISEUNITS_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANSPACEFILLINGCURVEPATTERN_H

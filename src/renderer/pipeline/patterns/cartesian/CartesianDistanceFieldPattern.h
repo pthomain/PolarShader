@@ -18,19 +18,28 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANDISTANCEFIELDPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANDISTANCEFIELDPATTERN_H
 
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
-    inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
+    class CartesianDistanceFieldPattern : public CartesianPattern {
+        struct DistanceFieldStub {
+            PatternNormU16 operator()(CartQ24_8, CartQ24_8) const {
+                return PatternNormU16(0);
+            }
+        };
 
-    /**
-     * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
-     */
-    PatternNormU16 noiseNormaliseU16(NoiseRawU16 value);
+    public:
+        CartesianDistanceFieldPattern()
+            : CartesianPattern(PatternKind::DistanceField, OutputSemantic::SignedField) {
+        }
+
+        CartesianLayer layer() const override {
+            return DistanceFieldStub{};
+        }
+    };
 }
 
-#endif // POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANDISTANCEFIELDPATTERN_H
