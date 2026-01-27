@@ -18,16 +18,12 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "Range.h"
+#include "PatternRange.h"
 
 namespace PolarShader {
-    Range::Range(uint16_t minValue, uint16_t maxValue)
+    PatternRange::PatternRange(uint16_t minValue, uint16_t maxValue)
         : min_value(minValue),
           max_value(maxValue) {
-    }
-
-    PatternRange::PatternRange(uint16_t minValue, uint16_t maxValue)
-        : Range(minValue, maxValue) {
     }
 
     PatternNormU16 PatternRange::normalize(uint16_t value) const {

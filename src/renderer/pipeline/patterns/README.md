@@ -46,7 +46,7 @@ A pattern's final output **must** be a `PatternNormU16` value that spans the ful
 
 - **Use the Central Utility:** If a pattern's native output is not already in the full `0..65535` range, it must be normalized using the canonical helper:
   ```cpp
-  #include "renderer/pipeline/units/Range.h"
+  #include "renderer/pipeline/ranges/PatternRange.h"
   return PatternRange(min_range, max_range).normalize(raw_value);
   ```
 

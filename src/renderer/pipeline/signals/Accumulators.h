@@ -24,7 +24,7 @@
 #include "FastLED.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/TimeUnits.h"
-#include "renderer/pipeline/units/CartesianRange.h"
+#include <renderer/pipeline/ranges/CartesianRange.h>
 
 namespace PolarShader {
     /**

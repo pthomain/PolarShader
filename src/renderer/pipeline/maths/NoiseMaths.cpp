@@ -19,7 +19,7 @@
  */
 
 #include "renderer/pipeline/maths/NoiseMaths.h"
-#include "renderer/pipeline/units/Range.h"
+#include <renderer/pipeline/ranges/PatternRange.h>
 
 namespace PolarShader {
     namespace {

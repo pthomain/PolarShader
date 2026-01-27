@@ -21,7 +21,7 @@
 #include "TranslationTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/units/CartesianRange.h"
+#include "renderer/pipeline/ranges/CartesianRange.h"
 
 namespace PolarShader {
     namespace {
