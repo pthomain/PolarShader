@@ -26,11 +26,11 @@
 #include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
-    class CartesianNoisePattern : public CartesianPattern {
+    class NoisePattern : public CartesianPattern {
     public:
         enum class NoiseType {
             Basic,
-            FBm,
+            FBM,
             Turbulence,
             Ridged
         };
@@ -50,7 +50,7 @@ namespace PolarShader {
                 CartUQ24_8 yu(uy);
 
                 switch (type) {
-                    case NoiseType::FBm:
+                    case NoiseType::FBM:
                         return fBmLayerImpl(xu, yu, octaves);
                     case NoiseType::Turbulence:
                         return turbulenceLayerImpl(xu, yu);
@@ -127,7 +127,7 @@ namespace PolarShader {
         }
 
     public:
-        explicit CartesianNoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4)
+        explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4)
             : CartesianPattern(PatternKind::Noise, OutputSemantic::Field),
               type(noiseType),
               octaves(octaveCount) {

@@ -27,7 +27,7 @@ namespace PolarShader {
         uint16_t nbLeds,
         PolarCoordsMapper coordsMapper
     ) : coordsMapper(std::move(coordsMapper)),
-        pipeline(buildBarrelTunnelPreset(Rainbow_gp)),
+        pipeline(defaultPreset(Rainbow_gp)),
         colourLayer(pipeline.build()),
         nbLeds(nbLeds) {
     }

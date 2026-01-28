@@ -33,7 +33,11 @@ namespace PolarShader {
 
     enum class PatternKind {
         Noise,
+        Cellular,
         Gradient,
+        Tiles,
+        Geometry,
+        Wave,
         SpaceFillingCurve,
         Fractal,
         PeriodicTiling,
@@ -56,16 +60,17 @@ namespace PolarShader {
         SignedField
     };
 
-    class PatternBase {
+    class BasePattern {
     public:
-        virtual ~PatternBase() = default;
+        virtual ~BasePattern() = default;
 
         PatternDomain domain() const { return domainValue; }
         PatternKind kind() const { return kindValue; }
+
         virtual OutputSemantic semantic() const { return semanticValue; }
 
     protected:
-        PatternBase(PatternDomain domain, PatternKind kind, OutputSemantic semantic)
+        BasePattern(PatternDomain domain, PatternKind kind, OutputSemantic semantic)
             : domainValue(domain),
               kindValue(kind),
               semanticValue(semantic) {
@@ -77,19 +82,19 @@ namespace PolarShader {
         OutputSemantic semanticValue;
     };
 
-    class CartesianPattern : public PatternBase {
+    class CartesianPattern : public BasePattern {
     public:
         explicit CartesianPattern(PatternKind kind, OutputSemantic semantic = OutputSemantic::Field)
-            : PatternBase(PatternDomain::Cartesian, kind, semantic) {
+            : BasePattern(PatternDomain::Cartesian, kind, semantic) {
         }
 
         virtual CartesianLayer layer() const = 0;
     };
 
-    class PolarPattern : public PatternBase {
+    class PolarPattern : public BasePattern {
     public:
         explicit PolarPattern(PatternKind kind, OutputSemantic semantic = OutputSemantic::Field)
-            : PatternBase(PatternDomain::Polar, kind, semantic) {
+            : BasePattern(PatternDomain::Polar, kind, semantic) {
         }
 
         virtual PolarLayer layer() const = 0;

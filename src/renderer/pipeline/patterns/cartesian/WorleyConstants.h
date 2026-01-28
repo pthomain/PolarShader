@@ -18,16 +18,19 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PRESETS_H
-#define POLAR_SHADER_PIPELINE_PRESETS_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYCONSTANTS_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYCONSTANTS_H
 
-#include <renderer/pipeline/PolarPipeline.h>
+#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    // Demonstration presets combining the new transforms. These are examples to seed effects;
-    // tweak signals/parameters to taste.
+    inline constexpr int32_t WorleyCellUnit = 10000 * (1 << CARTESIAN_FRAC_BITS);
 
-    PolarPipeline defaultPreset(const CRGBPalette16 &palette);
+    enum class WorleyAliasing {
+        None,
+        Fast,
+        Precise
+    };
 }
 
-#endif //POLAR_SHADER_PIPELINE_PRESETS_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYCONSTANTS_H

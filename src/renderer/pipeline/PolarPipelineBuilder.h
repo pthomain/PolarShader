@@ -35,7 +35,7 @@ namespace PolarShader {
             Polar
         };
 
-        std::unique_ptr<PatternBase> basePattern;
+        std::unique_ptr<BasePattern> basePattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         bool built = false;

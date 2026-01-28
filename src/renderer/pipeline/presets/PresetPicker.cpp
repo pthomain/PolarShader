@@ -24,24 +24,7 @@
 namespace PolarShader {
     PolarPipeline PresetPicker::pickRandom(const CRGBPalette16 &palette) {
         static const PresetBuilder builders[] = {
-            buildDefaultPreset,
-            buildBarrelTunnelPreset,
-            buildNoiseWarpFlamePreset,
-            buildTiledMirrorMandalaPreset,
-            buildLiquidMarblePreset,
-            buildHeatShimmerPreset,
-            buildCRTRipplePreset,
-            buildSpiralGalaxyPreset,
-            buildElectricTunnelPreset,
-            buildStarburstPulsePreset,
-            buildRainShearPreset,
-            buildRippleRingPreset,
-            buildFractalTileBloomPreset,
-            buildStutterPulsePreset,
-            buildCurlFlowSmokePreset,
-            buildPerspectiveDepthPreset,
-            buildPosterizedRingsPreset,
-            buildJitteredTilesPreset
+            defaultPreset,
         };
         uint8_t idx = random8(std::size(builders));
         return builders[idx](palette);

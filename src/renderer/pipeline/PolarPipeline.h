@@ -37,7 +37,7 @@ namespace PolarShader {
      * happens at explicit PipelineStep boundaries.
      */
     class PolarPipeline {
-        std::unique_ptr<PatternBase> basePattern;
+        std::unique_ptr<BasePattern> basePattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         const char *name;
@@ -50,7 +50,7 @@ namespace PolarShader {
         static CartesianLayer toCartesianLayer(const PolarLayer &layer);
 
         PolarPipeline(
-            std::unique_ptr<PatternBase> basePattern,
+            std::unique_ptr<BasePattern> basePattern,
             const CRGBPalette16 &palette,
             fl::vector<PipelineStep> steps,
             const char *name,
