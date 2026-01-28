@@ -41,11 +41,11 @@ namespace PolarShader {
     }
 
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
+        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius, uint32_t depth) {
             uint16_t angle_raw = raw(angle);
             uint16_t offset_raw = raw(state->angleOffset.get());
             uint16_t new_angle = static_cast<uint16_t>(angle_raw + offset_raw);
-            return layer(FracQ0_16(new_angle), radius);
+            return layer(FracQ0_16(new_angle), radius, depth);
         };
     }
 }

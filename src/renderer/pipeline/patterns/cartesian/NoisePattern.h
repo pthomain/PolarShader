@@ -40,25 +40,28 @@ namespace PolarShader {
             NoiseType type;
             fl::u8 octaves;
 
-            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
+            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y, uint32_t depth) const {
                 int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
                 int64_t sx = static_cast<int64_t>(raw(x)) + offset;
                 int64_t sy = static_cast<int64_t>(raw(y)) + offset;
+                int64_t sz = static_cast<int64_t>(depth) + offset;
                 uint32_t ux = static_cast<uint32_t>(sx);
                 uint32_t uy = static_cast<uint32_t>(sy);
+                uint32_t uz = static_cast<uint32_t>(sz);
                 CartUQ24_8 xu(ux);
                 CartUQ24_8 yu(uy);
+                CartUQ24_8 zu(uz);
 
                 switch (type) {
                     case NoiseType::FBM:
-                        return fBmLayerImpl(xu, yu, octaves);
+                        return fBmLayerImpl(xu, yu, zu, octaves);
                     case NoiseType::Turbulence:
-                        return turbulenceLayerImpl(xu, yu);
+                        return turbulenceLayerImpl(xu, yu, zu);
                     case NoiseType::Ridged:
-                        return ridgedLayerImpl(xu, yu);
+                        return ridgedLayerImpl(xu, yu, zu);
                     case NoiseType::Basic:
                     default:
-                        return noiseLayerImpl(xu, yu);
+                        return noiseLayerImpl(xu, yu, zu);
                 }
             }
         };
@@ -66,48 +69,27 @@ namespace PolarShader {
         NoiseType type;
         fl::u8 octaves;
 
-        static NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
-            uint32_t x_int = x >> CARTESIAN_FRAC_BITS;
-            uint32_t y_int = y >> CARTESIAN_FRAC_BITS;
-            uint32_t frac_mask = (1u << CARTESIAN_FRAC_BITS) - 1u;
-            uint16_t x_frac = static_cast<uint16_t>((x & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
-            uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
-
-            uint16_t n00 = inoise16(x_int, y_int);
-            uint16_t n10 = inoise16(x_int + 1u, y_int);
-            uint16_t n01 = inoise16(x_int, y_int + 1u);
-            uint16_t n11 = inoise16(x_int + 1u, y_int + 1u);
-
-            int32_t nx0 = static_cast<int32_t>(n00) +
-                          ((static_cast<int32_t>(n10) - static_cast<int32_t>(n00)) * x_frac >> 16);
-            int32_t nx1 = static_cast<int32_t>(n01) +
-                          ((static_cast<int32_t>(n11) - static_cast<int32_t>(n01)) * x_frac >> 16);
-            int32_t nxy = nx0 + ((nx1 - nx0) * y_frac >> 16);
-            if (nxy < 0) nxy = 0;
-            if (nxy > UINT16_MAX) nxy = UINT16_MAX;
-            return NoiseRawU16(nxy);
+        static PatternNormU16 noiseLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+            return noiseNormaliseU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
         }
 
-        static PatternNormU16 noiseLayerImpl(CartUQ24_8 x, CartUQ24_8 y) {
-            return noiseNormaliseU16(sampleNoiseBilinear(raw(x), raw(y)));
-        }
-
-        static PatternNormU16 fBmLayerImpl(CartUQ24_8 x, CartUQ24_8 y, fl::u8 octaveCount) {
+        static PatternNormU16 fBmLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z, fl::u8 octaveCount) {
             uint32_t r = 0;
             uint16_t amplitude = U16_HALF;
             for (int o = 0; o < octaveCount; o++) {
-                auto n = sampleNoiseBilinear(raw(x), raw(y));
+                auto n = sampleNoiseTrilinear(raw(x), raw(y), raw(z));
                 r += (static_cast<uint32_t>(raw(n)) * amplitude) >> 16;
                 x = CartUQ24_8(raw(x) << 1);
                 y = CartUQ24_8(raw(y) << 1);
+                z = CartUQ24_8(raw(z) << 1);
                 amplitude >>= 1;
             }
             if (r > UINT16_MAX) r = UINT16_MAX;
             return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(r)));
         }
 
-        static PatternNormU16 turbulenceLayerImpl(CartUQ24_8 x, CartUQ24_8 y) {
-            NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseBilinear(raw(x), raw(y)));
+        static PatternNormU16 turbulenceLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+            NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
             int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
             uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
             uint32_t doubled = static_cast<uint32_t>(mag) << 1;
@@ -115,8 +97,8 @@ namespace PolarShader {
             return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(doubled)));
         }
 
-        static PatternNormU16 ridgedLayerImpl(CartUQ24_8 x, CartUQ24_8 y) {
-            NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseBilinear(raw(x), raw(y)));
+        static PatternNormU16 ridgedLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+            NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
             int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
             uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
             mag = min<uint16_t>(mag, static_cast<uint16_t>(U16_HALF - 1));
@@ -128,8 +110,7 @@ namespace PolarShader {
 
     public:
         explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4)
-            : CartesianPattern(PatternKind::Noise, OutputSemantic::Field),
-              type(noiseType),
+            : type(noiseType),
               octaves(octaveCount) {
         }
 

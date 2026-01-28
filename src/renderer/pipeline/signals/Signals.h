@@ -25,6 +25,7 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
+#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     using SampleSignal = fl::function<TrigQ0_16(SFracQ0_16)>;
@@ -84,6 +85,15 @@ namespace PolarShader {
 
     // Scale a signal in the 0..1 domain by a Q0.16 fraction.
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor);
+
+    // Depth signals for animating noise domains (unsigned Q24.8).
+    DepthSignal constantDepth(uint32_t value);
+
+    DepthSignal depth(
+        SFracQ0_16Signal phaseVelocity = constant(perMil(100)),
+        uint32_t scale = (1u << CARTESIAN_FRAC_BITS),
+        uint32_t offset = 0u
+    );
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_MODULATORS_SIGNALS_H

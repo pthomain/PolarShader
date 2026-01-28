@@ -31,25 +31,25 @@
 namespace PolarShader {
     PolarPipeline defaultPreset(const CRGBPalette16 &palette) {
         return PolarPipelineBuilder(
-                    voronoiPattern(CartQ24_8(4 * WorleyCellUnit), WorleyAliasing::Fast),
-                    // noisePattern(),
+                    // voronoiPattern(CartQ24_8(4 * WorleyCellUnit), WorleyAliasing::Fast),
+                    noisePattern(),
                     palette,
                     "default"
                 )
-                .addCartesianTransform(TranslationTransform(
-                    noise(),
-                    cPerMil(100)
-                ))
-                .addCartesianTransform(ZoomTransform(
-                    sine(
-                        cPerMil(100),
-                        cPerMil(300),
-                        cPerMil(300)
-                    )
-                ))
-                .addPolarTransform(RotationTransform(
-                    noise()
-                ))
+                // .addCartesianTransform(TranslationTransform(
+                //     noise(),
+                //     cPerMil(100)
+                // ))
+                // .addCartesianTransform(ZoomTransform(
+                //     sine(
+                //         cPerMil(100),
+                //         cPerMil(300),
+                //         cPerMil(300)
+                //     )
+                // ))
+                // .addPolarTransform(RotationTransform(
+                //     noise()
+                // ))
                 .build();
     }
 }

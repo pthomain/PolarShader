@@ -18,28 +18,24 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARSPACEFILLINGCURVEPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARSPACEFILLINGCURVEPATTERN_H
+#ifndef POLAR_SHADER_TRANSFORMS_CARTESIAN_DOMAINWARPPRESETS_H
+#define POLAR_SHADER_TRANSFORMS_CARTESIAN_DOMAINWARPPRESETS_H
 
-#include "renderer/pipeline/patterns/BasePattern.h"
+#include "renderer/pipeline/transforms/cartesian/DomainWarpTransform.h"
+#include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {
-    class PolarSpaceFillingCurvePattern : public PolarPattern {
-        struct SpaceFillingCurveStub {
-            PatternNormU16 operator()(FracQ0_16, FracQ0_16) const {
-                return PatternNormU16(0);
-            }
-        };
+    DomainWarpTransform domainWarpBasic();
 
-    public:
-        PolarSpaceFillingCurvePattern()
-            : PolarPattern(PatternKind::SpaceFillingCurve, OutputSemantic::Id) {
-        }
+    DomainWarpTransform domainWarpFbm(uint8_t octaves = 3);
 
-        PolarLayer layer() const override {
-            return SpaceFillingCurveStub{};
-        }
-    };
+    DomainWarpTransform domainWarpNested();
+
+    DomainWarpTransform domainWarpCurl();
+
+    DomainWarpTransform domainWarpPolar();
+
+    DomainWarpTransform domainWarpDirectional();
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARSPACEFILLINGCURVEPATTERN_H
+#endif // POLAR_SHADER_TRANSFORMS_CARTESIAN_DOMAINWARPPRESETS_H

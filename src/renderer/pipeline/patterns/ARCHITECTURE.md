@@ -10,28 +10,26 @@ This document defines the "Definition of Done" for any new pattern in the PolarS
 
 2.  **FUNCTORS**: The `layer()` method must return a lightweight, POD-style functor. Lambdas are only acceptable if they are non-capturing or capture only POD data proven to fit within the `fl::function` small buffer optimization. Returning an explicit functor struct is strongly preferred for clarity.
 
-3.  **OUTPUT SEMANTICS**: A pattern must declare the nature of its output by implementing the `semantic()` method. This contract determines how the output should be interpreted and normalized.
-
-4.  **PARAMETERIZATION**: Patterns must accept configuration via constructor parameters (e.g., cell size, softness). Hardcoded values are discouraged.
+3.  **PARAMETERIZATION**: Patterns must accept configuration via constructor parameters (e.g., cell size, softness). Hardcoded values are discouraged.
 
 ---
 
 ## Behavior & Correctness
 
-5.  **DETERMINISM & STATELESSNESS**: Patterns must be pure functions of position.
+4.  **DETERMINISM & STATELESSNESS**: Patterns must be pure functions of position (and optional depth).
     - No `static` variables, no mutable state, no `random()` calls.
     - Stochastic patterns (e.g., Voronoi) MUST accept a `uint32_t seed` in their constructor to ensure they are deterministic.
 
-6.  **NO TIME-BASED LOGIC**: All animation is handled by `Transforms`. Patterns must not use `millis()` or any other time source.
+5.  **NO TIME-BASED LOGIC**: All animation is handled by `Transforms` and/or a depth signal. Patterns must not use `millis()` or any other time source.
 
-7.  **NORMALIZATION**: The final output MUST be a `PatternNormU16` (0-65535).
-    - `Field` semantics should be normalized to the full range.
-    - `Id` semantics should NOT be normalized.
+6.  **NORMALIZATION**: The final output MUST be a `PatternNormU16` (0-65535).
+    - Normalize continuous fields to the full range.
+    - Categorical IDs should not be normalized.
     - Use `PatternRange(min, max).normalize(value)` for consistent remapping.
 
-8.  **ALIASING**: Patterns with sharp edges must offer a `softness` parameter or use `PatternRange::smoothstep_u16()` to provide anti-aliasing.
+7.  **ALIASING**: Patterns with sharp edges must offer a `softness` parameter or use `PatternRange::smoothstep_u16()` to provide anti-aliasing.
 
-9.  **COORDINATE & SEAM SAFETY**:
+8.  **COORDINATE & SEAM SAFETY**:
     - Cartesian: Use `CartesianMaths.h` helpers for fixed-point arithmetic. Define sizes in domain units and clamp minimums to avoid collapse.
     - Polar: Use `PolarMaths::shortest_angle_dist()` to handle angle wrapping and prevent visual seams.
 
@@ -39,6 +37,6 @@ This document defines the "Definition of Done" for any new pattern in the PolarS
 
 ## Performance & Embedded Constraints (SAMD21)
 
-10. **NO HEAVY FEATURES**: No exceptions (`throw`), RTTI (`dynamic_cast`), iostream, or heap-allocating STL containers like `std::vector` or `std::map`.
+9.  **NO HEAVY FEATURES**: No exceptions (`throw`), RTTI (`dynamic_cast`), iostream, or heap-allocating STL containers like `std::vector` or `std::map`.
 
-11. **BOUNDED COST**: The computational cost must be predictable and bounded. Avoid algorithms with unbounded `while` loops or unpredictable recursion.
+10. **BOUNDED COST**: The computational cost must be predictable and bounded. Avoid algorithms with unbounded `while` loops or unpredictable recursion.

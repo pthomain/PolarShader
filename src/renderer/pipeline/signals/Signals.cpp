@@ -22,6 +22,7 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
+#include <cstdint>
 #include <utility>
 
 namespace PolarShader {
@@ -200,6 +201,25 @@ namespace PolarShader {
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor) {
         return [signal = std::move(signal), factor](TimeMillis time) mutable {
             return mulSFracSat(signal(time), SFracQ0_16(raw(factor)));
+        };
+    }
+
+    DepthSignal constantDepth(uint32_t value) {
+        return [value](TimeMillis) { return value; };
+    }
+
+    DepthSignal depth(
+        SFracQ0_16Signal phaseVelocity,
+        uint32_t scale,
+        uint32_t offset
+    ) {
+        PhaseAccumulator acc{std::move(phaseVelocity)};
+        return [acc = std::move(acc), scale, offset](TimeMillis time) mutable -> uint32_t {
+            SFracQ0_16 phase = acc.advance(time);
+            uint64_t scaled = (static_cast<uint64_t>(raw(phase)) * static_cast<uint64_t>(scale)) >> 16;
+            uint64_t sum = scaled + offset;
+            if (sum > UINT32_MAX) sum = UINT32_MAX;
+            return static_cast<uint32_t>(sum);
         };
     }
 }

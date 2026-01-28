@@ -27,16 +27,16 @@ Lambdas are allowed when they are non-capturing or only capture POD data known t
 
 ---
 
-### 3. Patterns MUST Be Stateless and Time-Free
+### 3. Patterns MUST Be Stateless
 
 A pattern's role is to define a static, visual structure as a pure function of position.
 
-- **Pure Functions of Position:** A pattern's output must depend **only** on the input coordinates and any immutable configuration parameters passed to its constructor.
+- **Pure Functions of Position (+ Depth):** A pattern's output must depend **only** on the input coordinates, the optional `depth` parameter, and any immutable configuration parameters passed to its constructor.
 - **NO Internal State:** A pattern's functor **must not** have mutable member variables.
 - **NO `static` Variables:** Pattern code **must not** use `static` variables.
 - **NO Time-Based Logic:** Patterns **must not** use `millis()` or any other time source.
 
-**All animation is handled *outside* the pattern** by coordinate `Transforms` (e.g., `RotationTransform`), which are applied by the `PolarPipelineBuilder`.
+**All animation is handled *outside* the pattern** via transforms and/or a depth signal threaded through the pipeline. Patterns may consume the `depth` argument but must remain stateless.
 
 ---
 

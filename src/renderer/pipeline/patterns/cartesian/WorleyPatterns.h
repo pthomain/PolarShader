@@ -73,9 +73,8 @@ namespace PolarShader {
         PatternRange range;
         WorleyAliasing aliasing;
 
-        explicit WorleyBasePattern(OutputSemantic semantic, WorleyAliasing aliasingMode)
-            : CartesianPattern(PatternKind::Cellular, semantic),
-              cell_size_raw(WorleyCellUnit),
+        explicit WorleyBasePattern(WorleyAliasing aliasingMode)
+            : cell_size_raw(WorleyCellUnit),
               dist_shift(0),
               max_dist_scaled(FRACT_Q0_16_MAX),
               range(0, FRACT_Q0_16_MAX),
@@ -193,7 +192,7 @@ namespace PolarShader {
         struct Functor {
             const WorleyPattern *self;
 
-            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
+            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y, uint32_t) const {
                 if (self->aliasing == WorleyAliasing::Precise) {
                     return self->samplePrecise(x, y, self, &WorleyPattern::sampleFast);
                 }
@@ -209,7 +208,7 @@ namespace PolarShader {
         explicit WorleyPattern(
             CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
-        ) : WorleyBasePattern(OutputSemantic::Field, aliasingMode) {
+        ) : WorleyBasePattern(aliasingMode) {
             configureCellSize(cellSize);
         }
 
@@ -238,7 +237,7 @@ namespace PolarShader {
         struct Functor {
             const VoronoiPattern *self;
 
-            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
+            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y, uint32_t) const {
                 if (self->aliasing == WorleyAliasing::Precise) {
                     CartQ24_8 offset = self->aliasingOffset();
                     return self->sampleFastestId(
@@ -254,7 +253,7 @@ namespace PolarShader {
         explicit VoronoiPattern(
             CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
-        ) : WorleyBasePattern(OutputSemantic::Id, aliasingMode) {
+        ) : WorleyBasePattern(aliasingMode) {
             configureCellSize(cellSize);
         }
 

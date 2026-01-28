@@ -24,9 +24,13 @@
 #include "PolarPipeline.h"
 #include "patterns/BasePattern.h"
 #include "PipelineContext.h"
+#include "FastLED.h"
+#include "renderer/pipeline/signals/Accumulators.h"
 #include <memory>
 #include <type_traits>
 #include <utility>
+
+#include "signals/Signals.h"
 
 namespace PolarShader {
     class PolarPipelineBuilder {
@@ -35,7 +39,7 @@ namespace PolarShader {
             Polar
         };
 
-        std::unique_ptr<BasePattern> basePattern;
+        std::unique_ptr<BasePattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         bool built = false;
@@ -43,6 +47,7 @@ namespace PolarShader {
         // Must point to a string with static storage duration (presets use literals).
         const char *name;
         std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
+        DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << CARTESIAN_FRAC_BITS);
 
         void ensureFinalPolarDomain() {
             if (currentDomain == BuilderDomain::Cartesian) {
@@ -56,7 +61,7 @@ namespace PolarShader {
             std::unique_ptr<CartesianPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
-        ) : basePattern(std::move(pattern)),
+        ) : pattern(std::move(pattern)),
             palette(palette),
             name(name ? name : "unnamed") {
             currentDomain = BuilderDomain::Cartesian;
@@ -66,10 +71,19 @@ namespace PolarShader {
             std::unique_ptr<PolarPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
-        ) : basePattern(std::move(pattern)),
+        ) : pattern(std::move(pattern)),
             palette(palette),
             name(name ? name : "unnamed") {
             currentDomain = BuilderDomain::Polar;
+        }
+
+        PolarPipelineBuilder &setDepthSignal(DepthSignal signal) {
+            if (built) return *this;
+            if (!signal) {
+                return *this;
+            }
+            depthSignal = std::move(signal);
+            return *this;
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >

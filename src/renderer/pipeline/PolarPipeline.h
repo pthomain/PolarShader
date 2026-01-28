@@ -21,10 +21,10 @@
 #ifndef POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 #define POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 
-#include "transforms/base/Transforms.h"
 #include "patterns/BasePattern.h"
 #include "PipelineContext.h"
 #include "PipelineStep.h"
+#include "renderer/pipeline/signals/Accumulators.h"
 #include <memory>
 
 namespace PolarShader {
@@ -37,11 +37,13 @@ namespace PolarShader {
      * happens at explicit PipelineStep boundaries.
      */
     class PolarPipeline {
-        std::unique_ptr<BasePattern> basePattern;
+        std::unique_ptr<BasePattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         const char *name;
         std::shared_ptr<PipelineContext> context;
+        DepthSignal depthSignal;
+        std::shared_ptr<uint32_t> depthValue;
 
         static ColourLayer blackLayer(const char *reason);
 
@@ -50,11 +52,12 @@ namespace PolarShader {
         static CartesianLayer toCartesianLayer(const PolarLayer &layer);
 
         PolarPipeline(
-            std::unique_ptr<BasePattern> basePattern,
+            std::unique_ptr<BasePattern> pattern,
             const CRGBPalette16 &palette,
             fl::vector<PipelineStep> steps,
             const char *name,
-            std::shared_ptr<PipelineContext> context
+            std::shared_ptr<PipelineContext> context,
+            DepthSignal depthSignal
         );
 
         friend class PolarPipelineBuilder;

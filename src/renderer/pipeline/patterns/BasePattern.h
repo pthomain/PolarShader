@@ -25,39 +25,9 @@
 #include <utility>
 
 namespace PolarShader {
-
     enum class PatternDomain {
         Cartesian,
         Polar
-    };
-
-    enum class PatternKind {
-        Noise,
-        Cellular,
-        Gradient,
-        Tiles,
-        Geometry,
-        Wave,
-        SpaceFillingCurve,
-        Fractal,
-        PeriodicTiling,
-        DistanceField,
-        Custom
-    };
-
-    /**
-     * @brief Describes the nature of a pattern's output value.
-     * This contract helps determine if and how normalization should be applied.
-     */
-    enum class OutputSemantic {
-        /// @brief A continuous value field, like noise. Should be normalized to full range.
-        Field,
-        /// @brief A binary or soft-edged mask. Should be 0 or 65535, with optional smooth transitions.
-        Mask,
-        /// @brief A categorical ID, like for Voronoi cells. Should not be normalized.
-        Id,
-        /// @brief A signed distance field. Centered at 0, with distance stored in the value.
-        SignedField
     };
 
     class BasePattern {
@@ -65,71 +35,60 @@ namespace PolarShader {
         virtual ~BasePattern() = default;
 
         PatternDomain domain() const { return domainValue; }
-        PatternKind kind() const { return kindValue; }
-
-        virtual OutputSemantic semantic() const { return semanticValue; }
 
     protected:
-        BasePattern(PatternDomain domain, PatternKind kind, OutputSemantic semantic)
-            : domainValue(domain),
-              kindValue(kind),
-              semanticValue(semantic) {
+        explicit BasePattern(PatternDomain domain)
+            : domainValue(domain) {
+        }
+
+        static CartesianLayer defaultCartesianLayer() {
+            return [](CartQ24_8, CartQ24_8, uint32_t) { return PatternNormU16(0); };
+        }
+
+        static PolarLayer defaultPolarLayer() {
+            return [](FracQ0_16, FracQ0_16, uint32_t) { return PatternNormU16(0); };
         }
 
     private:
         PatternDomain domainValue;
-        PatternKind kindValue;
-        OutputSemantic semanticValue;
     };
 
     class CartesianPattern : public BasePattern {
-    public:
-        explicit CartesianPattern(PatternKind kind, OutputSemantic semantic = OutputSemantic::Field)
-            : BasePattern(PatternDomain::Cartesian, kind, semantic) {
-        }
-
-        virtual CartesianLayer layer() const = 0;
-    };
-
-    class PolarPattern : public BasePattern {
-    public:
-        explicit PolarPattern(PatternKind kind, OutputSemantic semantic = OutputSemantic::Field)
-            : BasePattern(PatternDomain::Polar, kind, semantic) {
-        }
-
-        virtual PolarLayer layer() const = 0;
-    };
-
-    class SimpleCartesianPattern : public CartesianPattern {
         CartesianLayer layerValue;
 
     public:
-        SimpleCartesianPattern(
-            CartesianLayer layer,
-            PatternKind kind = PatternKind::Custom,
-            OutputSemantic semantic = OutputSemantic::Field
-        ) : CartesianPattern(kind, semantic),
-            layerValue(std::move(layer)) {
+        CartesianPattern() : BasePattern(PatternDomain::Cartesian),
+                             layerValue(defaultCartesianLayer()) {
         }
 
-        CartesianLayer layer() const override {
+        explicit CartesianPattern(CartesianLayer layer) : BasePattern(PatternDomain::Cartesian),
+                                                          layerValue(std::move(layer)) {
+            if (!layerValue) {
+                layerValue = defaultCartesianLayer();
+            }
+        }
+
+        virtual CartesianLayer layer() const {
             return layerValue;
         }
     };
 
-    class SimplePolarPattern : public PolarPattern {
+    class PolarPattern : public BasePattern {
         PolarLayer layerValue;
 
     public:
-        SimplePolarPattern(
-            PolarLayer layer,
-            PatternKind kind = PatternKind::Custom,
-            OutputSemantic semantic = OutputSemantic::Field
-        ) : PolarPattern(kind, semantic),
-            layerValue(std::move(layer)) {
+        PolarPattern() : BasePattern(PatternDomain::Polar),
+                         layerValue(defaultPolarLayer()) {
         }
 
-        PolarLayer layer() const override {
+        explicit PolarPattern(PolarLayer layer) : BasePattern(PatternDomain::Polar),
+                                                  layerValue(std::move(layer)) {
+            if (!layerValue) {
+                layerValue = defaultPolarLayer();
+            }
+        }
+
+        virtual PolarLayer layer() const {
             return layerValue;
         }
     };
