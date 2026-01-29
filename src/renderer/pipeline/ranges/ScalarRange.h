@@ -21,9 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H
 #define POLAR_SHADER_PIPELINE_UNITS_SCALAR_RANGE_H
 
-#include "renderer/pipeline/units/PatternUnits.h"
+#include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/StrongTypes.h"
 
 namespace PolarShader {
     /**
@@ -31,16 +30,16 @@ namespace PolarShader {
      *
      * Linearly interpolates the input signal [-1, 1] to the target range [min, max].
      */
-    class ScalarRange {
+    class ScalarRange : public Range<ScalarRange, int32_t> {
     public:
         ScalarRange(int32_t min, int32_t max);
 
         /**
          * @brief Maps a signed signal value [-1, 1] to a scalar in the specified range.
          * @param t The input signal value.
-         * @return A MappedSignal containing the resulting scalar.
+         * @return A MappedValue containing the resulting scalar.
          */
-        MappedSignal<int32_t> map(SFracQ0_16 t) const;
+        MappedValue<int32_t> map(SFracQ0_16 t) const override;
 
     private:
         int32_t min_scalar = 0;

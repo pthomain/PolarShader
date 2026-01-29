@@ -23,7 +23,7 @@
 
 #include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/ranges/PatternRange.h"
+#include "renderer/pipeline/maths/PatternMaths.h"
 
 namespace PolarShader {
     inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
@@ -34,7 +34,7 @@ namespace PolarShader {
      * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
      */
     inline PatternNormU16 noiseNormaliseU16(NoiseRawU16 value) {
-        return PatternRange(NOISE_MIN, NOISE_MAX).normalize(raw(value));
+        return patternNormalize(raw(value), NOISE_MIN, NOISE_MAX);
     }
 
     /**

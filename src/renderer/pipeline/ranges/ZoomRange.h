@@ -18,31 +18,33 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
-#define POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
+#ifndef POLAR_SHADER_PIPELINE_RANGES_ZOOMRANGE_H
+#define POLAR_SHADER_PIPELINE_RANGES_ZOOMRANGE_H
 
 #include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 
 namespace PolarShader {
     /**
-     * @brief Maps a 0..1 signal into the unsigned Q24.8 depth domain.
+     * @brief Maps a 0..1 scalar signal into a zoom scale range (Q0.16).
      */
-    class DepthRange : public Range<DepthRange, uint32_t> {
+    class ZoomRange : public Range<ZoomRange, SFracQ0_16> {
     public:
-        DepthRange(uint32_t min = 0u, uint32_t max = UINT32_MAX >> 4);
+        ZoomRange();
+
+        ZoomRange(SFracQ0_16 minScale, SFracQ0_16 maxScale);
 
         /**
-         * @brief Maps a signed signal value [0, 1] to a depth in the specified range.
+         * @brief Maps a 0..1 signal into the zoom scale range.
          * @param t The input signal value.
-         * @return A MappedValue containing the resulting depth value.
+         * @return A MappedValue containing the resulting scale.
          */
-        MappedValue<uint32_t> map(SFracQ0_16 t) const override;
+        MappedValue<SFracQ0_16> map(SFracQ0_16 t) const override;
 
     private:
-        uint32_t min_depth = 0u;
-        uint32_t max_depth = 0u;
+        int32_t min_scale_raw = 0;
+        int32_t max_scale_raw = 0;
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
+#endif // POLAR_SHADER_PIPELINE_RANGES_ZOOMRANGE_H

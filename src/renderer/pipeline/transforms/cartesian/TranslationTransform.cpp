@@ -22,43 +22,62 @@
 #include "renderer/pipeline/maths/Maths.h"
 #include <Arduino.h>
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/ranges/CartesianRange.h"
+#include "renderer/pipeline/ranges/PolarRange.h"
+#include "renderer/pipeline/ranges/ScalarRange.h"
 
 namespace PolarShader {
+    struct TranslationTransform::MappedInputs {
+        MappedSignal<FracQ0_16> directionSignal;
+        MappedSignal<int32_t> speedSignal;
+    };
+
     namespace {
         // Smoothing controls when zoom is at minimum (highest noise frequency).
         const int32_t TRANSLATION_SMOOTH_ALPHA_MIN = Q0_16_ONE / 16;
         const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = Q0_16_ONE / 2;
+        const int32_t TRANSLATION_MAX_SPEED = static_cast<int32_t>(UINT32_MAX >> 5);
     }
 
     struct TranslationTransform::State {
-        CartesianRange velocityRange;
         CartesianMotionAccumulator motion;
         SPoint32 offset{0, 0};
         bool hasSmoothed{false};
 
         State(
-            CartesianRange range,
-            SFracQ0_16Signal direction,
-            SFracQ0_16Signal velocity
-        ) : velocityRange(std::move(range)),
-            motion(
-                SPoint32{0, 0},
-                velocityRange,
-                std::move(direction),
-                std::move(velocity)
-            ) {
+            MappedSignal<FracQ0_16> direction,
+            MappedSignal<int32_t> speed
+        ) : motion(
+            SPoint32{0, 0},
+            std::move(direction),
+            std::move(speed)
+        ) {
         }
     };
 
     TranslationTransform::TranslationTransform(
+        MappedSignal<FracQ0_16> direction,
+        MappedSignal<int32_t> speed
+    ) : state(std::make_shared<State>(std::move(direction), std::move(speed))) {
+    }
+
+    TranslationTransform::TranslationTransform(MappedInputs inputs)
+        : TranslationTransform(std::move(inputs.directionSignal), std::move(inputs.speedSignal)) {
+    }
+
+    TranslationTransform::MappedInputs TranslationTransform::makeInputs(
         SFracQ0_16Signal direction,
-        SFracQ0_16Signal velocity
-    ) : state(std::make_shared<State>(
-        CartesianRange(),
-        std::move(direction),
-        std::move(velocity)
-    )) {
+        SFracQ0_16Signal speed
+    ) {
+        return MappedInputs{
+            PolarRange().mapSignal(std::move(direction)),
+            ScalarRange(0, TRANSLATION_MAX_SPEED).mapSignal(std::move(speed))
+        };
+    }
+
+    TranslationTransform::TranslationTransform(
+        SFracQ0_16Signal direction,
+        SFracQ0_16Signal speed
+    ) : TranslationTransform(makeInputs(std::move(direction), std::move(speed))) {
     }
 
     void TranslationTransform::advanceFrame(TimeMillis timeInMillis) {

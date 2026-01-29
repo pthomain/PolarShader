@@ -26,14 +26,15 @@ namespace PolarShader {
         : min_depth(min), max_depth(max) {
     }
 
-    MappedSignal<uint32_t> DepthRange::map(SFracQ0_16 t) const {
-        if (max_depth <= min_depth) return MappedSignal(min_depth);
+    MappedValue<uint32_t> DepthRange::map(SFracQ0_16 t) const {
+        if (max_depth <= min_depth) return MappedValue(min_depth);
 
         uint32_t t_raw = clamp_frac_raw(raw(t));
         uint64_t span = static_cast<uint64_t>(max_depth) - static_cast<uint64_t>(min_depth);
         uint64_t scaled = (span * static_cast<uint64_t>(t_raw)) >> 16;
         uint64_t sum = static_cast<uint64_t>(min_depth) + scaled;
+
         if (sum > UINT32_MAX) sum = UINT32_MAX;
-        return MappedSignal(static_cast<uint32_t>(sum));
+        return MappedValue(static_cast<uint32_t>(sum));
     }
 }

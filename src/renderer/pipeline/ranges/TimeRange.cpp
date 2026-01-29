@@ -26,8 +26,8 @@ namespace PolarShader {
         : duration_ms(durationMs) {
     }
 
-    MappedSignal<TimeMillis> TimeRange::map(SFracQ0_16 t) const {
+    MappedValue<TimeMillis> TimeRange::map(SFracQ0_16 t) const {
         uint64_t scaled = (static_cast<uint64_t>(duration_ms) * static_cast<uint64_t>(clamp_frac_raw(raw(t)))) >> 16;
-        return MappedSignal(static_cast<TimeMillis>(scaled));
+        return MappedValue(static_cast<TimeMillis>(scaled));
     }
 }

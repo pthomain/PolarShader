@@ -27,19 +27,32 @@
 
 namespace PolarShader {
     /**
-     * Cartesian translation using direction and velocity signals.
+     * Cartesian translation using direction and speed signals.
      *
      * Direction is a full-turn phase in Q0.16.
      * Velocity is a 0..1 scalar in Q0.16 mapped to a max speed (Q24.8 units).
      */
     class TranslationTransform : public CartesianTransform {
+        struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
+
+        explicit TranslationTransform(
+            MappedSignal<FracQ0_16> direction,
+            MappedSignal<int32_t> speed
+        );
+
+        explicit TranslationTransform(MappedInputs inputs);
+
+        static MappedInputs makeInputs(
+            SFracQ0_16Signal direction,
+            SFracQ0_16Signal speed
+        );
 
     public:
         TranslationTransform(
             SFracQ0_16Signal direction,
-            SFracQ0_16Signal velocity
+            SFracQ0_16Signal speed
         );
 
         void advanceFrame(TimeMillis timeInMillis) override;

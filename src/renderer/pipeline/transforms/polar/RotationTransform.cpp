@@ -19,29 +19,46 @@
  */
 
 #include "RotationTransform.h"
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/ranges/PolarRange.h"
 #include <Arduino.h>
 
 namespace PolarShader {
-    struct RotationTransform::State {
-        SFracQ0_16Signal angleSignal;
-        MappedSignal<FracQ0_16> angleOffset = MappedSignal(FracQ0_16(0));
+    struct RotationTransform::MappedInputs {
+        MappedSignal<FracQ0_16> angleSignal;
+    };
 
-        explicit State(SFracQ0_16Signal s)
+    RotationTransform::MappedInputs RotationTransform::makeInputs(SFracQ0_16Signal angle) {
+        return MappedInputs{
+            PolarRange().mapSignal(std::move(angle))
+        };
+    }
+
+    struct RotationTransform::State {
+        MappedSignal<FracQ0_16> angleSignal;
+        MappedValue<FracQ0_16> angleOffset = MappedValue(FracQ0_16(0));
+
+        explicit State(MappedSignal<FracQ0_16> s)
             : angleSignal(std::move(s)) {
         }
     };
 
+    RotationTransform::RotationTransform(MappedSignal<FracQ0_16> angle)
+        : state(std::make_shared<State>(std::move(angle))) {
+    }
+
+    RotationTransform::RotationTransform(MappedInputs inputs)
+        : RotationTransform(std::move(inputs.angleSignal)) {
+    }
+
     RotationTransform::RotationTransform(SFracQ0_16Signal angle)
-        : PolarTransform(PolarRange()),
-          state(std::make_shared<State>(std::move(angle))) {
+        : RotationTransform(makeInputs(std::move(angle))) {
     }
 
     void RotationTransform::advanceFrame(TimeMillis timeInMillis) {
         if (!context) {
             Serial.println("RotationTransform::advanceFrame context is null.");
         }
-        state->angleOffset = mapPolar(state->angleSignal(timeInMillis));
+        state->angleOffset = state->angleSignal(timeInMillis);
     }
 
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {

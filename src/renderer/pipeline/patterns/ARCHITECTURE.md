@@ -25,9 +25,9 @@ This document defines the "Definition of Done" for any new pattern in the PolarS
 6.  **NORMALIZATION**: The final output MUST be a `PatternNormU16` (0-65535).
     - Normalize continuous fields to the full range.
     - Categorical IDs should not be normalized.
-    - Use `PatternRange(min, max).normalize(value)` for consistent remapping.
+    - Use `patternNormalize(value, min, max)` for consistent remapping.
 
-7.  **ALIASING**: Patterns with sharp edges must offer a `softness` parameter or use `PatternRange::smoothstep_u16()` to provide anti-aliasing.
+7.  **ALIASING**: Patterns with sharp edges must offer a `softness` parameter or use `patternSmoothstepU16()` to provide anti-aliasing.
 
 8.  **COORDINATE & SEAM SAFETY**:
     - Cartesian: Use `CartesianMaths.h` helpers for fixed-point arithmetic. Define sizes in domain units and clamp minimums to avoid collapse.

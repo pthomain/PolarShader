@@ -32,7 +32,7 @@ namespace PolarShader {
     using SampleSignal = fl::function<TrigQ0_16(SFracQ0_16)>;
 
     SFracQ0_16Signal createSignal(
-        SFracQ0_16Signal phaseVelocity,
+        SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset,
         SampleSignal sample
@@ -57,19 +57,19 @@ namespace PolarShader {
     SFracQ0_16Signal full();
 
     SFracQ0_16Signal noise(
-        const SFracQ0_16Signal &phaseVelocity = constant(perMil(100)),
+        SFracQ0_16Signal phaseSpeed = constant(perMil(100)),
         SFracQ0_16Signal amplitude = constant(SFracQ0_16(Q0_16_MAX)),
         SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );
 
     SFracQ0_16Signal sine(
-        SFracQ0_16Signal phaseVelocity = midPoint(),
+        SFracQ0_16Signal phaseSpeed = midPoint(),
         SFracQ0_16Signal amplitude = constant(SFracQ0_16(Q0_16_MAX)),
         SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );
 
     SFracQ0_16Signal pulse(
-        SFracQ0_16Signal phaseVelocity = midPoint(),
+        SFracQ0_16Signal phaseSpeed = midPoint(),
         SFracQ0_16Signal amplitude = constant(SFracQ0_16(Q0_16_MAX)),
         SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );

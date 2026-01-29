@@ -20,61 +20,73 @@
 
 #include "ZoomTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
+#include "renderer/pipeline/maths/ZoomMaths.h"
+#include "renderer/pipeline/ranges/ZoomRange.h"
 #include <Arduino.h>
 
 namespace PolarShader {
     namespace {
-        // Smaller scale => higher noise frequency (zooming out shows more detail).
-        const int32_t MIN_SCALE = scale32(Q0_16_MAX, frac(160)); //0.00625x
-        const int32_t MAX_SCALE = Q0_16_ONE * 4; //4x
         const int32_t ZOOM_SMOOTH_ALPHA_MIN = Q0_16_ONE / 32; // 0.03125 in Q0.16
         const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
-
-        uint32_t clampFracRaw(int32_t raw_value) {
-            if (raw_value <= 0) return 0u;
-            if (raw_value >= static_cast<int32_t>(FRACT_Q0_16_MAX)) return FRACT_Q0_16_MAX;
-            return static_cast<uint32_t>(raw_value);
-        }
     }
 
-    struct ZoomTransform::State {
-        SFracQ0_16Signal scaleSignal;
-        SFracQ0_16 scaleValue = SFracQ0_16(MIN_SCALE);
+    struct ZoomTransform::MappedInputs {
+        MappedSignal<SFracQ0_16> scaleSignal;
+        ZoomRange range;
+    };
 
-        explicit State(SFracQ0_16Signal s)
-            : scaleSignal(std::move(s)) {
+    struct ZoomTransform::State {
+        MappedSignal<SFracQ0_16> scaleSignal;
+        ZoomRange range;
+        SFracQ0_16 scaleValue;
+        int32_t minScaleRaw;
+        int32_t maxScaleRaw;
+
+        State(MappedSignal<SFracQ0_16> s, ZoomRange range)
+            : scaleSignal(std::move(s)),
+              range(std::move(range)),
+              scaleValue(SFracQ0_16(0)),
+              minScaleRaw(0),
+              maxScaleRaw(0) {
+            minScaleRaw = zoomMinScaleRaw(this->range);
+            maxScaleRaw = zoomMaxScaleRaw(this->range);
+            scaleValue = SFracQ0_16(minScaleRaw);
         }
     };
 
-    ZoomTransform::ZoomTransform(SFracQ0_16Signal scale, ZoomAnchor anchor)
-        : state(std::make_shared<State>(std::move(scale))),
-          anchor(anchor) {
+    ZoomTransform::ZoomTransform(
+        MappedSignal<SFracQ0_16> scale,
+        ZoomRange range
+    ) : state(std::make_shared<State>(std::move(scale), std::move(range))) {
+    }
+
+    ZoomTransform::ZoomTransform(MappedInputs inputs)
+        : ZoomTransform(std::move(inputs.scaleSignal), std::move(inputs.range)) {
+    }
+
+    ZoomTransform::MappedInputs ZoomTransform::makeInputs(
+        SFracQ0_16Signal scale
+    ) {
+        ZoomRange range;
+        return ZoomTransform::MappedInputs{
+            range.mapSignal(std::move(scale)),
+            std::move(range)
+        };
+    }
+
+    ZoomTransform::ZoomTransform(SFracQ0_16Signal scale)
+        : ZoomTransform(makeInputs(std::move(scale))) {
     }
 
     void ZoomTransform::advanceFrame(TimeMillis timeInMillis) {
-        uint32_t t_raw = clampFracRaw(raw(state->scaleSignal(timeInMillis)));
-        int64_t span = static_cast<int64_t>(MAX_SCALE) - static_cast<int64_t>(MIN_SCALE);
-        int64_t target = static_cast<int64_t>(MIN_SCALE);
-        if (anchor == ZoomAnchor::MidPoint) {
-            int64_t half_span = span / 2;
-            int64_t mid = static_cast<int64_t>(MIN_SCALE) + half_span;
-            int32_t centered = static_cast<int32_t>(t_raw) - static_cast<int32_t>(U16_HALF);
-            int64_t offset = (static_cast<int64_t>(centered) * half_span) / static_cast<int64_t>(U16_HALF);
-            target = mid + offset;
-        } else if (anchor == ZoomAnchor::Ceiling) {
-            int64_t offset = (static_cast<int64_t>(t_raw) * span) >> 16;
-            target = static_cast<int64_t>(MAX_SCALE) - offset;
-        } else {
-            int64_t offset = (static_cast<int64_t>(t_raw) * span) >> 16;
-            target = static_cast<int64_t>(MIN_SCALE) + offset;
-        }
-        if (target < MIN_SCALE) target = MIN_SCALE;
-        if (target > MAX_SCALE) target = MAX_SCALE;
-        int32_t target_raw = static_cast<int32_t>(target);
+        int32_t target_raw = raw(state->scaleSignal(timeInMillis).get());
         int32_t current_raw = raw(state->scaleValue);
         int32_t delta = target_raw - current_raw;
         int64_t alpha_span = static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MAX) - static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MIN);
-        int64_t freq_bias = static_cast<int64_t>(MAX_SCALE) - static_cast<int64_t>(target_raw);
+        int32_t min_scale_raw = state->minScaleRaw;
+        int32_t max_scale_raw = state->maxScaleRaw;
+        int64_t span = static_cast<int64_t>(max_scale_raw) - static_cast<int64_t>(min_scale_raw);
+        int64_t freq_bias = static_cast<int64_t>(max_scale_raw) - static_cast<int64_t>(target_raw);
 
         if (freq_bias < 0) freq_bias = 0;
         if (span > 0 && freq_bias > span) freq_bias = span;
@@ -90,18 +102,7 @@ namespace PolarShader {
         state->scaleValue = SFracQ0_16(static_cast<int32_t>(static_cast<int64_t>(current_raw) + step));
         if (context) {
             context->zoomScale = state->scaleValue;
-            int64_t span_norm = static_cast<int64_t>(MAX_SCALE) - static_cast<int64_t>(MIN_SCALE);
-            int64_t numer = static_cast<int64_t>(raw(state->scaleValue)) - static_cast<int64_t>(MIN_SCALE);
-            if (span_norm <= 0) {
-                context->zoomNormalized = SFracQ0_16(Q0_16_ONE);
-            } else {
-                if (numer < 0) numer = 0;
-                if (numer > span_norm) numer = span_norm;
-                int64_t t_raw = (numer << 16) / span_norm;
-                if (t_raw < 0) t_raw = 0;
-                if (t_raw > Q0_16_ONE) t_raw = Q0_16_ONE;
-                context->zoomNormalized = SFracQ0_16(static_cast<int32_t>(t_raw));
-            }
+            context->zoomNormalized = zoomNormalize(state->scaleValue, min_scale_raw, max_scale_raw);
         } else {
             Serial.println("ZoomTransform::advanceFrame context is null.");
         }

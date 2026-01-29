@@ -21,17 +21,11 @@
 #ifndef POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
 #define POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
 
-#include <memory>
+#include <renderer/pipeline/ranges/ZoomRange.h>
 #include <renderer/pipeline/transforms/base/Transforms.h>
 #include <renderer/pipeline/signals/Signals.h>
 
 namespace PolarShader {
-    enum class ZoomAnchor {
-        Floor,
-        MidPoint,
-        Ceiling
-    };
-
     /**
      * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in Q0.16.
      * s in 0..~1 scales towards the origin; negative values flip axes.
@@ -40,12 +34,18 @@ namespace PolarShader {
      * Recommended order: early in Cartesian chain before warps/tiling.
      */
     class ZoomTransform : public CartesianTransform {
+        struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
-        ZoomAnchor anchor;
+
+        explicit ZoomTransform(MappedSignal<SFracQ0_16> scale, ZoomRange range);
+
+        explicit ZoomTransform(MappedInputs inputs);
+
+        static MappedInputs makeInputs(SFracQ0_16Signal scale);
 
     public:
-        explicit ZoomTransform(SFracQ0_16Signal scale, ZoomAnchor anchor = ZoomAnchor::MidPoint);
+        explicit ZoomTransform(SFracQ0_16Signal scale);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

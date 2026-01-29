@@ -23,7 +23,6 @@
 
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/signals/Accumulators.h"
-#include <memory>
 
 namespace PolarShader {
     /**
@@ -32,8 +31,15 @@ namespace PolarShader {
      * The signal is interpreted as turns (0..1) and mapped to a full rotation.
      */
     class RotationTransform : public PolarTransform {
+        struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
+
+        explicit RotationTransform(MappedSignal<FracQ0_16> angle);
+
+        explicit RotationTransform(MappedInputs inputs);
+
+        static MappedInputs makeInputs(SFracQ0_16Signal angle);
 
     public:
         explicit RotationTransform(SFracQ0_16Signal angle);

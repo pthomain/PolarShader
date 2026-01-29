@@ -31,10 +31,10 @@ namespace PolarShader {
         : min_frac(min), max_frac(max) {
     }
 
-    MappedSignal<FracQ0_16> PolarRange::map(SFracQ0_16 t) const {
+    MappedValue<FracQ0_16> PolarRange::map(SFracQ0_16 t) const {
         uint16_t min_raw = raw(min_frac);
         uint16_t max_raw = raw(max_frac);
-        if (min_raw == max_raw) return MappedSignal(min_frac);
+        if (min_raw == max_raw) return MappedValue(min_frac);
         uint32_t full_turn = static_cast<uint32_t>(FRACT_Q0_16_MAX) + 1u;
 
         uint32_t span = 0;
@@ -49,6 +49,6 @@ namespace PolarShader {
         uint32_t result = static_cast<uint32_t>(min_raw) + scaled;
         if (result >= full_turn) result -= full_turn;
 
-        return MappedSignal(FracQ0_16(static_cast<uint16_t>(result)));
+        return MappedValue(FracQ0_16(static_cast<uint16_t>(result)));
     }
 }

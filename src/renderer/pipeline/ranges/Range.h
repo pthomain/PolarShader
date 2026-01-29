@@ -18,27 +18,31 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
-#define POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
+#ifndef POLAR_SHADER_PIPELINE_RANGES_RANGE_H
+#define POLAR_SHADER_PIPELINE_RANGES_RANGE_H
 
-#include "renderer/pipeline/ranges/Range.h"
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include <utility>
+#include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/units/StrongTypes.h"
 
 namespace PolarShader {
-    /**
-     * @brief Maps normalized 0..1 signals into the PatternNormU16 domain.
-     */
-    class PatternRange : public Range<PatternRange, PatternNormU16> {
+    template<typename Derived, typename T>
+    class Range {
     public:
-        PatternRange(uint16_t minValue = 0, uint16_t maxValue = FRACT_Q0_16_MAX);
+        using value_type = T;
 
-        MappedValue<PatternNormU16> map(SFracQ0_16 t) const override;
+        virtual ~Range() = default;
 
-    private:
-        uint16_t min_value;
-        uint16_t max_value;
+        virtual MappedValue<T> map(SFracQ0_16 t) const = 0;
+
+        MappedSignal<T> mapSignal(SFracQ0_16Signal signal) const {
+            Derived range_copy = static_cast<const Derived &>(*this);
+            return [range_copy = std::move(range_copy),
+                        signal = std::move(signal)](TimeMillis time) mutable {
+                return range_copy.map(signal(time));
+            };
+        }
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
+#endif // POLAR_SHADER_PIPELINE_RANGES_RANGE_H

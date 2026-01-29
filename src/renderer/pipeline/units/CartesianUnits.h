@@ -25,6 +25,11 @@
 #include "StrongTypes.h"
 
 namespace PolarShader {
+    struct SPoint32 {
+        int32_t x;
+        int32_t y;
+    };
+
     struct CartQ24_8_Tag {
     };
 

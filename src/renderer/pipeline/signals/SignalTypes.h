@@ -18,31 +18,28 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
-#define POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
+#ifndef POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H
+#define POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H
 
-#include "renderer/pipeline/ranges/Range.h"
+#include "FastLED.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/units/StrongTypes.h"
+#include "renderer/pipeline/units/TimeUnits.h"
 
 namespace PolarShader {
     /**
-     * @brief Maps a 0..1 signal into the unsigned Q24.8 depth domain.
+     * @brief Time-indexed scalar signal bounded to Q0.16.
+     *
+     * Use when:
+     * - The consumer maps the output into its own min/max range.
      */
-    class DepthRange : public Range<DepthRange, uint32_t> {
-    public:
-        DepthRange(uint32_t min = 0u, uint32_t max = UINT32_MAX >> 4);
+    using SFracQ0_16Signal = fl::function<SFracQ0_16(TimeMillis)>;
 
-        /**
-         * @brief Maps a signed signal value [0, 1] to a depth in the specified range.
-         * @param t The input signal value.
-         * @return A MappedValue containing the resulting depth value.
-         */
-        MappedValue<uint32_t> map(SFracQ0_16 t) const override;
-
-    private:
-        uint32_t min_depth = 0u;
-        uint32_t max_depth = 0u;
-    };
+    /**
+     * @brief Time-indexed signal that emits mapped values.
+     */
+    template<typename T>
+    using MappedSignal = fl::function<MappedValue<T>(TimeMillis)>;
 }
 
-#endif // POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
+#endif // POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H

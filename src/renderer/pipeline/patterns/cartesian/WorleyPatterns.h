@@ -23,7 +23,7 @@
 
 #include "renderer/pipeline/patterns/BasePattern.h"
 #include "renderer/pipeline/patterns/cartesian/WorleyConstants.h"
-#include "renderer/pipeline/ranges/PatternRange.h"
+#include "renderer/pipeline/maths/PatternMaths.h"
 
 namespace PolarShader {
     namespace {
@@ -70,14 +70,12 @@ namespace PolarShader {
         int32_t cell_size_raw;
         uint8_t dist_shift;
         uint16_t max_dist_scaled;
-        PatternRange range;
         WorleyAliasing aliasing;
 
         explicit WorleyBasePattern(WorleyAliasing aliasingMode)
             : cell_size_raw(WorleyCellUnit),
               dist_shift(0),
               max_dist_scaled(FRACT_Q0_16_MAX),
-              range(0, FRACT_Q0_16_MAX),
               aliasing(aliasingMode) {
         }
 
@@ -96,7 +94,6 @@ namespace PolarShader {
             }
             dist_shift = shift;
             max_dist_scaled = static_cast<uint16_t>(max_dist);
-            range = PatternRange(0, max_dist_scaled);
         }
 
         CartQ24_8 aliasingOffset() const {
@@ -173,11 +170,11 @@ namespace PolarShader {
         PatternNormU16 normalizeDistance(uint64_t dist) const {
             uint64_t scaled = dist >> dist_shift;
             if (scaled > max_dist_scaled) scaled = max_dist_scaled;
-            return range.normalize(static_cast<uint16_t>(scaled));
+            return patternNormalize(static_cast<uint16_t>(scaled), 0, max_dist_scaled);
         }
 
         PatternNormU16 softenValue(PatternNormU16 value) const {
-            return PatternRange::smoothstep_u16(0, FRACT_Q0_16_MAX, raw(value));
+            return patternSmoothstepU16(0, FRACT_Q0_16_MAX, raw(value));
         }
     };
 

@@ -21,20 +21,10 @@
 #ifndef POLAR_SHADER_PIPELINE_SIGNALS_ACCUMULATORS_H
 #define POLAR_SHADER_PIPELINE_SIGNALS_ACCUMULATORS_H
 
-#include "FastLED.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/TimeUnits.h"
-#include <renderer/pipeline/ranges/CartesianRange.h>
+#include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/units/CartesianUnits.h"
 
 namespace PolarShader {
-    /**
-     * @brief Time-indexed scalar signal bounded to Q0.16.
-     *
-     * Use when:
-     * - The consumer maps the output into its own min/max range.
-     */
-    using SFracQ0_16Signal = fl::function<SFracQ0_16(TimeMillis)>;
-
     /**
      * @brief Time-indexed depth signal in unsigned Q24.8 domain.
      *
@@ -46,7 +36,7 @@ namespace PolarShader {
     class PhaseAccumulator {
     public:
         explicit PhaseAccumulator(
-            SFracQ0_16Signal velocity,
+            MappedSignal<SFracQ0_16> speed,
             SFracQ0_16 initialPhase = SFracQ0_16(0)
         );
 
@@ -56,22 +46,21 @@ namespace PolarShader {
         uint32_t phaseRaw32{0};
         TimeMillis lastTime{0};
         bool hasLastTime{false};
-        // phaseVelocity returns turns-per-second in Q0.16.
-        SFracQ0_16Signal phaseVelocity;
+        // phaseSpeed returns turns-per-second in Q0.16.
+        MappedSignal<SFracQ0_16> phaseSpeed;
     };
 
     class CartesianMotionAccumulator {
     public:
         /**
-         * @brief Integrates direction + velocity into a cartesian position.
+         * @brief Integrates direction + speed into a cartesian position.
          *
-         * velocityRange radius is the max speed in units/sec.
+         * Direction is a mapped angle in turns; speed is mapped to units/sec.
          */
         CartesianMotionAccumulator(
             SPoint32 initialPosition,
-            CartesianRange velocityRange,
-            SFracQ0_16Signal direction,
-            SFracQ0_16Signal velocity
+            MappedSignal<FracQ0_16> direction,
+            MappedSignal<int32_t> speed
         );
 
         SPoint32 advance(TimeMillis time);
@@ -82,9 +71,8 @@ namespace PolarShader {
         SPoint32 pos{0, 0};
         TimeMillis lastTime{0};
         bool hasLastTime{false};
-        CartesianRange velocityRange;
-        SFracQ0_16Signal directionSignal;
-        SFracQ0_16Signal velocitySignal;
+        MappedSignal<FracQ0_16> directionSignal;
+        MappedSignal<int32_t> speedSignal;
     };
 }
 

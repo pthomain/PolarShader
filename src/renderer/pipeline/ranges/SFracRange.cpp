@@ -18,27 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
-#define POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
-
-#include "renderer/pipeline/ranges/Range.h"
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include "SFracRange.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
+#include <utility>
 
 namespace PolarShader {
-    /**
-     * @brief Maps normalized 0..1 signals into the PatternNormU16 domain.
-     */
-    class PatternRange : public Range<PatternRange, PatternNormU16> {
-    public:
-        PatternRange(uint16_t minValue = 0, uint16_t maxValue = FRACT_Q0_16_MAX);
+    SFracRange::SFracRange(SFracQ0_16 minValue, SFracQ0_16 maxValue)
+        : min_raw(raw(minValue)),
+          max_raw(raw(maxValue)) {
+        if (min_raw > max_raw) {
+            std::swap(min_raw, max_raw);
+        }
+    }
 
-        MappedValue<PatternNormU16> map(SFracQ0_16 t) const override;
+    MappedValue<SFracQ0_16> SFracRange::map(SFracQ0_16 t) const {
+        int64_t span = static_cast<int64_t>(max_raw) - static_cast<int64_t>(min_raw);
+        if (span == 0) return MappedValue(SFracQ0_16(min_raw));
 
-    private:
-        uint16_t min_value;
-        uint16_t max_value;
-    };
+        uint32_t t_raw = clamp_frac_raw(raw(t));
+        int64_t scaled = (span * static_cast<int64_t>(t_raw)) >> 16;
+        return MappedValue(SFracQ0_16(static_cast<int32_t>(static_cast<int64_t>(min_raw) + scaled)));
+    }
 }
-
-#endif // POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H

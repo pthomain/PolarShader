@@ -30,7 +30,7 @@ namespace PolarShader {
     /**
      * Cartesian domain warp driven by animated noise.
      *
-     * - phaseVelocity: turns-per-second for the time axis.
+     * - phaseSpeed: turns-per-second for the time axis.
      * - amplitude: 0..1 signal that scales maxOffset.
      * - warpScale: Q24.8 scale applied to input coords before sampling warp noise.
      * - maxOffset: maximum warp displacement in Q24.8 units.
@@ -47,12 +47,54 @@ namespace PolarShader {
         };
 
     private:
+        struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
 
+        DomainWarpTransform(
+            WarpType type,
+            MappedSignal<SFracQ0_16> phaseSpeed,
+            MappedSignal<int32_t> amplitude,
+            CartQ24_8 warpScale,
+            CartQ24_8 maxOffset,
+            uint8_t octaves,
+            MappedSignal<FracQ0_16> flowDirection,
+            MappedSignal<int32_t> flowStrength
+        );
+
+        DomainWarpTransform(
+            WarpType type,
+            CartQ24_8 warpScale,
+            CartQ24_8 maxOffset,
+            uint8_t octaves,
+            MappedInputs inputs
+        );
+
+        static MappedInputs makeInputs(
+            SFracQ0_16Signal phaseSpeed,
+            SFracQ0_16Signal amplitude,
+            CartQ24_8 maxOffset
+        );
+
+        static MappedInputs makeDirectionalInputs(
+            SFracQ0_16Signal phaseSpeed,
+            SFracQ0_16Signal amplitude,
+            CartQ24_8 maxOffset,
+            SFracQ0_16Signal flowDirection,
+            SFracQ0_16Signal flowStrength
+        );
+
+        static MappedInputs makeInputsInternal(
+            SFracQ0_16Signal phaseSpeed,
+            SFracQ0_16Signal amplitude,
+            CartQ24_8 maxOffset,
+            SFracQ0_16Signal flowDirection,
+            SFracQ0_16Signal flowStrength
+        );
+
     public:
         DomainWarpTransform(
-            SFracQ0_16Signal phaseVelocity,
+            SFracQ0_16Signal phaseSpeed,
             SFracQ0_16Signal amplitude,
             CartQ24_8 warpScale,
             CartQ24_8 maxOffset
@@ -60,7 +102,7 @@ namespace PolarShader {
 
         DomainWarpTransform(
             WarpType type,
-            SFracQ0_16Signal phaseVelocity,
+            SFracQ0_16Signal phaseSpeed,
             SFracQ0_16Signal amplitude,
             CartQ24_8 warpScale,
             CartQ24_8 maxOffset,

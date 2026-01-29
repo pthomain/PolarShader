@@ -18,27 +18,15 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
-#define POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
+#ifndef POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H
+#define POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H
 
-#include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    /**
-     * @brief Maps normalized 0..1 signals into the PatternNormU16 domain.
-     */
-    class PatternRange : public Range<PatternRange, PatternNormU16> {
-    public:
-        PatternRange(uint16_t minValue = 0, uint16_t maxValue = FRACT_Q0_16_MAX);
+    PatternNormU16 patternNormalize(uint16_t value, uint16_t min_value, uint16_t max_value);
 
-        MappedValue<PatternNormU16> map(SFracQ0_16 t) const override;
-
-    private:
-        uint16_t min_value;
-        uint16_t max_value;
-    };
+    PatternNormU16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x);
 }
 
-#endif // POLAR_SHADER_PIPELINE_RANGES_PATTERN_RANGE_H
+#endif // POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H

@@ -15,16 +15,19 @@ internal state, then applied per-sample by wrapping a layer function.
 All transform inputs are time-indexed signals:
 
 - `SFracQ0_16Signal` is a function `TimeMillis -> SFracQ0_16` (usually 0..1 in Q0.16).
-- Every transform maps its signal(s) to its own internal range before use.
+- `MappedValue<T>` represents a value that has already been mapped by a range.
+- Ranges own all signal mapping via `map` and `mapSignal`.
+- Transforms store only `MappedSignal` values, not raw `SFracQ0_16Signal` inputs.
+- `ZoomMaths` owns normalization of zoom scale back to 0..1 for `PipelineContext::zoomNormalized`.
 - Avoid pre-mapping or scaling signals manually; pass normalized signals and let the transform range
   do the conversion.
 
 Ranges used by transforms:
 
 - `PolarRange` maps `SFracQ0_16` to angular turns with proper wrapping.
-- `CartesianRange` maps direction + velocity signals to a cartesian vector.
-  Negative velocity flips direction by 180 degrees.
-- `ScalarRange` maps a 0..1 signal into an integer range `[min, max]`.
+- `ScalarRange` maps a 0..1 signal into an integer range `[min, max]` (used for speed/strength).
+- `SFracRange` maps a 0..1 signal into a signed Q0.16 range.
+- `ZoomRange` maps a 0..1 signal into the zoom scale range.
 
 ## Pipeline usage
 
@@ -57,29 +60,25 @@ auto layer = pipeline.build();
 
 ### TranslationTransform (cartesian)
 
-- Inputs: `direction` (turns, Q0.16) and `velocity` (0..1, Q0.16).
-- Uses `CartesianMotionAccumulator` with a `CartesianRange` radius to integrate motion over time.
+- Inputs: `direction` (turns, Q0.16) and `speed` (0..1, Q0.16).
+- Uses `PolarRange` for direction and `ScalarRange` for speed, then integrates with `CartesianMotionAccumulator`.
 - Applies smoothing based on `PipelineContext::zoomNormalized` (higher zoom -> less smoothing).
 - Result is an offset added to every `(x, y)` sample.
 
 ### ZoomTransform (cartesian)
 
 - Input: `scale` signal (0..1, Q0.16).
-- Maps into `[MIN_SCALE, MAX_SCALE]` and smooths changes based on current frequency.
-- Anchors:
-  - `Floor`: 0 maps to MIN, 1 maps to MAX.
-  - `Ceiling`: 0 maps to MAX, 1 maps to MIN.
-  - `MidPoint`: centered around the midpoint of the range.
+- Uses `ZoomRange` to map into `[MIN_SCALE, MAX_SCALE]` and smooths changes based on current frequency.
 - Updates `PipelineContext::zoomScale` and `zoomNormalized` each frame.
 
 ### DomainWarpTransform (cartesian)
 
 - Inputs:
-  - `phaseVelocity`: turns-per-second for the time axis (mapped via `ScalarRange`).
+  - `phaseSpeed`: turns-per-second for the time axis (mapped via `SFracRange`).
   - `amplitude`: 0..1 signal mapped to `[0, maxOffset]` (Q24.8).
   - `warpScale`: scale applied to input coords before sampling warp noise (Q24.8).
   - `maxOffset`: maximum warp displacement (Q24.8).
-  - For `Directional` warp: `flowDirection` + `flowStrength` signals.
+  - For `Directional` warp: `flowDirection` (PolarRange) + `flowStrength` (ScalarRange) signals.
 - Warp types:
   - `Basic`, `FBM`, `Nested`, `Curl`, `Polar`, `Directional`.
 - `advanceFrame` updates phase (time offset), amplitude, and directional flow offset.

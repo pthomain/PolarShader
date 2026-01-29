@@ -43,9 +43,10 @@ namespace PolarShader {
     };
 
     template<typename T>
-    class MappedSignal {
+    class MappedValue {
     public:
-        explicit constexpr MappedSignal(T value) : value_(value) {}
+        constexpr MappedValue() : value_() {}
+        explicit constexpr MappedValue(T value) : value_(value) {}
 
         constexpr T get() const { return value_; }
 

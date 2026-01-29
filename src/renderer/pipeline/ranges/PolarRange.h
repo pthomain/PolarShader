@@ -21,8 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_POLAR_RANGE_H
 #define POLAR_SHADER_PIPELINE_UNITS_POLAR_RANGE_H
 
+#include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/StrongTypes.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
@@ -31,16 +31,16 @@ namespace PolarShader {
      *
      * Handles wrapping logic appropriate for angles (e.g., 0-360 degrees).
      */
-    class PolarRange {
+    class PolarRange : public Range<PolarRange, FracQ0_16> {
     public:
         PolarRange(FracQ0_16 min = FracQ0_16(0), FracQ0_16 max = FracQ0_16(FRACT_Q0_16_MAX));
 
         /**
          * @brief Maps a signed signal value [-1, 1] to an angle in the specified range.
          * @param t The input signal value.
-         * @return A MappedSignal containing the resulting angle.
+         * @return A MappedValue containing the resulting angle.
          */
-        MappedSignal<FracQ0_16> map(SFracQ0_16 t) const;
+        MappedValue<FracQ0_16> map(SFracQ0_16 t) const override;
 
     private:
         FracQ0_16 min_frac = FracQ0_16(0);

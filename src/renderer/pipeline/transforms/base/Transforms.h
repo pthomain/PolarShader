@@ -24,7 +24,6 @@
 #include <memory>
 #include <utility>
 #include "Layers.h"
-#include <renderer/pipeline/ranges/PolarRange.h>
 #include "renderer/pipeline/PipelineContext.h"
 #include "renderer/pipeline/units/TimeUnits.h"
 
@@ -53,19 +52,13 @@ namespace PolarShader {
 
     class PolarTransform : public FrameTransform {
     public:
-        explicit PolarTransform(
-            const PolarRange &range = PolarRange(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX))
-        ) : range(range) {
-        }
+        PolarTransform() = default;
 
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
 
         void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
 
     protected:
-        MappedSignal<FracQ0_16> mapPolar(SFracQ0_16 t) const { return range.map(t); }
-
-        PolarRange range;
         std::shared_ptr<PipelineContext> context;
     };
 }

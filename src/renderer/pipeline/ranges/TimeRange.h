@@ -21,8 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_TIME_RANGE_H
 #define POLAR_SHADER_PIPELINE_UNITS_TIME_RANGE_H
 
+#include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/StrongTypes.h"
 #include "renderer/pipeline/units/TimeUnits.h"
 
 namespace PolarShader {
@@ -31,16 +31,16 @@ namespace PolarShader {
      *
      * Clamps negative signal values to 0, as negative time durations are invalid in this context.
      */
-    class TimeRange {
+    class TimeRange : public Range<TimeRange, TimeMillis> {
     public:
         TimeRange(TimeMillis durationMs = 30000);
 
         /**
          * @brief Maps a signed signal value [-1, 1] to a time duration.
          * @param t The input signal value.
-         * @return A MappedSignal containing the resulting time duration.
+         * @return A MappedValue containing the resulting time duration.
          */
-        MappedSignal<TimeMillis> map(SFracQ0_16 t) const;
+        MappedValue<TimeMillis> map(SFracQ0_16 t) const override;
 
     private:
         TimeMillis duration_ms = 0;

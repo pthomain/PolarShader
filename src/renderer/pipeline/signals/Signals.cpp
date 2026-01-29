@@ -22,17 +22,19 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
+#include "renderer/pipeline/ranges/SFracRange.h"
 #include <cstdint>
 #include <utility>
 
 namespace PolarShader {
     SFracQ0_16Signal createSignal(
-        SFracQ0_16Signal phaseVelocity,
+        SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset,
         SampleSignal sample
     ) {
-        PhaseAccumulator acc{std::move(phaseVelocity)};
+        SFracRange phaseRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE));
+        PhaseAccumulator acc{phaseRange.mapSignal(std::move(phaseSpeed))};
 
         return [acc = std::move(acc),
                     amplitude = std::move(amplitude),
@@ -95,12 +97,12 @@ namespace PolarShader {
     }
 
     SFracQ0_16Signal noise(
-        const SFracQ0_16Signal &phaseVelocity,
+        const SFracQ0_16Signal &phaseSpeed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset
     ) {
         return createSignal(
-            phaseVelocity,
+            phaseSpeed,
             std::move(amplitude),
             std::move(offset),
             sampleNoise()
@@ -108,12 +110,12 @@ namespace PolarShader {
     }
 
     SFracQ0_16Signal sine(
-        SFracQ0_16Signal phaseVelocity,
+        SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset
     ) {
         return createSignal(
-            std::move(phaseVelocity),
+            std::move(phaseSpeed),
             std::move(amplitude),
             std::move(offset),
             sampleSine()
@@ -121,12 +123,12 @@ namespace PolarShader {
     }
 
     SFracQ0_16Signal pulse(
-        SFracQ0_16Signal phaseVelocity,
+        SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset
     ) {
         return createSignal(
-            std::move(phaseVelocity),
+            std::move(phaseSpeed),
             std::move(amplitude),
             std::move(offset),
             samplePulse()
@@ -195,7 +197,7 @@ namespace PolarShader {
     SFracQ0_16Signal invert(SFracQ0_16Signal signal) {
         return [signal = std::move(signal)](TimeMillis time) mutable {
             int32_t value = raw(signal(time));
-            const int32_t max = static_cast<int32_t>(FRACT_Q0_16_MAX);
+            const int32_t max = FRACT_Q0_16_MAX;
             if (value <= 0) return SFracQ0_16(max);
             if (value >= max) return SFracQ0_16(0);
             return SFracQ0_16(max - value);
