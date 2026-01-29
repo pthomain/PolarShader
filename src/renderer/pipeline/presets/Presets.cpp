@@ -29,6 +29,7 @@
 #include "renderer/pipeline/transforms/cartesian/DomainWarpTransform.h"
 #include "renderer/pipeline/transforms/cartesian/TranslationTransform.h"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
+#include "renderer/pipeline/transforms/polar/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/polar/VortexTransform.h"
 
 namespace PolarShader {
@@ -39,31 +40,35 @@ namespace PolarShader {
                     palette,
                     "default"
                 )
+                .setDepthSignal(
+                    noise(cPerMil(100))
+                )
                 // .addPaletteTransform(PaletteTransform(
-                // noise(cPerMil(100))
+                //     noise(cPerMil(50))
                 // ))
-                .addCartesianTransform(domainWarpNested())
+                // .addCartesianTransform(domainWarpNested())
                 // .setDepthSignal(sine(
                 //     cPerMil(100),
                 //     cPerMil(200)
                 // ))
-                // .addCartesianTransform(TranslationTransform(
-                //     noise(),
-                //     cPerMil(100)
-                // ))
-                // .addCartesianTransform(ZoomTransform(
-                //     sine(
-                //         cPerMil(100),
-                //         cPerMil(300),
-                //         cPerMil(300)
-                //     )
-                // ))
-                // .addPolarTransform(RotationTransform(
-                //     cPerMil(500)
-                // ))
-                // .addPolarTransform(VortexTransform(
-                //     full()
-                // ))
+                .addCartesianTransform(TranslationTransform(
+                    noise(),
+                    cPerMil(100)
+                ))
+                .addCartesianTransform(ZoomTransform(
+                    noise(
+                        cPerMil(100),
+                        cPerMil(250),
+                        cPerMil(0)
+                    )
+                ))
+                .addPolarTransform(VortexTransform(
+                    sine(cPerMil(200))
+                ))
+                .addPolarTransform(KaleidoscopeTransform(6, false))
+                .addPolarTransform(RotationTransform(
+                    noise(cPerMil(100))
+                ))
                 .build();
     }
 }

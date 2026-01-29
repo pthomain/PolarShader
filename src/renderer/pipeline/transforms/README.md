@@ -72,6 +72,12 @@ auto layer = pipeline.build();
 - Uses `SFracRange` to map the signal into a signed angular strength.
 - `operator()` adds `radius * strength` to the incoming angle, producing a radial twist.
 
+### KaleidoscopeTransform (polar)
+
+- Inputs: `nbFacets` (number of radial wedges), `isMirrored` (mirror every other wedge).
+- Folds the angle into `nbFacets` equal sectors.
+- If `isMirrored` is true, odd sectors are reflected for a symmetric kaleidoscope effect.
+
 ### TranslationTransform (cartesian)
 
 - Inputs: `direction` (turns, Q0.16) and `speed` (0..1, Q0.16).
