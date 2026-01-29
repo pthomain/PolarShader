@@ -18,19 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
-
-#include "renderer/pipeline/ranges/ZoomRange.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include "PaletteRange.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
+#include <utility>
 
 namespace PolarShader {
-    int32_t zoomMinScaleRaw(const ZoomRange &range);
+    PaletteRange::PaletteRange(uint8_t minValue, uint8_t maxValue)
+        : min_value(minValue),
+          max_value(maxValue) {
+        if (min_value > max_value) {
+            std::swap(min_value, max_value);
+        }
+    }
 
-    int32_t zoomMaxScaleRaw(const ZoomRange &range);
+    MappedValue<uint8_t> PaletteRange::map(SFracQ0_16 t) const {
+        uint32_t t_raw = clamp_frac_raw(raw(t));
+        uint32_t span = static_cast<uint32_t>(max_value - min_value);
+        if (span == 0) return MappedValue(min_value);
 
-    SFracQ0_16 zoomNormalize(SFracQ0_16 value, int32_t min_scale_raw, int32_t max_scale_raw);
+        uint32_t value = static_cast<uint32_t>(min_value) + ((span * t_raw) >> 16);
+        return MappedValue(static_cast<uint8_t>(value));
+    }
 }
-
-#endif // POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H

@@ -37,34 +37,38 @@ namespace PolarShader {
                     noisePattern(),
                     palette,
                     "default"
-                ).addCartesianTransform(DomainWarpTransform(
-                    DomainWarpTransform::WarpType::Directional,
-                    noise(cPerMil(500)),
-                    full(),
-                    CartQ24_8(2 << CARTESIAN_FRAC_BITS),
-                    CartQ24_8(12 << CARTESIAN_FRAC_BITS),
-                    1,
-                    full(),
-                    full()
+                )
+                .addPaletteTransform(PaletteTransform(
+                    noise(cPerMil(200))
                 ))
-                // .setDepthSignal(sine(
-                //     cPerMil(100),
-                //     cPerMil(200)
+                // .addCartesianTransform(DomainWarpTransform(
+                // DomainWarpTransform::WarpType::Directional,
+                // noise(cPerMil(500)),
+                // full(),
+                // CartQ24_8(2 << 16),
+                // CartQ24_8(12 << 16),
+                // 1,
+                // cFrac(1),
+                // cPerMil(500)
                 // ))
-                // .addCartesianTransform(TranslationTransform(
-                //     noise(),
-                //     cPerMil(100)
-                // ))
-                // .addCartesianTransform(ZoomTransform(
-                //     sine(
-                //         cPerMil(100),
-                //         cPerMil(300),
-                //         cPerMil(300)
-                //     )
-                // ))
-                // .addPolarTransform(RotationTransform(
-                //     noise()
-                // ))
+                .setDepthSignal(sine(
+                    cPerMil(100),
+                    cPerMil(200)
+                ))
+                .addCartesianTransform(TranslationTransform(
+                    noise(),
+                    cPerMil(100)
+                ))
+                .addCartesianTransform(ZoomTransform(
+                    sine(
+                        cPerMil(100),
+                        cPerMil(300),
+                        cPerMil(300)
+                    )
+                ))
+                .addPolarTransform(RotationTransform(
+                    noise()
+                ))
                 .build();
     }
 }

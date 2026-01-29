@@ -46,6 +46,7 @@ namespace PolarShader {
         for (auto &step: this->steps) {
             if (step.cartesianTransform) step.cartesianTransform->setContext(this->context);
             if (step.polarTransform) step.polarTransform->setContext(this->context);
+            if (step.paletteTransform) step.paletteTransform->setContext(this->context);
         }
     }
 
@@ -90,6 +91,9 @@ namespace PolarShader {
             }
             if (step.polarTransform) {
                 step.polarTransform->advanceFrame(timeInMillis);
+            }
+            if (step.paletteTransform) {
+                step.paletteTransform->advanceFrame(timeInMillis);
             }
         }
     }
@@ -151,12 +155,15 @@ namespace PolarShader {
         if (!hasPolar) return blackLayer("PolarPipeline::build ended without a Polar layer.");
 
         // Final stage: sample the pattern value and map it to a color from the palette.
-        return [palette = palette, layer = std::move(currentPolar)](
+        return [palette = palette, layer = std::move(currentPolar), context = context](
             FracQ0_16 angle,
             FracQ0_16 radius
         ) {
             PatternNormU16 value = layer(angle, radius);
             uint8_t index = map16_to_8(raw(value));
+            if (context) {
+                index = static_cast<uint8_t>(index + context->paletteOffset);
+            }
             return ColorFromPalette(palette, index, 255, LINEARBLEND);
         };
     }

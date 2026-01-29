@@ -18,19 +18,26 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
+#ifndef POLAR_SHADER_PIPELINE_RANGES_PALETTE_RANGE_H
+#define POLAR_SHADER_PIPELINE_RANGES_PALETTE_RANGE_H
 
-#include "renderer/pipeline/ranges/ZoomRange.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include <cstdint>
+#include "renderer/pipeline/ranges/Range.h"
 
 namespace PolarShader {
-    int32_t zoomMinScaleRaw(const ZoomRange &range);
+    /**
+     * @brief Maps normalized 0..1 signals into a palette index range [min, max].
+     */
+    class PaletteRange : public Range<PaletteRange, uint8_t> {
+    public:
+        PaletteRange(uint8_t minValue = 0, uint8_t maxValue = UINT8_MAX);
 
-    int32_t zoomMaxScaleRaw(const ZoomRange &range);
+        MappedValue<uint8_t> map(SFracQ0_16 t) const override;
 
-    SFracQ0_16 zoomNormalize(SFracQ0_16 value, int32_t min_scale_raw, int32_t max_scale_raw);
+    private:
+        uint8_t min_value;
+        uint8_t max_value;
+    };
 }
 
-#endif // POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
+#endif // POLAR_SHADER_PIPELINE_RANGES_PALETTE_RANGE_H

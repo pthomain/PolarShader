@@ -21,15 +21,15 @@
 #ifndef POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
 #define POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
 
-#include "PolarPipeline.h"
-#include "patterns/BasePattern.h"
-#include "PipelineContext.h"
-#include "FastLED.h"
-#include "renderer/pipeline/signals/Accumulators.h"
 #include <memory>
 #include <type_traits>
 #include <utility>
-
+#include "FastLED.h"
+#include "PipelineContext.h"
+#include "PolarPipeline.h"
+#include "patterns/BasePattern.h"
+#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/transforms/palette/PaletteTransform.h"
 #include "signals/Signals.h"
 
 namespace PolarShader {
@@ -114,6 +114,12 @@ namespace PolarShader {
                 currentDomain = BuilderDomain::Cartesian;
             }
             steps.push_back(PipelineStep::cartesian(std::make_unique<T>(std::move(transform))));
+            return *this;
+        }
+
+        PolarPipelineBuilder &addPaletteTransform(PaletteTransform transform) {
+            if (built) return *this;
+            steps.push_back(PipelineStep::palette(std::make_unique<PaletteTransform>(std::move(transform))));
             return *this;
         }
 

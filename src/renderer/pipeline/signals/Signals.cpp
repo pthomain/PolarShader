@@ -97,12 +97,12 @@ namespace PolarShader {
     }
 
     SFracQ0_16Signal noise(
-        const SFracQ0_16Signal &phaseSpeed,
+        SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal offset
     ) {
         return createSignal(
-            phaseSpeed,
+            std::move(phaseSpeed),
             std::move(amplitude),
             std::move(offset),
             sampleNoise()

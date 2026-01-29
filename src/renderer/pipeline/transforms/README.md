@@ -1,8 +1,9 @@
 # Transforms
 
 This folder contains the pipeline transforms that modify pattern sampling coordinates in either
-Cartesian (Q24.8) or Polar (Q0.16 turns) space. Transforms are evaluated per-frame to update
-internal state, then applied per-sample by wrapping a layer function.
+Cartesian (Q24.8) or Polar (Q0.16 turns) space, plus palette transforms that influence final
+palette lookup. Transforms are evaluated per-frame to update internal state, then applied per-sample
+by wrapping a layer function (or by updating shared context).
 
 ## Domains and units
 
@@ -28,6 +29,7 @@ Ranges used by transforms:
 - `ScalarRange` maps a 0..1 signal into an integer range `[min, max]` (used for speed/strength).
 - `SFracRange` maps a 0..1 signal into a signed Q0.16 range.
 - `ZoomRange` maps a 0..1 signal into the zoom scale range.
+- `PaletteRange` maps a 0..1 signal into a palette index range `[0, 255]`.
 
 ## Pipeline usage
 
@@ -85,6 +87,12 @@ auto layer = pipeline.build();
 - `operator()` warps coordinates and samples the wrapped layer.
 
 Presets are provided in `DomainWarpPresets.*` for common parameter sets.
+
+### PaletteTransform (palette)
+
+- Input: `offset` signal (0..1, Q0.16).
+- Uses `PaletteRange` to map the signal into a palette index offset.
+- `advanceFrame` writes the offset into `PipelineContext::paletteOffset` for use during palette lookup.
 
 ## Context expectations
 

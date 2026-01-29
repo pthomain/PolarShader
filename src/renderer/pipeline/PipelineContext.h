@@ -32,6 +32,8 @@ namespace PolarShader {
         SFracQ0_16 zoomNormalized = SFracQ0_16(Q0_16_ONE);
         // Current depth value in unsigned Q24.8 domain.
         uint32_t depth = 0u;
+        // Palette index offset applied during final palette lookup.
+        uint8_t paletteOffset = 0u;
     };
 }
 

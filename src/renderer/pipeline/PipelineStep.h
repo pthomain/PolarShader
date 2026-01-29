@@ -23,11 +23,13 @@
 
 #include <memory>
 #include "transforms/base/Transforms.h"
+#include "transforms/palette/PaletteTransform.h"
 
 namespace PolarShader {
     enum class PipelineStepKind {
         Cartesian,
         Polar,
+        Palette,
         ToCartesian,
         ToPolar
     };
@@ -37,6 +39,7 @@ namespace PolarShader {
         PipelineStepKind kind;
         std::unique_ptr<CartesianTransform> cartesianTransform;
         std::unique_ptr<PolarTransform> polarTransform;
+        std::unique_ptr<PaletteTransform> paletteTransform;
 
         // Factories for domain conversion steps (no transform pointers)
         static PipelineStep toPolar() {
@@ -63,6 +66,13 @@ namespace PolarShader {
             PipelineStep s;
             s.kind = PipelineStepKind::Polar;
             s.polarTransform = std::move(t);
+            return s;
+        }
+
+        static PipelineStep palette(std::unique_ptr<PaletteTransform> t) {
+            PipelineStep s;
+            s.kind = PipelineStepKind::Palette;
+            s.paletteTransform = std::move(t);
             return s;
         }
     };
