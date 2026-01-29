@@ -29,6 +29,7 @@
 #include "renderer/pipeline/transforms/cartesian/DomainWarpTransform.h"
 #include "renderer/pipeline/transforms/cartesian/TranslationTransform.h"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
+#include "renderer/pipeline/transforms/polar/VortexTransform.h"
 
 namespace PolarShader {
     PolarPipeline defaultPreset(const CRGBPalette16 &palette) {
@@ -39,7 +40,7 @@ namespace PolarShader {
                     "default"
                 )
                 .addPaletteTransform(PaletteTransform(
-                    noise(cPerMil(200))
+                    noise(cPerMil(100))
                 ))
                 // .addCartesianTransform(DomainWarpTransform(
                 // DomainWarpTransform::WarpType::Directional,
@@ -51,10 +52,10 @@ namespace PolarShader {
                 // cFrac(1),
                 // cPerMil(500)
                 // ))
-                .setDepthSignal(sine(
-                    cPerMil(100),
-                    cPerMil(200)
-                ))
+                // .setDepthSignal(sine(
+                //     cPerMil(100),
+                //     cPerMil(200)
+                // ))
                 .addCartesianTransform(TranslationTransform(
                     noise(),
                     cPerMil(100)
@@ -67,7 +68,10 @@ namespace PolarShader {
                     )
                 ))
                 .addPolarTransform(RotationTransform(
-                    noise()
+                    cPerMil(500)
+                ))
+                .addPolarTransform(VortexTransform(
+                    full()
                 ))
                 .build();
     }

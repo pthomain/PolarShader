@@ -60,6 +60,12 @@ auto layer = pipeline.build();
 - Uses `PolarRange` to map the signal into an angular offset.
 - `advanceFrame` caches the mapped angle; `operator()` adds it to incoming angles.
 
+### VortexTransform (polar)
+
+- Input: `strength` signal (turns, Q0.16).
+- Uses `SFracRange` to map the signal into a signed angular strength.
+- `operator()` adds `radius * strength` to the incoming angle, producing a radial twist.
+
 ### TranslationTransform (cartesian)
 
 - Inputs: `direction` (turns, Q0.16) and `speed` (0..1, Q0.16).
