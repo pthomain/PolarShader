@@ -25,7 +25,7 @@
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
 #include "renderer/pipeline/ranges/SFracRange.h"
-#include "renderer/pipeline/ranges/ScalarRange.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 #include <cstdint>
 #include <utility>
@@ -37,11 +37,62 @@ namespace PolarShader {
         constexpr uint32_t WARP_SEED_Y = 0x7F4A7C15u;
         constexpr uint32_t WARP_SEED_Z = 0xB5297A4Du;
         constexpr uint32_t WARP_SEED_W = 0x68E31DA4u;
+
+        inline SPoint32 sampleNoisePair(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw) {
+            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
+            uint32_t ux = static_cast<uint32_t>(sx_raw + base);
+            uint32_t uy = static_cast<uint32_t>(sy_raw + base);
+            uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(timeOffsetRaw) + base);
+
+            PatternNormU16 n0 = noiseNormaliseU16(sampleNoiseTrilinear(
+                ux + WARP_SEED_X,
+                uy + WARP_SEED_Y,
+                uz + WARP_SEED_Z
+            ));
+            PatternNormU16 n1 = noiseNormaliseU16(sampleNoiseTrilinear(
+                ux + WARP_SEED_Z,
+                uy + WARP_SEED_W,
+                uz + WARP_SEED_X
+            ));
+
+            int32_t nx = static_cast<int32_t>(raw(n0)) - static_cast<int32_t>(U16_HALF);
+            int32_t ny = static_cast<int32_t>(raw(n1)) - static_cast<int32_t>(U16_HALF);
+            return SPoint32{nx, ny};
+        }
+
+        inline SPoint32 sampleWarp(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
+            SPoint32 n = sampleNoisePair(sx_raw, sy_raw, timeOffsetRaw);
+            int32_t dx = static_cast<int32_t>((static_cast<int64_t>(n.x) * amp) >> 16);
+            int32_t dy = static_cast<int32_t>((static_cast<int64_t>(n.y) * amp) >> 16);
+            return SPoint32{dx, dy};
+        }
+
+        inline SPoint32 sampleCurl(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
+            constexpr int32_t EPS = 1 << CARTESIAN_FRAC_BITS;
+            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
+            uint32_t ux = static_cast<uint32_t>(sx_raw + base);
+            uint32_t uy = static_cast<uint32_t>(sy_raw + base);
+            uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(timeOffsetRaw) + base);
+
+            auto n_x1 = noiseNormaliseU16(sampleNoiseTrilinear(ux + EPS, uy, uz));
+            auto n_x0 = noiseNormaliseU16(sampleNoiseTrilinear(ux - EPS, uy, uz));
+            auto n_y1 = noiseNormaliseU16(sampleNoiseTrilinear(ux, uy + EPS, uz));
+            auto n_y0 = noiseNormaliseU16(sampleNoiseTrilinear(ux, uy - EPS, uz));
+
+            int32_t dnx = static_cast<int32_t>(raw(n_x1)) - static_cast<int32_t>(raw(n_x0));
+            int32_t dny = static_cast<int32_t>(raw(n_y1)) - static_cast<int32_t>(raw(n_y0));
+
+            int32_t dx = static_cast<int32_t>((static_cast<int64_t>(dny) * amp) >> 16);
+            int32_t dy = static_cast<int32_t>((static_cast<int64_t>(-dnx) * amp) >> 16);
+            return SPoint32{dx, dy};
+        }
     }
 
     struct DomainWarpTransform::MappedInputs {
         MappedSignal<SFracQ0_16> phaseSpeedSignal;
         MappedSignal<int32_t> amplitudeSignal;
+        MappedSignal<CartQ24_8> warpScaleSignal;
+        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
         MappedSignal<FracQ0_16> flowDirectionSignal;
         MappedSignal<int32_t> flowStrengthSignal;
     };
@@ -50,8 +101,10 @@ namespace PolarShader {
         WarpType type;
         PhaseAccumulator phase;
         MappedSignal<int32_t> amplitudeSignal;
-        CartQ24_8 warpScale;
-        CartQ24_8 maxOffset;
+        MappedSignal<CartQ24_8> warpScaleSignal;
+        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
+        CartQ24_8 warpScale = CartQ24_8(0);
+        CartQ24_8 maxOffset = CartQ24_8(0);
         uint8_t octaves;
         MappedSignal<FracQ0_16> flowDirectionSignal;
         MappedSignal<int32_t> flowStrengthSignal;
@@ -63,16 +116,16 @@ namespace PolarShader {
             WarpType type,
             MappedSignal<SFracQ0_16> phaseSpeed,
             MappedSignal<int32_t> amplitude,
-            CartQ24_8 scale,
-            CartQ24_8 offset,
+            MappedSignal<CartQ24_8> scale,
+            std::shared_ptr<MappedSignal<CartQ24_8>> offset,
             uint8_t octaves,
             MappedSignal<FracQ0_16> flowDirection,
             MappedSignal<int32_t> flowStrength
         ) : type(type),
             phase(std::move(phaseSpeed)),
             amplitudeSignal(std::move(amplitude)),
-            warpScale(scale),
-            maxOffset(offset),
+            warpScaleSignal(std::move(scale)),
+            maxOffsetSignal(std::move(offset)),
             octaves(octaves),
             flowDirectionSignal(std::move(flowDirection)),
             flowStrengthSignal(std::move(flowStrength)) {
@@ -83,8 +136,8 @@ namespace PolarShader {
         WarpType type,
         MappedSignal<SFracQ0_16> phaseSpeed,
         MappedSignal<int32_t> amplitude,
-        CartQ24_8 warpScale,
-        CartQ24_8 maxOffset,
+        MappedSignal<CartQ24_8> warpScale,
+        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffset,
         uint8_t octaves,
         MappedSignal<FracQ0_16> flowDirection,
         MappedSignal<int32_t> flowStrength
@@ -92,8 +145,8 @@ namespace PolarShader {
         type,
         std::move(phaseSpeed),
         std::move(amplitude),
-        warpScale,
-        maxOffset,
+        std::move(warpScale),
+        std::move(maxOffset),
         octaves,
         std::move(flowDirection),
         std::move(flowStrength)
@@ -102,16 +155,14 @@ namespace PolarShader {
 
     DomainWarpTransform::DomainWarpTransform(
         WarpType type,
-        CartQ24_8 warpScale,
-        CartQ24_8 maxOffset,
         uint8_t octaves,
         MappedInputs inputs
     ) : DomainWarpTransform(
         type,
         std::move(inputs.phaseSpeedSignal),
         std::move(inputs.amplitudeSignal),
-        warpScale,
-        maxOffset,
+        std::move(inputs.warpScaleSignal),
+        std::move(inputs.maxOffsetSignal),
         octaves,
         std::move(inputs.flowDirectionSignal),
         std::move(inputs.flowStrengthSignal)
@@ -121,12 +172,18 @@ namespace PolarShader {
     DomainWarpTransform::MappedInputs DomainWarpTransform::makeInputs(
         SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
-        CartQ24_8 maxOffset
+        SFracQ0_16Signal warpScale,
+        SFracQ0_16Signal maxOffset,
+        CartRange warpScaleRange,
+        CartRange maxOffsetRange
     ) {
         return makeInputsInternal(
             std::move(phaseSpeed),
             std::move(amplitude),
-            maxOffset,
+            std::move(warpScale),
+            std::move(maxOffset),
+            std::move(warpScaleRange),
+            std::move(maxOffsetRange),
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
         );
@@ -135,14 +192,20 @@ namespace PolarShader {
     DomainWarpTransform::MappedInputs DomainWarpTransform::makeDirectionalInputs(
         SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
-        CartQ24_8 maxOffset,
+        SFracQ0_16Signal warpScale,
+        SFracQ0_16Signal maxOffset,
+        CartRange warpScaleRange,
+        CartRange maxOffsetRange,
         SFracQ0_16Signal flowDirection,
         SFracQ0_16Signal flowStrength
     ) {
         return makeInputsInternal(
             std::move(phaseSpeed),
             std::move(amplitude),
-            maxOffset,
+            std::move(warpScale),
+            std::move(maxOffset),
+            std::move(warpScaleRange),
+            std::move(maxOffsetRange),
             std::move(flowDirection),
             std::move(flowStrength)
         );
@@ -151,35 +214,60 @@ namespace PolarShader {
     DomainWarpTransform::MappedInputs DomainWarpTransform::makeInputsInternal(
         SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
-        CartQ24_8 maxOffset,
+        SFracQ0_16Signal warpScale,
+        SFracQ0_16Signal maxOffset,
+        CartRange warpScaleRange,
+        CartRange maxOffsetRange,
         SFracQ0_16Signal flowDirection,
         SFracQ0_16Signal flowStrength
     ) {
-        SFracRange phaseRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE));
-        ScalarRange amplitudeRange(0, raw(maxOffset) > 0 ? raw(maxOffset) : 0);
-        PolarRange flowDirectionRange;
-        ScalarRange flowStrengthRange(0, raw(maxOffset) > 0 ? raw(maxOffset) : 0);
+        SFracRange phaseRange{SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)};
         bool hasFlow = flowDirection && flowStrength;
+
+        auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8>>(
+            maxOffsetRange.mapSignal(std::move(maxOffset))
+        );
+
+        auto mapToMaxOffset = [maxOffsetSignal](SFracQ0_16Signal signal) -> MappedSignal<int32_t> {
+            return [signal = std::move(signal), maxOffsetSignal](TimeMillis time) mutable -> MappedValue<int32_t> {
+                int32_t max_raw = raw((*maxOffsetSignal)(time).get());
+                if (max_raw <= 0) return MappedValue<int32_t>(0);
+                uint32_t t_raw = clamp_frac_raw(raw(signal(time)));
+                int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
+                return MappedValue<int32_t>(static_cast<int32_t>(scaled));
+            };
+        };
+
+        PolarRange flowDirectionRange;
 
         return MappedInputs{
             phaseRange.mapSignal(std::move(phaseSpeed)),
-            amplitudeRange.mapSignal(std::move(amplitude)),
+            mapToMaxOffset(std::move(amplitude)),
+            warpScaleRange.mapSignal(std::move(warpScale)),
+            std::move(maxOffsetSignal),
             hasFlow ? flowDirectionRange.mapSignal(std::move(flowDirection)) : MappedSignal<FracQ0_16>(),
-            hasFlow ? flowStrengthRange.mapSignal(std::move(flowStrength)) : MappedSignal<int32_t>()
+            hasFlow ? mapToMaxOffset(std::move(flowStrength)) : MappedSignal<int32_t>()
         };
     }
 
     DomainWarpTransform::DomainWarpTransform(
         SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
-        CartQ24_8 warpScale,
-        CartQ24_8 maxOffset
+        SFracQ0_16Signal warpScale,
+        SFracQ0_16Signal maxOffset,
+        CartRange warpScaleRange,
+        CartRange maxOffsetRange
     ) : DomainWarpTransform(
         WarpType::Basic,
-        warpScale,
-        maxOffset,
         3,
-        makeInputs(std::move(phaseSpeed), std::move(amplitude), maxOffset)
+        makeInputs(
+            std::move(phaseSpeed),
+            std::move(amplitude),
+            std::move(warpScale),
+            std::move(maxOffset),
+            std::move(warpScaleRange),
+            std::move(maxOffsetRange)
+        )
     ) {
     }
 
@@ -187,20 +275,23 @@ namespace PolarShader {
         WarpType type,
         SFracQ0_16Signal phaseSpeed,
         SFracQ0_16Signal amplitude,
-        CartQ24_8 warpScale,
-        CartQ24_8 maxOffset,
+        SFracQ0_16Signal warpScale,
+        SFracQ0_16Signal maxOffset,
+        CartRange warpScaleRange,
+        CartRange maxOffsetRange,
         uint8_t octaves,
         SFracQ0_16Signal flowDirection,
         SFracQ0_16Signal flowStrength
     ) : DomainWarpTransform(
         type,
-        warpScale,
-        maxOffset,
         octaves,
         makeDirectionalInputs(
             std::move(phaseSpeed),
             std::move(amplitude),
-            maxOffset,
+            std::move(warpScale),
+            std::move(maxOffset),
+            std::move(warpScaleRange),
+            std::move(maxOffsetRange),
             std::move(flowDirection),
             std::move(flowStrength)
         )
@@ -214,6 +305,9 @@ namespace PolarShader {
 
         SFracQ0_16 phase = state->phase.advance(timeInMillis);
         state->timeOffsetRaw = raw(phase) << CARTESIAN_FRAC_BITS;
+
+        state->warpScale = state->warpScaleSignal(timeInMillis).get();
+        state->maxOffset = (*state->maxOffsetSignal)(timeInMillis).get();
 
         state->amplitudeRaw = state->amplitudeSignal(timeInMillis).get();
 
@@ -239,58 +333,10 @@ namespace PolarShader {
             CartQ24_8 sx = CartesianMaths::mul(x, state->warpScale);
             CartQ24_8 sy = CartesianMaths::mul(y, state->warpScale);
 
-            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
-
-            auto sampleNoisePair = [&](int64_t sx_raw, int64_t sy_raw) {
-                uint32_t ux = static_cast<uint32_t>(sx_raw + base);
-                uint32_t uy = static_cast<uint32_t>(sy_raw + base);
-                uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(state->timeOffsetRaw) + base);
-
-                PatternNormU16 n0 = noiseNormaliseU16(sampleNoiseTrilinear(
-                    ux + WARP_SEED_X,
-                    uy + WARP_SEED_Y,
-                    uz + WARP_SEED_Z
-                ));
-                PatternNormU16 n1 = noiseNormaliseU16(sampleNoiseTrilinear(
-                    ux + WARP_SEED_Z,
-                    uy + WARP_SEED_W,
-                    uz + WARP_SEED_X
-                ));
-
-                int32_t nx = static_cast<int32_t>(raw(n0)) - static_cast<int32_t>(U16_HALF);
-                int32_t ny = static_cast<int32_t>(raw(n1)) - static_cast<int32_t>(U16_HALF);
-                return SPoint32{nx, ny};
-            };
-
-            auto sampleWarp = [&](int64_t sx_raw, int64_t sy_raw, int32_t amp) {
-                SPoint32 n = sampleNoisePair(sx_raw, sy_raw);
-                int32_t dx = static_cast<int32_t>((static_cast<int64_t>(n.x) * amp) >> 15);
-                int32_t dy = static_cast<int32_t>((static_cast<int64_t>(n.y) * amp) >> 15);
-                return SPoint32{dx, dy};
-            };
-
-            auto sampleCurl = [&](int64_t sx_raw, int64_t sy_raw, int32_t amp) {
-                constexpr int32_t EPS = 1 << CARTESIAN_FRAC_BITS;
-                uint32_t ux = static_cast<uint32_t>(sx_raw + base);
-                uint32_t uy = static_cast<uint32_t>(sy_raw + base);
-                uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(state->timeOffsetRaw) + base);
-
-                auto n_x1 = noiseNormaliseU16(sampleNoiseTrilinear(ux + EPS, uy, uz));
-                auto n_x0 = noiseNormaliseU16(sampleNoiseTrilinear(ux - EPS, uy, uz));
-                auto n_y1 = noiseNormaliseU16(sampleNoiseTrilinear(ux, uy + EPS, uz));
-                auto n_y0 = noiseNormaliseU16(sampleNoiseTrilinear(ux, uy - EPS, uz));
-
-                int32_t dnx = static_cast<int32_t>(raw(n_x1)) - static_cast<int32_t>(raw(n_x0));
-                int32_t dny = static_cast<int32_t>(raw(n_y1)) - static_cast<int32_t>(raw(n_y0));
-
-                int32_t dx = static_cast<int32_t>((static_cast<int64_t>(dny) * amp) >> 16);
-                int32_t dy = static_cast<int32_t>((static_cast<int64_t>(-dnx) * amp) >> 16);
-                return SPoint32{dx, dy};
-            };
-
             SPoint32 warp{0, 0};
             int64_t sx_raw = raw(sx);
             int64_t sy_raw = raw(sy);
+            int32_t time_offset = state->timeOffsetRaw;
 
             switch (state->type) {
                 case WarpType::FBM: {
@@ -299,7 +345,7 @@ namespace PolarShader {
                     for (uint8_t o = 0; o < octaves && amp > 0; o++) {
                         int64_t ox = sx_raw << o;
                         int64_t oy = sy_raw << o;
-                        SPoint32 step = sampleWarp(ox, oy, amp);
+                        SPoint32 step = sampleWarp(ox, oy, time_offset, amp);
                         warp.x += step.x;
                         warp.y += step.y;
                         amp >>= 1;
@@ -308,18 +354,18 @@ namespace PolarShader {
                 }
 
                 case WarpType::Nested: {
-                    SPoint32 first = sampleWarp(sx_raw, sy_raw, state->amplitudeRaw);
+                    SPoint32 first = sampleWarp(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
                     int64_t wx = sx_raw + first.x;
                     int64_t wy = sy_raw + first.y;
                     int32_t amp = state->amplitudeRaw >> 1;
-                    SPoint32 second = sampleWarp(wx << 1, wy << 1, amp);
+                    SPoint32 second = sampleWarp(wx << 1, wy << 1, time_offset, amp);
                     warp.x = first.x + second.x;
                     warp.y = first.y + second.y;
                     break;
                 }
 
                 case WarpType::Curl: {
-                    warp = sampleCurl(sx_raw, sy_raw, state->amplitudeRaw);
+                    warp = sampleCurl(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
                     break;
                 }
 
@@ -332,7 +378,7 @@ namespace PolarShader {
                     ang_q24_8 = CartesianMaths::mul(ang_q24_8, state->warpScale);
                     rad_q24_8 = CartesianMaths::mul(rad_q24_8, state->warpScale);
 
-                    SPoint32 polarNoise = sampleNoisePair(raw(ang_q24_8), raw(rad_q24_8));
+                    SPoint32 polarNoise = sampleNoisePair(raw(ang_q24_8), raw(rad_q24_8), time_offset);
                     int64_t polar_amp_64 = static_cast<int64_t>(state->amplitudeRaw) << (16 - CARTESIAN_FRAC_BITS);
                     if (polar_amp_64 > INT32_MAX) polar_amp_64 = INT32_MAX;
                     int32_t polar_amp = static_cast<int32_t>(polar_amp_64);
@@ -352,7 +398,7 @@ namespace PolarShader {
                 }
 
                 case WarpType::Directional: {
-                    warp = sampleWarp(sx_raw, sy_raw, state->amplitudeRaw);
+                    warp = sampleWarp(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
                     warp.x += state->flowOffset.x;
                     warp.y += state->flowOffset.y;
                     break;
@@ -360,7 +406,7 @@ namespace PolarShader {
 
                 case WarpType::Basic:
                 default: {
-                    warp = sampleWarp(sx_raw, sy_raw, state->amplitudeRaw);
+                    warp = sampleWarp(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
                     break;
                 }
             }

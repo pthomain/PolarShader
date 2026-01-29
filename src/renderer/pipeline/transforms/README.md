@@ -30,6 +30,7 @@ Ranges used by transforms:
 - `SFracRange` maps a 0..1 signal into a signed Q0.16 range.
 - `ZoomRange` maps a 0..1 signal into the zoom scale range.
 - `PaletteRange` maps a 0..1 signal into a palette index range `[0, 255]`.
+- `CartRange` maps a 0..1 signal into a `CartQ24_8` range.
 
 ## Pipeline usage
 
@@ -42,9 +43,14 @@ Example (simplified):
 ```cpp
 auto pipeline = PolarPipelineBuilder(std::move(pattern), palette, "demo")
     .addCartesianTransform(ZoomTransform(noise(cPerMil(120))))
-    .addCartesianTransform(DomainWarpTransform(noise(cPerMil(120)), cPerMil(250),
-                                               CartQ24_8(1 << CARTESIAN_FRAC_BITS),
-                                               CartQ24_8(4 << CARTESIAN_FRAC_BITS)))
+    .addCartesianTransform(DomainWarpTransform(
+        noise(cPerMil(120)),
+        cPerMil(250),
+        full(),
+        full(),
+        CartRange(CartQ24_8(1 << CARTESIAN_FRAC_BITS), CartQ24_8(1 << CARTESIAN_FRAC_BITS)),
+        CartRange(CartQ24_8(4 << CARTESIAN_FRAC_BITS), CartQ24_8(4 << CARTESIAN_FRAC_BITS))
+    ))
     .addPolarTransform(RotationTransform(noise(cPerMil(80))))
     .build();
 
@@ -82,11 +88,36 @@ auto layer = pipeline.build();
 ### DomainWarpTransform (cartesian)
 
 - Inputs:
-  - `phaseSpeed`: turns-per-second for the time axis (mapped via `SFracRange`).
-  - `amplitude`: 0..1 signal mapped to `[0, maxOffset]` (Q24.8).
-  - `warpScale`: scale applied to input coords before sampling warp noise (Q24.8).
-  - `maxOffset`: maximum warp displacement (Q24.8).
-  - For `Directional` warp: `flowDirection` (PolarRange) + `flowStrength` (ScalarRange) signals.
+  - `phaseSpeed`: turns-per-second for the time axis (mapped via `SFracRange`). Signed; negative values reverse motion.
+  - `amplitude`: 0..1 signal mapped to `[0, maxOffset]` (Q24.8). Controls warp displacement strength.
+  - `warpScale`: 0..1 signal mapped via `CartRange`, applied to input coords before sampling warp noise (Q24.8).
+    - Smaller than 1.0 => lower-frequency, broad bends.
+    - Larger than 1.0 => higher-frequency, tighter warps.
+    - Does not change displacement magnitude; only the spatial frequency of the warp field.
+  - `maxOffset`: 0..1 signal mapped via `CartRange`, maximum warp displacement (Q24.8).
+    - This is the dominant control for “how much” warp you see.
+    - Displacement is roughly `amplitude * maxOffset * noise`, where noise is centered around 0.
+    - If `maxOffset` is too small relative to your coordinate scale (Q0.16 ≈ 0..65535),
+      the effect can appear invisible.
+  - For `Directional` warp:
+    - `flowDirection`: angular direction of the bias vector (mapped with `PolarRange`).
+    - `flowStrength`: 0..1 signal mapped to `[0, maxOffset]` (Q24.8) for directional drift strength.
+
+Example values (Q24.8 constants shown as `CartQ24_8(n << CARTESIAN_FRAC_BITS)`):
+
+- WarpScale (frequency control):
+  - Broad/slow field: `CartQ24_8(1 << CARTESIAN_FRAC_BITS)` (1.0)
+  - Medium detail: `CartQ24_8(2 << CARTESIAN_FRAC_BITS)` (2.0)
+  - Tight/busy: `CartQ24_8(4 << CARTESIAN_FRAC_BITS)` (4.0)
+
+- MaxOffset (displacement strength):
+  - Subtle: `CartQ24_8(256 << CARTESIAN_FRAC_BITS)`
+  - Medium: `CartQ24_8(1024 << CARTESIAN_FRAC_BITS)`
+  - Strong: `CartQ24_8(4096 << CARTESIAN_FRAC_BITS)`
+
+- Typical presets:
+  - `phaseSpeed`: `noise(cPerMil(80))` for gentle drift, `noise(cPerMil(200))` for faster motion.
+  - `amplitude`: `cPerMil(200)` (20%) subtle, `cPerMil(500)` (50%) obvious, `full()` (100%) max.
 - Warp types:
   - `Basic`, `FBM`, `Nested`, `Curl`, `Polar`, `Directional`.
 - `advanceFrame` updates phase (time offset), amplitude, and directional flow offset.

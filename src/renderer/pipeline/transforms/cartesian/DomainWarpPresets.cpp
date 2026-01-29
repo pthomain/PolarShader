@@ -20,32 +20,38 @@
 
 #include "DomainWarpPresets.h"
 #include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/ranges/CartRange.h"
 
 namespace PolarShader {
     namespace {
-        constexpr CartQ24_8 BASE_WARP_SCALE = CartQ24_8(1 << CARTESIAN_FRAC_BITS);
-        constexpr CartQ24_8 STRONG_WARP_SCALE = CartQ24_8(2 << CARTESIAN_FRAC_BITS);
-        constexpr CartQ24_8 MAX_OFFSET_SOFT = CartQ24_8(2 << CARTESIAN_FRAC_BITS);
-        constexpr CartQ24_8 MAX_OFFSET_MED = CartQ24_8(4 << CARTESIAN_FRAC_BITS);
-        constexpr CartQ24_8 MAX_OFFSET_STRONG = CartQ24_8(6 << CARTESIAN_FRAC_BITS);
+        constexpr int32_t BASE_CART = 200 << CARTESIAN_FRAC_BITS;
+        constexpr CartQ24_8 BASE_WARP_SCALE = CartQ24_8(6 * BASE_CART);
+        constexpr CartQ24_8 STRONG_WARP_SCALE = CartQ24_8(12 * BASE_CART);
+        constexpr CartQ24_8 MAX_OFFSET_SOFT = CartQ24_8(12 * BASE_CART);
+        constexpr CartQ24_8 MAX_OFFSET_MED = CartQ24_8(24 * BASE_CART);
+        constexpr CartQ24_8 MAX_OFFSET_STRONG = CartQ24_8(36 * BASE_CART);
     }
 
     DomainWarpTransform domainWarpBasic() {
         return DomainWarpTransform(
-            noise(cPerMil(120)),
-            cPerMil(250),
-            BASE_WARP_SCALE,
-            MAX_OFFSET_MED
+            cPerMil(200),
+            full(),
+            full(),
+            full(),
+            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            CartRange(MAX_OFFSET_MED, MAX_OFFSET_MED)
         );
     }
 
     DomainWarpTransform domainWarpFbm(uint8_t octaves) {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::FBM,
-            noise(cPerMil(140)),
-            cPerMil(300),
-            BASE_WARP_SCALE,
-            MAX_OFFSET_STRONG,
+            cPerMil(140),
+            full(),
+            full(),
+            full(),
+            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            CartRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             octaves,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -55,10 +61,12 @@ namespace PolarShader {
     DomainWarpTransform domainWarpNested() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Nested,
-            noise(cPerMil(100)),
-            cPerMil(280),
-            BASE_WARP_SCALE,
-            MAX_OFFSET_STRONG,
+            cPerMil(100),
+            full(),
+            full(),
+            full(),
+            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            CartRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             2,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -68,10 +76,12 @@ namespace PolarShader {
     DomainWarpTransform domainWarpCurl() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Curl,
-            noise(cPerMil(90)),
             cPerMil(260),
-            BASE_WARP_SCALE,
-            MAX_OFFSET_MED,
+            full(),
+            full(),
+            full(),
+            CartRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
+            CartRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -83,8 +93,10 @@ namespace PolarShader {
             DomainWarpTransform::WarpType::Polar,
             noise(cPerMil(110)),
             cPerMil(220),
-            STRONG_WARP_SCALE,
-            MAX_OFFSET_SOFT,
+            full(),
+            full(),
+            CartRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
+            CartRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
             1,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -96,8 +108,10 @@ namespace PolarShader {
             DomainWarpTransform::WarpType::Directional,
             noise(cPerMil(130)),
             cPerMil(240),
-            BASE_WARP_SCALE,
-            MAX_OFFSET_MED,
+            full(),
+            full(),
+            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            CartRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             noise(cPerMil(40)),
             cPerMil(180)

@@ -39,40 +39,31 @@ namespace PolarShader {
                     palette,
                     "default"
                 )
-                .addPaletteTransform(PaletteTransform(
-                    noise(cPerMil(100))
-                ))
-                // .addCartesianTransform(DomainWarpTransform(
-                // DomainWarpTransform::WarpType::Directional,
-                // noise(cPerMil(500)),
-                // full(),
-                // CartQ24_8(2 << 16),
-                // CartQ24_8(12 << 16),
-                // 1,
-                // cFrac(1),
-                // cPerMil(500)
+                // .addPaletteTransform(PaletteTransform(
+                // noise(cPerMil(100))
                 // ))
+                .addCartesianTransform(domainWarpNested())
                 // .setDepthSignal(sine(
                 //     cPerMil(100),
                 //     cPerMil(200)
                 // ))
-                .addCartesianTransform(TranslationTransform(
-                    noise(),
-                    cPerMil(100)
-                ))
-                .addCartesianTransform(ZoomTransform(
-                    sine(
-                        cPerMil(100),
-                        cPerMil(300),
-                        cPerMil(300)
-                    )
-                ))
-                .addPolarTransform(RotationTransform(
-                    cPerMil(500)
-                ))
-                .addPolarTransform(VortexTransform(
-                    full()
-                ))
+                // .addCartesianTransform(TranslationTransform(
+                //     noise(),
+                //     cPerMil(100)
+                // ))
+                // .addCartesianTransform(ZoomTransform(
+                //     sine(
+                //         cPerMil(100),
+                //         cPerMil(300),
+                //         cPerMil(300)
+                //     )
+                // ))
+                // .addPolarTransform(RotationTransform(
+                //     cPerMil(500)
+                // ))
+                // .addPolarTransform(VortexTransform(
+                //     full()
+                // ))
                 .build();
     }
 }
