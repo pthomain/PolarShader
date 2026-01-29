@@ -23,6 +23,7 @@
 
 #include "FastLED.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
+#include <Arduino.h>
 #include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
@@ -39,9 +40,15 @@ namespace PolarShader {
         struct NoisePatternFunctor {
             NoiseType type;
             fl::u8 octaves;
+            PipelineContext *context;
 
-            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y, uint32_t depth) const {
+            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
                 int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
+                if (!context) {
+                    Serial.println("NoisePatternFunctor context is null.");
+                }
+                uint32_t depth = context ? context->depth : 0u;
+
                 int64_t sx = static_cast<int64_t>(raw(x)) + offset;
                 int64_t sy = static_cast<int64_t>(raw(y)) + offset;
                 int64_t sz = static_cast<int64_t>(depth) + offset;
@@ -114,8 +121,8 @@ namespace PolarShader {
               octaves(octaveCount) {
         }
 
-        CartesianLayer layer() const override {
-            return NoisePatternFunctor{type, octaves};
+        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override {
+            return NoisePatternFunctor{type, octaves, context.get()};
         }
     };
 }

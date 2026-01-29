@@ -43,7 +43,6 @@ namespace PolarShader {
         const char *name;
         std::shared_ptr<PipelineContext> context;
         DepthSignal depthSignal;
-        std::shared_ptr<uint32_t> depthValue;
 
         static ColourLayer blackLayer(const char *reason);
 

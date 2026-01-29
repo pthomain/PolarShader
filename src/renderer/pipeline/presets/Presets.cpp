@@ -25,6 +25,8 @@
 #include "renderer/pipeline/transforms/polar/RotationTransform.h"
 #include <memory>
 #include "renderer/pipeline/patterns/Patterns.h"
+#include "renderer/pipeline/transforms/cartesian/DomainWarpPresets.h"
+#include "renderer/pipeline/transforms/cartesian/DomainWarpTransform.h"
 #include "renderer/pipeline/transforms/cartesian/TranslationTransform.h"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
 
@@ -35,7 +37,20 @@ namespace PolarShader {
                     noisePattern(),
                     palette,
                     "default"
-                )
+                ).addCartesianTransform(DomainWarpTransform(
+                    DomainWarpTransform::WarpType::Directional,
+                    noise(cPerMil(500)),
+                    full(),
+                    CartQ24_8(2 << CARTESIAN_FRAC_BITS),
+                    CartQ24_8(12 << CARTESIAN_FRAC_BITS),
+                    1,
+                    full(),
+                    full()
+                ))
+                // .setDepthSignal(sine(
+                //     cPerMil(100),
+                //     cPerMil(200)
+                // ))
                 // .addCartesianTransform(TranslationTransform(
                 //     noise(),
                 //     cPerMil(100)

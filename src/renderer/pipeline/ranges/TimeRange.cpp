@@ -19,17 +19,9 @@
  */
 
 #include "TimeRange.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
-    namespace {
-        uint32_t clamp_frac_raw(int32_t raw_value) {
-            if (raw_value <= 0) return 0u;
-            if (raw_value >= static_cast<int32_t>(FRACT_Q0_16_MAX)) return FRACT_Q0_16_MAX;
-            return static_cast<uint32_t>(raw_value);
-        }
-    }
-
     TimeRange::TimeRange(TimeMillis durationMs)
         : duration_ms(durationMs) {
     }

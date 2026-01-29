@@ -30,6 +30,8 @@ namespace PolarShader {
         SFracQ0_16 zoomScale = SFracQ0_16(Q0_16_ONE);
         // Normalized zoom scale in 0..1 (Q0.16), based on the zoom transform's range.
         SFracQ0_16 zoomNormalized = SFracQ0_16(Q0_16_ONE);
+        // Current depth value in unsigned Q24.8 domain.
+        uint32_t depth = 0u;
     };
 }
 

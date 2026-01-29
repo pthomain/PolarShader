@@ -18,19 +18,31 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#ifndef POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
+#define POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H
 
-#include "FastLED.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/PatternUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/units/StrongTypes.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<PatternNormU16(FracQ0_16, FracQ0_16)>;
-    // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
-    using CartesianLayer = fl::function<PatternNormU16(CartQ24_8, CartQ24_8)>;
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
+    /**
+     * @brief Maps a 0..1 signal into the unsigned Q24.8 depth domain.
+     */
+    class DepthRange {
+    public:
+        DepthRange(uint32_t min = 0u, uint32_t max = UINT32_MAX >> 4);
+
+        /**
+         * @brief Maps a signed signal value [0, 1] to a depth in the specified range.
+         * @param t The input signal value.
+         * @return A MappedSignal containing the resulting depth value.
+         */
+        MappedSignal<uint32_t> map(SFracQ0_16 t) const;
+
+    private:
+        uint32_t min_depth = 0u;
+        uint32_t max_depth = 0u;
+    };
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#endif // POLAR_SHADER_PIPELINE_RANGES_DEPTH_RANGE_H

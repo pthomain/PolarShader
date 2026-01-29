@@ -38,7 +38,7 @@ namespace PolarShader {
             explicit PolarGradientFunctor(Axis axis) : axisValue(axis) {
             }
 
-            PatternNormU16 operator()(FracQ0_16 angle, FracQ0_16 radius, uint32_t) const {
+            PatternNormU16 operator()(FracQ0_16 angle, FracQ0_16 radius) const {
                 return PatternNormU16(axisValue == Axis::Radius ? raw(radius) : raw(angle));
             }
         };
@@ -50,7 +50,7 @@ namespace PolarShader {
             : axis(axis) {
         }
 
-        PolarLayer layer() const override {
+        PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const override {
             return PolarGradientFunctor(axis);
         }
     };

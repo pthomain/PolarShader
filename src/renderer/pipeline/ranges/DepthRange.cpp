@@ -18,19 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-
-#include "FastLED.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
+#include "DepthRange.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
-    using PolarLayer = fl::function<PatternNormU16(FracQ0_16, FracQ0_16)>;
-    // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
-    using CartesianLayer = fl::function<PatternNormU16(CartQ24_8, CartQ24_8)>;
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
-}
+    DepthRange::DepthRange(uint32_t min, uint32_t max)
+        : min_depth(min), max_depth(max) {
+    }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+    MappedSignal<uint32_t> DepthRange::map(SFracQ0_16 t) const {
+        if (max_depth <= min_depth) return MappedSignal(min_depth);
+
+        uint32_t t_raw = clamp_frac_raw(raw(t));
+        uint64_t span = static_cast<uint64_t>(max_depth) - static_cast<uint64_t>(min_depth);
+        uint64_t scaled = (span * static_cast<uint64_t>(t_raw)) >> 16;
+        uint64_t sum = static_cast<uint64_t>(min_depth) + scaled;
+        if (sum > UINT32_MAX) sum = UINT32_MAX;
+        return MappedSignal(static_cast<uint32_t>(sum));
+    }
+}

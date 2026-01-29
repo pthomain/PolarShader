@@ -20,15 +20,10 @@
 
 #include "CartesianRange.h"
 #include "renderer/pipeline/maths/AngleMaths.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
     namespace {
-        uint32_t clamp_frac_raw(int32_t raw_value) {
-            if (raw_value <= 0) return 0u;
-            if (raw_value >= static_cast<int32_t>(FRACT_Q0_16_MAX)) return FRACT_Q0_16_MAX;
-            return static_cast<uint32_t>(raw_value);
-        }
-
         uint32_t wrap_frac_raw(int32_t raw_value) {
             return static_cast<uint32_t>(raw_value) & 0xFFFFu;
         }

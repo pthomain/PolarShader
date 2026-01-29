@@ -36,14 +36,13 @@ namespace PolarShader {
         steps(std::move(steps)),
         name(name ? name : "unnamed"),
         context(std::move(context)),
-        depthSignal(std::move(depthSignal)),
-        depthValue(std::make_shared<uint32_t>(0u)) {
+        depthSignal(std::move(depthSignal)) {
         Serial.print("Building pipeline: ");
         Serial.println(this->name);
 
-        if (!this->context) {
-            this->context = std::make_shared<PipelineContext>();
-        }
+        if (!this->context) this->context = std::make_shared<PipelineContext>();
+        if (pattern) pattern->setContext(this->context);
+
         for (auto &step: this->steps) {
             if (step.cartesianTransform) step.cartesianTransform->setContext(this->context);
             if (step.polarTransform) step.polarTransform->setContext(this->context);
@@ -58,29 +57,33 @@ namespace PolarShader {
     }
 
     PolarLayer PolarPipeline::toPolarLayer(const CartesianLayer &layer) {
-        return [layer](FracQ0_16 angle, FracQ0_16 radius, uint32_t depth) {
+        return [layer](FracQ0_16 angle, FracQ0_16 radius) {
             auto [x, y] = polarToCartesian(angle, radius);
             // Convert Q0.16 cartesian into Q24.8 with extra fractional precision.
             return layer(
                 CartQ24_8(x << CARTESIAN_FRAC_BITS),
-                CartQ24_8(y << CARTESIAN_FRAC_BITS),
-                depth
+                CartQ24_8(y << CARTESIAN_FRAC_BITS)
             );
         };
     }
 
     CartesianLayer PolarPipeline::toCartesianLayer(const PolarLayer &layer) {
-        return [layer](CartQ24_8 x, CartQ24_8 y, uint32_t depth) {
+        return [layer](CartQ24_8 x, CartQ24_8 y) {
             // Drop fractional bits to recover Q0.16 cartesian coords for polar conversion.
             int32_t x_q0_16 = static_cast<int32_t>(static_cast<int64_t>(raw(x)) >> CARTESIAN_FRAC_BITS);
             int32_t y_q0_16 = static_cast<int32_t>(static_cast<int64_t>(raw(y)) >> CARTESIAN_FRAC_BITS);
             auto [angle, radius] = cartesianToPolar(x_q0_16, y_q0_16);
-            return layer(angle, radius, depth);
+            return layer(angle, radius);
         };
     }
 
     void PolarPipeline::advanceFrame(TimeMillis timeInMillis) {
-        *depthValue = depthSignal(timeInMillis);
+        if (!context) {
+            Serial.println("PolarPipeline::advanceFrame context is null.");
+        } else {
+            context->depth = depthSignal(timeInMillis);
+        }
+
         for (const auto &step: steps) {
             if (step.cartesianTransform) {
                 step.cartesianTransform->advanceFrame(timeInMillis);
@@ -101,10 +104,10 @@ namespace PolarShader {
         bool hasPolar = false;
 
         if (pattern->domain() == PatternDomain::Cartesian) {
-            currentCartesian = static_cast<CartesianPattern*>(pattern.get())->layer();
+            currentCartesian = static_cast<CartesianPattern *>(pattern.get())->layer(context);
             hasCartesian = true;
         } else {
-            currentPolar = static_cast<PolarPattern*>(pattern.get())->layer();
+            currentPolar = static_cast<PolarPattern *>(pattern.get())->layer(context);
             hasPolar = true;
         }
 
@@ -148,11 +151,11 @@ namespace PolarShader {
         if (!hasPolar) return blackLayer("PolarPipeline::build ended without a Polar layer.");
 
         // Final stage: sample the pattern value and map it to a color from the palette.
-        return [palette = palette, layer = std::move(currentPolar), depthValue = depthValue](
+        return [palette = palette, layer = std::move(currentPolar)](
             FracQ0_16 angle,
             FracQ0_16 radius
         ) {
-            PatternNormU16 value = layer(angle, radius, *depthValue);
+            PatternNormU16 value = layer(angle, radius);
             uint8_t index = map16_to_8(raw(value));
             return ColorFromPalette(palette, index, 255, LINEARBLEND);
         };

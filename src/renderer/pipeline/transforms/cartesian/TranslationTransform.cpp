@@ -20,6 +20,7 @@
 
 #include "TranslationTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
+#include <Arduino.h>
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/ranges/CartesianRange.h"
 
@@ -69,7 +70,11 @@ namespace PolarShader {
         }
 
         int32_t zoom_norm_raw = Q0_16_ONE;
-        if (context) zoom_norm_raw = raw(context->zoomNormalized);
+        if (context) {
+            zoom_norm_raw = raw(context->zoomNormalized);
+        } else {
+            Serial.println("TranslationTransform::advanceFrame context is null.");
+        }
 
         int64_t alpha_span = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MAX) -
                              static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN);
@@ -85,10 +90,10 @@ namespace PolarShader {
     }
 
     CartesianLayer TranslationTransform::operator()(const CartesianLayer &layer) const {
-        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y, uint32_t depth) {
+        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y) {
             int32_t sx = static_cast<int32_t>(static_cast<int64_t>(raw(x)) + state->offset.x);
             int32_t sy = static_cast<int32_t>(static_cast<int64_t>(raw(y)) + state->offset.y);
-            return layer(CartQ24_8(sx), CartQ24_8(sy), depth);
+            return layer(CartQ24_8(sx), CartQ24_8(sy));
         };
     }
 }

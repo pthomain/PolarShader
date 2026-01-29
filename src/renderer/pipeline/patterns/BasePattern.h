@@ -22,6 +22,8 @@
 #define POLAR_SHADER_PIPELINE_BASEPATTERN_H
 
 #include "renderer/pipeline/transforms/base/Layers.h"
+#include "renderer/pipeline/PipelineContext.h"
+#include <memory>
 #include <utility>
 
 namespace PolarShader {
@@ -36,20 +38,25 @@ namespace PolarShader {
 
         PatternDomain domain() const { return domainValue; }
 
+        virtual void setContext(std::shared_ptr<PipelineContext> context) {
+            this->context = std::move(context);
+        }
+
     protected:
         explicit BasePattern(PatternDomain domain)
             : domainValue(domain) {
         }
 
         static CartesianLayer defaultCartesianLayer() {
-            return [](CartQ24_8, CartQ24_8, uint32_t) { return PatternNormU16(0); };
+            return [](CartQ24_8, CartQ24_8) { return PatternNormU16(0); };
         }
 
         static PolarLayer defaultPolarLayer() {
-            return [](FracQ0_16, FracQ0_16, uint32_t) { return PatternNormU16(0); };
+            return [](FracQ0_16, FracQ0_16) { return PatternNormU16(0); };
         }
 
     private:
+        std::shared_ptr<PipelineContext> context;
         PatternDomain domainValue;
     };
 
@@ -68,7 +75,7 @@ namespace PolarShader {
             }
         }
 
-        virtual CartesianLayer layer() const {
+        virtual CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const {
             return layerValue;
         }
     };
@@ -88,7 +95,7 @@ namespace PolarShader {
             }
         }
 
-        virtual PolarLayer layer() const {
+        virtual PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const {
             return layerValue;
         }
     };

@@ -16,11 +16,11 @@ This document defines the "Definition of Done" for any new pattern in the PolarS
 
 ## Behavior & Correctness
 
-4.  **DETERMINISM & STATELESSNESS**: Patterns must be pure functions of position (and optional depth).
+4.  **DETERMINISM & STATELESSNESS**: Patterns must be pure functions of position (and optional depth from the pipeline context).
     - No `static` variables, no mutable state, no `random()` calls.
     - Stochastic patterns (e.g., Voronoi) MUST accept a `uint32_t seed` in their constructor to ensure they are deterministic.
 
-5.  **NO TIME-BASED LOGIC**: All animation is handled by `Transforms` and/or a depth signal. Patterns must not use `millis()` or any other time source.
+5.  **NO TIME-BASED LOGIC**: All animation is handled by `Transforms` and/or a depth signal updated in the pipeline context. Patterns must not use `millis()` or any other time source.
 
 6.  **NORMALIZATION**: The final output MUST be a `PatternNormU16` (0-65535).
     - Normalize continuous fields to the full range.

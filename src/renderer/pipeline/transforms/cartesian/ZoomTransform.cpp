@@ -20,6 +20,7 @@
 
 #include "ZoomTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
+#include <Arduino.h>
 
 namespace PolarShader {
     namespace {
@@ -101,18 +102,20 @@ namespace PolarShader {
                 if (t_raw > Q0_16_ONE) t_raw = Q0_16_ONE;
                 context->zoomNormalized = SFracQ0_16(static_cast<int32_t>(t_raw));
             }
+        } else {
+            Serial.println("ZoomTransform::advanceFrame context is null.");
         }
     }
 
     CartesianLayer ZoomTransform::operator()(const CartesianLayer &layer) const {
-        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y, uint32_t depth) {
+        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y) {
             // Apply Q0.16 scale to Q24.8 coords, preserving fractional precision.
             int64_t sx = static_cast<int64_t>(raw(x)) * static_cast<int64_t>(raw(state->scaleValue));
             int64_t sy = static_cast<int64_t>(raw(y)) * static_cast<int64_t>(raw(state->scaleValue));
 
             int32_t finalX = static_cast<int32_t>(sx >> 16);
             int32_t finalY = static_cast<int32_t>(sy >> 16);
-            return layer(CartQ24_8(finalX), CartQ24_8(finalY), depth);
+            return layer(CartQ24_8(finalX), CartQ24_8(finalY));
         };
     }
 }

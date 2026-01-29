@@ -23,9 +23,11 @@
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/ranges/CartesianRange.h"
+#include "renderer/pipeline/ranges/ScalarRange.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 #include <cstdint>
 #include <utility>
+#include <Arduino.h>
 
 namespace PolarShader {
     namespace {
@@ -34,17 +36,19 @@ namespace PolarShader {
         constexpr uint32_t WARP_SEED_Z = 0xB5297A4Du;
         constexpr uint32_t WARP_SEED_W = 0x68E31DA4u;
 
-        uint32_t clampFracRaw(int32_t raw_value) {
-            if (raw_value <= 0) return 0u;
-            if (raw_value >= static_cast<int32_t>(FRACT_Q0_16_MAX)) return FRACT_Q0_16_MAX;
-            return static_cast<uint32_t>(raw_value);
+        SFracQ0_16Signal mapSignalToRange(SFracQ0_16Signal signal, ScalarRange range) {
+            return [signal = std::move(signal), range](TimeMillis time) mutable {
+                return SFracQ0_16(range.map(signal(time)).get());
+            };
         }
     }
 
     struct DomainWarpTransform::State {
         WarpType type;
+        ScalarRange phaseVelocityRange;
         PhaseAccumulator phase;
         SFracQ0_16Signal amplitudeSignal;
+        ScalarRange amplitudeRange;
         CartQ24_8 warpScale;
         CartQ24_8 maxOffset;
         uint8_t octaves;
@@ -65,8 +69,10 @@ namespace PolarShader {
             SFracQ0_16Signal flowDirection,
             SFracQ0_16Signal flowStrength
         ) : type(type),
-            phase(std::move(phaseVelocity)),
+            phaseVelocityRange(0, Q0_16_ONE),
+            phase(mapSignalToRange(std::move(phaseVelocity), phaseVelocityRange)),
             amplitudeSignal(std::move(amplitude)),
+            amplitudeRange(0, raw(offset) > 0 ? raw(offset) : 0),
             warpScale(scale),
             maxOffset(offset),
             octaves(octaves),
@@ -115,13 +121,16 @@ namespace PolarShader {
     }
 
     void DomainWarpTransform::advanceFrame(TimeMillis timeInMillis) {
-        SFracQ0_16 phase = state->phase.advance(timeInMillis);
-        state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << CARTESIAN_FRAC_BITS;
+        if (!context) {
+            Serial.println("DomainWarpTransform::advanceFrame context is null.");
+        }
 
-        uint32_t amp_raw = clampFracRaw(raw(state->amplitudeSignal(timeInMillis)));
-        int64_t scaled = (static_cast<int64_t>(amp_raw) * static_cast<int64_t>(raw(state->maxOffset))) >> 16;
-        if (scaled > INT32_MAX) scaled = INT32_MAX;
-        state->amplitudeRaw = static_cast<int32_t>(scaled);
+        SFracQ0_16 phase = state->phase.advance(timeInMillis);
+        state->timeOffsetRaw = raw(phase) << CARTESIAN_FRAC_BITS;
+
+        int32_t amp_raw = state->amplitudeRange.map(state->amplitudeSignal(timeInMillis)).get();
+        if (amp_raw < 0) amp_raw = 0;
+        state->amplitudeRaw = amp_raw;
 
         if (state->type == WarpType::Directional && state->flowDirection && state->flowStrength) {
             state->flowOffset = state->flowRange.map(
@@ -134,8 +143,7 @@ namespace PolarShader {
     }
 
     CartesianLayer DomainWarpTransform::operator()(const CartesianLayer &layer) const {
-        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y, uint32_t depth) {
-            (void) depth;
+        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y) {
             CartQ24_8 sx = CartesianMaths::mul(x, state->warpScale);
             CartQ24_8 sy = CartesianMaths::mul(y, state->warpScale);
 
@@ -189,8 +197,8 @@ namespace PolarShader {
             };
 
             SPoint32 warp{0, 0};
-            int64_t sx_raw = static_cast<int64_t>(raw(sx));
-            int64_t sy_raw = static_cast<int64_t>(raw(sy));
+            int64_t sx_raw = raw(sx);
+            int64_t sy_raw = raw(sy);
 
             switch (state->type) {
                 case WarpType::FBM: {
@@ -206,6 +214,7 @@ namespace PolarShader {
                     }
                     break;
                 }
+
                 case WarpType::Nested: {
                     SPoint32 first = sampleWarp(sx_raw, sy_raw, state->amplitudeRaw);
                     int64_t wx = sx_raw + first.x;
@@ -216,10 +225,12 @@ namespace PolarShader {
                     warp.y = first.y + second.y;
                     break;
                 }
+
                 case WarpType::Curl: {
                     warp = sampleCurl(sx_raw, sy_raw, state->amplitudeRaw);
                     break;
                 }
+
                 case WarpType::Polar: {
                     int32_t x_q0_16 = static_cast<int32_t>(sx_raw >> CARTESIAN_FRAC_BITS);
                     int32_t y_q0_16 = static_cast<int32_t>(sy_raw >> CARTESIAN_FRAC_BITS);
@@ -243,16 +254,18 @@ namespace PolarShader {
 
                     auto [px, py] = polarToCartesian(FracQ0_16(new_angle),
                                                      FracQ0_16(static_cast<uint16_t>(new_radius)));
-                    int32_t warped_x = static_cast<int32_t>(px << CARTESIAN_FRAC_BITS);
-                    int32_t warped_y = static_cast<int32_t>(py << CARTESIAN_FRAC_BITS);
-                    return layer(CartQ24_8(warped_x), CartQ24_8(warped_y), depth);
+                    int32_t warped_x = px << CARTESIAN_FRAC_BITS;
+                    int32_t warped_y = py << CARTESIAN_FRAC_BITS;
+                    return layer(CartQ24_8(warped_x), CartQ24_8(warped_y));
                 }
+
                 case WarpType::Directional: {
                     warp = sampleWarp(sx_raw, sy_raw, state->amplitudeRaw);
                     warp.x += state->flowOffset.x;
                     warp.y += state->flowOffset.y;
                     break;
                 }
+
                 case WarpType::Basic:
                 default: {
                     warp = sampleWarp(sx_raw, sy_raw, state->amplitudeRaw);
@@ -262,7 +275,7 @@ namespace PolarShader {
 
             int32_t warped_x = static_cast<int32_t>(static_cast<int64_t>(raw(x)) + warp.x);
             int32_t warped_y = static_cast<int32_t>(static_cast<int64_t>(raw(y)) + warp.y);
-            return layer(CartQ24_8(warped_x), CartQ24_8(warped_y), depth);
+            return layer(CartQ24_8(warped_x), CartQ24_8(warped_y));
         };
     }
 }

@@ -25,6 +25,7 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
+#include "renderer/pipeline/ranges/DepthRange.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
@@ -52,6 +53,8 @@ namespace PolarShader {
     SFracQ0_16Signal cSFrac(uint32_t value);
 
     SFracQ0_16Signal cPerMil(uint16_t value);
+
+    SFracQ0_16Signal full();
 
     SFracQ0_16Signal noise(
         const SFracQ0_16Signal &phaseVelocity = constant(perMil(100)),
@@ -89,10 +92,10 @@ namespace PolarShader {
     // Depth signals for animating noise domains (unsigned Q24.8).
     DepthSignal constantDepth(uint32_t value);
 
+    // Map a 0..1 signal into the unsigned Q24.8 depth domain.
     DepthSignal depth(
-        SFracQ0_16Signal phaseVelocity = constant(perMil(100)),
-        uint32_t scale = (1u << CARTESIAN_FRAC_BITS),
-        uint32_t offset = 0u
+        SFracQ0_16Signal signal = constant(perMil(100)),
+        DepthRange range = DepthRange()
     );
 }
 

@@ -90,6 +90,10 @@ namespace PolarShader {
         return constant(perMil(value));
     }
 
+    SFracQ0_16Signal full() {
+        return constant(frac(1));
+    }
+
     SFracQ0_16Signal noise(
         const SFracQ0_16Signal &phaseVelocity,
         SFracQ0_16Signal amplitude,
@@ -209,17 +213,21 @@ namespace PolarShader {
     }
 
     DepthSignal depth(
-        SFracQ0_16Signal phaseVelocity,
+        SFracQ0_16Signal signal,
+        DepthRange range
+    ) {
+        return [signal = std::move(signal), range = std::move(range)](TimeMillis time) mutable -> uint32_t {
+            return range.map(signal(time)).get();
+        };
+    }
+
+    DepthSignal depth(
+        SFracQ0_16Signal signal,
         uint32_t scale,
         uint32_t offset
     ) {
-        PhaseAccumulator acc{std::move(phaseVelocity)};
-        return [acc = std::move(acc), scale, offset](TimeMillis time) mutable -> uint32_t {
-            SFracQ0_16 phase = acc.advance(time);
-            uint64_t scaled = (static_cast<uint64_t>(raw(phase)) * static_cast<uint64_t>(scale)) >> 16;
-            uint64_t sum = scaled + offset;
-            if (sum > UINT32_MAX) sum = UINT32_MAX;
-            return static_cast<uint32_t>(sum);
-        };
+        uint64_t max = static_cast<uint64_t>(offset) + static_cast<uint64_t>(scale);
+        uint32_t max_depth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
+        return depth(std::move(signal), DepthRange(offset, max_depth));
     }
 }

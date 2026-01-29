@@ -20,6 +20,7 @@
 
 #include "RotationTransform.h"
 #include "renderer/pipeline/signals/Accumulators.h"
+#include <Arduino.h>
 
 namespace PolarShader {
     struct RotationTransform::State {
@@ -37,15 +38,18 @@ namespace PolarShader {
     }
 
     void RotationTransform::advanceFrame(TimeMillis timeInMillis) {
+        if (!context) {
+            Serial.println("RotationTransform::advanceFrame context is null.");
+        }
         state->angleOffset = mapPolar(state->angleSignal(timeInMillis));
     }
 
     PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius, uint32_t depth) {
+        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
             uint16_t angle_raw = raw(angle);
             uint16_t offset_raw = raw(state->angleOffset.get());
             uint16_t new_angle = static_cast<uint16_t>(angle_raw + offset_raw);
-            return layer(FracQ0_16(new_angle), radius, depth);
+            return layer(FracQ0_16(new_angle), radius);
         };
     }
 }

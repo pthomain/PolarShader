@@ -86,6 +86,15 @@ namespace PolarShader {
             return *this;
         }
 
+        PolarPipelineBuilder &setDepthSignal(SFracQ0_16Signal signal) {
+            if (built) return *this;
+            if (!signal) {
+                return *this;
+            }
+            depthSignal = depth(std::move(signal));
+            return *this;
+        }
+
         template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
         PolarPipelineBuilder &addPolarTransform(T transform) {
             if (built) return *this;

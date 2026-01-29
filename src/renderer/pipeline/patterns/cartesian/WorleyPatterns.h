@@ -192,7 +192,7 @@ namespace PolarShader {
         struct Functor {
             const WorleyPattern *self;
 
-            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y, uint32_t) const {
+            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
                 if (self->aliasing == WorleyAliasing::Precise) {
                     return self->samplePrecise(x, y, self, &WorleyPattern::sampleFast);
                 }
@@ -212,7 +212,7 @@ namespace PolarShader {
             configureCellSize(cellSize);
         }
 
-        CartesianLayer layer() const override {
+        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override {
             return Functor{this};
         }
 
@@ -237,7 +237,7 @@ namespace PolarShader {
         struct Functor {
             const VoronoiPattern *self;
 
-            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y, uint32_t) const {
+            PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
                 if (self->aliasing == WorleyAliasing::Precise) {
                     CartQ24_8 offset = self->aliasingOffset();
                     return self->sampleFastestId(
@@ -257,7 +257,7 @@ namespace PolarShader {
             configureCellSize(cellSize);
         }
 
-        CartesianLayer layer() const override {
+        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override {
             return Functor{this};
         }
 
