@@ -23,6 +23,9 @@
 
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/PipelineContext.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 #include <memory>
 
 namespace PolarShader {
@@ -41,9 +44,21 @@ namespace PolarShader {
         explicit PaletteTransform(MappedInputs inputs);
 
         static MappedInputs makeInputs(SFracQ0_16Signal offset);
+        static MappedInputs makeInputs(
+            SFracQ0_16Signal offset,
+            SFracQ0_16Signal clipSignal,
+            FracQ0_16 feather,
+            PipelineContext::PaletteClipPower clipPower
+        );
 
     public:
         explicit PaletteTransform(SFracQ0_16Signal offset);
+        PaletteTransform(
+            SFracQ0_16Signal offset,
+            SFracQ0_16Signal clipSignal,
+            FracQ0_16 feather = perMil(100),
+            PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square
+        );
 
         void advanceFrame(TimeMillis timeInMillis) override;
 

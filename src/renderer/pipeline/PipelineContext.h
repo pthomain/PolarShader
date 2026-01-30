@@ -21,6 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_PIPELINECONTEXT_H
 #define POLAR_SHADER_PIPELINE_PIPELINECONTEXT_H
 
+#include "renderer/pipeline/units/PatternUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 
@@ -34,6 +35,26 @@ namespace PolarShader {
         uint32_t depth = 0u;
         // Palette index offset applied during final palette lookup.
         uint8_t paletteOffset = 0u;
+        // Optional low-end clipping for palette lookup.
+        PatternNormU16 paletteClip = PatternNormU16(0);
+        // Feather width for palette clipping (Q0.16).
+        FracQ0_16 paletteClipFeather = FracQ0_16(0);
+
+        // Power curve applied to the clip input.
+        enum class PaletteClipPower : uint8_t {
+            // No shaping; threshold uses the raw pattern value.
+            None = 1,
+            // Square the clip input to emphasize peaks and thin out mid values.
+            Square = 2,
+            // Quartic (square twice) for very peaky, bubble-like masks.
+            Quartic = 4
+        };
+
+        PaletteClipPower paletteClipPower = PaletteClipPower::None;
+        // When true, clip high values instead of low values.
+        bool paletteClipInvert = false;
+        // Whether palette clipping should be applied.
+        bool paletteClipEnabled = false;
     };
 }
 

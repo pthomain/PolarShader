@@ -48,11 +48,9 @@ namespace PolarShader {
 
     SFracQ0_16Signal constant(FracQ0_16 value);
 
-    SFracQ0_16Signal cFrac(uint32_t value);
+    SFracQ0_16Signal cFrac(int32_t value);
 
-    SFracQ0_16Signal cSFrac(uint32_t value);
-
-    SFracQ0_16Signal cPerMil(uint16_t value);
+    SFracQ0_16Signal cPerMil(int32_t value);
 
     SFracQ0_16Signal full();
 

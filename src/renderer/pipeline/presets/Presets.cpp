@@ -41,33 +41,26 @@ namespace PolarShader {
                     "default"
                 )
                 .setDepthSignal(
-                    noise(cPerMil(100))
+                    noise(cPerMil(30))
                 )
-                // .addPaletteTransform(PaletteTransform(
-                //     noise(cPerMil(50))
-                // ))
-                // .addCartesianTransform(domainWarpNested())
-                // .setDepthSignal(sine(
-                //     cPerMil(100),
-                //     cPerMil(200)
-                // ))
+                .addPaletteTransform(PaletteTransform(
+                    noise(cPerMil(200)),
+                    cPerMil(200),
+                    perMil(200)
+                ))
                 .addCartesianTransform(TranslationTransform(
                     noise(),
-                    cPerMil(100)
+                    noise(cPerMil(60), cPerMil(30))
                 ))
                 .addCartesianTransform(ZoomTransform(
-                    noise(
-                        cPerMil(100),
-                        cPerMil(250),
-                        cPerMil(0)
-                    )
+                    cPerMil(250)
                 ))
                 .addPolarTransform(VortexTransform(
-                    sine(cPerMil(200))
+                    noise(cPerMil(50), cPerMil(200))
                 ))
-                .addPolarTransform(KaleidoscopeTransform(6, false))
+                .addPolarTransform(KaleidoscopeTransform(8, true))
                 .addPolarTransform(RotationTransform(
-                    noise(cPerMil(100))
+                    noise(cPerMil(60), cPerMil(500))
                 ))
                 .build();
     }

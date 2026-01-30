@@ -19,7 +19,9 @@
  */
 
 #include "PolarPipeline.h"
+#include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
+#include "renderer/pipeline/units/UnitConstants.h"
 #include <Arduino.h>
 #include "FastLED.h"
 
@@ -76,6 +78,65 @@ namespace PolarShader {
             auto [angle, radius] = cartesianToPolar(x_q0_16, y_q0_16);
             return layer(angle, radius);
         };
+    }
+
+    CRGB PolarPipeline::mapPalette(
+        const CRGBPalette16 &palette,
+        PatternNormU16 value,
+        const std::shared_ptr<PipelineContext> &context
+    ) {
+        uint16_t hue_value = raw(value);
+        uint16_t mask_value = FRACT_Q0_16_MAX;
+        if (context && context->paletteClipEnabled) {
+            uint16_t clip_input = hue_value;
+            if (context->paletteClipInvert) {
+                clip_input = static_cast<uint16_t>(FRACT_Q0_16_MAX - clip_input);
+            }
+            switch (context->paletteClipPower) {
+                case PipelineContext::PaletteClipPower::Quartic: {
+                    // Strong shaping: only the very top of the noise survives the threshold.
+                    uint16_t n2 = scale16(clip_input, clip_input);
+                    clip_input = scale16(n2, n2);
+                    break;
+                }
+                case PipelineContext::PaletteClipPower::Square: {
+                    // Moderate shaping: reduces mid values so fewer areas pass the threshold.
+                    clip_input = scale16(clip_input, clip_input);
+                    break;
+                }
+                case PipelineContext::PaletteClipPower::None:
+                default:
+                    // No shaping; clip compares directly against the raw pattern value.
+                    break;
+            }
+
+            uint16_t clip = raw(context->paletteClip);
+            uint16_t feather = raw(context->paletteClipFeather);
+            if (feather == 0) {
+                mask_value = (clip_input < clip) ? 0 : FRACT_Q0_16_MAX;
+            } else {
+                uint32_t edge1 = static_cast<uint32_t>(clip) + feather;
+                if (edge1 > FRACT_Q0_16_MAX) edge1 = FRACT_Q0_16_MAX;
+                mask_value = raw(patternSmoothstepU16(
+                    clip,
+                    static_cast<uint16_t>(edge1),
+                    clip_input
+                ));
+            }
+        }
+
+        uint8_t index = map16_to_8(hue_value);
+        if (context) {
+            index = static_cast<uint8_t>(index + context->paletteOffset);
+        }
+        uint8_t brightness = (context && context->paletteClipEnabled)
+            ? 255
+            : map16_to_8(hue_value);
+        CRGB color = ColorFromPalette(palette, index, brightness, LINEARBLEND);
+        if (context && context->paletteClipEnabled && mask_value != FRACT_Q0_16_MAX) {
+            color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
+        }
+        return color;
     }
 
     void PolarPipeline::advanceFrame(TimeMillis timeInMillis) {
@@ -149,6 +210,8 @@ namespace PolarShader {
                     hasCartesian = false;
                     break;
                 }
+                case PipelineStepKind::Palette:
+                    break;
             }
         }
 
@@ -160,11 +223,7 @@ namespace PolarShader {
             FracQ0_16 radius
         ) {
             PatternNormU16 value = layer(angle, radius);
-            uint8_t index = map16_to_8(raw(value));
-            if (context) {
-                index = static_cast<uint8_t>(index + context->paletteOffset);
-            }
-            return ColorFromPalette(palette, index, 255, LINEARBLEND);
+            return mapPalette(palette, value, context);
         };
     }
 }

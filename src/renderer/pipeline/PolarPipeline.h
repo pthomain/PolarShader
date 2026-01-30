@@ -50,6 +50,12 @@ namespace PolarShader {
 
         static CartesianLayer toCartesianLayer(const PolarLayer &layer);
 
+        static CRGB mapPalette(
+            const CRGBPalette16 &palette,
+            PatternNormU16 value,
+            const std::shared_ptr<PipelineContext> &context
+        );
+
         PolarPipeline(
             std::unique_ptr<BasePattern> pattern,
             const CRGBPalette16 &palette,

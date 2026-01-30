@@ -80,16 +80,32 @@ namespace PolarShader {
         return [value](TimeMillis) { return SFracQ0_16(raw(value)); };
     }
 
-    SFracQ0_16Signal cFrac(uint32_t value) {
-        return constant(frac(value));
+    namespace {
+        template<typename PositiveFn, typename NegativeFn>
+        SFracQ0_16Signal signedConstant(int32_t value, PositiveFn pos, NegativeFn neg) {
+            int64_t signed_value = value;
+            bool is_negative = signed_value < 0;
+            int64_t abs_value = is_negative ? -signed_value : signed_value;
+            if (abs_value > UINT16_MAX) abs_value = UINT16_MAX;
+            uint16_t uvalue = static_cast<uint16_t>(abs_value);
+            return is_negative ? constant(neg(uvalue)) : constant(pos(uvalue));
+        }
     }
 
-    SFracQ0_16Signal cSFrac(uint32_t value) {
-        return constant(sFrac(value));
+    SFracQ0_16Signal cFrac(int32_t value) {
+        return signedConstant(
+            value,
+            [](uint16_t v) { return SFracQ0_16(raw(frac(v))); },
+            [](uint16_t v) { return sFrac(v); }
+        );
     }
 
-    SFracQ0_16Signal cPerMil(uint16_t value) {
-        return constant(perMil(value));
+    SFracQ0_16Signal cPerMil(int32_t value) {
+        return signedConstant(
+            value,
+            [](uint16_t v) { return SFracQ0_16(raw(perMil(v))); },
+            [](uint16_t v) { return sPerMil(v); }
+        );
     }
 
     SFracQ0_16Signal full() {
