@@ -53,6 +53,13 @@ namespace PolarShader {
 
     // Ridged noise (inverted turbulence).
     std::unique_ptr<CartesianPattern> ridgedNoisePattern();
+
+    // Hexagon tiling with N-colouring (no adjacent matches when colorCount >= 3).
+    std::unique_ptr<CartesianPattern> hexTilingPattern(
+        uint16_t hexRadius = 10000,
+        uint8_t colorCount = 3,
+        uint16_t edgeSoftness = 0
+    );
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_H

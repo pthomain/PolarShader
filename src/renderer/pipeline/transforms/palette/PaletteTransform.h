@@ -44,20 +44,27 @@ namespace PolarShader {
         explicit PaletteTransform(MappedInputs inputs);
 
         static MappedInputs makeInputs(SFracQ0_16Signal offset);
+
         static MappedInputs makeInputs(
             SFracQ0_16Signal offset,
             SFracQ0_16Signal clipSignal,
             FracQ0_16 feather,
-            PipelineContext::PaletteClipPower clipPower
+            PipelineContext::PaletteClipPower clipPower,
+            PipelineContext::PaletteBrightnessMode brightnessMode
         );
 
     public:
-        explicit PaletteTransform(SFracQ0_16Signal offset);
+        explicit PaletteTransform(
+            SFracQ0_16Signal offset,
+            PipelineContext::PaletteBrightnessMode brightnessMode = PipelineContext::PaletteBrightnessMode::Pattern
+        );
+
         PaletteTransform(
             SFracQ0_16Signal offset,
             SFracQ0_16Signal clipSignal,
             FracQ0_16 feather = perMil(100),
-            PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square
+            PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square,
+            PipelineContext::PaletteBrightnessMode brightnessMode = PipelineContext::PaletteBrightnessMode::Pattern
         );
 
         void advanceFrame(TimeMillis timeInMillis) override;

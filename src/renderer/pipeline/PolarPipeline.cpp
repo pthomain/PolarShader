@@ -129,9 +129,12 @@ namespace PolarShader {
         if (context) {
             index = static_cast<uint8_t>(index + context->paletteOffset);
         }
-        uint8_t brightness = (context && context->paletteClipEnabled)
-            ? 255
-            : map16_to_8(hue_value);
+        uint8_t brightness = map16_to_8(hue_value);
+        if (context && context->paletteClipEnabled) {
+            brightness = 255;
+        } else if (context && context->paletteBrightnessMode == PipelineContext::PaletteBrightnessMode::Full) {
+            brightness = 255;
+        }
         CRGB color = ColorFromPalette(palette, index, brightness, LINEARBLEND);
         if (context && context->paletteClipEnabled && mask_value != FRACT_Q0_16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));

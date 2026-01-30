@@ -29,7 +29,11 @@ namespace PolarShader {
      */
     class PresetPicker {
     public:
-        using PresetBuilder = PolarPipeline(*)(const CRGBPalette16 &);
+        using PresetBuilder = PolarPipelineBuilder(*)(
+            std::unique_ptr<BasePattern>,
+            const CRGBPalette16 &
+        );
+        using PatternFactory = std::unique_ptr<BasePattern>(*)();
 
         static PolarPipeline pickRandom(const CRGBPalette16 &palette);
     };

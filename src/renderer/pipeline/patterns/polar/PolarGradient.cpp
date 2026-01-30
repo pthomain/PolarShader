@@ -18,29 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARGRADIENT_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARGRADIENT_H
-
-#include "renderer/pipeline/patterns/BasePattern.h"
+#include "PolarGradient.h"
 
 namespace PolarShader {
-    class PolarGradient : public PolarPattern {
-    public:
-        enum class Axis {
-            Radius,
-            Angle
-        };
+    struct PolarGradient::PolarGradientFunctor {
+        const Axis axisValue;
 
-    private:
-        struct PolarGradientFunctor;
+        explicit PolarGradientFunctor(Axis axis) : axisValue(axis) {
+        }
 
-        Axis axis;
-
-    public:
-        explicit PolarGradient(Axis axis = Axis::Radius);
-
-        PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+        PatternNormU16 operator()(FracQ0_16 angle, FracQ0_16 radius) const {
+            return PatternNormU16(axisValue == Axis::Radius ? raw(radius) : raw(angle));
+        }
     };
-}
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARGRADIENT_H
+    PolarGradient::PolarGradient(Axis axis)
+        : axis(axis) {
+    }
+
+    PolarLayer PolarGradient::layer(const std::shared_ptr<PipelineContext> &context) const {
+        return PolarGradientFunctor(axis);
+    }
+}

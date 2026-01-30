@@ -55,6 +55,16 @@ namespace PolarShader {
         bool paletteClipInvert = false;
         // Whether palette clipping should be applied.
         bool paletteClipEnabled = false;
+
+        // How palette brightness should be derived from the pattern value.
+        enum class PaletteBrightnessMode : uint8_t {
+            // Use the raw pattern value to drive brightness.
+            Pattern = 0,
+            // Force full brightness (palette index only).
+            Full = 1
+        };
+
+        PaletteBrightnessMode paletteBrightnessMode = PaletteBrightnessMode::Pattern;
     };
 }
 

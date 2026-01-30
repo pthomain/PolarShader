@@ -20,6 +20,7 @@
 
 #include "Patterns.h"
 #include "cartesian/NoisePattern.h"
+#include "cartesian/HexTilingPattern.h"
 
 namespace PolarShader {
     std::unique_ptr<CartesianPattern> worleyPattern(
@@ -50,5 +51,13 @@ namespace PolarShader {
 
     std::unique_ptr<CartesianPattern> ridgedNoisePattern() {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::Ridged);
+    }
+
+    std::unique_ptr<CartesianPattern> hexTilingPattern(
+        uint16_t hexRadius,
+        uint8_t colorCount,
+        uint16_t edgeSoftness
+    ) {
+        return std::make_unique<HexTilingPattern>(hexRadius, colorCount, edgeSoftness);
     }
 }

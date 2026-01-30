@@ -21,13 +21,17 @@
 #include "PolarRenderer.h"
 #include <utility>
 #include <renderer/pipeline/presets/Presets.h>
+#include <renderer/pipeline/patterns/Patterns.h>
 
 namespace PolarShader {
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
         PolarCoordsMapper coordsMapper
     ) : coordsMapper(std::move(coordsMapper)),
-        pipeline(defaultPreset(Rainbow_gp)),
+        pipeline(
+            defaultPreset(hexTilingPattern(20000, 4, 900), Rainbow_gp)
+            .build()
+        ),
         colourLayer(pipeline.build()),
         nbLeds(nbLeds) {
     }

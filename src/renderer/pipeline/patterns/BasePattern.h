@@ -36,24 +36,16 @@ namespace PolarShader {
     public:
         virtual ~BasePattern() = default;
 
-        PatternDomain domain() const { return domainValue; }
+        PatternDomain domain() const;
 
-        virtual void setContext(std::shared_ptr<PipelineContext> context) {
-            this->context = std::move(context);
-        }
+        virtual void setContext(std::shared_ptr<PipelineContext> context);
 
     protected:
-        explicit BasePattern(PatternDomain domain)
-            : domainValue(domain) {
-        }
+        explicit BasePattern(PatternDomain domain);
 
-        static CartesianLayer defaultCartesianLayer() {
-            return [](CartQ24_8, CartQ24_8) { return PatternNormU16(0); };
-        }
+        static CartesianLayer defaultCartesianLayer();
 
-        static PolarLayer defaultPolarLayer() {
-            return [](FracQ0_16, FracQ0_16) { return PatternNormU16(0); };
-        }
+        static PolarLayer defaultPolarLayer();
 
     private:
         std::shared_ptr<PipelineContext> context;
@@ -64,40 +56,22 @@ namespace PolarShader {
         CartesianLayer layerValue;
 
     public:
-        CartesianPattern() : BasePattern(PatternDomain::Cartesian),
-                             layerValue(defaultCartesianLayer()) {
-        }
+        CartesianPattern();
 
-        explicit CartesianPattern(CartesianLayer layer) : BasePattern(PatternDomain::Cartesian),
-                                                          layerValue(std::move(layer)) {
-            if (!layerValue) {
-                layerValue = defaultCartesianLayer();
-            }
-        }
+        explicit CartesianPattern(CartesianLayer layer);
 
-        virtual CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const {
-            return layerValue;
-        }
+        virtual CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const;
     };
 
     class PolarPattern : public BasePattern {
         PolarLayer layerValue;
 
     public:
-        PolarPattern() : BasePattern(PatternDomain::Polar),
-                         layerValue(defaultPolarLayer()) {
-        }
+        PolarPattern();
 
-        explicit PolarPattern(PolarLayer layer) : BasePattern(PatternDomain::Polar),
-                                                  layerValue(std::move(layer)) {
-            if (!layerValue) {
-                layerValue = defaultPolarLayer();
-            }
-        }
+        explicit PolarPattern(PolarLayer layer);
 
-        virtual PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const {
-            return layerValue;
-        }
+        virtual PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const;
     };
 }
 

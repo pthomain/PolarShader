@@ -20,13 +20,27 @@
 
 #include "PresetPicker.h"
 #include <FastLED.h>
+#include "renderer/pipeline/patterns/Patterns.h"
 
 namespace PolarShader {
+    namespace {
+        std::unique_ptr<BasePattern> makeHexTilingPattern() {
+            return hexTilingPattern(20000, 4, 900);
+        }
+    }
+
     PolarPipeline PresetPicker::pickRandom(const CRGBPalette16 &palette) {
-        static const PresetBuilder builders[] = {
-            defaultPreset,
+        struct PresetEntry {
+            PresetBuilder builder;
+            PatternFactory patternFactory;
         };
-        uint8_t idx = random8(std::size(builders));
-        return builders[idx](palette);
+
+        static const PresetEntry entries[] = {
+            {defaultPreset, makeHexTilingPattern},
+            {kaleidoscopePattern, []() -> std::unique_ptr<BasePattern> { return noisePattern(); }},
+        };
+
+        uint8_t idx = random8(std::size(entries));
+        return entries[idx].builder(entries[idx].patternFactory(), palette).build();
     }
 }

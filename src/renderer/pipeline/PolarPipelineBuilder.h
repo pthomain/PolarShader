@@ -58,6 +58,18 @@ namespace PolarShader {
 
     public:
         PolarPipelineBuilder(
+            std::unique_ptr<BasePattern> pattern,
+            const CRGBPalette16 &palette,
+            const char *name
+        ) : pattern(pattern ? std::move(pattern) : std::make_unique<CartesianPattern>()),
+            palette(palette),
+            name(name ? name : "unnamed") {
+            currentDomain = (this->pattern->domain() == PatternDomain::Polar)
+                                ? BuilderDomain::Polar
+                                : BuilderDomain::Cartesian;
+        }
+
+        PolarPipelineBuilder(
             std::unique_ptr<CartesianPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
@@ -77,7 +89,7 @@ namespace PolarShader {
             currentDomain = BuilderDomain::Polar;
         }
 
-        PolarPipelineBuilder &setDepthSignal(DepthSignal signal) {
+        PolarPipelineBuilder &setDepthSignal(DepthSignal signal) & {
             if (built) return *this;
             if (!signal) {
                 return *this;
@@ -86,7 +98,15 @@ namespace PolarShader {
             return *this;
         }
 
-        PolarPipelineBuilder &setDepthSignal(SFracQ0_16Signal signal) {
+        PolarPipelineBuilder &&setDepthSignal(DepthSignal signal) && {
+            if (built) return std::move(*this);
+            if (!signal) return std::move(*this);
+
+            depthSignal = std::move(signal);
+            return std::move(*this);
+        }
+
+        PolarPipelineBuilder &setDepthSignal(SFracQ0_16Signal signal) & {
             if (built) return *this;
             if (!signal) {
                 return *this;
@@ -95,8 +115,16 @@ namespace PolarShader {
             return *this;
         }
 
+        PolarPipelineBuilder &&setDepthSignal(SFracQ0_16Signal signal) && {
+            if (built) return std::move(*this);
+            if (!signal) return std::move(*this);
+
+            depthSignal = depth(std::move(signal));
+            return std::move(*this);
+        }
+
         template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
-        PolarPipelineBuilder &addPolarTransform(T transform) {
+        PolarPipelineBuilder &addPolarTransform(T transform) & {
             if (built) return *this;
             if (currentDomain == BuilderDomain::Cartesian) {
                 steps.push_back(PipelineStep::toPolar());
@@ -106,8 +134,19 @@ namespace PolarShader {
             return *this;
         }
 
+        template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
+        PolarPipelineBuilder &&addPolarTransform(T transform) && {
+            if (built) return std::move(*this);
+            if (currentDomain == BuilderDomain::Cartesian) {
+                steps.push_back(PipelineStep::toPolar());
+                currentDomain = BuilderDomain::Polar;
+            }
+            steps.push_back(PipelineStep::polar(std::make_unique<T>(std::move(transform))));
+            return std::move(*this);
+        }
+
         template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianTransform, T>::value> >
-        PolarPipelineBuilder &addCartesianTransform(T transform) {
+        PolarPipelineBuilder &addCartesianTransform(T transform) & {
             if (built) return *this;
             if (currentDomain == BuilderDomain::Polar) {
                 steps.push_back(PipelineStep::toCartesian());
@@ -117,10 +156,27 @@ namespace PolarShader {
             return *this;
         }
 
-        PolarPipelineBuilder &addPaletteTransform(PaletteTransform transform) {
+        template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianTransform, T>::value> >
+        PolarPipelineBuilder &&addCartesianTransform(T transform) && {
+            if (built) return std::move(*this);
+            if (currentDomain == BuilderDomain::Polar) {
+                steps.push_back(PipelineStep::toCartesian());
+                currentDomain = BuilderDomain::Cartesian;
+            }
+            steps.push_back(PipelineStep::cartesian(std::make_unique<T>(std::move(transform))));
+            return std::move(*this);
+        }
+
+        PolarPipelineBuilder &addPaletteTransform(PaletteTransform transform) & {
             if (built) return *this;
             steps.push_back(PipelineStep::palette(std::make_unique<PaletteTransform>(std::move(transform))));
             return *this;
+        }
+
+        PolarPipelineBuilder &&addPaletteTransform(PaletteTransform transform) && {
+            if (built) return std::move(*this);
+            steps.push_back(PipelineStep::palette(std::make_unique<PaletteTransform>(std::move(transform))));
+            return std::move(*this);
         }
 
         PolarPipeline build();

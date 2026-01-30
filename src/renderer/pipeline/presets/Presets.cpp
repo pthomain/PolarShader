@@ -19,49 +19,70 @@
  */
 
 #include "Presets.h"
-#include <renderer/pipeline/patterns/cartesian/NoisePattern.h>
 #include <renderer/pipeline/signals/Signals.h>
-#include "renderer/pipeline/PolarPipelineBuilder.h"
 #include "renderer/pipeline/transforms/polar/RotationTransform.h"
-#include <memory>
-#include "renderer/pipeline/patterns/Patterns.h"
-#include "renderer/pipeline/transforms/cartesian/DomainWarpPresets.h"
-#include "renderer/pipeline/transforms/cartesian/DomainWarpTransform.h"
 #include "renderer/pipeline/transforms/cartesian/TranslationTransform.h"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
 #include "renderer/pipeline/transforms/polar/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/polar/VortexTransform.h"
+#include "renderer/pipeline/patterns/BasePattern.h"
+#include <utility>
 
 namespace PolarShader {
-    PolarPipeline defaultPreset(const CRGBPalette16 &palette) {
-        return PolarPipelineBuilder(
-                    // voronoiPattern(CartQ24_8(4 * WorleyCellUnit), WorleyAliasing::Fast),
-                    noisePattern(),
-                    palette,
-                    "default"
-                )
-                .setDepthSignal(
-                    noise(cPerMil(30))
-                )
+    namespace {
+        PolarPipelineBuilder makeBuilder(
+            std::unique_ptr<BasePattern> pattern,
+            const CRGBPalette16 &palette,
+            const char *name
+        ) {
+            return {std::move(pattern), palette, name};
+        }
+
+        PolarPipelineBuilder buildKaleidoscope(
+            std::unique_ptr<BasePattern> pattern,
+            const CRGBPalette16 &palette
+        ) {
+            return makeBuilder(std::move(pattern), palette, "kaleidoscope")
+                    .setDepthSignal(
+                        noise(cPerMil(30))
+                    )
+                    .addPaletteTransform(PaletteTransform(
+                        noise(cPerMil(200)),
+                        cPerMil(200),
+                        perMil(200)
+                    ))
+                    .addCartesianTransform(TranslationTransform(
+                        noise(),
+                        noise(cPerMil(60), cPerMil(30))
+                    ))
+                    .addCartesianTransform(ZoomTransform(
+                        cPerMil(250)
+                    ))
+                    .addPolarTransform(VortexTransform(
+                        noise(cPerMil(50), cPerMil(200))
+                    ))
+                    .addPolarTransform(KaleidoscopeTransform(8, true))
+                    .addPolarTransform(RotationTransform(
+                        noise(cPerMil(60), cPerMil(500))
+                    ));
+        }
+    }
+
+    PolarPipelineBuilder defaultPreset(
+        std::unique_ptr<BasePattern> pattern,
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(std::move(pattern), palette, "hex-tiling")
                 .addPaletteTransform(PaletteTransform(
-                    noise(cPerMil(200)),
-                    cPerMil(200),
-                    perMil(200)
-                ))
-                .addCartesianTransform(TranslationTransform(
-                    noise(),
-                    noise(cPerMil(60), cPerMil(30))
-                ))
-                .addCartesianTransform(ZoomTransform(
-                    cPerMil(250)
-                ))
-                .addPolarTransform(VortexTransform(
-                    noise(cPerMil(50), cPerMil(200))
-                ))
-                .addPolarTransform(KaleidoscopeTransform(8, true))
-                .addPolarTransform(RotationTransform(
-                    noise(cPerMil(60), cPerMil(500))
-                ))
-                .build();
+                    constant(frac(0)),
+                    PipelineContext::PaletteBrightnessMode::Full
+                ));
+    }
+
+    PolarPipelineBuilder kaleidoscopePattern(
+        std::unique_ptr<BasePattern> pattern,
+        const CRGBPalette16 &palette
+    ) {
+        return buildKaleidoscope(std::move(pattern), palette);
     }
 }

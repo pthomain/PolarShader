@@ -21,13 +21,22 @@
 #ifndef POLAR_SHADER_PIPELINE_PRESETS_H
 #define POLAR_SHADER_PIPELINE_PRESETS_H
 
-#include <renderer/pipeline/PolarPipeline.h>
+#include <memory>
+#include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {
-    // Demonstration presets combining the new transforms. These are examples to seed effects;
-    // tweak signals/parameters to taste.
+    class BasePattern;
 
-    PolarPipeline defaultPreset(const CRGBPalette16 &palette);
+    PolarPipelineBuilder defaultPreset(
+        std::unique_ptr<BasePattern> pattern,
+        const CRGBPalette16 &palette
+    );
+
+    PolarPipelineBuilder kaleidoscopePattern(
+        std::unique_ptr<BasePattern> pattern,
+        const CRGBPalette16 &palette
+    );
+
 }
 
 #endif //POLAR_SHADER_PIPELINE_PRESETS_H
