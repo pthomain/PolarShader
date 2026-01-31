@@ -30,6 +30,7 @@
 #include <utility>
 
 #include "renderer/pipeline/patterns/Patterns.h"
+#include "renderer/pipeline/transforms/cartesian/CartesianTilingTransform.h"
 #include "renderer/pipeline/transforms/cartesian/DomainWarpPresets.h"
 
 namespace PolarShader {
@@ -46,7 +47,25 @@ namespace PolarShader {
     PolarPipelineBuilder defaultPreset(
         const CRGBPalette16 &palette
     ) {
-        return noiseKaleidoscopePattern(palette);
+        return makeBuilder(
+                    noisePattern(),
+                    palette,
+                    "kaleidoscope"
+                )
+                .setDepthSignal(
+                    noise(cPerMil(100))
+                )
+                .addPolarTransform(KaleidoscopeTransform(3, true))
+                .addCartesianTransform(ZoomTransform(noise(cPerMil(100))))
+                .addCartesianTransform(CartesianTilingTransform(
+                    noise(cPerMil(200)),
+                    200,
+                    2000,
+                    false
+                ))
+                .addPolarTransform(RotationTransform(
+                    noise(cPerMil(100))
+                ));
     }
 
     PolarPipelineBuilder hexKaleidoscopePreset(
