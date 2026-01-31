@@ -29,7 +29,7 @@ namespace PolarShader {
         PolarCoordsMapper coordsMapper
     ) : coordsMapper(std::move(coordsMapper)),
         pipeline(
-            defaultPreset(noisePattern(), Rainbow_gp)
+            defaultPreset(Rainbow_gp)
             .build()
         ),
         colourLayer(pipeline.build()),

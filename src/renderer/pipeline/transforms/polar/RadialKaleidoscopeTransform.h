@@ -18,28 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "PresetPicker.h"
-#include <FastLED.h>
-#include "renderer/pipeline/patterns/Patterns.h"
+#ifndef POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
+#define POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
+
+#include "renderer/pipeline/transforms/base/Transforms.h"
+#include <memory>
 
 namespace PolarShader {
-    namespace {
-        std::unique_ptr<BasePattern> makeHexTilingPattern() {
-            return hexTilingPattern(20000, 4, 900);
-        }
-    }
+    /**
+     * Radial kaleidoscope: folds radius into concentric bands, optionally mirroring every other band.
+     */
+    class RadialKaleidoscopeTransform : public PolarTransform {
+        struct State;
+        std::shared_ptr<State> state;
 
-    PolarPipeline PresetPicker::pickRandom(const CRGBPalette16 &palette) {
-        struct PresetEntry {
-            PresetBuilder builder;
-            PatternFactory patternFactory;
-        };
+    public:
+        RadialKaleidoscopeTransform(uint16_t radialDivisions, bool isMirrored = true);
 
-        static const PresetEntry entries[] = {
-            {makeHexTilingPattern},
-        };
-
-        uint8_t idx = random8(std::size(entries));
-        return entries[idx].builder(entries[idx].patternFactory(), palette).build();
-    }
+        PolarLayer operator()(const PolarLayer &layer) const override;
+    };
 }
+
+#endif // POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H

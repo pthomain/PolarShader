@@ -21,22 +21,22 @@
 #ifndef POLAR_SHADER_PIPELINE_PRESETS_H
 #define POLAR_SHADER_PIPELINE_PRESETS_H
 
-#include <memory>
 #include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {
     class BasePattern;
 
     PolarPipelineBuilder defaultPreset(
-        std::unique_ptr<BasePattern> pattern,
         const CRGBPalette16 &palette
     );
 
-    PolarPipelineBuilder kaleidoscopePattern(
-        std::unique_ptr<BasePattern> pattern,
+    PolarPipelineBuilder hexKaleidoscopePreset(
         const CRGBPalette16 &palette
     );
 
+    PolarPipelineBuilder noiseKaleidoscopePattern(
+        const CRGBPalette16 &palette
+    );
 }
 
 #endif //POLAR_SHADER_PIPELINE_PRESETS_H

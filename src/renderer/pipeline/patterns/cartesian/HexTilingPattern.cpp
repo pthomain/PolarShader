@@ -65,6 +65,13 @@ namespace PolarShader {
         int8_t sign(int32_t value) {
             return (value < 0) ? -1 : 1;
         }
+
+        uint16_t mapColorValue(uint8_t index, uint8_t colors) {
+            if (colors <= 1) return FRACT_Q0_16_MAX;
+            uint32_t numerator = static_cast<uint32_t>(index + 1) * FRACT_Q0_16_MAX;
+            uint16_t value = static_cast<uint16_t>(numerator / colors);
+            return value == 0 ? 1 : value;
+        }
     }
 
     // Fixed-point axial/cube coords and their rounded lattice indices.
@@ -105,10 +112,8 @@ namespace PolarShader {
                 neighbor_index
             );
 
-            uint32_t scaled = static_cast<uint32_t>(color_index) * FRACT_Q0_16_MAX;
-            uint32_t neighbor_scaled = static_cast<uint32_t>(neighbor_index) * FRACT_Q0_16_MAX;
-            uint16_t current_value = static_cast<uint16_t>(scaled / (colors - 1));
-            uint16_t neighbor_value = static_cast<uint16_t>(neighbor_scaled / (colors - 1));
+            uint16_t current_value = mapColorValue(color_index, colors);
+            uint16_t neighbor_value = mapColorValue(neighbor_index, colors);
             if (blend == 0) {
                 return PatternNormU16(current_value);
             }

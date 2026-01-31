@@ -57,7 +57,7 @@ namespace PolarShader {
     // Hexagon tiling with N-colouring (no adjacent matches when colorCount >= 3).
     std::unique_ptr<CartesianPattern> hexTilingPattern(
         uint16_t hexRadius = 10000,
-        uint8_t colorCount = 3,
+        uint8_t colorCount = 4,
         uint16_t edgeSoftness = 0
     );
 }
