@@ -44,26 +44,26 @@ namespace PolarShader {
         ) {
             return makeBuilder(std::move(pattern), palette, "kaleidoscope")
                     .setDepthSignal(
-                        noise(cPerMil(30))
+                        noise(cPerMil(100))
                     )
                     .addPaletteTransform(PaletteTransform(
                         noise(cPerMil(200)),
-                        cPerMil(200),
+                        cPerMil(0),
                         perMil(200)
                     ))
                     .addCartesianTransform(TranslationTransform(
                         noise(),
-                        noise(cPerMil(60), cPerMil(30))
+                        noise(cPerMil(100), cPerMil(30))
                     ))
                     .addCartesianTransform(ZoomTransform(
-                        cPerMil(250)
+                        noise()
                     ))
                     .addPolarTransform(VortexTransform(
-                        noise(cPerMil(50), cPerMil(200))
+                        noise(cPerMil(100), cPerMil(200))
                     ))
-                    .addPolarTransform(KaleidoscopeTransform(8, true))
+                    // .addPolarTransform(KaleidoscopeTransform(6, true))
                     .addPolarTransform(RotationTransform(
-                        noise(cPerMil(60), cPerMil(500))
+                        noise(cPerMil(100), cPerMil(500))
                     ));
         }
     }
@@ -72,11 +72,7 @@ namespace PolarShader {
         std::unique_ptr<BasePattern> pattern,
         const CRGBPalette16 &palette
     ) {
-        return makeBuilder(std::move(pattern), palette, "hex-tiling")
-                .addPaletteTransform(PaletteTransform(
-                    constant(frac(0)),
-                    PipelineContext::PaletteBrightnessMode::Full
-                ));
+        return buildKaleidoscope(std::move(pattern), palette);
     }
 
     PolarPipelineBuilder kaleidoscopePattern(

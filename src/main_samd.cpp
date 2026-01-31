@@ -19,16 +19,16 @@
  */
 
 #include <Arduino.h>
-#include "DefaultPolarDisplaySpec.h"
-#include "display/PolarDisplay.h"
+#include "RoundDisplaySpec.h"
+#include "display/FastLedDisplay.h"
 
 using namespace PolarShader;
-using PolarDisplay = Display<DefaultPolarDisplaySpec>;
+using PolarDisplay = FastLedDisplay<RoundDisplaySpec>;
 
 static PolarDisplay *display = nullptr;
 
 void setup() {
-    static DefaultPolarDisplaySpec specInstance;
+    static RoundDisplaySpec specInstance;
     display = new PolarDisplay(specInstance, 30);
 }
 

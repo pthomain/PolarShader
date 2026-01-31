@@ -1,0 +1,72 @@
+//  SPDX-License-Identifier: GPL-3.0-or-later
+//  Copyright (C) 2025 Pierre Thomain
+
+/*
+ * This file is part of PolarShader.
+ *
+ * PolarShader is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * PolarShader is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef POLARSHADER_DEFAULTPOLARDISPLAYSPEC_H
+#define POLARSHADER_DEFAULTPOLARDISPLAYSPEC_H
+
+#include "display/PolarDisplaySpec.h"
+#include "renderer/pipeline/maths/Maths.h"
+
+namespace PolarShader {
+    class MatrixDisplaySpec : public PolarDisplaySpec {
+    public:
+        static constexpr uint16_t MATRIX_WIDTH = 64;
+        static constexpr uint16_t MATRIX_HEIGHT = 64;
+        static constexpr uint16_t ROTATION_DEG = 0;
+        static constexpr uint16_t NB_SEGMENTS = MATRIX_HEIGHT;
+        static constexpr uint16_t SEGMENT_SIZE = MATRIX_WIDTH;
+        static constexpr uint16_t NB_LEDS = NB_SEGMENTS * SEGMENT_SIZE;
+
+        uint16_t numSegments() const override {
+            return NB_SEGMENTS;
+        }
+
+        uint16_t nbLeds() const override {
+            return NB_LEDS;
+        }
+
+        uint16_t segmentSize(uint16_t segmentIndex) const override {
+            return SEGMENT_SIZE;
+        }
+
+        PolarCoords toPolarCoords(uint16_t pixelIndex) const override {
+            if (pixelIndex >= NB_LEDS) {
+                return {0, 0};
+            }
+
+            uint16_t x = pixelIndex % MATRIX_WIDTH;
+            uint16_t y = pixelIndex / MATRIX_WIDTH;
+
+            const int32_t centered_x = (static_cast<int32_t>(x) * 2) - (MATRIX_WIDTH - 1);
+            const int32_t centered_y =
+                    (static_cast<int32_t>(MATRIX_HEIGHT - 1 - y) * 2) - (MATRIX_HEIGHT - 1);
+
+            const int32_t denom_x = MATRIX_WIDTH > 1 ? (MATRIX_WIDTH - 1) : 1;
+            const int32_t denom_y = MATRIX_HEIGHT > 1 ? (MATRIX_HEIGHT - 1) : 1;
+
+            const int32_t x_q0_16 = (centered_x * Q0_16_ONE) / denom_x;
+            const int32_t y_q0_16 = (centered_y * Q0_16_ONE) / denom_y;
+
+            auto polar = cartesianToPolar(x_q0_16, y_q0_16);
+            return {polar.first, polar.second};
+        }
+    };
+}
+#endif //POLARSHADER_DEFAULTPOLARDISPLAYSPEC_H

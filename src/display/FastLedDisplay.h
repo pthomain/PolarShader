@@ -28,14 +28,14 @@
 
 namespace PolarShader {
     template<typename SPEC>
-    class Display {
+    class FastLedDisplay {
         static_assert(std::is_base_of<PolarDisplaySpec, SPEC>::value, "SPEC must derive from PolarDisplaySpec");
         PolarRenderer renderer;
         CRGB *outputArray;
         uint8_t refreshRateInMillis;
 
     public:
-        explicit Display(
+        explicit FastLedDisplay(
             PolarDisplaySpec &spec,
             uint8_t brightness = 20,
             uint8_t refreshRateInMillis = 30
@@ -57,7 +57,7 @@ namespace PolarShader {
             }
         }
 
-        ~Display() {
+        ~FastLedDisplay() {
             delete[] outputArray;
         }
     };

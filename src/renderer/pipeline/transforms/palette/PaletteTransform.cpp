@@ -30,7 +30,6 @@ namespace PolarShader {
         SFracQ0_16Signal clipSignal;
         FracQ0_16 feather = FracQ0_16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
-        PipelineContext::PaletteBrightnessMode brightnessMode = PipelineContext::PaletteBrightnessMode::Pattern;
         bool hasClip = false;
     };
 
@@ -42,7 +41,6 @@ namespace PolarShader {
         bool clipInvert = false;
         FracQ0_16 feather = FracQ0_16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
-        PipelineContext::PaletteBrightnessMode brightnessMode = PipelineContext::PaletteBrightnessMode::Pattern;
         bool hasClip = false;
 
         explicit State(MappedInputs inputs)
@@ -50,7 +48,6 @@ namespace PolarShader {
               clipSignal(std::move(inputs.clipSignal)),
               feather(inputs.feather),
               clipPower(inputs.clipPower),
-              brightnessMode(inputs.brightnessMode),
               hasClip(inputs.hasClip) {
         }
     };
@@ -65,15 +62,13 @@ namespace PolarShader {
         SFracQ0_16Signal offset,
         SFracQ0_16Signal clipSignal,
         FracQ0_16 feather,
-        PipelineContext::PaletteClipPower clipPower,
-        PipelineContext::PaletteBrightnessMode brightnessMode
+        PipelineContext::PaletteClipPower clipPower
     ) {
         return MappedInputs{
             PaletteRange().mapSignal(std::move(offset)),
             std::move(clipSignal),
             feather,
             clipPower,
-            brightnessMode,
             true
         };
     }
@@ -86,25 +81,20 @@ namespace PolarShader {
         : state(std::make_shared<State>(std::move(inputs))) {
     }
 
-    PaletteTransform::PaletteTransform(
-        SFracQ0_16Signal offset,
-        PipelineContext::PaletteBrightnessMode brightnessMode
-    ) : PaletteTransform(makeInputs(std::move(offset))) {
-        state->brightnessMode = brightnessMode;
+    PaletteTransform::PaletteTransform(SFracQ0_16Signal offset)
+        : PaletteTransform(makeInputs(std::move(offset))) {
     }
 
     PaletteTransform::PaletteTransform(
         SFracQ0_16Signal offset,
         SFracQ0_16Signal clipSignal,
         FracQ0_16 feather,
-        PipelineContext::PaletteClipPower clipPower,
-        PipelineContext::PaletteBrightnessMode brightnessMode
+        PipelineContext::PaletteClipPower clipPower
     ) : PaletteTransform(makeInputs(
         std::move(offset),
         std::move(clipSignal),
         feather,
-        clipPower,
-        brightnessMode
+        clipPower
     )) {
     }
 
@@ -112,7 +102,6 @@ namespace PolarShader {
         state->offsetValue = state->offsetSignal(timeInMillis);
         if (context) {
             context->paletteOffset = state->offsetValue.get();
-            context->paletteBrightnessMode = state->brightnessMode;
             if (state->hasClip) {
                 SFracQ0_16 clipRaw = state->clipSignal(timeInMillis);
                 int32_t clipRawValue = raw(clipRaw);

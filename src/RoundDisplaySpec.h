@@ -25,7 +25,7 @@
 #include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
-    class DefaultPolarDisplaySpec : public PolarDisplaySpec {
+    class RoundDisplaySpec : public PolarDisplaySpec {
     public:
         static constexpr int LED_PIN = 9;
         static constexpr EOrder RGB_ORDER = GRB;

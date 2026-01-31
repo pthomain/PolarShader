@@ -21,6 +21,7 @@
 #include "NoisePattern.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #include <Arduino.h>
+#include <algorithm>
 
 namespace PolarShader {
     struct NoisePattern::NoisePatternFunctor {
@@ -91,7 +92,7 @@ namespace PolarShader {
         NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
-        mag = min<uint16_t>(mag, static_cast<uint16_t>(U16_HALF - 1));
+        mag = std::min(mag, static_cast<uint16_t>(U16_HALF - 1));
         uint32_t doubled = static_cast<uint32_t>(mag) << 1;
         if (doubled > FRACT_Q0_16_MAX) doubled = FRACT_Q0_16_MAX;
         uint16_t inverted = static_cast<uint16_t>(FRACT_Q0_16_MAX - doubled);
