@@ -28,10 +28,8 @@
 #include "renderer/pipeline/transforms/polar/VortexTransform.h"
 #include "renderer/pipeline/patterns/BasePattern.h"
 #include <utility>
-
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/transforms/cartesian/CartesianTilingTransform.h"
-#include "renderer/pipeline/transforms/cartesian/DomainWarpPresets.h"
 
 namespace PolarShader {
     namespace {
@@ -52,19 +50,23 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                .setDepthSignal(
-                    noise(cPerMil(100))
-                )
-                .addPolarTransform(KaleidoscopeTransform(3, true))
-                .addCartesianTransform(ZoomTransform(noise(cPerMil(100))))
-                .addCartesianTransform(CartesianTilingTransform(
-                    noise(cPerMil(200)),
-                    200,
-                    2000,
-                    false
-                ))
+                // .setDepthSignal(
+                    // noise(cPerMil(100))
+                // )
+                .addPaletteTransform(PaletteTransform(
+                    noise(cPerMil(200))))//,
+                    // noise(cPerMil(100), cPerMil(150)),
+                    // perMil(50)
+                // ))
+                // .addCartesianTransform(ZoomTransform(
+                //     noise(
+                //         sine(
+                //             cPerMil(100),
+                //             cPerMil(200),
+                //             cPerMil(100)
+                //         ))))
                 .addPolarTransform(RotationTransform(
-                    noise(cPerMil(100))
+                    sine(cPerMil(100))
                 ));
     }
 
@@ -75,7 +77,7 @@ namespace PolarShader {
                     hexTilingPattern(
                         10000,
                         32,
-                        1000
+                        50
                     ), palette,
                     "kaleidoscope"
                 )

@@ -21,6 +21,7 @@
 #include "TranslationTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
 #include <Arduino.h>
+#include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
 #include "renderer/pipeline/ranges/ScalarRange.h"
@@ -69,8 +70,8 @@ namespace PolarShader {
         SFracQ0_16Signal speed
     ) {
         return MappedInputs{
-            PolarRange().mapSignal(std::move(direction)),
-            ScalarRange(0, TRANSLATION_MAX_SPEED).mapSignal(std::move(speed))
+            resolveMappedSignal(PolarRange().mapSignal(std::move(direction))),
+            resolveMappedSignal(ScalarRange(0, TRANSLATION_MAX_SPEED).mapSignal(std::move(speed)))
         };
     }
 

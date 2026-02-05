@@ -27,6 +27,7 @@
 #include "renderer/pipeline/ranges/SFracRange.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/signals/SignalTypes.h"
 #include <cstdint>
 #include <utility>
 #include <Arduino.h>
@@ -225,28 +226,32 @@ namespace PolarShader {
         bool hasFlow = flowDirection && flowStrength;
 
         auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8>>(
-            maxOffsetRange.mapSignal(std::move(maxOffset))
+            resolveMappedSignal(maxOffsetRange.mapSignal(std::move(maxOffset)))
         );
 
         auto mapToMaxOffset = [maxOffsetSignal](SFracQ0_16Signal signal) -> MappedSignal<int32_t> {
-            return [signal = std::move(signal), maxOffsetSignal](TimeMillis time) mutable -> MappedValue<int32_t> {
-                int32_t max_raw = raw((*maxOffsetSignal)(time).get());
-                if (max_raw <= 0) return MappedValue<int32_t>(0);
-                uint32_t t_raw = clamp_frac_raw(raw(signal(time)));
-                int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
-                return MappedValue<int32_t>(static_cast<int32_t>(scaled));
-            };
+            bool absolute = signal.isAbsolute();
+            return MappedSignal<int32_t>(
+                [signal = std::move(signal), maxOffsetSignal](TimeMillis time) mutable -> MappedValue<int32_t> {
+                    int32_t max_raw = raw((*maxOffsetSignal)(time).get());
+                    if (max_raw <= 0) return MappedValue<int32_t>(0);
+                    uint32_t t_raw = clamp_frac_raw(raw(signal(time)));
+                    int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
+                    return MappedValue<int32_t>(static_cast<int32_t>(scaled));
+                },
+                absolute
+            );
         };
 
         PolarRange flowDirectionRange;
 
         return MappedInputs{
             phaseRange.mapSignal(std::move(phaseSpeed)),
-            mapToMaxOffset(std::move(amplitude)),
-            warpScaleRange.mapSignal(std::move(warpScale)),
+            resolveMappedSignal(mapToMaxOffset(std::move(amplitude))),
+            resolveMappedSignal(warpScaleRange.mapSignal(std::move(warpScale))),
             std::move(maxOffsetSignal),
-            hasFlow ? flowDirectionRange.mapSignal(std::move(flowDirection)) : MappedSignal<FracQ0_16>(),
-            hasFlow ? mapToMaxOffset(std::move(flowStrength)) : MappedSignal<int32_t>()
+            hasFlow ? resolveMappedSignal(flowDirectionRange.mapSignal(std::move(flowDirection))) : MappedSignal<FracQ0_16>(),
+            hasFlow ? resolveMappedSignal(mapToMaxOffset(std::move(flowStrength))) : MappedSignal<int32_t>()
         };
     }
 

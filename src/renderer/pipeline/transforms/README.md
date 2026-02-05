@@ -63,8 +63,10 @@ auto layer = pipeline.build();
 ### RotationTransform (polar)
 
 - Input: `angle` signal (turns, Q0.16).
-- Uses `PolarRange` to map the signal into an angular offset.
-- `advanceFrame` caches the mapped angle; `operator()` adds it to incoming angles.
+- Uses `PolarRange` to map the resolved signal into an angular offset (0..1 turns).
+- `advanceFrame` caches the mapped angle; `operator()` samples the wrapped layer at that offset so
+  the transform follows whatever value was resolved from the signal (absolute values pass through,
+  relative deltas are accumulated before mapping).
 
 ### VortexTransform (polar)
 

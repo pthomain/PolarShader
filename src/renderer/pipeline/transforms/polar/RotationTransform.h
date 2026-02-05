@@ -26,9 +26,10 @@
 
 namespace PolarShader {
     /**
-     * Polar rotation using a turn-based signal in Q0.16.
+     * Polar rotation driven by an angle signal (Q0.16 turns).
      *
-     * The signal is interpreted as turns (0..1) and mapped to a full rotation.
+     * Signals that emit relative deltas are resolved before being mapped into
+     * an angular offset so the transform follows the resolved value every frame.
      */
     class RotationTransform : public PolarTransform {
         struct MappedInputs;

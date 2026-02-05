@@ -21,13 +21,15 @@
 #include "PaletteTransform.h"
 #include "renderer/pipeline/ranges/PaletteRange.h"
 #include "renderer/pipeline/ranges/PatternRange.h"
+#include "renderer/pipeline/ranges/SFracRange.h"
+#include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include <Arduino.h>
 
 namespace PolarShader {
     struct PaletteTransform::MappedInputs {
         MappedSignal<uint8_t> offsetSignal;
-        SFracQ0_16Signal clipSignal;
+        MappedSignal<SFracQ0_16> clipSignal;
         FracQ0_16 feather = FracQ0_16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
@@ -36,7 +38,7 @@ namespace PolarShader {
     struct PaletteTransform::State {
         MappedSignal<uint8_t> offsetSignal;
         MappedValue<uint8_t> offsetValue = MappedValue(static_cast<uint8_t>(0));
-        SFracQ0_16Signal clipSignal;
+        MappedSignal<SFracQ0_16> clipSignal;
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
         FracQ0_16 feather = FracQ0_16(0);
@@ -54,7 +56,7 @@ namespace PolarShader {
 
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(SFracQ0_16Signal offset) {
         return MappedInputs{
-            PaletteRange().mapSignal(std::move(offset))
+            resolveMappedSignal(PaletteRange().mapSignal(std::move(offset)))
         };
     }
 
@@ -65,8 +67,8 @@ namespace PolarShader {
         PipelineContext::PaletteClipPower clipPower
     ) {
         return MappedInputs{
-            PaletteRange().mapSignal(std::move(offset)),
-            std::move(clipSignal),
+            resolveMappedSignal(PaletteRange().mapSignal(std::move(offset))),
+            resolveMappedSignal(SFracRange().mapSignal(std::move(clipSignal))),
             feather,
             clipPower,
             true
@@ -74,7 +76,13 @@ namespace PolarShader {
     }
 
     PaletteTransform::PaletteTransform(MappedSignal<uint8_t> offsetSignal)
-        : state(std::make_shared<State>(MappedInputs{std::move(offsetSignal)})) {
+        : state(std::make_shared<State>(MappedInputs{
+            std::move(offsetSignal),
+            MappedSignal<SFracQ0_16>(),
+            FracQ0_16(0),
+            PipelineContext::PaletteClipPower::None,
+            false
+        })) {
     }
 
     PaletteTransform::PaletteTransform(MappedInputs inputs)
@@ -103,7 +111,7 @@ namespace PolarShader {
         if (context) {
             context->paletteOffset = state->offsetValue.get();
             if (state->hasClip) {
-                SFracQ0_16 clipRaw = state->clipSignal(timeInMillis);
+            SFracQ0_16 clipRaw = state->clipSignal(timeInMillis).get();
                 int32_t clipRawValue = raw(clipRaw);
                 if (clipRawValue == 0) {
                     context->paletteClipEnabled = false;

@@ -27,6 +27,7 @@
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/ranges/DepthRange.h"
 #include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
     using SampleSignal = fl::function<TrigQ0_16(SFracQ0_16)>;
@@ -56,7 +57,7 @@ namespace PolarShader {
 
     SFracQ0_16Signal noise(
         SFracQ0_16Signal phaseSpeed = constant(perMil(100)),
-        SFracQ0_16Signal amplitude = constant(SFracQ0_16(Q0_16_MAX)),
+        SFracQ0_16Signal amplitude = full(),
         SFracQ0_16Signal offset = constant(SFracQ0_16(0))
     );
 

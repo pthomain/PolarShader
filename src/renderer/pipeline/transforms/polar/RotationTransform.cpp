@@ -20,6 +20,7 @@
 
 #include "RotationTransform.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
+#include "renderer/pipeline/signals/SignalTypes.h"
 #include <Arduino.h>
 
 namespace PolarShader {
@@ -29,7 +30,7 @@ namespace PolarShader {
 
     RotationTransform::MappedInputs RotationTransform::makeInputs(SFracQ0_16Signal angle) {
         return MappedInputs{
-            PolarRange().mapSignal(std::move(angle))
+            resolveMappedSignal(PolarRange().mapSignal(std::move(angle)))
         };
     }
 

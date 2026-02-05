@@ -36,7 +36,8 @@ namespace PolarShader {
         SFracRange phaseRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE));
         PhaseAccumulator acc{phaseRange.mapSignal(std::move(phaseSpeed))};
 
-        return [acc = std::move(acc),
+        return SFracQ0_16Signal(
+            [acc = std::move(acc),
                     amplitude = std::move(amplitude),
                     offset = std::move(offset),
                     sample = std::move(sample)
@@ -57,7 +58,7 @@ namespace PolarShader {
             uint32_t sum = scaled + off;
             if (sum > 0xFFFFu) sum = 0xFFFFu;
             return SFracQ0_16(static_cast<int32_t>(sum));
-        };
+        });
     }
 
     SFracQ0_16Signal floor() {
@@ -73,11 +74,11 @@ namespace PolarShader {
     }
 
     SFracQ0_16Signal constant(SFracQ0_16 value) {
-        return [value](TimeMillis) { return value; };
+        return SFracQ0_16Signal([value](TimeMillis) { return value; });
     }
 
     SFracQ0_16Signal constant(FracQ0_16 value) {
-        return [value](TimeMillis) { return SFracQ0_16(raw(value)); };
+        return SFracQ0_16Signal([value](TimeMillis) { return SFracQ0_16(raw(value)); });
     }
 
     namespace {
@@ -187,43 +188,43 @@ namespace PolarShader {
     } // namespace
 
     SFracQ0_16Signal linear(TimeMillis durationMs) {
-        return [durationMs](TimeMillis time) {
+        return SFracQ0_16Signal([durationMs](TimeMillis time) {
             return SFracQ0_16(static_cast<int32_t>(normalizeLooped(time, durationMs)));
-        };
+        });
     }
 
     SFracQ0_16Signal easeIn(TimeMillis durationMs) {
-        return [durationMs](TimeMillis time) {
+        return SFracQ0_16Signal([durationMs](TimeMillis time) {
             return SFracQ0_16(static_cast<int32_t>(easeInQuadRaw(normalizeLooped(time, durationMs))));
-        };
+        });
     }
 
     SFracQ0_16Signal easeOut(TimeMillis durationMs) {
-        return [durationMs](TimeMillis time) {
+        return SFracQ0_16Signal([durationMs](TimeMillis time) {
             return SFracQ0_16(static_cast<int32_t>(easeOutQuadRaw(normalizeLooped(time, durationMs))));
-        };
+        });
     }
 
     SFracQ0_16Signal easeInOut(TimeMillis durationMs) {
-        return [durationMs](TimeMillis time) {
+        return SFracQ0_16Signal([durationMs](TimeMillis time) {
             return SFracQ0_16(static_cast<int32_t>(easeInOutQuadRaw(normalizeLooped(time, durationMs))));
-        };
+        });
     }
 
     SFracQ0_16Signal invert(SFracQ0_16Signal signal) {
-        return [signal = std::move(signal)](TimeMillis time) mutable {
+        return SFracQ0_16Signal([signal = std::move(signal)](TimeMillis time) mutable {
             int32_t value = raw(signal(time));
             const int32_t max = FRACT_Q0_16_MAX;
             if (value <= 0) return SFracQ0_16(max);
             if (value >= max) return SFracQ0_16(0);
             return SFracQ0_16(max - value);
-        };
+        });
     }
 
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor) {
-        return [signal = std::move(signal), factor](TimeMillis time) mutable {
+        return SFracQ0_16Signal([signal = std::move(signal), factor](TimeMillis time) mutable {
             return mulSFracSat(signal(time), SFracQ0_16(raw(factor)));
-        };
+        });
     }
 
     DepthSignal constantDepth(uint32_t value) {
@@ -234,8 +235,9 @@ namespace PolarShader {
         SFracQ0_16Signal signal,
         DepthRange range
     ) {
-        return [signal = std::move(signal), range = std::move(range)](TimeMillis time) mutable -> uint32_t {
-            return range.map(signal(time)).get();
+        auto mapped = resolveMappedSignal(range.mapSignal(std::move(signal)));
+        return [mapped = std::move(mapped)](TimeMillis time) mutable -> uint32_t {
+            return mapped(time).get();
         };
     }
 
