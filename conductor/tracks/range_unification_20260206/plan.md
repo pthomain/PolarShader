@@ -11,8 +11,8 @@
 - [~] Task: Refactor `TranslationTransform` to use `UVRange` if appropriate.
 
 ## Phase 3: Deletion & Cleanup
-- [ ] Task: Delete `CartRange.h/cpp`, `ZoomRange.h/cpp`, and `SFracRange.h/cpp`.
-- [ ] Task: Ensure all factory methods in `Signals.h` are compatible with the new range types.
+- [x] Task: Delete all redundant linear range classes (`CartRange`, `ZoomRange`, `SFracRange`, `DepthRange`, `ScalarRange`, `PatternRange`, `PaletteRange`, `TimeRange`). [e3db100]
+- [x] Task: Ensure all factory methods in `Signals.h` are compatible with the new range types. [e3db100]
 
 ## Phase 4: Verification
 - [ ] Task: Run all native tests to ensure no mapping regressions.
