@@ -7,10 +7,8 @@ by wrapping a layer function (or by updating shared context).
 
 ## Domains and units
 
-- **UV domain (Unified):** Uses `UV` coordinates (two `FracQ16_16` values) representing a normalized [0, 1] spatial domain. This is the new standard for all spatial transformations.
-- **Polar domain (Legacy):** Uses `FracQ0_16` turns for angle and `FracQ0_16` for radius.
-- **Cartesian domain (Legacy):** Uses `CartQ24_8` fixed-point coordinates (Q0.16 lattice units with extra precision).
-- Domain changes happen through pipeline steps (`toPolar`, `toCartesian`) or by using unified `UVTransform` steps.
+- **UV domain:** Uses `UV` coordinates (two `FracQ16_16` values) representing a normalized [0, 1] spatial domain. This is the standard for all spatial transformations.
+- **Internal Units:** Patterns may use internal units like `CartQ24_8` or `FracQ0_16` for calculation, but the transformation interface is strictly `UV`.
 
 ## Signals and ranges
 
@@ -35,24 +33,15 @@ Ranges used by transforms:
 
 ## Pipeline usage
 
-Transforms are intended to be added via `PolarPipelineBuilder`, which also sets a shared
-`PipelineContext` on all transforms and patterns. `advanceFrame(time)` must be called each frame
+Transforms are added via `PolarPipelineBuilder`. `advanceFrame(time)` must be called each frame
 to update transform state before sampling layers.
 
-Example (simplified):
+Example:
 
 ```cpp
-auto pipeline = PolarPipelineBuilder(std::move(pattern), palette, "demo")
-    .addCartesianTransform(ZoomTransform(noise(cPerMil(120))))
-    .addCartesianTransform(DomainWarpTransform(
-        noise(cPerMil(120)),
-        cPerMil(250),
-        full(),
-        full(),
-        CartRange(CartQ24_8(1 << CARTESIAN_FRAC_BITS), CartQ24_8(1 << CARTESIAN_FRAC_BITS)),
-        CartRange(CartQ24_8(4 << CARTESIAN_FRAC_BITS), CartQ24_8(4 << CARTESIAN_FRAC_BITS))
-    ))
-    .addPolarTransform(RotationTransform(noise(cPerMil(80))))
+auto pipeline = PolarPipelineBuilder(noisePattern(), palette, "demo")
+    .addTransform(ZoomTransform(noise(cPerMil(120))))
+    .addTransform(RotationTransform(noise(cPerMil(80))))
     .build();
 
 pipeline.advanceFrame(timeInMillis);

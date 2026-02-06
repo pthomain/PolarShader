@@ -38,45 +38,24 @@ This makes PolarShader suitable for:
 
 ---
 
-### 2. Polar-First Rendering Model
+### 2. Unified Coordinate System (UV)
 
-Most LED effects are *naturally polar*:
-- Rotation
-- Symmetry
-- Mandalas / kaleidoscopes
-- Radial waves
-- Vortices and spirals
-
-PolarShader embraces this by making:
-- **Angle** and **radius** explicit units
-- Polar transforms cheap and composable
-- Cartesian ↔ polar conversion a deliberate pipeline step
+PolarShader uses a **unified spatial representation (UV)**:
+- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `FracQ16_16`.
+- **Domain Agnostic:** Transforms like rotation or zoom apply seamlessly to any pattern.
+- **High Precision:** `Q16.16` provides sufficient geometric headroom for large-scale translations and zooms.
 
 ---
 
-### 3. Unified UV Coordinate System
-
-PolarShader is transitioning to a **unified spatial representation (UV)**:
-- **Normalized UV Space:** All spatial operations can be performed in a normalized [0.0, 1.0] domain mapped to `FracQ16_16`.
-- **Domain Agnostic:** Transforms like rotation or zoom can be applied seamlessly to both Cartesian and Polar patterns.
-- **High Precision:** `Q16.16` provides sufficient geometric headroom for large-scale translations and zooms without immediate wrapping or overflow.
-
----
-
-### 4. Shader-Like Composition API
+### 3. Shader-Like Composition API
 
 Effects are built by stacking **small, pure transforms**, similar to GPU shaders:
 
 ```cpp
 pipeline
-  .addPolarTransform(RotationTransform(
-      angular(AngleUnitsQ0_16(0),
-              ConstantPhaseVelocity(FracQ16_16(120)))))
-  .addPolarTransform(KaleidoscopeTransform(6, true, true))
-  .addPolarTransform(RadialScaleTransform(
-      scalar(Sine(
-          ConstantPhaseVelocity(FracQ16_16(30)),
-          Constant(FracQ16_16::fromRaw(800))))))
+  .addTransform(RotationTransform(noise(cPerMil(120))))
+  .addTransform(KaleidoscopeTransform(6, true))
+  .addTransform(ZoomTransform(sine(cPerMil(30))))
 ````
 
 Each transform:
