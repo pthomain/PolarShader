@@ -11,10 +11,10 @@
 - [x] Task: Rewrite `PolarPipeline::build()` to create a single `UVLayer` chain without domain switching. [857bf61]
 
 ## Phase 3: Deletion & Cleanup
-- [ ] Task: Remove `CartesianPattern`, `PolarPattern` from `BasePattern.h`.
-- [ ] Task: Remove `CartesianTransform`, `PolarTransform` from `Transforms.h`.
-- [ ] Task: Remove `CartesianLayer`, `PolarLayer` from `Layers.h`.
-- [ ] Task: Remove unused legacy conversion functions from `PolarMaths` and `CartesianMaths`.
+- [x] Task: Remove `CartesianPattern`, `PolarPattern` from `BasePattern.h`. [87e194e]
+- [x] Task: Remove `CartesianTransform`, `PolarTransform` from `Transforms.h`. [87e194e]
+- [x] Task: Remove `CartesianLayer`, `PolarLayer` from `Layers.h`. [87e194e]
+- [x] Task: Remove unused legacy conversion functions from `PolarMaths` and `CartesianMaths`. [87e194e]
 
 ## Phase 4: Verification
 - [ ] Task: Run all tests (`test_pipeline`, `test_units`) to ensure the unified pipeline works correctly.
