@@ -18,7 +18,11 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 #include <unity.h>
 #include "renderer/pipeline/units/PolarRange.h"
 #include "renderer/pipeline/units/CartesianRange.h"
@@ -45,6 +49,7 @@ void test_cartesian_motion_uses_direction_and_velocity() {
     TEST_ASSERT_INT_WITHIN(2, 0, pos.y);
 }
 
+#ifdef ARDUINO
 void setup() {
     UNITY_BEGIN();
     RUN_TEST(test_range_wraps_across_zero);
@@ -54,3 +59,11 @@ void setup() {
 
 void loop() {
 }
+#else
+int main(int argc, char **argv) {
+    UNITY_BEGIN();
+    RUN_TEST(test_range_wraps_across_zero);
+    RUN_TEST(test_cartesian_motion_uses_direction_and_velocity);
+    return UNITY_END();
+}
+#endif
