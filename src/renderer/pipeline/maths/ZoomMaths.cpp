@@ -21,12 +21,12 @@
 #include "ZoomMaths.h"
 
 namespace PolarShader {
-    int32_t zoomMinScaleRaw(const ZoomRange &range) {
-        return raw(range.map(SFracQ0_16(0)).get());
+    int32_t zoomMinScaleRaw(const LinearRange<SFracQ0_16> &range) {
+        return range.minRaw();
     }
 
-    int32_t zoomMaxScaleRaw(const ZoomRange &range) {
-        return raw(range.map(SFracQ0_16(Q0_16_ONE)).get());
+    int32_t zoomMaxScaleRaw(const LinearRange<SFracQ0_16> &range) {
+        return range.maxRaw();
     }
 
     SFracQ0_16 zoomNormalize(SFracQ0_16 value, int32_t min_scale_raw, int32_t max_scale_raw) {

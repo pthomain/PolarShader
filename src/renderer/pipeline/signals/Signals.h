@@ -29,7 +29,7 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include "renderer/pipeline/ranges/DepthRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
@@ -104,7 +104,7 @@ namespace PolarShader {
     // Map a 0..1 signal into the unsigned Q24.8 depth domain.
     DepthSignal depth(
         SFracQ0_16Signal signal = constant(perMil(100)),
-        DepthRange range = DepthRange()
+        LinearRange<uint32_t> range = LinearRange<uint32_t>(0, 1000)
     );
 }
 

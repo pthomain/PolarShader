@@ -24,7 +24,7 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/ranges/CartRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include <memory>
 
 namespace PolarShader {
@@ -33,8 +33,8 @@ namespace PolarShader {
      *
      * - phaseSpeed: turns-per-second for the time axis.
      * - amplitude: 0..1 signal that scales maxOffset.
-     * - warpScale: 0..1 signal mapped via CartRange, applied before sampling warp noise.
-     * - maxOffset: 0..1 signal mapped via CartRange, maximum warp displacement in Q24.8 units.
+     * - warpScale: 0..1 signal mapped via LinearRange, applied before sampling warp noise.
+     * - maxOffset: 0..1 signal mapped via LinearRange, maximum warp displacement in Q24.8 units.
      */
     class DomainWarpTransform : public UVTransform {
     public:
@@ -74,8 +74,8 @@ namespace PolarShader {
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal warpScale,
             SFracQ0_16Signal maxOffset,
-            CartRange warpScaleRange,
-            CartRange maxOffsetRange
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange
         );
 
         static MappedInputs makeDirectionalInputs(
@@ -83,8 +83,8 @@ namespace PolarShader {
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal warpScale,
             SFracQ0_16Signal maxOffset,
-            CartRange warpScaleRange,
-            CartRange maxOffsetRange,
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange,
             SFracQ0_16Signal flowDirection,
             SFracQ0_16Signal flowStrength
         );
@@ -94,8 +94,8 @@ namespace PolarShader {
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal warpScale,
             SFracQ0_16Signal maxOffset,
-            CartRange warpScaleRange,
-            CartRange maxOffsetRange,
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange,
             SFracQ0_16Signal flowDirection,
             SFracQ0_16Signal flowStrength
         );
@@ -106,8 +106,8 @@ namespace PolarShader {
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal warpScale,
             SFracQ0_16Signal maxOffset,
-            CartRange warpScaleRange,
-            CartRange maxOffsetRange
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange
         );
 
         DomainWarpTransform(
@@ -116,8 +116,8 @@ namespace PolarShader {
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal warpScale,
             SFracQ0_16Signal maxOffset,
-            CartRange warpScaleRange,
-            CartRange maxOffsetRange,
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange,
             uint8_t octaves,
             SFracQ0_16Signal flowDirection,
             SFracQ0_16Signal flowStrength

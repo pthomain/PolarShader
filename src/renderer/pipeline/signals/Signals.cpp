@@ -22,7 +22,7 @@
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include "renderer/pipeline/ranges/SFracRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include <cstdint>
 #include <utility>
 
@@ -33,7 +33,7 @@ namespace PolarShader {
         SFracQ0_16Signal offset,
         SampleSignal sample
     ) {
-        SFracRange phaseRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE));
+        LinearRange<SFracQ0_16> phaseRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE));
         PhaseAccumulator acc{phaseRange.mapSignal(std::move(phaseSpeed))};
 
         return SFracQ0_16Signal(
@@ -247,7 +247,7 @@ namespace PolarShader {
 
     DepthSignal depth(
         SFracQ0_16Signal signal,
-        DepthRange range
+        LinearRange<uint32_t> range
     ) {
         auto mapped = resolveMappedSignal(range.mapSignal(std::move(signal)));
         return [mapped = std::move(mapped)](TimeMillis time) mutable -> uint32_t {
@@ -262,6 +262,6 @@ namespace PolarShader {
     ) {
         uint64_t max = static_cast<uint64_t>(offset) + static_cast<uint64_t>(scale);
         uint32_t max_depth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
-        return depth(std::move(signal), DepthRange(offset, max_depth));
+        return depth(std::move(signal), LinearRange<uint32_t>(offset, max_depth));
     }
 }

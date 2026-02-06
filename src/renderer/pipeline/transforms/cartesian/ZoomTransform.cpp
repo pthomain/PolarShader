@@ -21,7 +21,6 @@
 #include "ZoomTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
 #include "renderer/pipeline/maths/ZoomMaths.h"
-#include "renderer/pipeline/ranges/ZoomRange.h"
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -32,21 +31,25 @@ namespace PolarShader {
     namespace {
         const int32_t ZOOM_SMOOTH_ALPHA_MIN = Q0_16_ONE / 32; // 0.03125 in Q0.16
         const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
+        
+        // Default Zoom scale boundaries
+        const int32_t MIN_SCALE_RAW = scale32(Q0_16_MAX, frac(160)); // 0.00625x
+        const int32_t MAX_SCALE_RAW = Q0_16_ONE * 4; // 4x
     }
 
     struct ZoomTransform::MappedInputs {
         MappedSignal<SFracQ0_16> scaleSignal;
-        ZoomRange range;
+        LinearRange<SFracQ0_16> range;
     };
 
     struct ZoomTransform::State {
         MappedSignal<SFracQ0_16> scaleSignal;
-        ZoomRange range;
+        LinearRange<SFracQ0_16> range;
         SFracQ0_16 scaleValue;
         int32_t minScaleRaw;
         int32_t maxScaleRaw;
 
-        State(MappedSignal<SFracQ0_16> s, ZoomRange range)
+        State(MappedSignal<SFracQ0_16> s, LinearRange<SFracQ0_16> range)
             : scaleSignal(std::move(s)),
               range(std::move(range)),
               scaleValue(SFracQ0_16(0)),
@@ -60,7 +63,7 @@ namespace PolarShader {
 
     ZoomTransform::ZoomTransform(
         MappedSignal<SFracQ0_16> scale,
-        ZoomRange range
+        LinearRange<SFracQ0_16> range
     ) : state(std::make_shared<State>(std::move(scale), std::move(range))) {
     }
 
@@ -71,7 +74,7 @@ namespace PolarShader {
     ZoomTransform::MappedInputs ZoomTransform::makeInputs(
         SFracQ0_16Signal scale
     ) {
-        ZoomRange range;
+        LinearRange<SFracQ0_16> range{SFracQ0_16(MIN_SCALE_RAW), SFracQ0_16(MAX_SCALE_RAW)};
         return ZoomTransform::MappedInputs{
             range.mapSignal(std::move(scale)),
             std::move(range)

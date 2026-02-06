@@ -21,14 +21,14 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
 
-#include "renderer/pipeline/ranges/ZoomRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    int32_t zoomMinScaleRaw(const ZoomRange &range);
+    int32_t zoomMinScaleRaw(const LinearRange<SFracQ0_16> &range);
 
-    int32_t zoomMaxScaleRaw(const ZoomRange &range);
+    int32_t zoomMaxScaleRaw(const LinearRange<SFracQ0_16> &range);
 
     SFracQ0_16 zoomNormalize(SFracQ0_16 value, int32_t min_scale_raw, int32_t max_scale_raw);
 }

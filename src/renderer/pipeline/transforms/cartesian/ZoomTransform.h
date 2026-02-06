@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
 #define POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
 
-#include <renderer/pipeline/ranges/ZoomRange.h>
+#include <renderer/pipeline/ranges/LinearRange.h>
 #include <renderer/pipeline/transforms/base/Transforms.h>
 #include <renderer/pipeline/signals/Signals.h>
 
@@ -38,7 +38,7 @@ namespace PolarShader {
         struct State;
         std::shared_ptr<State> state;
 
-        explicit ZoomTransform(MappedSignal<SFracQ0_16> scale, ZoomRange range);
+        explicit ZoomTransform(MappedSignal<SFracQ0_16> scale, LinearRange<SFracQ0_16> range);
 
         explicit ZoomTransform(MappedInputs inputs);
 

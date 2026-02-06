@@ -67,7 +67,7 @@ namespace PolarShader {
         SFracQ0_16Signal speed
     ) : TranslationTransform(makeInputs([direction, speed]() {
         // Map speed 0..1 to 0..TRANSLATION_MAX_SPEED
-        auto mappedSpeed = ScalarRange(0, TRANSLATION_MAX_SPEED).mapSignal(speed);
+        auto mappedSpeed = LinearRange<int32_t>(0, TRANSLATION_MAX_SPEED).mapSignal(speed);
         
         // Use a lambda to combine direction and speed into a velocity UV vector
         // This is a relative signal (absolute=false)
