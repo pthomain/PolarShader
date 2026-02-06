@@ -16,6 +16,7 @@
 - [x] Task: Remove `CartesianLayer`, `PolarLayer` from `Layers.h`. [87e194e]
 - [x] Task: Remove unused legacy conversion functions from `PolarMaths` and `CartesianMaths`. [87e194e]
 
-## Phase 4: Verification
-- [ ] Task: Run all tests (`test_pipeline`, `test_units`) to ensure the unified pipeline works correctly.
-- [ ] Task: Update documentation to remove references to legacy domains.
+## Phase 4: Verification [checkpoint: e4b5672]
+- [x] Task: Run all tests (`test_pipeline`, `test_units`) to ensure the unified pipeline works correctly. [87e194e]
+- [x] Task: Update documentation to remove references to legacy domains. [87e194e]
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Verification' (Protocol in workflow.md)
