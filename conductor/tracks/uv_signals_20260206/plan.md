@@ -10,7 +10,7 @@
 - [x] Task: Implement `uvSignal` helper to combine two scalar signals into a `UVSignal`.
 - [x] Task: Port `TranslationTransform` to use `UVSignal` instead of internal `SPoint32` integration.
 
-## Phase 3: Verification
+## Phase 3: Verification [checkpoint: 22238ee]
 - [x] Task: Run all tests to ensure spatial modulation is working as expected. [86e7b81]
 - [x] Task: Update signal documentation. [86e7b81]
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Verification' (Protocol in workflow.md)
