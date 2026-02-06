@@ -98,6 +98,9 @@ namespace PolarShader {
     /** @brief Combines two scalar signals into a 2D UV signal. */
     UVSignal uvSignal(SFracQ0_16Signal u, SFracQ0_16Signal v);
 
+    /** @brief Maps a 0..1 signal into a UV area. */
+    UVSignal uv(SFracQ0_16Signal signal, UV min, UV max);
+
     // Depth signals for animating noise domains (unsigned Q24.8).
     DepthSignal constantDepth(uint32_t value);
 

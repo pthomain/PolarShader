@@ -23,6 +23,7 @@
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/ranges/UVRange.h"
 #include <cstdint>
 #include <utility>
 
@@ -239,6 +240,11 @@ namespace PolarShader {
                 FracQ16_16(raw(v(time)))
             ));
         }, absolute);
+    }
+
+    UVSignal uv(SFracQ0_16Signal signal, UV min, UV max) {
+        UVRange range(min, max);
+        return range.mapSignal(std::move(signal));
     }
 
     DepthSignal constantDepth(uint32_t value) {

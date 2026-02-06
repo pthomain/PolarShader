@@ -19,9 +19,9 @@
  */
 
 #include "PaletteTransform.h"
-#include "renderer/pipeline/ranges/PaletteRange.h"
-#include "renderer/pipeline/ranges/PatternRange.h"
-#include "renderer/pipeline/ranges/SFracRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
+
+
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include <Arduino.h>
@@ -56,7 +56,7 @@ namespace PolarShader {
 
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(SFracQ0_16Signal offset) {
         return MappedInputs{
-            resolveMappedSignal(PaletteRange().mapSignal(std::move(offset)))
+            resolveMappedSignal(LinearRange<uint8_t>(0, 255).mapSignal(std::move(offset)))
         };
     }
 
@@ -67,8 +67,8 @@ namespace PolarShader {
         PipelineContext::PaletteClipPower clipPower
     ) {
         return MappedInputs{
-            resolveMappedSignal(PaletteRange().mapSignal(std::move(offset))),
-            resolveMappedSignal(SFracRange().mapSignal(std::move(clipSignal))),
+            resolveMappedSignal(LinearRange<uint8_t>(0, 255).mapSignal(std::move(offset))),
+            resolveMappedSignal(LinearRange<SFracQ0_16>(SFracQ0_16(0), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(clipSignal))),
             feather,
             clipPower,
             true

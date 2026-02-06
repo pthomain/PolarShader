@@ -21,7 +21,7 @@
 #include "HexTilingPattern.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
-#include "renderer/pipeline/ranges/PatternRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 #include <utility>
 

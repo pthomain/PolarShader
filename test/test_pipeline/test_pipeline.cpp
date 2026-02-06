@@ -25,7 +25,7 @@
 #endif
 #include <unity.h>
 #include "renderer/pipeline/ranges/PolarRange.h"
-#include "renderer/pipeline/ranges/CartRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 
 #ifndef ARDUINO
@@ -34,10 +34,6 @@
 #include "renderer/pipeline/maths/ScalarMaths.cpp"
 #include "renderer/pipeline/maths/PatternMaths.cpp"
 #include "renderer/pipeline/ranges/PolarRange.cpp"
-#include "renderer/pipeline/ranges/CartRange.cpp"
-#include "renderer/pipeline/ranges/ScalarRange.cpp"
-#include "renderer/pipeline/ranges/DepthRange.cpp"
-#include "renderer/pipeline/ranges/SFracRange.cpp"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/Accumulators.cpp"
@@ -58,7 +54,7 @@ void test_cartesian_motion_uses_direction_and_velocity() {
     // Direction is mapped to Angle (turns)
     auto mappedDirection = PolarRange().mapSignal(direction);
     // Speed is mapped to units/sec
-    auto mappedSpeed = ScalarRange(0, 1000).mapSignal(velocity);
+    auto mappedSpeed = LinearRange<int32_t>(0, 1000).mapSignal(velocity);
     
     CartesianMotionAccumulator acc(SPoint32{0, 0}, mappedDirection, mappedSpeed);
 

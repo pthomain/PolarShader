@@ -23,9 +23,6 @@
 #include "renderer/pipeline/transforms/polar/RotationTransform.cpp"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.cpp"
 #include "renderer/pipeline/ranges/PolarRange.cpp"
-#include "renderer/pipeline/ranges/ZoomRange.cpp"
-#include "renderer/pipeline/ranges/DepthRange.cpp"
-#include "renderer/pipeline/ranges/SFracRange.cpp"
 #include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
@@ -124,7 +121,7 @@ void test_rotation_transform_uv() {
 void test_zoom_transform_uv() {
     // Use a fixed range of 0.5 (0x8000) to ensure the scale is exactly 0.5
     // regardless of smoothing or signal value.
-    ZoomRange range(SFracQ0_16(0x8000), SFracQ0_16(0x8000));
+    LinearRange<SFracQ0_16> range(SFracQ0_16(0x8000), SFracQ0_16(0x8000));
     
     // We need to create a mapped signal manually.
     // Since min=max, the input to mapSignal doesn't matter.
