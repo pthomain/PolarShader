@@ -5,11 +5,11 @@
 - [x] Task: Define a unified `UV` coordinate structure using `FracQ16_16`. [8194f1f]
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Analysis & Type Definition' (Protocol in workflow.md)
 
-## Phase 2: Math & Conversion Refactoring
+## Phase 2: Math & Conversion Refactoring [checkpoint: 3e393d5]
 - [x] Task: Update `CartesianMaths.h` and `PolarMaths.h` to operate on normalized UV types. [90bafe8]
 - [x] Task: Implement/Refactor conversion functions between Cartesian UV and Polar UV. [55a7d98]
 - [x] Task: Write unit tests for coordinate conversions to ensure precision and wrap behavior. [55a7d98]
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Math & Conversion Refactoring' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Math & Conversion Refactoring' (Protocol in workflow.md)
 
 ## Phase 3: Transform Implementation Update
 - [ ] Task: Update base `Transform` and `PipelineStep` interfaces to use the unified UV type.
