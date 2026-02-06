@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Refactor and unify coordinate systems across Cartesian and Polar transforms.**
+- [x] **Track: Refactor and unify coordinate systems across Cartesian and Polar transforms.**
   *Link: [./tracks/coordinate_unification_20260205/](./tracks/coordinate_unification_20260205/)*
