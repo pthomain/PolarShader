@@ -84,18 +84,20 @@ namespace PolarShader {
         int32_t rz;
     };
 
-    // Functor returned by layer() to evaluate the tiling at a point.
-    struct HexTilingPattern::HexTilingFunctor {
+    struct HexTilingPattern::UVHexTilingFunctor {
         int32_t hex_radius_raw;
         uint8_t color_count;
         int32_t softness_raw;
 
-        PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
+        PatternNormU16 operator()(UV uv) const {
+            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+
             CartQ24_8 radius = CartQ24_8(hex_radius_raw);
-            CartQ24_8 x_term = CartesianMaths::mul(x, kSqrt3Over3);
-            CartQ24_8 y_term = CartesianMaths::mul(y, kOneThird);
+            CartQ24_8 x_term = CartesianMaths::mul(cx, kSqrt3Over3);
+            CartQ24_8 y_term = CartesianMaths::mul(cy, kOneThird);
             CartQ24_8 q = CartesianMaths::div(CartQ24_8(raw(x_term) - raw(y_term)), radius);
-            CartQ24_8 r = CartesianMaths::div(CartesianMaths::mul(y, kTwoThirds), radius);
+            CartQ24_8 r = CartesianMaths::div(CartesianMaths::mul(cy, kTwoThirds), radius);
             HexAxial hex = computeAxial(q, r);
 
             int32_t axial_q = hex.rx;
@@ -123,20 +125,6 @@ namespace PolarShader {
             );
             return PatternNormU16(blended);
         }
-
-    private:
-    };
-
-    struct HexTilingPattern::UVHexTilingFunctor {
-        int32_t hex_radius_raw;
-        uint8_t color_count;
-        int32_t softness_raw;
-
-        PatternNormU16 operator()(UV uv) const {
-            CartQ24_8 x = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 y = CartesianMaths::from_uv(uv.v);
-            return HexTilingFunctor{hex_radius_raw, color_count, softness_raw}(x, y);
-        }
     };
 
     HexTilingPattern::HexTilingPattern(uint16_t hexRadius, uint8_t colorCount, uint16_t edgeSoftness)
@@ -154,10 +142,6 @@ namespace PolarShader {
         color_count(colorCount),
         softness_u16(sampleSignal(std::move(edgeSoftness))) {
         initDerived();
-    }
-
-    CartesianLayer HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return HexTilingFunctor{hex_radius_raw, color_count, softness_raw};
     }
 
     UVLayer HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {

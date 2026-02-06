@@ -58,14 +58,14 @@ namespace PolarShader {
                     // noise(cPerMil(100), cPerMil(150)),
                     // perMil(50)
                 // ))
-                // .addCartesianTransform(ZoomTransform(
+                // .addTransform(ZoomTransform(
                 //     noise(
                 //         sine(
                 //             cPerMil(100),
                 //             cPerMil(200),
                 //             cPerMil(100)
                 //         ))))
-                .addPolarTransform(RotationTransform(
+                .addTransform(RotationTransform(
                     sine(cPerMil(100))
                 ));
     }
@@ -82,18 +82,18 @@ namespace PolarShader {
                     "kaleidoscope"
                 )
                 .addPaletteTransform(PaletteTransform(noise(cPerMil(200))))
-                .addCartesianTransform(TranslationTransform(
+                .addTransform(TranslationTransform(
                     noise(),
                     noise(cPerMil(100), cPerMil(300))
                 ))
-                .addCartesianTransform(ZoomTransform(
+                .addTransform(ZoomTransform(
                     pulse(cPerMil(30))
                 ))
-                .addPolarTransform(VortexTransform(
+                .addTransform(VortexTransform(
                     noise(cPerMil(10), cPerMil(200))
                 ))
-                .addPolarTransform(KaleidoscopeTransform(4, true))
-                .addPolarTransform(RotationTransform(
+                .addTransform(KaleidoscopeTransform(4, true))
+                .addTransform(RotationTransform(
                     noise(cPerMil(100))
                 ));
     }
@@ -114,19 +114,19 @@ namespace PolarShader {
                     noise(cPerMil(100), cPerMil(300), cPerMil(50)),
                     perMil(50)
                 ))
-                .addCartesianTransform(TranslationTransform(
+                .addTransform(TranslationTransform(
                     noise(),
                     noise(cPerMil(30), cPerMil(200))
                 ))
-                .addCartesianTransform(ZoomTransform(
+                .addTransform(ZoomTransform(
                     // noise(cPerMil(100))
                     noise(cPerMil(100), cPerMil(100), cPerMil(100))
                 ))
-                .addPolarTransform(VortexTransform(
+                .addTransform(VortexTransform(
                     noise(cPerMil(10), cPerMil(200))
                 ))
-                .addPolarTransform(RadialKaleidoscopeTransform(4, true))
-                .addPolarTransform(RotationTransform(
+                .addTransform(RadialKaleidoscopeTransform(4, true))
+                .addTransform(RotationTransform(
                     noise(cPerMil(100))
                 ));
     }

@@ -137,14 +137,17 @@ namespace PolarShader {
         return patternSmoothstepU16(0, FRACT_Q0_16_MAX, raw(value));
     }
 
-    struct WorleyPattern::Functor {
+    struct WorleyPattern::UVFunctor {
         const WorleyPattern *self;
 
-        PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
+        PatternNormU16 operator()(UV uv) const {
+            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            
             if (self->aliasing == WorleyAliasing::Precise) {
-                return self->samplePrecise(x, y);
+                return self->samplePrecise(cx, cy);
             }
-            PatternNormU16 value = self->sampleFast(x, y);
+            PatternNormU16 value = self->sampleFast(cx, cy);
             if (self->aliasing == WorleyAliasing::Fast) {
                 return self->softenValue(value);
             }
@@ -152,23 +155,9 @@ namespace PolarShader {
         }
     };
 
-    struct WorleyPattern::UVFunctor {
-        const WorleyPattern *self;
-
-        PatternNormU16 operator()(UV uv) const {
-            CartQ24_8 x = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 y = CartesianMaths::from_uv(uv.v);
-            return Functor{self}(x, y);
-        }
-    };
-
     WorleyPattern::WorleyPattern(CartQ24_8 cellSize, WorleyAliasing aliasingMode)
         : WorleyBasePattern(aliasingMode) {
         configureCellSize(cellSize);
-    }
-
-    CartesianLayer WorleyPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return Functor{this};
     }
 
     UVLayer WorleyPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
@@ -190,34 +179,23 @@ namespace PolarShader {
         return PatternNormU16(static_cast<uint16_t>(sum >> 2));
     }
 
-    struct VoronoiPattern::Functor {
-        const VoronoiPattern *self;
-
-        PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
-            if (self->aliasing == WorleyAliasing::Precise) {
-                return self->samplePrecise(x, y);
-            }
-            return self->sampleIdFast(x, y);
-        }
-    };
-
     struct VoronoiPattern::UVFunctor {
         const VoronoiPattern *self;
 
         PatternNormU16 operator()(UV uv) const {
-            CartQ24_8 x = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 y = CartesianMaths::from_uv(uv.v);
-            return Functor{self}(x, y);
+            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            
+            if (self->aliasing == WorleyAliasing::Precise) {
+                return self->samplePrecise(cx, cy);
+            }
+            return self->sampleIdFast(cx, cy);
         }
     };
 
     VoronoiPattern::VoronoiPattern(CartQ24_8 cellSize, WorleyAliasing aliasingMode)
         : WorleyBasePattern(aliasingMode) {
         configureCellSize(cellSize);
-    }
-
-    CartesianLayer VoronoiPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return Functor{this};
     }
 
     UVLayer VoronoiPattern::layer(const std::shared_ptr<PipelineContext> &context) const {

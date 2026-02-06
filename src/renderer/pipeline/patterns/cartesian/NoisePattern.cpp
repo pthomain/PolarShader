@@ -24,42 +24,6 @@
 #include <algorithm>
 
 namespace PolarShader {
-    struct NoisePattern::NoisePatternFunctor {
-        NoiseType type;
-        fl::u8 octaves;
-        PipelineContext *context;
-
-        PatternNormU16 operator()(CartQ24_8 x, CartQ24_8 y) const {
-            int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
-            if (!context) {
-                Serial.println("NoisePatternFunctor context is null.");
-            }
-            uint32_t depth = context ? context->depth : 0u;
-
-            int64_t sx = static_cast<int64_t>(raw(x)) + offset;
-            int64_t sy = static_cast<int64_t>(raw(y)) + offset;
-            int64_t sz = static_cast<int64_t>(depth) + offset;
-            uint32_t ux = static_cast<uint32_t>(sx);
-            uint32_t uy = static_cast<uint32_t>(sy);
-            uint32_t uz = static_cast<uint32_t>(sz);
-            CartUQ24_8 xu(ux);
-            CartUQ24_8 yu(uy);
-            CartUQ24_8 zu(uz);
-
-            switch (type) {
-                case NoiseType::FBM:
-                    return fBmLayerImpl(xu, yu, zu, octaves);
-                case NoiseType::Turbulence:
-                    return turbulenceLayerImpl(xu, yu, zu);
-                case NoiseType::Ridged:
-                    return ridgedLayerImpl(xu, yu, zu);
-                case NoiseType::Basic:
-                default:
-                    return noiseLayerImpl(xu, yu, zu);
-            }
-        }
-    };
-
     struct NoisePattern::UVNoisePatternFunctor {
         NoiseType type;
         fl::u8 octaves;
@@ -135,10 +99,6 @@ namespace PolarShader {
     NoisePattern::NoisePattern(NoiseType noiseType, fl::u8 octaveCount)
         : type(noiseType),
           octaves(octaveCount) {
-    }
-
-    CartesianLayer NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return NoisePatternFunctor{type, octaves, context.get()};
     }
 
     UVLayer NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {

@@ -37,8 +37,6 @@ namespace PolarShader {
         struct State;
         std::shared_ptr<State> state;
 
-        explicit TranslationTransform(UVSignal offsetSignal);
-
         explicit TranslationTransform(MappedInputs inputs);
 
         static MappedInputs makeInputs(UVSignal offsetSignal);

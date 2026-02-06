@@ -58,25 +58,6 @@ namespace PolarShader {
         };
     }
 
-    UVLayer PolarPipeline::toUVLayer(const CartesianLayer &layer) {
-        return [layer](UV uv) {
-            return layer(
-                CartesianMaths::from_uv(uv.u),
-                CartesianMaths::from_uv(uv.v)
-            );
-        };
-    }
-
-    UVLayer PolarPipeline::toUVLayer(const PolarLayer &layer) {
-        return [layer](UV uv) {
-            UV polar_uv = cartesianToPolarUV(uv);
-            return layer(
-                FracQ0_16(static_cast<uint16_t>(raw(polar_uv.u))),
-                FracQ0_16(static_cast<uint16_t>(raw(polar_uv.v)))
-            );
-        };
-    }
-
     CRGB PolarPipeline::mapPalette(
         const CRGBPalette16 &palette,
         PatternNormU16 value,
@@ -157,16 +138,7 @@ namespace PolarShader {
     ColourLayer PolarPipeline::build() const {
         if (!pattern) return blackLayer("PolarPipeline::build has no base pattern.");
 
-        UVLayer currentUV;
-
-        // Bridge legacy patterns to UVLayer
-        if (pattern->domain() == PatternDomain::Cartesian) {
-            currentUV = toUVLayer(static_cast<CartesianPattern *>(pattern.get())->layer(context));
-        } else if (pattern->domain() == PatternDomain::Polar) {
-            currentUV = toUVLayer(static_cast<PolarPattern *>(pattern.get())->layer(context));
-        } else {
-            currentUV = static_cast<UVPattern *>(pattern.get())->layer(context);
-        }
+        UVLayer currentUV = pattern->layer(context);
 
         // Apply transforms in order. All are UVTransforms now.
         for (const auto &step: steps) {

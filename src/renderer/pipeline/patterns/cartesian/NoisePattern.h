@@ -23,9 +23,10 @@
 
 #include "FastLED.h"
 #include "renderer/pipeline/patterns/BasePattern.h"
+#include "renderer/pipeline/maths/CartesianMaths.h"
 
 namespace PolarShader {
-    class NoisePattern : public CartesianPattern, public UVPattern {
+    class NoisePattern : public UVPattern {
     public:
         enum class NoiseType {
             Basic,
@@ -35,7 +36,6 @@ namespace PolarShader {
         };
 
     private:
-        struct NoisePatternFunctor;
         struct UVNoisePatternFunctor;
 
         NoiseType type;
@@ -51,8 +51,6 @@ namespace PolarShader {
 
     public:
         explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4);
-
-        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
         UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

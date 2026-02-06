@@ -23,6 +23,7 @@
 
 #include "renderer/pipeline/patterns/BasePattern.h"
 #include "renderer/pipeline/patterns/cartesian/WorleyConstants.h"
+#include "renderer/pipeline/maths/CartesianMaths.h"
 
 namespace PolarShader {
     /**
@@ -32,7 +33,7 @@ namespace PolarShader {
      * at least WorleyCellUnit (one unit). Distances are computed as squared
      * distances (no sqrt) and normalized to the PatternNormU16 domain.
      */
-    class WorleyBasePattern : public CartesianPattern, public UVPattern {
+    class WorleyBasePattern : public UVPattern {
     protected:
         struct Distances {
             uint64_t f1;
@@ -66,7 +67,6 @@ namespace PolarShader {
      * @param aliasingMode None = single sample, Fast = smoothstep softening, Precise = 2x2 average sampling.
      */
     class WorleyPattern : public WorleyBasePattern {
-        struct Functor;
         struct UVFunctor;
 
     public:
@@ -74,8 +74,6 @@ namespace PolarShader {
             CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
-
-        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
         UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -96,7 +94,6 @@ namespace PolarShader {
      * @param aliasingMode None = single sample, Fast = no-op for IDs, Precise = 2x2 average sampling (uses nearest among samples).
      */
     class VoronoiPattern : public WorleyBasePattern {
-        struct Functor;
         struct UVFunctor;
 
     public:
@@ -104,8 +101,6 @@ namespace PolarShader {
             CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
-
-        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
         UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 

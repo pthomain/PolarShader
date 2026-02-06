@@ -39,6 +39,8 @@ namespace PolarShader {
 
         virtual void setContext(std::shared_ptr<PipelineContext> context);
 
+        virtual UVLayer layer(const std::shared_ptr<PipelineContext> &context) const = 0;
+
     protected:
         explicit BasePattern(PatternDomain domain);
 

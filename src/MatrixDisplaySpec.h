@@ -64,8 +64,16 @@ namespace PolarShader {
             const int32_t x_q0_16 = (centered_x * Q0_16_ONE) / denom_x;
             const int32_t y_q0_16 = (centered_y * Q0_16_ONE) / denom_y;
 
-            auto polar = cartesianToPolar(x_q0_16, y_q0_16);
-            return {polar.first, polar.second};
+            // Convert to UV space [0, 1] then to Polar UV
+            UV cart_uv(
+                FracQ16_16((x_q0_16 + Q0_16_ONE) >> 1),
+                FracQ16_16((y_q0_16 + Q0_16_ONE) >> 1)
+            );
+            UV polar = cartesianToPolarUV(cart_uv);
+            return {
+                FracQ0_16(static_cast<uint16_t>(raw(polar.u))),
+                FracQ0_16(static_cast<uint16_t>(raw(polar.v)))
+            };
         }
     };
 }

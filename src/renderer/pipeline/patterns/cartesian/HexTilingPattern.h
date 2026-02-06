@@ -23,6 +23,7 @@
 
 #include "renderer/pipeline/patterns/BasePattern.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/maths/CartesianMaths.h"
 
 namespace PolarShader {
     /**
@@ -32,9 +33,8 @@ namespace PolarShader {
      * Colors repeat using a (q - r) modulo scheme on axial coordinates, which ensures
      * all 6 neighbors are different when colorCount >= 3.
      */
-    class HexTilingPattern : public CartesianPattern, public UVPattern {
+    class HexTilingPattern : public UVPattern {
         // Stateless sampler used by the pipeline.
-        struct HexTilingFunctor;
         struct UVHexTilingFunctor;
         // Fixed-point axial/cube rounding result for a single sample.
         struct HexAxial;
@@ -47,7 +47,7 @@ namespace PolarShader {
 
     public:
         explicit HexTilingPattern(
-            uint16_t hexRadius = DefaultHexRadius,
+            uint16_t hexRadius = 10000,
             uint8_t colorCount = 3,
             uint16_t edgeSoftness = 0
         );
@@ -58,12 +58,10 @@ namespace PolarShader {
             SFracQ0_16Signal edgeSoftness = SFracQ0_16Signal()
         );
 
-        CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
-
         UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
-    };
-}        static constexpr uint16_t DefaultHexRadius = 10000;
-        static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (CARTESIAN_FRAC_BITS - 1);
+
+    private:
+        static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (8 - 1); // 8 is CARTESIAN_FRAC_BITS
 
         void initDerived();
 

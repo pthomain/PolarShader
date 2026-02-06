@@ -24,6 +24,7 @@
 #include "patterns/BasePattern.h"
 #include "PipelineContext.h"
 #include "PipelineStep.h"
+#include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include <memory>
 
@@ -45,10 +46,6 @@ namespace PolarShader {
         DepthSignal depthSignal;
 
         static ColourLayer blackLayer(const char *reason);
-
-        static UVLayer toUVLayer(const CartesianLayer &layer);
-
-        static UVLayer toUVLayer(const PolarLayer &layer);
 
         static CRGB mapPalette(
             const CRGBPalette16 &palette,

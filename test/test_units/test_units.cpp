@@ -14,24 +14,6 @@
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 
-#ifndef ARDUINO
-#include "renderer/pipeline/maths/PolarMaths.cpp"
-#include "renderer/pipeline/maths/AngleMaths.cpp"
-#include "renderer/pipeline/maths/ScalarMaths.cpp"
-#include "renderer/pipeline/maths/ZoomMaths.cpp"
-#include "renderer/pipeline/maths/PatternMaths.cpp"
-#include "renderer/pipeline/transforms/polar/RotationTransform.cpp"
-#include "renderer/pipeline/transforms/cartesian/ZoomTransform.cpp"
-#include "renderer/pipeline/ranges/PolarRange.cpp"
-#include "renderer/pipeline/ranges/ZoomRange.cpp"
-#include "renderer/pipeline/ranges/DepthRange.cpp"
-#include "renderer/pipeline/ranges/SFracRange.cpp"
-#include "renderer/pipeline/ranges/Range.h"
-#include "renderer/pipeline/signals/Signals.cpp"
-#include "renderer/pipeline/signals/SignalSamplers.cpp"
-#include "renderer/pipeline/signals/Accumulators.cpp"
-#endif
-
 using namespace PolarShader;
 
 /** @brief Verify that FracQ16_16 correctly stores 32-bit fixed-point values. */
