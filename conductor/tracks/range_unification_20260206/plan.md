@@ -6,9 +6,9 @@
 - [ ] Task: Update `Range.h` to support these new types if necessary.
 
 ## Phase 2: Component Refactoring
-- [ ] Task: Refactor `ZoomTransform` to use `LinearRange<SFracQ0_16>`.
-- [ ] Task: Refactor `DomainWarpTransform` to use generic linear ranges for its many parameters.
-- [ ] Task: Refactor `TranslationTransform` to use `UVRange` if appropriate.
+- [~] Task: Refactor `ZoomTransform` to use `LinearRange<SFracQ0_16>`.
+- [~] Task: Refactor `DomainWarpTransform` to use generic linear ranges for its many parameters.
+- [~] Task: Refactor `TranslationTransform` to use `UVRange` if appropriate.
 
 ## Phase 3: Deletion & Cleanup
 - [ ] Task: Delete `CartRange.h/cpp`, `ZoomRange.h/cpp`, and `SFracRange.h/cpp`.
