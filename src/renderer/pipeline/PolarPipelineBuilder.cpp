@@ -10,7 +10,6 @@ namespace PolarShader {
             Serial.println("PolarPipelineBuilder::build called more than once; returning black pipeline.");
             return PolarPipeline(std::move(pattern), palette, {}, name, context, depthSignal);
         }
-        ensureFinalPolarDomain();
         built = true;
         return PolarPipeline(std::move(pattern), palette, std::move(steps), name, context, depthSignal);
     }

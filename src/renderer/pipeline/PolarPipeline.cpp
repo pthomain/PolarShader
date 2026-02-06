@@ -46,8 +46,7 @@ namespace PolarShader {
         if (pattern) pattern->setContext(this->context);
 
         for (auto &step: this->steps) {
-            if (step.cartesianTransform) step.cartesianTransform->setContext(this->context);
-            if (step.polarTransform) step.polarTransform->setContext(this->context);
+            if (step.uvTransform) step.uvTransform->setContext(this->context);
             if (step.paletteTransform) step.paletteTransform->setContext(this->context);
         }
     }
@@ -59,24 +58,22 @@ namespace PolarShader {
         };
     }
 
-    PolarLayer PolarPipeline::toPolarLayer(const CartesianLayer &layer) {
-        return [layer](FracQ0_16 angle, FracQ0_16 radius) {
-            auto [x, y] = polarToCartesian(angle, radius);
-            // Convert Q0.16 cartesian into Q24.8 with extra fractional precision.
+    UVLayer PolarPipeline::toUVLayer(const CartesianLayer &layer) {
+        return [layer](UV uv) {
             return layer(
-                CartQ24_8(x << CARTESIAN_FRAC_BITS),
-                CartQ24_8(y << CARTESIAN_FRAC_BITS)
+                CartesianMaths::from_uv(uv.u),
+                CartesianMaths::from_uv(uv.v)
             );
         };
     }
 
-    CartesianLayer PolarPipeline::toCartesianLayer(const PolarLayer &layer) {
-        return [layer](CartQ24_8 x, CartQ24_8 y) {
-            // Drop fractional bits to recover Q0.16 cartesian coords for polar conversion.
-            int32_t x_q0_16 = static_cast<int32_t>(static_cast<int64_t>(raw(x)) >> CARTESIAN_FRAC_BITS);
-            int32_t y_q0_16 = static_cast<int32_t>(static_cast<int64_t>(raw(y)) >> CARTESIAN_FRAC_BITS);
-            auto [angle, radius] = cartesianToPolar(x_q0_16, y_q0_16);
-            return layer(angle, radius);
+    UVLayer PolarPipeline::toUVLayer(const PolarLayer &layer) {
+        return [layer](UV uv) {
+            UV polar_uv = cartesianToPolarUV(uv);
+            return layer(
+                FracQ0_16(static_cast<uint16_t>(raw(polar_uv.u))),
+                FracQ0_16(static_cast<uint16_t>(raw(polar_uv.v)))
+            );
         };
     }
 
@@ -148,11 +145,8 @@ namespace PolarShader {
         }
 
         for (const auto &step: steps) {
-            if (step.cartesianTransform) {
-                step.cartesianTransform->advanceFrame(timeInMillis);
-            }
-            if (step.polarTransform) {
-                step.polarTransform->advanceFrame(timeInMillis);
+            if (step.uvTransform) {
+                step.uvTransform->advanceFrame(timeInMillis);
             }
             if (step.paletteTransform) {
                 step.paletteTransform->advanceFrame(timeInMillis);
@@ -161,69 +155,41 @@ namespace PolarShader {
     }
 
     ColourLayer PolarPipeline::build() const {
-        if (steps.empty()) return blackLayer("PolarPipeline::build has no steps.");
         if (!pattern) return blackLayer("PolarPipeline::build has no base pattern.");
 
-        CartesianLayer currentCartesian;
-        PolarLayer currentPolar;
-        bool hasCartesian = false;
-        bool hasPolar = false;
+        UVLayer currentUV;
 
+        // Bridge legacy patterns to UVLayer
         if (pattern->domain() == PatternDomain::Cartesian) {
-            currentCartesian = static_cast<CartesianPattern *>(pattern.get())->layer(context);
-            hasCartesian = true;
+            currentUV = toUVLayer(static_cast<CartesianPattern *>(pattern.get())->layer(context));
+        } else if (pattern->domain() == PatternDomain::Polar) {
+            currentUV = toUVLayer(static_cast<PolarPattern *>(pattern.get())->layer(context));
         } else {
-            currentPolar = static_cast<PolarPattern *>(pattern.get())->layer(context);
-            hasPolar = true;
+            currentUV = static_cast<UVPattern *>(pattern.get())->layer(context);
         }
 
-        // Apply transforms in the order they were added by the builder.
+        // Apply transforms in order. All are UVTransforms now.
         for (const auto &step: steps) {
-            switch (step.kind) {
-                case PipelineStepKind::Cartesian: {
-                    if (!hasCartesian)
-                        return blackLayer("PolarPipeline::build Cartesian step without Cartesian layer.");
-                    if (!step.cartesianTransform) return blackLayer("Cartesian step missing transform.");
-
-                    currentCartesian = (*step.cartesianTransform)(currentCartesian);
-                    break;
-                }
-                case PipelineStepKind::Polar: {
-                    if (!hasPolar) return blackLayer("PolarPipeline::build Polar step without Polar layer.");
-                    if (!step.polarTransform) return blackLayer("Polar step missing transform.");
-
-                    currentPolar = (*step.polarTransform)(currentPolar);
-                    break;
-                }
-                case PipelineStepKind::ToCartesian: {
-                    if (!hasPolar) return blackLayer("PolarPipeline::build ToCartesian without Polar layer.");
-
-                    currentCartesian = toCartesianLayer(currentPolar);
-                    hasCartesian = true;
-                    hasPolar = false;
-                    break;
-                }
-                case PipelineStepKind::ToPolar: {
-                    if (!hasCartesian) return blackLayer("PolarPipeline::build ToPolar without Cartesian layer.");
-
-                    currentPolar = toPolarLayer(currentCartesian);
-                    hasPolar = true;
-                    hasCartesian = false;
-                    break;
-                }
-                case PipelineStepKind::Palette:
-                    break;
+            if (step.kind == PipelineStepKind::UV) {
+                if (!step.uvTransform) return blackLayer("UV step missing transform.");
+                currentUV = (*step.uvTransform)(currentUV);
             }
         }
 
-        if (!hasPolar) return blackLayer("PolarPipeline::build ended without a Polar layer.");
-
-        // Final stage: sample the pattern value and map it to a color from the palette.
-        return [palette = palette, layer = std::move(currentPolar), context = context](
+        // Final stage: map UV back to Polar domain for the display, 
+        // then map pattern value to a color from the palette.
+        return [palette = palette, layer = std::move(currentUV), context = context](
             FracQ0_16 angle,
             FracQ0_16 radius
         ) {
-            PatternNormU16 value = layer(angle, radius);
+            // Display provides (Angle, Radius) in legacy Q0.16.
+            // Convert to UV (Q16.16).
+            UV input = polarToCartesianUV(UV(
+                FracQ16_16(static_cast<int32_t>(raw(angle))),
+                FracQ16_16(static_cast<int32_t>(raw(radius)))
+            ));
+            
+            PatternNormU16 value = layer(input);
             return mapPalette(palette, value, context);
         };
     }

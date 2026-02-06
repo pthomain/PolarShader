@@ -46,9 +46,9 @@ namespace PolarShader {
 
         static ColourLayer blackLayer(const char *reason);
 
-        static PolarLayer toPolarLayer(const CartesianLayer &layer);
+        static UVLayer toUVLayer(const CartesianLayer &layer);
 
-        static CartesianLayer toCartesianLayer(const PolarLayer &layer);
+        static UVLayer toUVLayer(const PolarLayer &layer);
 
         static CRGB mapPalette(
             const CRGBPalette16 &palette,

@@ -34,59 +34,32 @@
 
 namespace PolarShader {
     class PolarPipelineBuilder {
-        enum class BuilderDomain {
-            Cartesian,
-            Polar
-        };
-
         std::unique_ptr<BasePattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         bool built = false;
-        BuilderDomain currentDomain = BuilderDomain::Cartesian;
         // Must point to a string with static storage duration (presets use literals).
         const char *name;
         std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
         DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << CARTESIAN_FRAC_BITS);
 
-        void ensureFinalPolarDomain() {
-            if (currentDomain == BuilderDomain::Cartesian) {
-                steps.push_back({PipelineStepKind::ToPolar});
-                currentDomain = BuilderDomain::Polar;
-            }
+    public:
+        PolarPipelineBuilder(
+            std::unique_ptr<UVPattern> pattern,
+            const CRGBPalette16 &palette,
+            const char *name
+        ) : pattern(std::move(pattern)),
+            palette(palette),
+            name(name ? name : "unnamed") {
         }
 
-    public:
         PolarPipelineBuilder(
             std::unique_ptr<BasePattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
-        ) : pattern(pattern ? std::move(pattern) : std::make_unique<CartesianPattern>()),
-            palette(palette),
-            name(name ? name : "unnamed") {
-            currentDomain = (this->pattern->domain() == PatternDomain::Polar)
-                                ? BuilderDomain::Polar
-                                : BuilderDomain::Cartesian;
-        }
-
-        PolarPipelineBuilder(
-            std::unique_ptr<CartesianPattern> pattern,
-            const CRGBPalette16 &palette,
-            const char *name
         ) : pattern(std::move(pattern)),
             palette(palette),
             name(name ? name : "unnamed") {
-            currentDomain = BuilderDomain::Cartesian;
-        }
-
-        PolarPipelineBuilder(
-            std::unique_ptr<PolarPattern> pattern,
-            const CRGBPalette16 &palette,
-            const char *name
-        ) : pattern(std::move(pattern)),
-            palette(palette),
-            name(name ? name : "unnamed") {
-            currentDomain = BuilderDomain::Polar;
         }
 
         PolarPipelineBuilder &setDepthSignal(DepthSignal signal) & {
@@ -123,47 +96,17 @@ namespace PolarShader {
             return std::move(*this);
         }
 
-        template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
-        PolarPipelineBuilder &addPolarTransform(T transform) & {
+        template<typename T, typename = std::enable_if_t<std::is_base_of<UVTransform, T>::value> >
+        PolarPipelineBuilder &addTransform(T transform) & {
             if (built) return *this;
-            if (currentDomain == BuilderDomain::Cartesian) {
-                steps.push_back(PipelineStep::toPolar());
-                currentDomain = BuilderDomain::Polar;
-            }
-            steps.push_back(PipelineStep::polar(std::make_unique<T>(std::move(transform))));
+            steps.push_back(PipelineStep::uv(std::make_unique<T>(std::move(transform))));
             return *this;
         }
 
-        template<typename T, typename = std::enable_if_t<std::is_base_of<PolarTransform, T>::value> >
-        PolarPipelineBuilder &&addPolarTransform(T transform) && {
+        template<typename T, typename = std::enable_if_t<std::is_base_of<UVTransform, T>::value> >
+        PolarPipelineBuilder &&addTransform(T transform) && {
             if (built) return std::move(*this);
-            if (currentDomain == BuilderDomain::Cartesian) {
-                steps.push_back(PipelineStep::toPolar());
-                currentDomain = BuilderDomain::Polar;
-            }
-            steps.push_back(PipelineStep::polar(std::make_unique<T>(std::move(transform))));
-            return std::move(*this);
-        }
-
-        template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianTransform, T>::value> >
-        PolarPipelineBuilder &addCartesianTransform(T transform) & {
-            if (built) return *this;
-            if (currentDomain == BuilderDomain::Polar) {
-                steps.push_back(PipelineStep::toCartesian());
-                currentDomain = BuilderDomain::Cartesian;
-            }
-            steps.push_back(PipelineStep::cartesian(std::make_unique<T>(std::move(transform))));
-            return *this;
-        }
-
-        template<typename T, typename = std::enable_if_t<std::is_base_of<CartesianTransform, T>::value> >
-        PolarPipelineBuilder &&addCartesianTransform(T transform) && {
-            if (built) return std::move(*this);
-            if (currentDomain == BuilderDomain::Polar) {
-                steps.push_back(PipelineStep::toCartesian());
-                currentDomain = BuilderDomain::Cartesian;
-            }
-            steps.push_back(PipelineStep::cartesian(std::make_unique<T>(std::move(transform))));
+            steps.push_back(PipelineStep::uv(std::make_unique<T>(std::move(transform))));
             return std::move(*this);
         }
 
