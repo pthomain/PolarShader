@@ -127,6 +127,18 @@ namespace PolarShader {
     private:
     };
 
+    struct HexTilingPattern::UVHexTilingFunctor {
+        int32_t hex_radius_raw;
+        uint8_t color_count;
+        int32_t softness_raw;
+
+        PatternNormU16 operator()(UV uv) const {
+            CartQ24_8 x = CartesianMaths::from_uv(uv.u);
+            CartQ24_8 y = CartesianMaths::from_uv(uv.v);
+            return HexTilingFunctor{hex_radius_raw, color_count, softness_raw}(x, y);
+        }
+    };
+
     HexTilingPattern::HexTilingPattern(uint16_t hexRadius, uint8_t colorCount, uint16_t edgeSoftness)
         : hex_radius_u16(hexRadius),
           color_count(colorCount),
@@ -146,6 +158,10 @@ namespace PolarShader {
 
     CartesianLayer HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return HexTilingFunctor{hex_radius_raw, color_count, softness_raw};
+    }
+
+    UVLayer HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+        return UVHexTilingFunctor{hex_radius_raw, color_count, softness_raw};
     }
 
     void HexTilingPattern::initDerived() {

@@ -60,6 +60,39 @@ namespace PolarShader {
         }
     };
 
+    struct NoisePattern::UVNoisePatternFunctor {
+        NoiseType type;
+        fl::u8 octaves;
+        PipelineContext *context;
+
+        PatternNormU16 operator()(UV uv) const {
+            int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
+            uint32_t depth = context ? context->depth : 0u;
+
+            // UV is Q16.16, we want CartUQ24.8. 
+            // Shift right by 8 to get 8 fractional bits.
+            uint32_t ux = (static_cast<uint32_t>(raw(uv.u)) >> 8) + static_cast<uint32_t>(offset);
+            uint32_t uy = (static_cast<uint32_t>(raw(uv.v)) >> 8) + static_cast<uint32_t>(offset);
+            uint32_t uz = depth + static_cast<uint32_t>(offset);
+
+            CartUQ24_8 xu(ux);
+            CartUQ24_8 yu(uy);
+            CartUQ24_8 zu(uz);
+
+            switch (type) {
+                case NoiseType::FBM:
+                    return fBmLayerImpl(xu, yu, zu, octaves);
+                case NoiseType::Turbulence:
+                    return turbulenceLayerImpl(xu, yu, zu);
+                case NoiseType::Ridged:
+                    return ridgedLayerImpl(xu, yu, zu);
+                case NoiseType::Basic:
+                default:
+                    return noiseLayerImpl(xu, yu, zu);
+            }
+        }
+    };
+
     PatternNormU16 NoisePattern::noiseLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
         return noiseNormaliseU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
     }
@@ -106,5 +139,9 @@ namespace PolarShader {
 
     CartesianLayer NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return NoisePatternFunctor{type, octaves, context.get()};
+    }
+
+    UVLayer NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+        return UVNoisePatternFunctor{type, octaves, context.get()};
     }
 }

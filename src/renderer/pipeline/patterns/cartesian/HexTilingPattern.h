@@ -32,9 +32,10 @@ namespace PolarShader {
      * Colors repeat using a (q - r) modulo scheme on axial coordinates, which ensures
      * all 6 neighbors are different when colorCount >= 3.
      */
-    class HexTilingPattern : public CartesianPattern {
+    class HexTilingPattern : public CartesianPattern, public UVPattern {
         // Stateless sampler used by the pipeline.
         struct HexTilingFunctor;
+        struct UVHexTilingFunctor;
         // Fixed-point axial/cube rounding result for a single sample.
         struct HexAxial;
 
@@ -59,8 +60,9 @@ namespace PolarShader {
 
         CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
-    private:
-        static constexpr uint16_t DefaultHexRadius = 10000;
+        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+    };
+}        static constexpr uint16_t DefaultHexRadius = 10000;
         static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (CARTESIAN_FRAC_BITS - 1);
 
         void initDerived();

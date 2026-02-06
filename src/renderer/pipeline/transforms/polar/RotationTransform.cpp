@@ -21,7 +21,12 @@
 #include "RotationTransform.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 
 namespace PolarShader {
     struct RotationTransform::MappedInputs {
@@ -68,6 +73,22 @@ namespace PolarShader {
             uint16_t offset_raw = raw(state->angleOffset.get());
             uint16_t new_angle = static_cast<uint16_t>(angle_raw + offset_raw);
             return layer(FracQ0_16(new_angle), radius);
+        };
+    }
+
+    UVLayer RotationTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            // Convert to Polar UV (Angle=U, Radius=V)
+            UV polar_uv = cartesianToPolarUV(uv);
+            
+            // Apply rotation to U (angle)
+            uint16_t angle_raw = static_cast<uint16_t>(raw(polar_uv.u));
+            uint16_t offset_raw = raw(state->angleOffset.get());
+            polar_uv.u = FracQ16_16(static_cast<int32_t>(static_cast<uint16_t>(angle_raw + offset_raw)));
+
+            // Convert back to Cartesian UV
+            UV rotated_uv = polarToCartesianUV(polar_uv);
+            return layer(rotated_uv);
         };
     }
 }

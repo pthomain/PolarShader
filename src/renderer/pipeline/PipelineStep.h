@@ -29,6 +29,7 @@ namespace PolarShader {
     enum class PipelineStepKind {
         Cartesian,
         Polar,
+        UV,
         Palette,
         ToCartesian,
         ToPolar
@@ -39,6 +40,7 @@ namespace PolarShader {
         PipelineStepKind kind;
         std::unique_ptr<CartesianTransform> cartesianTransform;
         std::unique_ptr<PolarTransform> polarTransform;
+        std::unique_ptr<UVTransform> uvTransform;
         std::unique_ptr<PaletteTransform> paletteTransform;
 
         // Factories for domain conversion steps (no transform pointers)
@@ -66,6 +68,13 @@ namespace PolarShader {
             PipelineStep s;
             s.kind = PipelineStepKind::Polar;
             s.polarTransform = std::move(t);
+            return s;
+        }
+
+        static PipelineStep uv(std::unique_ptr<UVTransform> t) {
+            PipelineStep s;
+            s.kind = PipelineStepKind::UV;
+            s.uvTransform = std::move(t);
             return s;
         }
 

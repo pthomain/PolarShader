@@ -29,7 +29,8 @@
 namespace PolarShader {
     enum class PatternDomain {
         Cartesian,
-        Polar
+        Polar,
+        UV
     };
 
     class BasePattern {
@@ -72,6 +73,17 @@ namespace PolarShader {
         explicit PolarPattern(PolarLayer layer);
 
         virtual PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const;
+    };
+
+    class UVPattern : public BasePattern {
+        UVLayer layerValue;
+
+    public:
+        UVPattern();
+
+        explicit UVPattern(UVLayer layer);
+
+        virtual UVLayer layer(const std::shared_ptr<PipelineContext> &context) const;
     };
 }
 

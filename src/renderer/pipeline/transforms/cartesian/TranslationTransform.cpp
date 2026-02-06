@@ -20,7 +20,11 @@
 
 #include "TranslationTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
@@ -114,6 +118,22 @@ namespace PolarShader {
             int32_t sx = static_cast<int32_t>(static_cast<int64_t>(raw(x)) + state->offset.x);
             int32_t sy = static_cast<int32_t>(static_cast<int64_t>(raw(y)) + state->offset.y);
             return layer(CartQ24_8(sx), CartQ24_8(sy));
+        };
+    }
+
+    UVLayer TranslationTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            // Apply translation directly to UV coordinates (Q16.16)
+            // state->offset is typically in CartQ24.8, so we convert it to UV (Q16.16)
+            // by shifting left by 8.
+            int32_t uv_ox = state->offset.x << 8;
+            int32_t uv_oy = state->offset.y << 8;
+            
+            UV translated_uv(
+                FracQ16_16(raw(uv.u) + uv_ox),
+                FracQ16_16(raw(uv.v) + uv_oy)
+            );
+            return layer(translated_uv);
         };
     }
 }

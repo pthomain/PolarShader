@@ -25,7 +25,7 @@
 #include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
-    class NoisePattern : public CartesianPattern {
+    class NoisePattern : public CartesianPattern, public UVPattern {
     public:
         enum class NoiseType {
             Basic,
@@ -36,6 +36,7 @@ namespace PolarShader {
 
     private:
         struct NoisePatternFunctor;
+        struct UVNoisePatternFunctor;
 
         NoiseType type;
         fl::u8 octaves;
@@ -52,6 +53,8 @@ namespace PolarShader {
         explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4);
 
         CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+
+        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
     };
 }
 

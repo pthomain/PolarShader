@@ -22,7 +22,11 @@
 #include "renderer/pipeline/maths/Maths.h"
 #include "renderer/pipeline/maths/ZoomMaths.h"
 #include "renderer/pipeline/ranges/ZoomRange.h"
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 
 namespace PolarShader {
     namespace {
@@ -117,6 +121,30 @@ namespace PolarShader {
             int32_t finalX = static_cast<int32_t>(sx >> 16);
             int32_t finalY = static_cast<int32_t>(sy >> 16);
             return layer(CartQ24_8(finalX), CartQ24_8(finalY));
+        };
+    }
+
+    UVLayer ZoomTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            // Map from [0, 1] to [-1, 1] (relative to center)
+            int64_t x = (static_cast<int64_t>(raw(uv.u)) << 1) - 0x00010000;
+            int64_t y = (static_cast<int64_t>(raw(uv.v)) << 1) - 0x00010000;
+
+            // Apply Q0.16 scale
+            int64_t sx = x * static_cast<int64_t>(raw(state->scaleValue));
+            int64_t sy = y * static_cast<int64_t>(raw(state->scaleValue));
+
+            // Shift back down
+            int32_t fx = static_cast<int32_t>(sx >> 16);
+            int32_t fy = static_cast<int32_t>(sy >> 16);
+
+            // Map from [-1, 1] to [0, 1]
+            UV scaled_uv(
+                FracQ16_16((fx + 0x00010000) >> 1),
+                FracQ16_16((fy + 0x00010000) >> 1)
+            );
+
+            return layer(scaled_uv);
         };
     }
 }

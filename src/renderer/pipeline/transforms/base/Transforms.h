@@ -61,6 +61,18 @@ namespace PolarShader {
     protected:
         std::shared_ptr<PipelineContext> context;
     };
+
+    class UVTransform : public FrameTransform {
+    public:
+        UVTransform() = default;
+
+        virtual UVLayer operator()(const UVLayer &layer) const = 0;
+
+        void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
+
+    protected:
+        std::shared_ptr<PipelineContext> context;
+    };
 }
 
 #endif //POLAR_SHADER_TRANSFORMS_BASE_TRANSFORMS_H
