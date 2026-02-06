@@ -26,11 +26,8 @@ All transform inputs are time-indexed signals:
 Ranges used by transforms:
 
 - `PolarRange` maps `SFracQ0_16` to angular turns with proper wrapping.
-- `ScalarRange` maps a 0..1 signal into an integer range `[min, max]` (used for speed/strength).
-- `SFracRange` maps a 0..1 signal into a signed Q0.16 range.
-- `ZoomRange` maps a 0..1 signal into the zoom scale range.
-- `PaletteRange` maps a 0..1 signal into a palette index range `[0, 255]`.
-- `CartRange` maps a 0..1 signal into a `CartQ24_8` range.
+- `LinearRange<T>` generic linear interpolation from a 0..1 signal to any type `T`.
+- `UVRange` maps a 0..1 signal into a 2D line segment in UV space.
 
 ## Pipeline usage
 
