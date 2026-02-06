@@ -17,7 +17,7 @@
 - [x] Task: Update `NoisePattern` and `HexTilingPattern` to sample using normalized UV coordinates. [2141098]
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Transform Implementation Update' (Protocol in workflow.md)
 
-## Phase 4: Verification & Cleanup
-- [ ] Task: Run all pipeline tests to ensure no regressions in effect rendering.
-- [ ] Task: Update `README.md` and module documentation to reflect the unified coordinate system.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Verification & Cleanup' (Protocol in workflow.md)
+## Phase 4: Verification & Cleanup [checkpoint: 18846a5]
+- [x] Task: Run all pipeline tests to ensure no regressions in effect rendering. [249fd80]
+- [x] Task: Update `README.md` and module documentation to reflect the unified coordinate system. [249fd80]
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Verification & Cleanup' (Protocol in workflow.md)
