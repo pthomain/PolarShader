@@ -1,9 +1,9 @@
 # Implementation Plan: Coordinate System Unification
 
-## Phase 1: Analysis & Type Definition
+## Phase 1: Analysis & Type Definition [checkpoint: c75bbbf]
 - [x] Task: Audit existing coordinate types in `src/renderer/pipeline/units/` and `src/renderer/pipeline/maths/`.
 - [x] Task: Define a unified `UV` coordinate structure using `FracQ16_16`. [8194f1f]
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Analysis & Type Definition' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Analysis & Type Definition' (Protocol in workflow.md)
 
 ## Phase 2: Math & Conversion Refactoring
 - [ ] Task: Update `CartesianMaths.h` and `PolarMaths.h` to operate on normalized UV types.
