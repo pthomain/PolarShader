@@ -32,61 +32,65 @@
 
 namespace PolarShader {
     struct TranslationTransform::MappedInputs {
-        MappedSignal<FracQ0_16> directionSignal;
-        MappedSignal<int32_t> speedSignal;
+        UVSignal offsetSignal;
     };
 
     namespace {
         // Smoothing controls when zoom is at minimum (highest noise frequency).
         const int32_t TRANSLATION_SMOOTH_ALPHA_MIN = Q0_16_ONE / 16;
         const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = Q0_16_ONE / 2;
-        const int32_t TRANSLATION_MAX_SPEED = static_cast<int32_t>(UINT32_MAX >> 5);
+        const int32_t TRANSLATION_MAX_SPEED = 1000; // units per second in Q16.16 domain
     }
 
     struct TranslationTransform::State {
-        CartesianMotionAccumulator motion;
-        SPoint32 offset{0, 0};
+        UVSignal offsetSignal;
+        UV offset{FracQ16_16(0), FracQ16_16(0)};
         bool hasSmoothed{false};
 
-        State(
-            MappedSignal<FracQ0_16> direction,
-            MappedSignal<int32_t> speed
-        ) : motion(
-            SPoint32{0, 0},
-            std::move(direction),
-            std::move(speed)
-        ) {
-        }
+        State(UVSignal signal) : offsetSignal(std::move(signal)) {}
     };
 
-    TranslationTransform::TranslationTransform(
-        MappedSignal<FracQ0_16> direction,
-        MappedSignal<int32_t> speed
-    ) : state(std::make_shared<State>(std::move(direction), std::move(speed))) {
+    TranslationTransform::TranslationTransform(UVSignal signal)
+        : state(std::make_shared<State>(std::move(signal))) {
     }
 
     TranslationTransform::TranslationTransform(MappedInputs inputs)
-        : TranslationTransform(std::move(inputs.directionSignal), std::move(inputs.speedSignal)) {
+        : TranslationTransform(std::move(inputs.offsetSignal)) {
     }
 
-    TranslationTransform::MappedInputs TranslationTransform::makeInputs(
-        SFracQ0_16Signal direction,
-        SFracQ0_16Signal speed
-    ) {
-        return MappedInputs{
-            resolveMappedSignal(PolarRange().mapSignal(std::move(direction))),
-            resolveMappedSignal(ScalarRange(0, TRANSLATION_MAX_SPEED).mapSignal(std::move(speed)))
-        };
+    TranslationTransform::MappedInputs TranslationTransform::makeInputs(UVSignal signal) {
+        return MappedInputs{ resolveMappedSignal(std::move(signal)) };
     }
 
     TranslationTransform::TranslationTransform(
         SFracQ0_16Signal direction,
         SFracQ0_16Signal speed
-    ) : TranslationTransform(makeInputs(std::move(direction), std::move(speed))) {
+    ) : TranslationTransform(makeInputs([direction, speed]() {
+        // Map speed 0..1 to 0..TRANSLATION_MAX_SPEED
+        auto mappedSpeed = ScalarRange(0, TRANSLATION_MAX_SPEED).mapSignal(speed);
+        
+        // Use a lambda to combine direction and speed into a velocity UV vector
+        // This is a relative signal (absolute=false)
+        return UVSignal([direction, mappedSpeed](TimeMillis time) mutable {
+            FracQ0_16 dir = PolarRange().map(direction(time)).get();
+            int32_t s = mappedSpeed(time).get();
+            
+            TrigQ0_16 cos_val = angleCosQ0_16(dir);
+            TrigQ0_16 sin_val = angleSinQ0_16(dir);
+            
+            // Velocity vector in UV units (Q16.16) per second
+            // Trig is Q0.16, s is Q16.16 units/sec. 
+            // Result is Q16.16.
+            int32_t vx = static_cast<int32_t>((static_cast<int64_t>(s) * raw(cos_val)) >> 16);
+            int32_t vy = static_cast<int32_t>((static_cast<int64_t>(s) * raw(sin_val)) >> 16);
+            
+            return MappedValue<UV>(UV(FracQ16_16(vx), FracQ16_16(vy)));
+        }, false);
+    }())) {
     }
 
     void TranslationTransform::advanceFrame(TimeMillis timeInMillis) {
-        SPoint32 target = state->motion.advance(timeInMillis);
+        UV target = state->offsetSignal(timeInMillis).get();
         if (!state->hasSmoothed) {
             state->offset = target;
             state->hasSmoothed = true;
@@ -105,25 +109,20 @@ namespace PolarShader {
         int64_t alpha = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN) +
                         ((alpha_span * static_cast<int64_t>(zoom_norm_raw)) >> 16);
 
-        int64_t dx = static_cast<int64_t>(target.x) - static_cast<int64_t>(state->offset.x);
-        int64_t dy = static_cast<int64_t>(target.y) - static_cast<int64_t>(state->offset.y);
-        dx = (dx * alpha) >> 16;
-        dy = (dy * alpha) >> 16;
-        state->offset.x = static_cast<int32_t>(static_cast<int64_t>(state->offset.x) + dx);
-        state->offset.y = static_cast<int32_t>(static_cast<int64_t>(state->offset.y) + dy);
+        int64_t du = static_cast<int64_t>(raw(target.u)) - static_cast<int64_t>(raw(state->offset.u));
+        int64_t dv = static_cast<int64_t>(raw(target.v)) - static_cast<int64_t>(raw(state->offset.v));
+        du = (du * alpha) >> 16;
+        dv = (dv * alpha) >> 16;
+        
+        state->offset.u = FracQ16_16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.u)) + du));
+        state->offset.v = FracQ16_16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.v)) + dv));
     }
 
     UVLayer TranslationTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
-            // Apply translation directly to UV coordinates (Q16.16)
-            // state->offset is typically in CartQ24.8, so we convert it to UV (Q16.16)
-            // by shifting left by 8.
-            int32_t uv_ox = state->offset.x << 8;
-            int32_t uv_oy = state->offset.y << 8;
-            
             UV translated_uv(
-                FracQ16_16(raw(uv.u) + uv_ox),
-                FracQ16_16(raw(uv.v) + uv_oy)
+                FracQ16_16(raw(uv.u) + raw(state->offset.u)),
+                FracQ16_16(raw(uv.v) + raw(state->offset.v))
             );
             return layer(translated_uv);
         };

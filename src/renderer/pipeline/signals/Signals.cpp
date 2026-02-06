@@ -227,6 +227,20 @@ namespace PolarShader {
         });
     }
 
+    UVSignal constantUV(UV value) {
+        return UVSignal([value](TimeMillis) { return MappedValue<UV>(value); });
+    }
+
+    UVSignal uvSignal(SFracQ0_16Signal u, SFracQ0_16Signal v) {
+        bool absolute = u.isAbsolute() && v.isAbsolute();
+        return UVSignal([u = std::move(u), v = std::move(v)](TimeMillis time) mutable {
+            return MappedValue<UV>(UV(
+                FracQ16_16(raw(u(time))),
+                FracQ16_16(raw(v(time)))
+            ));
+        }, absolute);
+    }
+
     DepthSignal constantDepth(uint32_t value) {
         return [value](TimeMillis) { return value; };
     }

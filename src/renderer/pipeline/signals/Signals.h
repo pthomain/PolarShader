@@ -92,6 +92,12 @@ namespace PolarShader {
     // Scale a signal in the 0..1 domain by a Q0.16 fraction.
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor);
 
+    /** @brief Emits a constant UV coordinate. */
+    UVSignal constantUV(UV value);
+
+    /** @brief Combines two scalar signals into a 2D UV signal. */
+    UVSignal uvSignal(SFracQ0_16Signal u, SFracQ0_16Signal v);
+
     // Depth signals for animating noise domains (unsigned Q24.8).
     DepthSignal constantDepth(uint32_t value);
 
