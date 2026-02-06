@@ -6,7 +6,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Analysis & Type Definition' (Protocol in workflow.md)
 
 ## Phase 2: Math & Conversion Refactoring
-- [ ] Task: Update `CartesianMaths.h` and `PolarMaths.h` to operate on normalized UV types.
+- [x] Task: Update `CartesianMaths.h` and `PolarMaths.h` to operate on normalized UV types. [90bafe8]
 - [ ] Task: Implement/Refactor conversion functions between Cartesian UV and Polar UV.
 - [ ] Task: Write unit tests for coordinate conversions to ensure precision and wrap behavior.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Math & Conversion Refactoring' (Protocol in workflow.md)
