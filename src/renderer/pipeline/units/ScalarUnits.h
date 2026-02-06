@@ -25,26 +25,37 @@
 #include "StrongTypes.h"
 
 namespace PolarShader {
-    struct FracQ0_16_Tag {
-    };
-
-    struct SFracQ0_16_Tag {
-    };
+    struct FracQ0_16_Tag {};
+    struct SFracQ0_16_Tag {};
+    struct FracQ16_16_Tag {};
 
     /**
-    *   An unsigned fraction in Q0.16, typically interpreted as [0, 1).
-    */
+     * @brief Unsigned fixed-point fraction in Q0.16 format.
+     * 
+     * Definition: 16-bit integer where 0 represents 0.0 and 65535 represents ~1.0.
+     * Usage: Used for angles (mod 2^16), alpha blending, and unsigned scaling factors.
+     * Analysis: Strictly required for circular math and operations where negative values are semantically invalid.
+     */
     using FracQ0_16 = Strong<uint16_t, FracQ0_16_Tag>;
 
     /**
-    *   Signed Q0.16 fixed-point scalar stored in a 32-bit raw value.
-    */
+     * @brief Signed fixed-point scalar in Q0.16 format stored in a 32-bit container.
+     * 
+     * Definition: Signed integer where 65536 represents 1.0 and -65536 represents -1.0.
+     * Usage: The primary currency for signals, oscillators, and trigonometric outputs (sine/cosine).
+     * Analysis: Strictly required for the signal engine to support bidirectional modulation (e.g. oscillating around zero).
+     * Replaces legacy TrigQ0_16.
+     */
     using SFracQ0_16 = Strong<int32_t, SFracQ0_16_Tag>;
 
     /**
-    *   Signed Q16.16 fixed-point scalar stored in a 32-bit raw value.
-    */
-    using FracQ16_16 = Strong<int32_t, struct FracQ16_16_Tag>;
+     * @brief Signed fixed-point scalar in Q16.16 format.
+     * 
+     * Definition: 16 integer bits and 16 fractional bits. 65536 represents 1.0.
+     * Usage: Used exclusively for UV spatial coordinates.
+     * Analysis: Strictly required to provide enough dynamic range for tiling/zoom (values > 1.0) while maintaining sub-pixel precision.
+     */
+    using FracQ16_16 = Strong<int32_t, FracQ16_16_Tag>;
 
     // --- Raw extractors ---
     constexpr uint16_t raw(FracQ0_16 f) { return f.raw(); }

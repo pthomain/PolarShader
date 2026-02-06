@@ -25,21 +25,35 @@
 #include "StrongTypes.h"
 
 namespace PolarShader {
+    /**
+     * @brief A simple 2D signed integer vector.
+     * 
+     * Usage: Lightweight tuple for raw coordinate pairs or intermediate displacements.
+     * Analysis: Useful internal utility, distinct from the unified UV coordinate system.
+     */
     struct SPoint32 {
         int32_t x;
         int32_t y;
     };
 
-    struct CartQ24_8_Tag {
-    };
+    struct CartQ24_8_Tag {};
+    struct CartesianUQ24_8_Tag {};
 
-    struct CartesianUQ24_8_Tag {
-    };
-
-    // Signed Cartesian coordinates in Q24.8; value represents Q0.16 lattice units with extra precision.
+    /**
+     * @brief Signed fixed-point coordinate in Q24.8 format.
+     * 
+     * Definition: 24 integer bits, 8 fractional bits. 256 represents 1.0.
+     * Usage: Implementation detail for lattice-aligned patterns (Worley, HexTiling).
+     * Analysis: Strictly required for algorithms that align with integer grid indices while needing some sub-unit precision.
+     */
     using CartQ24_8 = Strong<int32_t, CartQ24_8_Tag>;
 
-    // Unsigned Cartesian coordinates in Q24.8 for noise sampling.
+    /**
+     * @brief Unsigned fixed-point coordinate in Q24.8 format.
+     * 
+     * Usage: Exclusively for noise domain sampling (inoise16).
+     * Analysis: Required to match the unsigned interface of the hardware-optimized noise generators.
+     */
     using CartUQ24_8 = Strong<uint32_t, CartesianUQ24_8_Tag>;
 
     constexpr int32_t raw(CartQ24_8 v) { return v.raw(); }

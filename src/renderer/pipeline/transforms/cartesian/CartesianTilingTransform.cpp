@@ -21,7 +21,7 @@
 #include "CartesianTilingTransform.h"
 #include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/units/TimeUnits.h"
-#include "renderer/pipeline/ranges/ScalarRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include <algorithm>
@@ -89,7 +89,7 @@ namespace PolarShader {
         int32_t minCellSize,
         int32_t maxCellSize
     ) {
-        ScalarRange range(minCellSize, maxCellSize);
+        LinearRange<int32_t> range(minCellSize, maxCellSize);
         auto signal = resolveMappedSignal(range.mapSignal(std::move(cellSize)));
         bool absolute = signal.isAbsolute();
         return MappedInputs{

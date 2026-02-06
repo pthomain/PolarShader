@@ -39,8 +39,6 @@ namespace PolarShader {
 
     uint64_t sqrtU64(uint64_t value);
 
-    int32_t scaleSFracByTrig(SFracQ0_16 magnitude, TrigQ0_16 trig_q0_16);
-
     SFracQ0_16 scalarClampQ0_16Raw(int64_t raw_value);
 
     /**

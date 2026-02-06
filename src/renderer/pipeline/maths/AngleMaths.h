@@ -25,9 +25,9 @@
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    TrigQ0_16 angleSinQ0_16(FracQ0_16 a);
+    SFracQ0_16 angleSinQ0_16(FracQ0_16 a);
 
-    TrigQ0_16 angleCosQ0_16(FracQ0_16 a);
+    SFracQ0_16 angleCosQ0_16(FracQ0_16 a);
 
     FracQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x);
 

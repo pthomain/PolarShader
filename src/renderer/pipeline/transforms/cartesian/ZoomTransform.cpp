@@ -33,8 +33,8 @@ namespace PolarShader {
         const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
         
         // Default Zoom scale boundaries
-        const int32_t MIN_SCALE_RAW = scale32(Q0_16_MAX, frac(160)); // 0.00625x
-        const int32_t MAX_SCALE_RAW = Q0_16_ONE * 4; // 4x
+        const int32_t MIN_SCALE_RAW = Q0_16_ONE; // 1.0x (Native)
+        const int32_t MAX_SCALE_RAW = Q0_16_ONE * 12; // 12.0x (Zoomed Out)
     }
 
     struct ZoomTransform::MappedInputs {
@@ -57,7 +57,8 @@ namespace PolarShader {
               maxScaleRaw(0) {
             minScaleRaw = zoomMinScaleRaw(this->range);
             maxScaleRaw = zoomMaxScaleRaw(this->range);
-            scaleValue = SFracQ0_16(minScaleRaw);
+            // Start at 2.0x zoom out to ensure texture is immediately visible
+            scaleValue = SFracQ0_16(minScaleRaw * 2);
         }
     };
 

@@ -68,7 +68,7 @@ namespace PolarShader {
     ) {
         return MappedInputs{
             resolveMappedSignal(LinearRange<uint8_t>(0, 255).mapSignal(std::move(offset))),
-            resolveMappedSignal(LinearRange<SFracQ0_16>(SFracQ0_16(0), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(clipSignal))),
+            resolveMappedSignal(LinearRange<SFracQ0_16>(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(clipSignal))),
             feather,
             clipPower,
             true
@@ -121,7 +121,7 @@ namespace PolarShader {
                 state->clipInvert = (clipRawValue < 0);
                 int32_t mag = clipRawValue < 0 ? -clipRawValue : clipRawValue;
                 uint32_t clipped = clamp_frac_raw(mag);
-                PatternRange range;
+                LinearRange<PatternNormU16> range(PatternNormU16(0), PatternNormU16(FRACT_Q0_16_MAX));
                 state->clipValue = range.map(SFracQ0_16(static_cast<int32_t>(clipped))).get();
                 context->paletteClip = state->clipValue;
                 context->paletteClipFeather = state->feather;

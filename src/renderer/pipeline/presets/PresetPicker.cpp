@@ -24,22 +24,22 @@
 
 namespace PolarShader {
     namespace {
-        std::unique_ptr<BasePattern> makeHexTilingPattern() {
-            return hexTilingPattern(20000, 4, 900);
+        PolarPipeline makeHexKaleidoscope(const CRGBPalette16 &palette) {
+            return hexKaleidoscopePreset(palette).build();
+        }
+        
+        PolarPipeline makeNoiseKaleidoscope(const CRGBPalette16 &palette) {
+            return noiseKaleidoscopePattern(palette).build();
         }
     }
 
     PolarPipeline PresetPicker::pickRandom(const CRGBPalette16 &palette) {
-        struct PresetEntry {
-            PresetBuilder builder;
-            PatternFactory patternFactory;
+        static const PipelineFactory factories[] = {
+            makeHexKaleidoscope,
+            makeNoiseKaleidoscope
         };
 
-        static const PresetEntry entries[] = {
-            {makeHexTilingPattern},
-        };
-
-        uint8_t idx = random8(std::size(entries));
-        return entries[idx].builder(entries[idx].patternFactory(), palette).build();
+        uint8_t idx = random8(std::size(factories));
+        return factories[idx](palette);
     }
 }

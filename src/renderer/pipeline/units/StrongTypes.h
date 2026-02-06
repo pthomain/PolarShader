@@ -45,6 +45,7 @@ namespace PolarShader {
     inline constexpr int32_t raw(int32_t v) { return v; }
     inline constexpr uint32_t raw(uint32_t v) { return v; }
     inline constexpr uint16_t raw(uint16_t v) { return v; }
+    inline constexpr uint8_t raw(uint8_t v) { return v; }
 
     template<typename T>
     class MappedValue {

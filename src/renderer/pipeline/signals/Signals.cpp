@@ -44,7 +44,7 @@ namespace PolarShader {
                     sample = std::move(sample)
                 ](TimeMillis time) mutable -> SFracQ0_16 {
             SFracQ0_16 phase = acc.advance(time);
-            TrigQ0_16 v = sample(phase);
+            SFracQ0_16 v = sample(phase);
 
             int32_t sample_raw = raw(v);
             int32_t amp_raw = raw(amplitude(time));

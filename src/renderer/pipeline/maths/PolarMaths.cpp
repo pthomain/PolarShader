@@ -33,8 +33,8 @@ namespace PolarShader {
         FracQ0_16 angle_turns = FracQ0_16(static_cast<uint16_t>(raw(polar_uv.u)));
         FracQ0_16 radius = FracQ0_16(static_cast<uint16_t>(raw(polar_uv.v)));
 
-        TrigQ0_16 cos_val = angleCosQ0_16(angle_turns);
-        TrigQ0_16 sin_val = angleSinQ0_16(angle_turns);
+        SFracQ0_16 cos_val = angleCosQ0_16(angle_turns);
+        SFracQ0_16 sin_val = angleSinQ0_16(angle_turns);
 
         // x = cos(angle) * radius, y = sin(angle) * radius
         // Result is in range [-1, 1] relative to center

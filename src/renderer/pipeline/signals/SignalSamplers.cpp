@@ -24,30 +24,30 @@
 
 namespace PolarShader {
     SampleSignal sampleNoise() {
-        return [](SFracQ0_16 phase) -> TrigQ0_16 {
+        return [](SFracQ0_16 phase) -> SFracQ0_16 {
             uint16_t phase_u16 = static_cast<uint16_t>(raw(phase));
             NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(FracQ0_16(phase_u16))));
             PatternNormU16 normNoise = noiseNormaliseU16(rawNoise);
             int16_t signedNoise = static_cast<int16_t>(static_cast<int32_t>(raw(normNoise)) - U16_HALF);
-            return TrigQ0_16(static_cast<int32_t>(signedNoise) << 1);
+            return SFracQ0_16(static_cast<int32_t>(signedNoise) << 1);
         };
     }
 
     SampleSignal sampleSine() {
-        return [](SFracQ0_16 phase) -> TrigQ0_16 {
+        return [](SFracQ0_16 phase) -> SFracQ0_16 {
             uint16_t phase_u16 = static_cast<uint16_t>(raw(phase));
             return angleSinQ0_16(FracQ0_16(phase_u16));
         };
     }
 
     SampleSignal samplePulse() {
-        return [](SFracQ0_16 phase) -> TrigQ0_16 {
+        return [](SFracQ0_16 phase) -> SFracQ0_16 {
             uint16_t saw_raw = static_cast<uint16_t>(raw(phase));
             uint16_t pulse_raw = (saw_raw < HALF_TURN_U16)
                                      ? static_cast<uint16_t>(saw_raw << 1)
                                      : static_cast<uint16_t>((ANGLE_U16_MAX - saw_raw) << 1);
             int16_t signedPulse = static_cast<int16_t>(static_cast<int32_t>(pulse_raw) - U16_HALF);
-            return TrigQ0_16(static_cast<int32_t>(signedPulse) << 1);
+            return SFracQ0_16(static_cast<int32_t>(signedPulse) << 1);
         };
     }
 }

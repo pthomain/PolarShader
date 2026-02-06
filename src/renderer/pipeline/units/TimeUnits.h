@@ -22,8 +22,12 @@
 #define POLAR_SHADER_PIPELINE_UNITS_TIMEUNITS_H
 
 namespace PolarShader {
-    // Time
-    using TimeMillis = unsigned long; // Arduino millis()
+    /**
+     * @brief Time alias for standard Arduino millis().
+     * 
+     * Analysis: Simple type alias to ensure consistent time units across the signal engine.
+     */
+    using TimeMillis = unsigned long;
 
     inline constexpr TimeMillis MAX_DELTA_TIME_MS = 200; // 0 disables delta-time clamping.
 

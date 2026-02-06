@@ -24,7 +24,9 @@
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    inline constexpr int32_t WorleyCellUnit = 10000 * (1 << CARTESIAN_FRAC_BITS);
+    // Standard cell size for Cartesian lattice space (typically 0..256 wide).
+    // A value of 10000 raw (approx 39.0 units) results in ~6.5 cells across the screen.
+    inline constexpr int32_t WorleyCellUnit = 10000;
 
     enum class WorleyAliasing {
         None,

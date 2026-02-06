@@ -33,10 +33,11 @@ namespace PolarShader {
             int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
             uint32_t depth = context ? context->depth : 0u;
 
-            // UV is Q16.16, we want CartUQ24.8. 
-            // Shift right by 8 to get 8 fractional bits.
-            uint32_t ux = (static_cast<uint32_t>(raw(uv.u)) >> 8) + static_cast<uint32_t>(offset);
-            uint32_t uy = (static_cast<uint32_t>(raw(uv.v)) >> 8) + static_cast<uint32_t>(offset);
+            // UV is Q16.16 (0.0 .. 1.0, raw 0..65536).
+            // We interpret this directly as Cartesian Q24.8 (0.0 .. 256.0).
+            // This maps the screen width to 256 noise units, restoring the original texture density.
+            uint32_t ux = static_cast<uint32_t>(raw(uv.u)) + static_cast<uint32_t>(offset);
+            uint32_t uy = static_cast<uint32_t>(raw(uv.v)) + static_cast<uint32_t>(offset);
             uint32_t uz = depth + static_cast<uint32_t>(offset);
 
             CartUQ24_8 xu(ux);

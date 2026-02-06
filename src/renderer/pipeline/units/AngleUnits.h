@@ -25,16 +25,15 @@
 #include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
-    struct TrigQ0_16_Tag {
-    };
-
     /**
-    *   The output of sin16/cos16 scaled to signed Q0.16 in a 32-bit raw value.
-    */
-    using TrigQ0_16 = Strong<int32_t, TrigQ0_16_Tag>;
-
-    // --- Raw extractors ---
-    constexpr int32_t raw(TrigQ0_16 t) { return t.raw(); }
+     * @brief Helpers for angular arithmetic in the 16-bit turn domain.
+     * 
+     * Analysis: Angles are represented by FracQ0_16 (unsigned 16-bit turns).
+     * This type is strictly required because its natural overflow behavior (mod 65536) 
+     * perfectly models circular rotation without the need for manual modulo logic.
+     * 
+     * Usage: Polar coordinate Angle components, Rotation transforms, and oscillators.
+     */
 
     // --- Angle wrap arithmetic (mod 2^16) ---
     constexpr FracQ0_16 angleWrapAdd(FracQ0_16 a, uint16_t delta) {

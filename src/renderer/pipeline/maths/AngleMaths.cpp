@@ -26,14 +26,14 @@
 #endif
 
 namespace PolarShader {
-    TrigQ0_16 angleSinQ0_16(FracQ0_16 a) {
+    SFracQ0_16 angleSinQ0_16(FracQ0_16 a) {
         int16_t raw_q1_15 = sin16(angleToFastLedPhase(a));
-        return TrigQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
+        return SFracQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
-    TrigQ0_16 angleCosQ0_16(FracQ0_16 a) {
+    SFracQ0_16 angleCosQ0_16(FracQ0_16 a) {
         int16_t raw_q1_15 = cos16(angleToFastLedPhase(a));
-        return TrigQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
+        return SFracQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
     FracQ0_16 angleAtan2TurnsApprox(int16_t y, int16_t x) {

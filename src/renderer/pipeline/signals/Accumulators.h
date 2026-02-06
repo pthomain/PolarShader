@@ -49,31 +49,6 @@ namespace PolarShader {
         // phaseSpeed returns turns-per-second in Q0.16.
         MappedSignal<SFracQ0_16> phaseSpeed;
     };
-
-    class CartesianMotionAccumulator {
-    public:
-        /**
-         * @brief Integrates direction + speed into a cartesian position.
-         *
-         * Direction is a mapped angle in turns; speed is mapped to units/sec.
-         */
-        CartesianMotionAccumulator(
-            SPoint32 initialPosition,
-            MappedSignal<FracQ0_16> direction,
-            MappedSignal<int32_t> speed
-        );
-
-        SPoint32 advance(TimeMillis time);
-
-        SPoint32 position() const { return pos; }
-
-    private:
-        SPoint32 pos{0, 0};
-        TimeMillis lastTime{0};
-        bool hasLastTime{false};
-        MappedSignal<FracQ0_16> directionSignal;
-        MappedSignal<int32_t> speedSignal;
-    };
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_ACCUMULATORS_H

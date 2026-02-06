@@ -28,7 +28,7 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
-#include "renderer/pipeline/ranges/ScalarRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 
 namespace PolarShader {
     struct TranslationTransform::MappedInputs {
@@ -75,8 +75,8 @@ namespace PolarShader {
             FracQ0_16 dir = PolarRange().map(direction(time)).get();
             int32_t s = mappedSpeed(time).get();
             
-            TrigQ0_16 cos_val = angleCosQ0_16(dir);
-            TrigQ0_16 sin_val = angleSinQ0_16(dir);
+            SFracQ0_16 cos_val = angleCosQ0_16(dir);
+            SFracQ0_16 sin_val = angleSinQ0_16(dir);
             
             // Velocity vector in UV units (Q16.16) per second
             // Trig is Q0.16, s is Q16.16 units/sec. 

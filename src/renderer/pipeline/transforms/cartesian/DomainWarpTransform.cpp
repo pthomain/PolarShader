@@ -319,8 +319,8 @@ namespace PolarShader {
         if (state->type == WarpType::Directional && state->flowDirectionSignal && state->flowStrengthSignal) {
             FracQ0_16 dir = state->flowDirectionSignal(timeInMillis).get();
             int32_t strength = state->flowStrengthSignal(timeInMillis).get();
-            TrigQ0_16 cos_q0_16 = angleCosQ0_16(dir);
-            TrigQ0_16 sin_q0_16 = angleSinQ0_16(dir);
+            SFracQ0_16 cos_q0_16 = angleCosQ0_16(dir);
+            SFracQ0_16 sin_q0_16 = angleSinQ0_16(dir);
             int64_t dx = static_cast<int64_t>(strength) * static_cast<int64_t>(raw(cos_q0_16));
             int64_t dy = static_cast<int64_t>(strength) * static_cast<int64_t>(raw(sin_q0_16));
             dx = (dx >= 0) ? (dx + (1LL << 15)) : (dx - (1LL << 15));

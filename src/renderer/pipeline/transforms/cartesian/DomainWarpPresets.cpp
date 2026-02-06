@@ -20,7 +20,7 @@
 
 #include "DomainWarpPresets.h"
 #include "renderer/pipeline/units/UnitConstants.h"
-#include "renderer/pipeline/ranges/CartRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 
 namespace PolarShader {
     namespace {
@@ -38,8 +38,8 @@ namespace PolarShader {
             full(),
             full(),
             full(),
-            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            CartRange(MAX_OFFSET_MED, MAX_OFFSET_MED)
+            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange<CartQ24_8>(MAX_OFFSET_MED, MAX_OFFSET_MED)
         );
     }
 
@@ -50,8 +50,8 @@ namespace PolarShader {
             full(),
             full(),
             full(),
-            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            CartRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
+            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange<CartQ24_8>(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             octaves,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -65,8 +65,8 @@ namespace PolarShader {
             full(),
             full(),
             full(),
-            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            CartRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
+            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange<CartQ24_8>(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             2,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -80,8 +80,8 @@ namespace PolarShader {
             full(),
             full(),
             full(),
-            CartRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
-            CartRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
+            LinearRange<CartQ24_8>(BASE_WARP_SCALE, STRONG_WARP_SCALE),
+            LinearRange<CartQ24_8>(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -95,8 +95,8 @@ namespace PolarShader {
             cPerMil(220),
             full(),
             full(),
-            CartRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
-            CartRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
+            LinearRange<CartQ24_8>(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
+            LinearRange<CartQ24_8>(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
             1,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -110,8 +110,8 @@ namespace PolarShader {
             cPerMil(240),
             full(),
             full(),
-            CartRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            CartRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
+            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange<CartQ24_8>(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             noise(cPerMil(40)),
             cPerMil(180)

@@ -75,14 +75,6 @@ namespace PolarShader {
         return res;
     }
 
-    int32_t scaleSFracByTrig(SFracQ0_16 magnitude, TrigQ0_16 trig_q0_16) {
-        int64_t result = static_cast<int64_t>(raw(magnitude)) * static_cast<int64_t>(raw(trig_q0_16));
-        result += (result >= 0) ? U16_HALF : -U16_HALF;
-        result >>= 16; // Q0.16 * Q0.16 => Q0.16
-        result = clamp_raw_q0_16_i64(result);
-        return static_cast<int32_t>(result);
-    }
-
     SFracQ0_16 scalarClampQ0_16Raw(int64_t raw_value) {
         return SFracQ0_16(static_cast<int32_t>(clamp_raw_q0_16_i64(raw_value)));
     }

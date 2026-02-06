@@ -25,20 +25,24 @@
 #include "StrongTypes.h"
 
 namespace PolarShader {
-    struct NoiseRawU16_Tag {
-    };
-
-    struct PatternNormU16_Tag {
-    };
+    struct NoiseRawU16_Tag {};
+    struct PatternNormU16_Tag {};
 
     /**
-    *   The raw 16-bit output of FastLED's inoise16.
-    */
+     * @brief Raw 16-bit output from a noise generator.
+     * 
+     * Usage: Transient type in NoiseMaths before normalization.
+     * Analysis: Required to distinguish "raw" unmapped data from "clean" pipeline data.
+     */
     using NoiseRawU16 = Strong<uint16_t, NoiseRawU16_Tag>;
 
     /**
-    *   A 16-bit value intended to represent a normalized pattern intensity in the full 0..65535 domain.
-    */
+     * @brief Strictly normalized 16-bit pattern intensity.
+     * 
+     * Definition: Unsigned 16-bit integer spanning the full 0..65535 range.
+     * Usage: The standard output of every UVPattern and the standard input for palette mapping.
+     * Analysis: Strictly required as the "universal currency" of the visual pipeline.
+     */
     using PatternNormU16 = Strong<uint16_t, PatternNormU16_Tag>;
 
     // --- Raw extractors ---

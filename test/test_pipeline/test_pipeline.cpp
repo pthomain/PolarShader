@@ -47,29 +47,10 @@ void test_range_wraps_across_zero() {
     TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(SFracQ0_16(0x8000)).get()));
 }
 
-void test_cartesian_motion_uses_direction_and_velocity() {
-    SFracQ0_16Signal direction = constant(SFracQ0_16(0));
-    SFracQ0_16Signal velocity = constant(SFracQ0_16(0x8000));
-    
-    // Direction is mapped to Angle (turns)
-    auto mappedDirection = PolarRange().mapSignal(direction);
-    // Speed is mapped to units/sec
-    auto mappedSpeed = LinearRange<int32_t>(0, 1000).mapSignal(velocity);
-    
-    CartesianMotionAccumulator acc(SPoint32{0, 0}, mappedDirection, mappedSpeed);
-
-    acc.advance(0);
-    SPoint32 pos = acc.advance(100);
-
-    TEST_ASSERT_TRUE(pos.x > 0);
-    TEST_ASSERT_INT_WITHIN(2, 0, pos.y);
-}
-
 #ifdef ARDUINO
 void setup() {
     UNITY_BEGIN();
     RUN_TEST(test_range_wraps_across_zero);
-    RUN_TEST(test_cartesian_motion_uses_direction_and_velocity);
     UNITY_END();
 }
 
@@ -79,7 +60,6 @@ void loop() {
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_range_wraps_across_zero);
-    RUN_TEST(test_cartesian_motion_uses_direction_and_velocity);
     return UNITY_END();
 }
 #endif

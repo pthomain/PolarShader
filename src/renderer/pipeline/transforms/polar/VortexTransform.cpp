@@ -19,7 +19,7 @@
  */
 
 #include "VortexTransform.h"
-#include "renderer/pipeline/ranges/SFracRange.h"
+#include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
@@ -35,7 +35,7 @@ namespace PolarShader {
 
     VortexTransform::MappedInputs VortexTransform::makeInputs(SFracQ0_16Signal strength) {
         return MappedInputs{
-            resolveMappedSignal(SFracRange().mapSignal(std::move(strength)))
+            resolveMappedSignal(LinearRange<SFracQ0_16>(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(strength)))
         };
     }
 

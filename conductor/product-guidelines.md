@@ -6,8 +6,24 @@
 
 ## API Design
 - **Fluent & Declarative:** Provide a builder-style API that allows users to declare the rendering pipeline in a readable, sequential manner.
-- **Strong Typing:** Use strong types (e.g., `AngleUnitsQ0_16`, `FracQ16_16`) to prevent unit confusion and ensure math correctness at compile-time.
+- **Strong Typing:** Every core scalar or coordinate is wrapped in a `Strong<T, Tag>` template to prevent unit confusion and ensure math correctness at compile-time.
 - **Balanced Configuration:** Support runtime modulation of parameters and signal sources, while maintaining a stable or semi-static pipeline structure to ensure performance.
+
+## Strong Type System
+
+| Type | Format | Definition | Usage |
+| :--- | :--- | :--- | :--- |
+| `FracQ0_16` | Unsigned 0.16 | 16-bit integer [0, 1.0) | Angles (turns), alpha, scaling factors. |
+| `SFracQ0_16` | Signed 0.16 | 32-bit integer [-1.0, 1.0] | Signals, oscillators, trig results (sin/cos). |
+| `FracQ16_16` | Signed 16.16 | 32-bit integer | Spatial UV coordinates (allows tiling/zoom). |
+| `PatternNormU16`| Unsigned 16-bit | [0, 65535] | Universal currency for pattern intensities. |
+| `CartQ24_8` | Signed 24.8 | 32-bit integer | Internal lattice-aligned pattern calculations. |
+| `UV` | 2x Q16.16 | Normalized 2D vector | Standard spatial type passed between pipeline steps. |
+
+### Rules
+1. **No Implicit Casting:** Never cast between strong types or to raw integers without using the `raw()` helper.
+2. **Semantic Boundaries:** Use `SFracQ0_16` for any value that can go negative (signals), and `FracQ0_16` for values that must wrap or stay positive (angles).
+3. **Internal vs External:** `CartQ24_8` is an implementation detail for patterns; external APIs should only expose `UV`.
 
 ## Implementation Standards
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.
