@@ -14,6 +14,24 @@
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 
+#ifndef ARDUINO
+#include "renderer/pipeline/maths/PolarMaths.cpp"
+#include "renderer/pipeline/maths/AngleMaths.cpp"
+#include "renderer/pipeline/maths/ScalarMaths.cpp"
+#include "renderer/pipeline/maths/ZoomMaths.cpp"
+#include "renderer/pipeline/maths/PatternMaths.cpp"
+#include "renderer/pipeline/transforms/polar/RotationTransform.cpp"
+#include "renderer/pipeline/transforms/cartesian/ZoomTransform.cpp"
+#include "renderer/pipeline/ranges/PolarRange.cpp"
+#include "renderer/pipeline/ranges/ZoomRange.cpp"
+#include "renderer/pipeline/ranges/DepthRange.cpp"
+#include "renderer/pipeline/ranges/SFracRange.cpp"
+#include "renderer/pipeline/ranges/Range.h"
+#include "renderer/pipeline/signals/Signals.cpp"
+#include "renderer/pipeline/signals/SignalSamplers.cpp"
+#include "renderer/pipeline/signals/Accumulators.cpp"
+#endif
+
 using namespace PolarShader;
 
 /** @brief Verify that FracQ16_16 correctly stores 32-bit fixed-point values. */
@@ -196,6 +214,33 @@ void test_uv_signal_accumulation() {
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.v));
 }
 
+#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/ranges/UVRange.h"
+
+/** @brief Verify that LinearRange correctly interpolates values. */
+void test_linear_range() {
+    LinearRange<SFracQ0_16> range(SFracQ0_16(0), SFracQ0_16(1000));
+    
+    // 0.0 -> 0
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SFracQ0_16(0)).get()));
+    // 0.5 -> 500
+    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(SFracQ0_16(0x8000)).get()));
+    // 1.0 -> 1000
+    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(SFracQ0_16(0xFFFF)).get()));
+}
+
+/** @brief Verify that UVRange correctly interpolates 2D coordinates. */
+void test_uv_range() {
+    UV min(FracQ16_16(0), FracQ16_16(0));
+    UV max(FracQ16_16(0x10000), FracQ16_16(0x10000));
+    UVRange range(min, max);
+    
+    // 0.5 -> (0.5, 0.5)
+    UV result = range.map(SFracQ0_16(0x8000)).get();
+    TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.u));
+    TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.v));
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000); 
@@ -210,6 +255,8 @@ void setup() {
     RUN_TEST(test_rotation_transform_uv);
     RUN_TEST(test_zoom_transform_uv);
     RUN_TEST(test_uv_signal_accumulation);
+    RUN_TEST(test_linear_range);
+    RUN_TEST(test_uv_range);
     UNITY_END();
 }
 
@@ -227,6 +274,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_rotation_transform_uv);
     RUN_TEST(test_zoom_transform_uv);
     RUN_TEST(test_uv_signal_accumulation);
+    RUN_TEST(test_linear_range);
+    RUN_TEST(test_uv_range);
     return UNITY_END();
 }
 #endif
