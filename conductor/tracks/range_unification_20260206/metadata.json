@@ -1,0 +1,7 @@
+{
+  "id": "range_unification_20260206",
+  "name": "Range Unification and UV Optimization",
+  "description": "Unify various linear range types into a generic LinearRange template and introduce UV-specific range mapping.",
+  "status": "todo",
+  "created_at": "2026-02-06"
+}
