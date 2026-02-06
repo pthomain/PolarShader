@@ -1,7 +1,7 @@
 # Implementation Plan: Range Unification and UV Optimization
 
 ## Phase 1: Core Template Implementation
-- [ ] Task: Create `LinearRange.h` implementing a generic mapping template.
+- [~] Task: Create `LinearRange.h` implementing a generic mapping template.
 - [ ] Task: Create `UVRange.h` for mapping signals to 2D spatial areas.
 - [ ] Task: Update `Range.h` to support these new types if necessary.
 
