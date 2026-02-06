@@ -11,5 +11,6 @@
 - [x] Task: Port `TranslationTransform` to use `UVSignal` instead of internal `SPoint32` integration.
 
 ## Phase 3: Verification
-- [ ] Task: Run all tests to ensure spatial modulation is working as expected.
-- [ ] Task: Update signal documentation.
+- [x] Task: Run all tests to ensure spatial modulation is working as expected. [86e7b81]
+- [x] Task: Update signal documentation. [86e7b81]
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Verification' (Protocol in workflow.md)

@@ -15,6 +15,7 @@ by wrapping a layer function (or by updating shared context).
 All transform inputs are time-indexed signals:
 
 - `SFracQ0_16Signal` is a function `TimeMillis -> SFracQ0_16` (usually 0..1 in Q0.16).
+- `UVSignal` is a function `TimeMillis -> UV`, used for spatial modulation (e.g., translation).
 - `MappedValue<T>` represents a value that has already been mapped by a range.
 - Ranges own all signal mapping via `map` and `mapSignal`.
 - Transforms store only `MappedSignal` values, not raw `SFracQ0_16Signal` inputs.
