@@ -24,7 +24,7 @@
 #include "renderer/pipeline/patterns/BasePattern.h"
 
 namespace PolarShader {
-    class PolarGradient : public PolarPattern {
+    class PolarGradient : public PolarPattern, public UVPattern {
     public:
         enum class Axis {
             Radius,
@@ -33,6 +33,7 @@ namespace PolarShader {
 
     private:
         struct PolarGradientFunctor;
+        struct UVPolarGradientFunctor;
 
         Axis axis;
 
@@ -40,6 +41,8 @@ namespace PolarShader {
         explicit PolarGradient(Axis axis = Axis::Radius);
 
         PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+
+        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
     };
 }
 

@@ -23,37 +23,37 @@
 #include "cartesian/HexTilingPattern.h"
 
 namespace PolarShader {
-    std::unique_ptr<CartesianPattern> worleyPattern(
+    std::unique_ptr<UVPattern> worleyPattern(
         CartQ24_8 cellSize,
         WorleyAliasing aliasingMode
     ) {
         return std::make_unique<WorleyPattern>(cellSize, aliasingMode);
     }
 
-    std::unique_ptr<CartesianPattern> voronoiPattern(
+    std::unique_ptr<UVPattern> voronoiPattern(
         CartQ24_8 cellSize,
         WorleyAliasing aliasingMode
     ) {
         return std::make_unique<VoronoiPattern>(cellSize, aliasingMode);
     }
 
-    std::unique_ptr<CartesianPattern> noisePattern() {
+    std::unique_ptr<UVPattern> noisePattern() {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::Basic);
     }
 
-    std::unique_ptr<CartesianPattern> fbmNoisePattern(fl::u8 octaves) {
+    std::unique_ptr<UVPattern> fbmNoisePattern(fl::u8 octaves) {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::FBM, octaves);
     }
 
-    std::unique_ptr<CartesianPattern> turbulenceNoisePattern() {
+    std::unique_ptr<UVPattern> turbulenceNoisePattern() {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::Turbulence);
     }
 
-    std::unique_ptr<CartesianPattern> ridgedNoisePattern() {
+    std::unique_ptr<UVPattern> ridgedNoisePattern() {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::Ridged);
     }
 
-    std::unique_ptr<CartesianPattern> hexTilingPattern(
+    std::unique_ptr<UVPattern> hexTilingPattern(
         uint16_t hexRadius,
         uint8_t colorCount,
         uint16_t edgeSoftness

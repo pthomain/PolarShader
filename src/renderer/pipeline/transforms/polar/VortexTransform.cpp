@@ -21,7 +21,12 @@
 #include "VortexTransform.h"
 #include "renderer/pipeline/ranges/SFracRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 
 namespace PolarShader {
     struct VortexTransform::MappedInputs {
@@ -70,6 +75,20 @@ namespace PolarShader {
             int32_t new_angle = static_cast<int32_t>(raw(angle)) + scaled;
             uint16_t wrapped = static_cast<uint16_t>(new_angle);
             return layer(FracQ0_16(wrapped), radius);
+        };
+    }
+
+    UVLayer VortexTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            UV polar_uv = cartesianToPolarUV(uv);
+            
+            int32_t strength_raw = raw(state->strengthValue.get());
+            uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
+            int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
+            int32_t new_angle = static_cast<int32_t>(raw(polar_uv.u)) + scaled;
+            polar_uv.u = FracQ16_16(static_cast<int32_t>(static_cast<uint16_t>(new_angle)));
+
+            return layer(polarToCartesianUV(polar_uv));
         };
     }
 }

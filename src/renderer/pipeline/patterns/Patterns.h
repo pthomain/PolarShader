@@ -29,33 +29,33 @@ namespace PolarShader {
     // Pattern factory helpers. These mirror the Presets API for quick creation.
 
     // Nearest-distance Worley field (F1).
-    std::unique_ptr<CartesianPattern> worleyPattern(
+    std::unique_ptr<UVPattern> worleyPattern(
         CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
         WorleyAliasing aliasingMode = WorleyAliasing::Fast
     );
 
     // Hash-based Voronoi cell ID mapped to 0..65535.
-    std::unique_ptr<CartesianPattern> voronoiPattern(
+    std::unique_ptr<UVPattern> voronoiPattern(
         CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
         WorleyAliasing aliasingMode = WorleyAliasing::Fast
     );
 
     // Base noise pattern (inoise16) with signed cartesian input.
-    std::unique_ptr<CartesianPattern> noisePattern();
+    std::unique_ptr<UVPattern> noisePattern();
 
     // fBm noise pattern with configurable octaves (default 4).
-    std::unique_ptr<CartesianPattern> fbmNoisePattern(
+    std::unique_ptr<UVPattern> fbmNoisePattern(
         fl::u8 octaves = 4
     );
 
     // Turbulence noise (absolute-value style).
-    std::unique_ptr<CartesianPattern> turbulenceNoisePattern();
+    std::unique_ptr<UVPattern> turbulenceNoisePattern();
 
     // Ridged noise (inverted turbulence).
-    std::unique_ptr<CartesianPattern> ridgedNoisePattern();
+    std::unique_ptr<UVPattern> ridgedNoisePattern();
 
     // Hexagon tiling with N-colouring (no adjacent matches when colorCount >= 3).
-    std::unique_ptr<CartesianPattern> hexTilingPattern(
+    std::unique_ptr<UVPattern> hexTilingPattern(
         uint16_t hexRadius = 10000,
         uint8_t colorCount = 4,
         uint16_t edgeSoftness = 0

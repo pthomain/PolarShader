@@ -36,7 +36,7 @@ namespace PolarShader {
      * - warpScale: 0..1 signal mapped via CartRange, applied before sampling warp noise.
      * - maxOffset: 0..1 signal mapped via CartRange, maximum warp displacement in Q24.8 units.
      */
-    class DomainWarpTransform : public CartesianTransform {
+    class DomainWarpTransform : public CartesianTransform, public UVTransform {
     public:
         enum class WarpType {
             Basic,
@@ -126,6 +126,13 @@ namespace PolarShader {
         void advanceFrame(TimeMillis timeInMillis) override;
 
         CartesianLayer operator()(const CartesianLayer &layer) const override;
+
+        UVLayer operator()(const UVLayer &layer) const override;
+
+        void setContext(std::shared_ptr<PipelineContext> context) override {
+            this->context = context;
+            CartesianTransform::setContext(context);
+        }
     };
 }
 

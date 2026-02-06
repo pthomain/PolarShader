@@ -32,7 +32,7 @@ namespace PolarShader {
      * at least WorleyCellUnit (one unit). Distances are computed as squared
      * distances (no sqrt) and normalized to the PatternNormU16 domain.
      */
-    class WorleyBasePattern : public CartesianPattern {
+    class WorleyBasePattern : public CartesianPattern, public UVPattern {
     protected:
         struct Distances {
             uint64_t f1;
@@ -67,6 +67,7 @@ namespace PolarShader {
      */
     class WorleyPattern : public WorleyBasePattern {
         struct Functor;
+        struct UVFunctor;
 
     public:
         explicit WorleyPattern(
@@ -75,6 +76,8 @@ namespace PolarShader {
         );
 
         CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+
+        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
         PatternNormU16 sampleFast(CartQ24_8 x, CartQ24_8 y) const;
@@ -94,6 +97,7 @@ namespace PolarShader {
      */
     class VoronoiPattern : public WorleyBasePattern {
         struct Functor;
+        struct UVFunctor;
 
     public:
         explicit VoronoiPattern(
@@ -102,6 +106,8 @@ namespace PolarShader {
         );
 
         CartesianLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+
+        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
         PatternNormU16 sampleIdFast(CartQ24_8 x, CartQ24_8 y) const;

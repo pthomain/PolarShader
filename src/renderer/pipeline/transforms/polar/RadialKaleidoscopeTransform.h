@@ -28,7 +28,7 @@ namespace PolarShader {
     /**
      * Radial kaleidoscope: folds radius into concentric bands, optionally mirroring every other band.
      */
-    class RadialKaleidoscopeTransform : public PolarTransform {
+    class RadialKaleidoscopeTransform : public PolarTransform, public UVTransform {
         struct State;
         std::shared_ptr<State> state;
 
@@ -36,6 +36,8 @@ namespace PolarShader {
         RadialKaleidoscopeTransform(uint16_t radialDivisions, bool isMirrored = true);
 
         PolarLayer operator()(const PolarLayer &layer) const override;
+
+        UVLayer operator()(const UVLayer &layer) const override;
     };
 }
 

@@ -21,6 +21,7 @@
 #include "RadialKaleidoscopeTransform.h"
 #include "renderer/pipeline/units/UnitConstants.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
 
 namespace PolarShader {
     struct RadialKaleidoscopeTransform::State {
@@ -56,6 +57,34 @@ namespace PolarShader {
             uint32_t scaled = (local * full_radius) / segment;
             if (scaled >= full_radius) scaled = full_radius - 1u;
             return layer(angle, FracQ0_16(static_cast<uint16_t>(scaled)));
+        };
+    }
+
+    UVLayer RadialKaleidoscopeTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            UV polar_uv = cartesianToPolarUV(uv);
+            
+            uint32_t divisions = state->divisions;
+            if (divisions > 1u) {
+                uint32_t full_radius = static_cast<uint32_t>(FRACT_Q0_16_MAX) + 1u;
+                uint32_t segment = full_radius / divisions;
+                if (segment != 0u) {
+                    uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
+                    uint32_t index = radius_raw / segment;
+                    if (index >= divisions) index = divisions - 1u;
+
+                    uint32_t local = radius_raw - (index * segment);
+                    if (state->mirrored && (index & 1u)) {
+                        local = (segment - 1u) - local;
+                    }
+
+                    uint32_t scaled = (local * full_radius) / segment;
+                    if (scaled >= full_radius) scaled = full_radius - 1u;
+                    polar_uv.v = FracQ16_16(static_cast<int32_t>(scaled));
+                }
+            }
+
+            return layer(polarToCartesianUV(polar_uv));
         };
     }
 }

@@ -19,6 +19,7 @@
  */
 
 #include "PolarGradient.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
 
 namespace PolarShader {
     struct PolarGradient::PolarGradientFunctor {
@@ -32,11 +33,28 @@ namespace PolarShader {
         }
     };
 
+    struct PolarGradient::UVPolarGradientFunctor {
+        const Axis axisValue;
+
+        explicit UVPolarGradientFunctor(Axis axis) : axisValue(axis) {
+        }
+
+        PatternNormU16 operator()(UV uv) const {
+            UV polar_uv = cartesianToPolarUV(uv);
+            // U=Angle, V=Radius
+            return PatternNormU16(axisValue == Axis::Radius ? static_cast<uint16_t>(raw(polar_uv.v)) : static_cast<uint16_t>(raw(polar_uv.u)));
+        }
+    };
+
     PolarGradient::PolarGradient(Axis axis)
         : axis(axis) {
     }
 
     PolarLayer PolarGradient::layer(const std::shared_ptr<PipelineContext> &context) const {
         return PolarGradientFunctor(axis);
+    }
+
+    UVLayer PolarGradient::layer(const std::shared_ptr<PipelineContext> &context) const {
+        return UVPolarGradientFunctor(axis);
     }
 }

@@ -20,6 +20,7 @@
 
 #include "KaleidoscopeTransform.h"
 #include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/maths/PolarMaths.h"
 
 namespace PolarShader {
     struct KaleidoscopeTransform::State {
@@ -55,6 +56,32 @@ namespace PolarShader {
             uint32_t scaled = local * facets;
             uint16_t new_angle = static_cast<uint16_t>(scaled & 0xFFFFu);
             return layer(FracQ0_16(new_angle), radius);
+        };
+    }
+
+    UVLayer KaleidoscopeTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            UV polar_uv = cartesianToPolarUV(uv);
+            
+            uint8_t facets = state->facets;
+            if (facets > 1u) {
+                uint32_t full_turn = ANGLE_FULL_TURN_U32;
+                uint32_t sector = full_turn / facets;
+                if (sector != 0u) {
+                    uint32_t angle_u32 = static_cast<uint32_t>(raw(polar_uv.u));
+                    uint32_t index = angle_u32 / sector;
+                    uint32_t local = angle_u32 - (index * sector);
+
+                    if (state->mirrored && (index & 1u)) {
+                        local = (sector - 1u) - local;
+                    }
+
+                    uint32_t scaled = local * facets;
+                    polar_uv.u = FracQ16_16(static_cast<int32_t>(scaled & 0xFFFFu));
+                }
+            }
+
+            return layer(polarToCartesianUV(polar_uv));
         };
     }
 }

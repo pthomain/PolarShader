@@ -23,6 +23,7 @@
 #include "renderer/pipeline/units/TimeUnits.h"
 #include "renderer/pipeline/ranges/ScalarRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/maths/CartesianMaths.h"
 #include <algorithm>
 
 namespace {
@@ -131,6 +132,43 @@ namespace PolarShader {
             }
 
             return layer(CartQ24_8(local_x), CartQ24_8(local_y));
+        };
+    }
+
+    UVLayer CartesianTilingTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            int32_t cellSizeRaw = state->cellSizeRaw;
+            if (cellSizeRaw <= 0) {
+                return layer(uv);
+            }
+
+            // Convert UV to raw CartQ24.8 logic scale (which is what cellSizeRaw is in)
+            // Wait, cellSizeRaw in this class seems to becellSizeQ24_8 * 10000? 
+            // That's unusual. Let's check from_uv.
+            // from_uv(uv) returns CartQ24.8 (Q24.8).
+            
+            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            
+            // Tiling logic using existing CartesianLayer operator's math
+            int32_t x_raw = raw(cx);
+            int32_t y_raw = raw(cy);
+            int32_t col = floorDivide(x_raw, cellSizeRaw);
+            int32_t row = floorDivide(y_raw, cellSizeRaw);
+            int32_t local_x = x_raw - (col * cellSizeRaw);
+            int32_t local_y = y_raw - (row * cellSizeRaw);
+
+            if (state->mirrored && ((col + row) & 1)) {
+                local_x = (cellSizeRaw - 1) - local_x;
+                local_y = (cellSizeRaw - 1) - local_y;
+            }
+            
+            UV tiled_uv(
+                CartesianMaths::to_uv(CartQ24_8(local_x)),
+                CartesianMaths::to_uv(CartQ24_8(local_y))
+            );
+
+            return layer(tiled_uv);
         };
     }
 }

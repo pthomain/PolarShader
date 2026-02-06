@@ -421,4 +421,86 @@ namespace PolarShader {
             return layer(CartQ24_8(warped_x), CartQ24_8(warped_y));
         };
     }
+
+    UVLayer DomainWarpTransform::operator()(const UVLayer &layer) const {
+        return [state = this->state, layer](UV uv) {
+            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+
+            // DomainWarp expects CartQ24.8 coords but internally works mostly with raw ints.
+            // We use the same math as the CartesianLayer operator.
+            CartQ24_8 sx = CartesianMaths::mul(cx, state->warpScale);
+            CartQ24_8 sy = CartesianMaths::mul(cy, state->warpScale);
+
+            SPoint32 warp{0, 0};
+            int64_t sx_raw = raw(sx);
+            int64_t sy_raw = raw(sy);
+            int32_t time_offset = state->timeOffsetRaw;
+
+            switch (state->type) {
+                case WarpType::FBM: {
+                    int32_t amp = state->amplitudeRaw;
+                    uint8_t octaves = state->octaves ? state->octaves : 1;
+                    for (uint8_t o = 0; o < octaves && amp > 0; o++) {
+                        int64_t ox = sx_raw << o;
+                        int64_t oy = sy_raw << o;
+                        SPoint32 step = sampleWarp(ox, oy, time_offset, amp);
+                        warp.x += step.x;
+                        warp.y += step.y;
+                        amp >>= 1;
+                    }
+                    break;
+                }
+                case WarpType::Nested: {
+                    SPoint32 first = sampleWarp(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
+                    int64_t wx = sx_raw + first.x;
+                    int64_t wy = sy_raw + first.y;
+                    int32_t amp = state->amplitudeRaw >> 1;
+                    SPoint32 second = sampleWarp(wx << 1, wy << 1, time_offset, amp);
+                    warp.x = first.x + second.x;
+                    warp.y = first.y + second.y;
+                    break;
+                }
+                case WarpType::Curl: {
+                    warp = sampleCurl(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
+                    break;
+                }
+                case WarpType::Polar: {
+                    // Convert back to UV for polar math
+                    UV current_uv(CartesianMaths::to_uv(sx), CartesianMaths::to_uv(sy));
+                    UV polar_uv = cartesianToPolarUV(current_uv);
+                    
+                    // Sample polar noise
+                    SPoint32 polarNoise = sampleNoisePair(raw(polar_uv.u), raw(polar_uv.v), time_offset);
+                    
+                    // Amplitude is in CartQ24.8 scale, convert to UV scale (Q16.16)
+                    int32_t uv_amp = state->amplitudeRaw << 8;
+                    int32_t angle_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.x) * uv_amp) >> 16);
+                    int32_t radius_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.y) * uv_amp) >> 16);
+
+                    polar_uv.u = FracQ16_16(raw(polar_uv.u) + angle_delta);
+                    polar_uv.v = FracQ16_16(raw(polar_uv.v) + radius_delta);
+
+                    return layer(polarToCartesianUV(polar_uv));
+                }
+                case WarpType::Directional: {
+                    warp = sampleWarp(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
+                    warp.x += state->flowOffset.x;
+                    warp.y += state->flowOffset.y;
+                    break;
+                }
+                case WarpType::Basic:
+                default: {
+                    warp = sampleWarp(sx_raw, sy_raw, time_offset, state->amplitudeRaw);
+                    break;
+                }
+            }
+
+            UV warped_uv(
+                FracQ16_16(raw(uv.u) + (warp.x << 8)),
+                FracQ16_16(raw(uv.v) + (warp.y << 8))
+            );
+            return layer(warped_uv);
+        };
+    }
 }
