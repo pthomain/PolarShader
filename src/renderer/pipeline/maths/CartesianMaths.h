@@ -23,6 +23,7 @@
 
 #include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/units/UVUnits.h"
 
 namespace PolarShader {
     /**
@@ -36,6 +37,20 @@ namespace PolarShader {
         /** @brief Converts an integer into a Q24.8 fixed-point value. */
         inline constexpr CartQ24_8 from_int(int32_t i) {
             return CartQ24_8(i << CARTESIAN_FRAC_BITS);
+        }
+
+        /** @brief Converts UV to CartQ24.8, typically for sampling. */
+        inline constexpr CartQ24_8 from_uv(FracQ16_16 uv_coord) {
+            // UV is Q16.16, CartQ24.8 is Q24.8.
+            // We shift right by 8 to convert from 16 fractional bits to 8.
+            return CartQ24_8(raw(uv_coord) >> 8);
+        }
+
+        /** @brief Converts CartQ24.8 back to UV. */
+        inline constexpr FracQ16_16 to_uv(CartQ24_8 cart) {
+            // CartQ24.8 is Q24.8, UV is Q16.16.
+            // We shift left by 8 to convert from 8 fractional bits to 16.
+            return FracQ16_16(raw(cart) << 8);
         }
 
         /** @brief Gets the integer part of a Q24.8 value, effectively flooring it. */

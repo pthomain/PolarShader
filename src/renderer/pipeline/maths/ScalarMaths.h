@@ -21,7 +21,11 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_SCALARMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_SCALARMATHS_H
 
+#ifdef ARDUINO
 #include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"

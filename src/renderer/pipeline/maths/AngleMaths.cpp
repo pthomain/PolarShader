@@ -19,7 +19,11 @@
  */
 
 #include "renderer/pipeline/maths/AngleMaths.h"
+#ifdef ARDUINO
 #include <FastLED.h>
+#else
+#include "native/FastLED.h"
+#endif
 
 namespace PolarShader {
     TrigQ0_16 angleSinQ0_16(FracQ0_16 a) {

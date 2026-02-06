@@ -21,9 +21,14 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 
+#ifdef ARDUINO
 #include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/units/UVUnits.h"
 
 namespace PolarShader {
     fl::pair<int32_t, int32_t> polarToCartesian(
@@ -35,6 +40,12 @@ namespace PolarShader {
         fl::i32 x,
         fl::i32 y
     );
+
+    /** @brief Converts normalized Polar UV (Angle=U, Radius=V) to Cartesian UV. */
+    UV polarToCartesianUV(UV polar_uv);
+
+    /** @brief Converts Cartesian UV to normalized Polar UV (Angle=U, Radius=V). */
+    UV cartesianToPolarUV(UV cart_uv);
 
     /**
      * @brief Provides explicit, safe helpers for polar coordinate arithmetic.
