@@ -1,9 +1,9 @@
 # Implementation Plan: Legacy Cleanup and UV Unification
 
 ## Phase 1: Full Migration of Components
-- [ ] Task: Audit and migrate any remaining patterns (e.g., `WorleyPatterns`, `PolarGradient`) to `UVPattern`.
-- [ ] Task: Audit and migrate any remaining transforms (e.g., `KaleidoscopeTransform`, `DomainWarpTransform`) to `UVTransform`.
-- [ ] Task: Verify that all components implement the UV interface.
+- [x] Task: Audit and migrate any remaining patterns (e.g., `WorleyPatterns`, `PolarGradient`) to `UVPattern`. [06b6d7e]
+- [x] Task: Audit and migrate any remaining transforms (e.g., `KaleidoscopeTransform`, `DomainWarpTransform`) to `UVTransform`. [06b6d7e]
+- [x] Task: Verify that all components implement the UV interface. [06b6d7e]
 
 ## Phase 2: Pipeline Core Refactoring
 - [ ] Task: Refactor `PipelineStep.h` to support only `UV` kind (and `Palette`).
