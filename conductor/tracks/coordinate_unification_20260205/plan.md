@@ -7,7 +7,7 @@
 
 ## Phase 2: Math & Conversion Refactoring
 - [x] Task: Update `CartesianMaths.h` and `PolarMaths.h` to operate on normalized UV types. [90bafe8]
-- [ ] Task: Implement/Refactor conversion functions between Cartesian UV and Polar UV.
+- [~] Task: Implement/Refactor conversion functions between Cartesian UV and Polar UV.
 - [ ] Task: Write unit tests for coordinate conversions to ensure precision and wrap behavior.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Math & Conversion Refactoring' (Protocol in workflow.md)
 

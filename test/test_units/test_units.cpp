@@ -65,6 +65,17 @@ void test_polar_uv_conversion_right() {
     TEST_ASSERT_UINT32_WITHIN(10, 0x0000FFFF, polar_uv.v.raw()); // Radius ~1.0
 }
 
+void test_uv_round_trip() {
+    // Start with a point, convert to polar and back to cartesian
+    // (0.75, 0.75)
+    UV original(FracQ16_16(0x0000C000), FracQ16_16(0x0000C000));
+    UV polar = cartesianToPolarUV(original);
+    UV back = polarToCartesianUV(polar);
+    
+    TEST_ASSERT_INT32_WITHIN(100, original.u.raw(), back.u.raw());
+    TEST_ASSERT_INT32_WITHIN(100, original.v.raw(), back.v.raw());
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000); 
@@ -75,6 +86,7 @@ void setup() {
     RUN_TEST(test_cartesian_uv_conversion);
     RUN_TEST(test_polar_uv_conversion_center);
     RUN_TEST(test_polar_uv_conversion_right);
+    RUN_TEST(test_uv_round_trip);
     UNITY_END();
 }
 
@@ -88,6 +100,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_cartesian_uv_conversion);
     RUN_TEST(test_polar_uv_conversion_center);
     RUN_TEST(test_polar_uv_conversion_right);
+    RUN_TEST(test_uv_round_trip);
     return UNITY_END();
 }
 #endif
