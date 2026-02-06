@@ -12,6 +12,7 @@ The primary goal of PolarShader is to enable smooth, deterministic animations on
 ## Key Features
 - **Polar-Centric Transforms:** First-class support for radial effects like rotation, kaleidoscopes, and vortices.
 - **Cartesian Support:** Full support for Cartesian transforms and coordinate mapping.
+- **Unified UV Coordinate System:** A normalized spatial domain ([0, 1] mapped to Q16.16) allowing seamless composability of both Cartesian and Polar transforms.
 - **Deterministic Fixed-Point Math:** Utilizes explicit Q-formats for float-free, predictable performance.
 - **Composable Pipeline:** A stackable API for chaining effects, transforms, and modulators in a shader-like fashion.
 - **Pattern & Noise Generation:** Built-in support for Perlin noise and other procedural patterns.
