@@ -1,0 +1,7 @@
+{
+  "id": "legacy_cleanup_20260206",
+  "name": "Legacy Cleanup and UV Unification",
+  "description": "Remove legacy Cartesian/Polar base classes and unify the pipeline to use UV coordinates exclusively.",
+  "status": "todo",
+  "created_at": "2026-02-06"
+}
