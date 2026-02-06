@@ -10,8 +10,9 @@ There are six fundamental principles that all pattern implementations **must** f
 
 ### 1. Follow the Class Hierarchy
 
-All patterns must represent a specific visual structure in either a Cartesian or Polar coordinate space.
+All patterns must represent a specific visual structure in either a Cartesian, Polar, or unified UV coordinate space.
 
+- **UV Patterns:** Must inherit from `PolarShader::UVPattern`. This is the recommended standard for new patterns.
 - **Cartesian Patterns:** Must inherit from `PolarShader::CartesianPattern`.
 - **Polar Patterns:** Must inherit from `PolarShader::PolarPattern`.
 

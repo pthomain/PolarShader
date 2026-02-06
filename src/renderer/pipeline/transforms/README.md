@@ -7,9 +7,10 @@ by wrapping a layer function (or by updating shared context).
 
 ## Domains and units
 
-- Polar domain uses `FracQ0_16` turns for angle and `FracQ0_16` for radius.
-- Cartesian domain uses `CartQ24_8` fixed-point coordinates (Q0.16 lattice units with extra precision).
-- Domain changes only happen through pipeline steps (`toPolar`, `toCartesian`).
+- **UV domain (Unified):** Uses `UV` coordinates (two `FracQ16_16` values) representing a normalized [0, 1] spatial domain. This is the new standard for all spatial transformations.
+- **Polar domain (Legacy):** Uses `FracQ0_16` turns for angle and `FracQ0_16` for radius.
+- **Cartesian domain (Legacy):** Uses `CartQ24_8` fixed-point coordinates (Q0.16 lattice units with extra precision).
+- Domain changes happen through pipeline steps (`toPolar`, `toCartesian`) or by using unified `UVTransform` steps.
 
 ## Signals and ranges
 

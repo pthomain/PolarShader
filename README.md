@@ -54,7 +54,16 @@ PolarShader embraces this by making:
 
 ---
 
-### 3. Shader-Like Composition API
+### 3. Unified UV Coordinate System
+
+PolarShader is transitioning to a **unified spatial representation (UV)**:
+- **Normalized UV Space:** All spatial operations can be performed in a normalized [0.0, 1.0] domain mapped to `FracQ16_16`.
+- **Domain Agnostic:** Transforms like rotation or zoom can be applied seamlessly to both Cartesian and Polar patterns.
+- **High Precision:** `Q16.16` provides sufficient geometric headroom for large-scale translations and zooms without immediate wrapping or overflow.
+
+---
+
+### 4. Shader-Like Composition API
 
 Effects are built by stacking **small, pure transforms**, similar to GPU shaders:
 
