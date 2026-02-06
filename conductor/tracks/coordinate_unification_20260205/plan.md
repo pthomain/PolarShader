@@ -1,8 +1,8 @@
 # Implementation Plan: Coordinate System Unification
 
 ## Phase 1: Analysis & Type Definition
-- [ ] Task: Audit existing coordinate types in `src/renderer/pipeline/units/` and `src/renderer/pipeline/maths/`.
-- [ ] Task: Define a unified `UV` coordinate structure using `FracQ16_16`.
+- [x] Task: Audit existing coordinate types in `src/renderer/pipeline/units/` and `src/renderer/pipeline/maths/`.
+- [x] Task: Define a unified `UV` coordinate structure using `FracQ16_16`. [8194f1f]
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Analysis & Type Definition' (Protocol in workflow.md)
 
 ## Phase 2: Math & Conversion Refactoring
