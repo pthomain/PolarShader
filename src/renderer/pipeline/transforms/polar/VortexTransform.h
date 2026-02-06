@@ -30,7 +30,7 @@ namespace PolarShader {
      *
      * Strength is mapped with SFracRange to a signed turn-based offset.
      */
-    class VortexTransform : public PolarTransform, public UVTransform {
+    class VortexTransform : public UVTransform {
         struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
@@ -46,14 +46,7 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis timeInMillis) override;
 
-        PolarLayer operator()(const PolarLayer &layer) const override;
-
         UVLayer operator()(const UVLayer &layer) const override;
-
-        void setContext(std::shared_ptr<PipelineContext> context) override {
-            this->context = context;
-            PolarTransform::setContext(context);
-        }
     };
 }
 

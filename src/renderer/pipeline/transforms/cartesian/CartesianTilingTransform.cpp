@@ -112,29 +112,6 @@ namespace PolarShader {
         }
     }
 
-    CartesianLayer CartesianTilingTransform::operator()(const CartesianLayer &layer) const {
-        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y) {
-            int32_t cellSizeRaw = state->cellSizeRaw;
-            if (cellSizeRaw <= 0) {
-                return layer(x, y);
-            }
-
-            int32_t x_raw = raw(x);
-            int32_t y_raw = raw(y);
-            int32_t col = floorDivide(x_raw, cellSizeRaw);
-            int32_t row = floorDivide(y_raw, cellSizeRaw);
-            int32_t local_x = x_raw - (col * cellSizeRaw);
-            int32_t local_y = y_raw - (row * cellSizeRaw);
-
-            if (state->mirrored && ((col + row) & 1)) {
-                local_x = (cellSizeRaw - 1) - local_x;
-                local_y = (cellSizeRaw - 1) - local_y;
-            }
-
-            return layer(CartQ24_8(local_x), CartQ24_8(local_y));
-        };
-    }
-
     UVLayer CartesianTilingTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
             int32_t cellSizeRaw = state->cellSizeRaw;

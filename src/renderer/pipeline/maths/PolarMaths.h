@@ -31,16 +31,6 @@
 #include "renderer/pipeline/units/UVUnits.h"
 
 namespace PolarShader {
-    fl::pair<int32_t, int32_t> polarToCartesian(
-        FracQ0_16 angle_turns,
-        FracQ0_16 radius
-    );
-
-    fl::pair<FracQ0_16, FracQ0_16> cartesianToPolar(
-        fl::i32 x,
-        fl::i32 y
-    );
-
     /** @brief Converts normalized Polar UV (Angle=U, Radius=V) to Cartesian UV. */
     UV polarToCartesianUV(UV polar_uv);
 

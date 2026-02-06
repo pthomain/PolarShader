@@ -35,12 +35,6 @@ namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */
     using UVLayer = fl::function<PatternNormU16(UV)>;
 
-    /** @brief Legacy Polar sampling interface (Angle, Radius). */
-    using PolarLayer = fl::function<PatternNormU16(FracQ0_16, FracQ0_16)>;
-
-    /** @brief Legacy Cartesian sampling interface (X, Y in Q24.8). */
-    using CartesianLayer = fl::function<PatternNormU16(CartQ24_8, CartQ24_8)>;
-
     using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
 }
 

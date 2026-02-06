@@ -67,17 +67,6 @@ namespace PolarShader {
         state->strengthValue = state->strengthSignal(timeInMillis);
     }
 
-    PolarLayer VortexTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
-            int32_t strength_raw = raw(state->strengthValue.get());
-            uint32_t radius_raw = raw(radius);
-            int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
-            int32_t new_angle = static_cast<int32_t>(raw(angle)) + scaled;
-            uint16_t wrapped = static_cast<uint16_t>(new_angle);
-            return layer(FracQ0_16(wrapped), radius);
-        };
-    }
-
     UVLayer VortexTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
             UV polar_uv = cartesianToPolarUV(uv);

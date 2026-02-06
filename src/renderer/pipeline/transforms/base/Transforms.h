@@ -41,25 +41,10 @@ namespace PolarShader {
         std::shared_ptr<PipelineContext> context;
     };
 
-    class CartesianTransform : public virtual FrameTransform {
-    public:
-        CartesianTransform() = default;
-
-        virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
-    };
-
-    class PolarTransform : public virtual FrameTransform {
-    public:
-        PolarTransform() = default;
-
-        virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
-    };
-
     /**
      * @brief Standard interface for all spatial transformations in the unified UV pipeline.
      * 
-     * UVTransform is the target architecture for all transforms. During the transition
-     * from legacy Cartesian/Polar domains, transforms may implement multiple interfaces.
+     * UVTransform is the target architecture for all transforms.
      */
     class UVTransform : public virtual FrameTransform {
     public:

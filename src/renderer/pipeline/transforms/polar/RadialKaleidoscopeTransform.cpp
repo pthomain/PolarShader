@@ -33,33 +33,6 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{radialDivisions, isMirrored})) {
     }
 
-    PolarLayer RadialKaleidoscopeTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
-            uint32_t divisions = state->divisions;
-            if (divisions <= 1u) return layer(angle, radius);
-
-
-            uint32_t full_radius = static_cast<uint32_t>(FRACT_Q0_16_MAX) + 1u;
-            uint32_t segment = full_radius / divisions;
-            if (segment == 0u) segment = 1u;
-
-            uint32_t radius_raw = raw(radius);
-            uint32_t index = radius_raw / segment;
-            if (index >= divisions) {
-                index = divisions - 1u;
-            }
-
-            uint32_t local = radius_raw - (index * segment);
-            if (state->mirrored && (index & 1u)) {
-                local = (segment - 1u) - local;
-            }
-
-            uint32_t scaled = (local * full_radius) / segment;
-            if (scaled >= full_radius) scaled = full_radius - 1u;
-            return layer(angle, FracQ0_16(static_cast<uint16_t>(scaled)));
-        };
-    }
-
     UVLayer RadialKaleidoscopeTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
             UV polar_uv = cartesianToPolarUV(uv);

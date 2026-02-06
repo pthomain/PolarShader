@@ -32,7 +32,7 @@ namespace PolarShader {
      * Direction is a full-turn phase in Q0.16.
      * Velocity is a 0..1 scalar in Q0.16 mapped to a max speed (Q24.8 units).
      */
-    class TranslationTransform : public CartesianTransform, public UVTransform {
+    class TranslationTransform : public UVTransform {
         struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
@@ -56,8 +56,6 @@ namespace PolarShader {
         );
 
         void advanceFrame(TimeMillis timeInMillis) override;
-
-        CartesianLayer operator()(const CartesianLayer &layer) const override;
 
         UVLayer operator()(const UVLayer &layer) const override;
     };

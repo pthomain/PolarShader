@@ -113,14 +113,6 @@ namespace PolarShader {
         state->offset.y = static_cast<int32_t>(static_cast<int64_t>(state->offset.y) + dy);
     }
 
-    CartesianLayer TranslationTransform::operator()(const CartesianLayer &layer) const {
-        return [state = this->state, layer](CartQ24_8 x, CartQ24_8 y) {
-            int32_t sx = static_cast<int32_t>(static_cast<int64_t>(raw(x)) + state->offset.x);
-            int32_t sy = static_cast<int32_t>(static_cast<int64_t>(raw(y)) + state->offset.y);
-            return layer(CartQ24_8(sx), CartQ24_8(sy));
-        };
-    }
-
     UVLayer TranslationTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
             // Apply translation directly to UV coordinates (Q16.16)

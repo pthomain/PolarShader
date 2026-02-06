@@ -67,15 +67,6 @@ namespace PolarShader {
         state->angleOffset = state->angleSignal(timeInMillis);
     }
 
-    PolarLayer RotationTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
-            uint16_t angle_raw = raw(angle);
-            uint16_t offset_raw = raw(state->angleOffset.get());
-            uint16_t new_angle = static_cast<uint16_t>(angle_raw + offset_raw);
-            return layer(FracQ0_16(new_angle), radius);
-        };
-    }
-
     UVLayer RotationTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
             // Convert to Polar UV (Angle=U, Radius=V)

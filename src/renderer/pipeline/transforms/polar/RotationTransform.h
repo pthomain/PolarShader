@@ -31,7 +31,7 @@ namespace PolarShader {
      * Signals that emit relative deltas are resolved before being mapped into
      * an angular offset so the transform follows the resolved value every frame.
      */
-    class RotationTransform : public PolarTransform, public UVTransform {
+    class RotationTransform : public UVTransform {
         struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
@@ -46,8 +46,6 @@ namespace PolarShader {
         explicit RotationTransform(SFracQ0_16Signal angle);
 
         void advanceFrame(TimeMillis timeInMillis) override;
-
-        PolarLayer operator()(const PolarLayer &layer) const override;
 
         UVLayer operator()(const UVLayer &layer) const override;
     };

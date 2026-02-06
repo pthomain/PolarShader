@@ -30,7 +30,7 @@ namespace PolarShader {
     /**
      * Tiles the cartesian plane into square cells of uniform size and optionally mirrors every other cell.
      */
-    class CartesianTilingTransform : public CartesianTransform, public UVTransform {
+    class CartesianTilingTransform : public UVTransform {
         struct State;
         std::shared_ptr<State> state;
 
@@ -57,14 +57,7 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis timeInMillis) override;
 
-        CartesianLayer operator()(const CartesianLayer &layer) const override;
-
         UVLayer operator()(const UVLayer &layer) const override;
-
-        void setContext(std::shared_ptr<PipelineContext> context) override {
-            this->context = context;
-            CartesianTransform::setContext(context);
-        }
     };
 }
 

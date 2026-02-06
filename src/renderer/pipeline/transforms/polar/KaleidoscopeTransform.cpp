@@ -32,33 +32,6 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{nbFacets, isMirrored})) {
     }
 
-    PolarLayer KaleidoscopeTransform::operator()(const PolarLayer &layer) const {
-        return [state = this->state, layer](FracQ0_16 angle, FracQ0_16 radius) {
-            uint8_t facets = state->facets;
-            if (facets <= 1u) {
-                return layer(angle, radius);
-            }
-
-            uint32_t full_turn = ANGLE_FULL_TURN_U32;
-            uint32_t sector = full_turn / facets;
-            if (sector == 0u) {
-                return layer(angle, radius);
-            }
-
-            uint32_t angle_u32 = raw(angle);
-            uint32_t index = angle_u32 / sector;
-            uint32_t local = angle_u32 - (index * sector);
-
-            if (state->mirrored && (index & 1u)) {
-                local = (sector - 1u) - local;
-            }
-
-            uint32_t scaled = local * facets;
-            uint16_t new_angle = static_cast<uint16_t>(scaled & 0xFFFFu);
-            return layer(FracQ0_16(new_angle), radius);
-        };
-    }
-
     UVLayer KaleidoscopeTransform::operator()(const UVLayer &layer) const {
         return [state = this->state, layer](UV uv) {
             UV polar_uv = cartesianToPolarUV(uv);

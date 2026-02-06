@@ -28,14 +28,12 @@ namespace PolarShader {
     /**
      * Polar kaleidoscope: folds angle into nbFacets wedges, with optional mirroring.
      */
-    class KaleidoscopeTransform : public PolarTransform, public UVTransform {
+    class KaleidoscopeTransform : public UVTransform {
         struct State;
         std::shared_ptr<State> state;
 
     public:
         KaleidoscopeTransform(uint8_t nbFacets, bool isMirrored);
-
-        PolarLayer operator()(const PolarLayer &layer) const override;
 
         UVLayer operator()(const UVLayer &layer) const override;
     };

@@ -33,45 +33,20 @@ namespace PolarShader {
         : domainValue(domain) {
     }
 
-    CartesianLayer BasePattern::defaultCartesianLayer() {
-        return [](CartQ24_8, CartQ24_8) { return PatternNormU16(0); };
+    UVPattern::UVPattern()
+        : BasePattern(PatternDomain::UV),
+          layerValue([](UV) { return PatternNormU16(0); }) {
     }
 
-    PolarLayer BasePattern::defaultPolarLayer() {
-        return [](FracQ0_16, FracQ0_16) { return PatternNormU16(0); };
-    }
-
-    CartesianPattern::CartesianPattern()
-        : BasePattern(PatternDomain::Cartesian),
-          layerValue(defaultCartesianLayer()) {
-    }
-
-    CartesianPattern::CartesianPattern(CartesianLayer layer)
-        : BasePattern(PatternDomain::Cartesian),
+    UVPattern::UVPattern(UVLayer layer)
+        : BasePattern(PatternDomain::UV),
           layerValue(std::move(layer)) {
         if (!layerValue) {
-            layerValue = defaultCartesianLayer();
+            layerValue = [](UV) { return PatternNormU16(0); };
         }
     }
 
-    CartesianLayer CartesianPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return layerValue;
-    }
-
-    PolarPattern::PolarPattern()
-        : BasePattern(PatternDomain::Polar),
-          layerValue(defaultPolarLayer()) {
-    }
-
-    PolarPattern::PolarPattern(PolarLayer layer)
-        : BasePattern(PatternDomain::Polar),
-          layerValue(std::move(layer)) {
-        if (!layerValue) {
-            layerValue = defaultPolarLayer();
-        }
-    }
-
-    PolarLayer PolarPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+    UVLayer UVPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return layerValue;
     }
 }
