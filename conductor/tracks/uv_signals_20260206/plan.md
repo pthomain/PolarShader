@@ -6,9 +6,9 @@
 - [x] Task: Write unit tests for `UV` signal accumulation.
 
 ## Phase 2: Factory Methods & Helpers
-- [ ] Task: Add `constantUV` factory to `Signals.h`.
-- [ ] Task: Implement `uvSignal` helper to combine two scalar signals into a `UVSignal`.
-- [ ] Task: Port `TranslationTransform` to use `UVSignal` instead of internal `SPoint32` integration.
+- [x] Task: Add `constantUV` factory to `Signals.h`.
+- [x] Task: Implement `uvSignal` helper to combine two scalar signals into a `UVSignal`.
+- [x] Task: Port `TranslationTransform` to use `UVSignal` instead of internal `SPoint32` integration.
 
 ## Phase 3: Verification
 - [ ] Task: Run all tests to ensure spatial modulation is working as expected.
