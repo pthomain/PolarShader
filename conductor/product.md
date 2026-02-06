@@ -13,5 +13,5 @@ The primary goal of PolarShader is to enable smooth, deterministic animations on
 - **Unified UV Pipeline:** A normalized spatial domain ([0, 1] in Q16.16) that unifies all spatial operations into a single, stackable transform chain.
 - **Deterministic Fixed-Point Math:** Utilizes explicit Q-formats for float-free, predictable performance.
 - **Procedural Pattern Samplers:** Built-in support for Noise (Perlin/Worley), Tiling, and Gradients, optimized for MCU performance.
-- **Explicit Parameter Modulation:** Time-based signals (e.g., sine waves, phase velocity) for controlling motion and parameters with high precision.
+- **Explicit Parameter Modulation:** Time-based signals (e.g., oscillators, velocity vectors) for controlling parameters and unified UV motion with high precision.
 - **Library Integration:** Seamless integration with popular LED IO libraries, including FastLED and SmartMatrix.
