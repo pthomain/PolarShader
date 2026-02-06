@@ -41,9 +41,15 @@ namespace PolarShader {
     */
     using SFracQ0_16 = Strong<int32_t, SFracQ0_16_Tag>;
 
+    /**
+    *   Signed Q16.16 fixed-point scalar stored in a 32-bit raw value.
+    */
+    using FracQ16_16 = Strong<int32_t, struct FracQ16_16_Tag>;
+
     // --- Raw extractors ---
     constexpr uint16_t raw(FracQ0_16 f) { return f.raw(); }
     constexpr int32_t raw(SFracQ0_16 v) { return v.raw(); }
+    constexpr int32_t raw(FracQ16_16 v) { return v.raw(); }
 }
 
 #endif // POLAR_SHADER_PIPELINE_UNITS_SCALARUNITS_H
