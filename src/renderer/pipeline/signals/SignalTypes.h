@@ -31,6 +31,7 @@
 #include "renderer/pipeline/units/TimeUnits.h"
 #include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
+#include "renderer/pipeline/maths/UVMaths.h"
 #include <cstdint>
 #include <limits>
 #include <utility>
@@ -118,6 +119,11 @@ namespace PolarShader {
         bool absoluteMode{true};
     };
 
+    /**
+     * @brief Time-indexed signal that emits unified UV coordinates.
+     */
+    using UVSignal = MappedSignal<UV>;
+
     namespace detail {
         template<typename T>
         struct SignalAccumulator {
@@ -172,6 +178,22 @@ namespace PolarShader {
                 if (sum > std::numeric_limits<int32_t>::max()) sum = std::numeric_limits<int32_t>::max();
                 if (sum < std::numeric_limits<int32_t>::min()) sum = std::numeric_limits<int32_t>::min();
                 return CartQ24_8(static_cast<int32_t>(sum));
+            }
+        };
+
+        template<>
+        struct SignalAccumulator<FracQ16_16> {
+            static FracQ16_16 zero() { return FracQ16_16(0); }
+            static FracQ16_16 add(FracQ16_16 base, FracQ16_16 delta) {
+                return FracQ16_16(raw(base) + raw(delta));
+            }
+        };
+
+        template<>
+        struct SignalAccumulator<UV> {
+            static UV zero() { return UV(FracQ16_16(0), FracQ16_16(0)); }
+            static UV add(UV base, UV delta) {
+                return UVMaths::add(base, delta);
             }
         };
     }

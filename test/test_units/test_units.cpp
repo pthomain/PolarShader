@@ -191,6 +191,29 @@ void test_zoom_transform_uv() {
     TEST_ASSERT_UINT16_WITHIN(10, 32870, raw(result));
 }
 
+/** @brief Verify that relative UV signals correctly accumulate over time. */
+void test_uv_signal_accumulation() {
+    // A constant relative signal returning (0.1, 0.1) per call
+    // 0.1 in Q16.16 is ~6554
+    UV delta(FracQ16_16(6554), FracQ16_16(6554));
+    
+    UVSignal rawSignal([delta](TimeMillis) {
+        return MappedValue<UV>(delta);
+    }, false); // relative = true
+    
+    UVSignal resolved = resolveMappedSignal(rawSignal);
+    
+    // First sample
+    UV result1 = resolved(100).get();
+    TEST_ASSERT_EQUAL_INT32(6554, raw(result1.u));
+    TEST_ASSERT_EQUAL_INT32(6554, raw(result1.v));
+    
+    // Second sample (should accumulate)
+    UV result2 = resolved(200).get();
+    TEST_ASSERT_EQUAL_INT32(13108, raw(result2.u));
+    TEST_ASSERT_EQUAL_INT32(13108, raw(result2.v));
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000); 
@@ -204,6 +227,7 @@ void setup() {
     RUN_TEST(test_uv_round_trip);
     RUN_TEST(test_rotation_transform_uv);
     RUN_TEST(test_zoom_transform_uv);
+    RUN_TEST(test_uv_signal_accumulation);
     UNITY_END();
 }
 
@@ -220,6 +244,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_uv_round_trip);
     RUN_TEST(test_rotation_transform_uv);
     RUN_TEST(test_zoom_transform_uv);
+    RUN_TEST(test_uv_signal_accumulation);
     return UNITY_END();
 }
 #endif
