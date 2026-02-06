@@ -35,43 +35,38 @@ namespace PolarShader {
         virtual void advanceFrame(TimeMillis timeInMillis) {
         };
 
-        virtual void setContext(std::shared_ptr<PipelineContext> context) { (void) context; }
+        virtual void setContext(std::shared_ptr<PipelineContext> context) { this->context = std::move(context); }
+
+    protected:
+        std::shared_ptr<PipelineContext> context;
     };
 
-    class CartesianTransform : public FrameTransform {
+    class CartesianTransform : public virtual FrameTransform {
     public:
         CartesianTransform() = default;
 
         virtual CartesianLayer operator()(const CartesianLayer &layer) const = 0;
-
-        void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
-
-    protected:
-        std::shared_ptr<PipelineContext> context;
     };
 
-    class PolarTransform : public FrameTransform {
+    class PolarTransform : public virtual FrameTransform {
     public:
         PolarTransform() = default;
 
         virtual PolarLayer operator()(const PolarLayer &layer) const = 0;
-
-        void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
-
-    protected:
-        std::shared_ptr<PipelineContext> context;
     };
 
-    class UVTransform : public FrameTransform {
+    /**
+     * @brief Standard interface for all spatial transformations in the unified UV pipeline.
+     * 
+     * UVTransform is the target architecture for all transforms. During the transition
+     * from legacy Cartesian/Polar domains, transforms may implement multiple interfaces.
+     */
+    class UVTransform : public virtual FrameTransform {
     public:
         UVTransform() = default;
 
+        /** @brief Transforms one UV layer into another. */
         virtual UVLayer operator()(const UVLayer &layer) const = 0;
-
-        void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
-
-    protected:
-        std::shared_ptr<PipelineContext> context;
     };
 }
 

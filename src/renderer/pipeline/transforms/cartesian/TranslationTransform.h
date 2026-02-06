@@ -60,11 +60,6 @@ namespace PolarShader {
         CartesianLayer operator()(const CartesianLayer &layer) const override;
 
         UVLayer operator()(const UVLayer &layer) const override;
-
-        void setContext(std::shared_ptr<PipelineContext> context) override {
-            this->context = context;
-            CartesianTransform::setContext(context);
-        }
     };
 }
 

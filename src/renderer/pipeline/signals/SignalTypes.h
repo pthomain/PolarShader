@@ -21,7 +21,11 @@
 #ifndef POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H
 #define POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H
 
+#ifdef ARDUINO
 #include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/StrongTypes.h"
 #include "renderer/pipeline/units/TimeUnits.h"

@@ -25,9 +25,15 @@
 
 namespace PolarShader {
     /**
-     * @brief Represents a normalized coordinate in UV space using FracQ16_16.
+     * @brief Represents a normalized spatial coordinate in UV space.
      * 
-     * U and V are typically in the range [0.0, 1.0], mapped to [0, 65536].
+     * UV coordinates are the unified standard for the PolarShader pipeline.
+     * Both U and V are normalized values in the range [0.0, 1.0], mapped to
+     * the signed Q16.16 fixed-point type (FracQ16_16).
+     * 
+     * This unification allows transforms (like rotation or zoom) to operate 
+     * identically regardless of whether the underlying pattern is conceptually 
+     * Cartesian or Polar.
      */
     struct UV {
         FracQ16_16 u;

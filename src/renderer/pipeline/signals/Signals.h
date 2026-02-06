@@ -21,7 +21,11 @@
 #ifndef POLAR_SHADER_PIPELINE_SIGNALS_MODULATORS_SIGNALS_H
 #define POLAR_SHADER_PIPELINE_SIGNALS_MODULATORS_SIGNALS_H
 
+#ifdef ARDUINO
 #include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/units/AngleUnits.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"

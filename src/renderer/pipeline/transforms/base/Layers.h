@@ -21,17 +21,26 @@
 #ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
 #define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
 
+#ifdef ARDUINO
 #include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/units/PatternUnits.h"
 #include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/units/UVUnits.h"
 
 namespace PolarShader {
+    /** @brief The new unified sampling interface using normalized UV coordinates. */
     using UVLayer = fl::function<PatternNormU16(UV)>;
+
+    /** @brief Legacy Polar sampling interface (Angle, Radius). */
     using PolarLayer = fl::function<PatternNormU16(FracQ0_16, FracQ0_16)>;
-    // Cartesian coords are Q24.8 fixed-point representing Q0.16 lattice units with extra precision.
+
+    /** @brief Legacy Cartesian sampling interface (X, Y in Q24.8). */
     using CartesianLayer = fl::function<PatternNormU16(CartQ24_8, CartQ24_8)>;
+
     using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
 }
 

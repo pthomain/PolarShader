@@ -75,6 +75,9 @@ namespace PolarShader {
         virtual PolarLayer layer(const std::shared_ptr<PipelineContext> &context) const;
     };
 
+    /**
+     * @brief Standard interface for all spatial patterns in the unified UV pipeline.
+     */
     class UVPattern : public BasePattern {
         UVLayer layerValue;
 

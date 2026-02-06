@@ -6,7 +6,17 @@
 
 #include <cstdint>
 #include <algorithm>
+#include <iostream>
 
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+
+class SerialMock {
+public:
+    void println(const char* msg) {
+        std::cout << msg << std::endl;
+    }
+};
+
+static SerialMock Serial;
 
 #endif // POLAR_SHADER_NATIVE_ARDUINO_H
