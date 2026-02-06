@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYPATTERNS_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYPATTERNS_H
 
-#include "renderer/pipeline/patterns/BasePattern.h"
+#include "renderer/pipeline/patterns/UVPattern.h"
 #include "renderer/pipeline/patterns/cartesian/WorleyConstants.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 

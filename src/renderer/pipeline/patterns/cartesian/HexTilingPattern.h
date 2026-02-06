@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
 
-#include "renderer/pipeline/patterns/BasePattern.h"
+#include "renderer/pipeline/patterns/UVPattern.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 

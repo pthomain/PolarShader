@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 #define POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 
-#include "patterns/BasePattern.h"
+#include "patterns/UVPattern.h"
 #include "PipelineContext.h"
 #include "PipelineStep.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
@@ -38,7 +38,7 @@ namespace PolarShader {
      * happens at explicit PipelineStep boundaries.
      */
     class PolarPipeline {
-        std::unique_ptr<BasePattern> pattern;
+        std::unique_ptr<UVPattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         const char *name;
@@ -54,7 +54,7 @@ namespace PolarShader {
         );
 
         PolarPipeline(
-            std::unique_ptr<BasePattern> pattern,
+            std::unique_ptr<UVPattern> pattern,
             const CRGBPalette16 &palette,
             fl::vector<PipelineStep> steps,
             const char *name,

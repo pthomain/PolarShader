@@ -27,14 +27,14 @@
 #include "FastLED.h"
 #include "PipelineContext.h"
 #include "PolarPipeline.h"
-#include "patterns/BasePattern.h"
+#include "patterns/UVPattern.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/palette/PaletteTransform.h"
 #include "signals/Signals.h"
 
 namespace PolarShader {
     class PolarPipelineBuilder {
-        std::unique_ptr<BasePattern> pattern;
+        std::unique_ptr<UVPattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
         bool built = false;
@@ -46,15 +46,6 @@ namespace PolarShader {
     public:
         PolarPipelineBuilder(
             std::unique_ptr<UVPattern> pattern,
-            const CRGBPalette16 &palette,
-            const char *name
-        ) : pattern(std::move(pattern)),
-            palette(palette),
-            name(name ? name : "unnamed") {
-        }
-
-        PolarPipelineBuilder(
-            std::unique_ptr<BasePattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
         ) : pattern(std::move(pattern)),

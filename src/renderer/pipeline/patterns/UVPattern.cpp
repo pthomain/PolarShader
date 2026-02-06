@@ -18,29 +18,19 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "BasePattern.h"
+#include "UVPattern.h"
 
 namespace PolarShader {
-    PatternDomain BasePattern::domain() const {
-        return domainValue;
-    }
-
-    void BasePattern::setContext(std::shared_ptr<PipelineContext> context) {
+    void UVPattern::setContext(std::shared_ptr<PipelineContext> context) {
         this->context = std::move(context);
     }
 
-    BasePattern::BasePattern(PatternDomain domain)
-        : domainValue(domain) {
-    }
-
     UVPattern::UVPattern()
-        : BasePattern(PatternDomain::UV),
-          layerValue([](UV) { return PatternNormU16(0); }) {
+        : layerValue([](UV) { return PatternNormU16(0); }) {
     }
 
     UVPattern::UVPattern(UVLayer layer)
-        : BasePattern(PatternDomain::UV),
-          layerValue(std::move(layer)) {
+        : layerValue(std::move(layer)) {
         if (!layerValue) {
             layerValue = [](UV) { return PatternNormU16(0); };
         }

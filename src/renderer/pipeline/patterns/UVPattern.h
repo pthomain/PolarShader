@@ -18,8 +18,8 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_BASEPATTERN_H
-#define POLAR_SHADER_PIPELINE_BASEPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_UVPATTERN_H
+#define POLAR_SHADER_PIPELINE_UVPATTERN_H
 
 #include "renderer/pipeline/transforms/base/Layers.h"
 #include "renderer/pipeline/PipelineContext.h"
@@ -27,41 +27,26 @@
 #include <utility>
 
 namespace PolarShader {
-    enum class PatternDomain {
-        UV
-    };
-
-    class BasePattern {
-    public:
-        virtual ~BasePattern() = default;
-
-        PatternDomain domain() const;
-
-        virtual void setContext(std::shared_ptr<PipelineContext> context);
-
-        virtual UVLayer layer(const std::shared_ptr<PipelineContext> &context) const = 0;
-
-    protected:
-        explicit BasePattern(PatternDomain domain);
-
-    private:
-        std::shared_ptr<PipelineContext> context;
-        PatternDomain domainValue;
-    };
-
     /**
      * @brief Standard interface for all spatial patterns in the unified UV pipeline.
      */
-    class UVPattern : public BasePattern {
-        UVLayer layerValue;
-
+    class UVPattern {
     public:
+        virtual ~UVPattern() = default;
+
+        virtual void setContext(std::shared_ptr<PipelineContext> context);
+
+        virtual UVLayer layer(const std::shared_ptr<PipelineContext> &context) const;
+
+    protected:
         UVPattern();
 
         explicit UVPattern(UVLayer layer);
 
-        virtual UVLayer layer(const std::shared_ptr<PipelineContext> &context) const;
+    private:
+        std::shared_ptr<PipelineContext> context;
+        UVLayer layerValue;
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_BASEPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_UVPATTERN_H

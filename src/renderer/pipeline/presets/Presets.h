@@ -24,7 +24,7 @@
 #include <renderer/pipeline/PolarPipelineBuilder.h>
 
 namespace PolarShader {
-    class BasePattern;
+    class UVPattern;
 
     PolarPipelineBuilder defaultPreset(
         const CRGBPalette16 &palette

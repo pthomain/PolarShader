@@ -26,7 +26,7 @@
 #include "renderer/pipeline/transforms/polar/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/polar/RadialKaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/polar/VortexTransform.h"
-#include "renderer/pipeline/patterns/BasePattern.h"
+#include "renderer/pipeline/patterns/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/transforms/cartesian/CartesianTilingTransform.h"
@@ -34,7 +34,7 @@
 namespace PolarShader {
     namespace {
         PolarPipelineBuilder makeBuilder(
-            std::unique_ptr<BasePattern> pattern,
+            std::unique_ptr<UVPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
         ) {

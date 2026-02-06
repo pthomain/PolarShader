@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARGRADIENT_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_POLAR_POLARGRADIENT_H
 
-#include "renderer/pipeline/patterns/BasePattern.h"
+#include "renderer/pipeline/patterns/UVPattern.h"
 
 namespace PolarShader {
     class PolarGradient : public UVPattern {

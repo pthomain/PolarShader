@@ -27,7 +27,7 @@
 
 namespace PolarShader {
     PolarPipeline::PolarPipeline(
-        std::unique_ptr<BasePattern> pattern,
+        std::unique_ptr<UVPattern> pattern,
         const CRGBPalette16 &palette,
         fl::vector<PipelineStep> steps,
         const char *name,
