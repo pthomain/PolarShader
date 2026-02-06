@@ -6,9 +6,9 @@
 - [x] Task: Verify that all components implement the UV interface. [06b6d7e]
 
 ## Phase 2: Pipeline Core Refactoring
-- [ ] Task: Refactor `PipelineStep.h` to support only `UV` kind (and `Palette`).
-- [ ] Task: Update `PolarPipelineBuilder` to only accept `UVTransform` and `UVPattern`.
-- [ ] Task: Rewrite `PolarPipeline::build()` to create a single `UVLayer` chain without domain switching.
+- [x] Task: Refactor `PipelineStep.h` to support only `UV` kind (and `Palette`). [857bf61]
+- [x] Task: Update `PolarPipelineBuilder` to only accept `UVTransform` and `UVPattern`. [857bf61]
+- [x] Task: Rewrite `PolarPipeline::build()` to create a single `UVLayer` chain without domain switching. [857bf61]
 
 ## Phase 3: Deletion & Cleanup
 - [ ] Task: Remove `CartesianPattern`, `PolarPattern` from `BasePattern.h`.
