@@ -20,6 +20,7 @@
 
 #include "WorleyPatterns.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
+#include "renderer/pipeline/maths/CartesianMaths.h"
 
 namespace PolarShader {
     namespace {

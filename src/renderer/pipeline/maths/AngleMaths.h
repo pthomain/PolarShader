@@ -21,10 +21,14 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H
 
+#ifdef ARDUINO
+#include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
-
     constexpr FracQ0_16 angleFrac(uint32_t denominator) {
         if (denominator == 0) return FracQ0_16(0);
         return FracQ0_16(static_cast<uint32_t>((static_cast<uint64_t>(ANGLE_FULL_TURN_U32)) / denominator));
@@ -49,12 +53,12 @@ namespace PolarShader {
         return FracQ0_16(static_cast<uint16_t>(sum));
     }
 
-    constexpr SFracQ0_16 angleSinQ0_16(FracQ0_16 a) {
+    inline SFracQ0_16 angleSinQ0_16(FracQ0_16 a) {
         int16_t raw_q1_15 = sin16(angleToFastLedPhase(a));
         return SFracQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
 
-    constexpr SFracQ0_16 angleCosQ0_16(FracQ0_16 a) {
+    inline SFracQ0_16 angleCosQ0_16(FracQ0_16 a) {
         int16_t raw_q1_15 = cos16(angleToFastLedPhase(a));
         return SFracQ0_16(static_cast<int32_t>(raw_q1_15) << 1);
     }
@@ -71,8 +75,8 @@ namespace PolarShader {
         uint32_t z = (static_cast<uint32_t>(min_val) << 16) / max_val; // Q0.16
         uint32_t one_minus_z = ANGLE_FULL_TURN_U32 - z;
 
-        static constexpr uint32_t A_Q16 = ANGLE_FULL_TURN_U32 / 8; // 0.125 turns in Q0.16
-        static constexpr uint32_t B_Q16 = 2847u; // 0.04345 turns in Q0.16
+        constexpr uint32_t A_Q16 = ANGLE_FULL_TURN_U32 / 8; // 0.125 turns in Q0.16
+        constexpr uint32_t B_Q16 = 2847u; // 0.04345 turns in Q0.16
 
         uint32_t inner = A_Q16 + ((B_Q16 * one_minus_z) >> 16);
         uint32_t base = (z * inner) >> 16; // 0..0.125 turns

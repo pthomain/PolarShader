@@ -21,7 +21,11 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_UNITS_H
 #define POLAR_SHADER_PIPELINE_UNITS_UNITS_H
 
+#ifdef ARDUINO
+#include <stdint.h>
+#else
 #include <cstdint>
+#endif
 
 /**
  * @brief Time alias for standard Arduino millis().
@@ -30,11 +34,32 @@
  * Defined in global namespace to match Arduino environment.
  */
 using TimeMillis = unsigned long;
-using namespace std;
 
 inline constexpr TimeMillis MAX_DELTA_TIME_MS = 200; // 0 disables delta-time clamping.
 
 namespace PolarShader {
+    // Pull standard types into our namespace so we can use them without prefixes
+    // while avoiding global namespace pollution.
+#ifdef ARDUINO
+    using ::int8_t;
+    using ::uint8_t;
+    using ::int16_t;
+    using ::uint16_t;
+    using ::int32_t;
+    using ::uint32_t;
+    using ::int64_t;
+    using ::uint64_t;
+#else
+    using std::int8_t;
+    using std::uint8_t;
+    using std::int16_t;
+    using std::uint16_t;
+    using std::int32_t;
+    using std::uint32_t;
+    using std::int64_t;
+    using std::uint64_t;
+#endif
+
     // --- Strong Type Wrapper ---
 
     template<typename Rep, typename Tag>

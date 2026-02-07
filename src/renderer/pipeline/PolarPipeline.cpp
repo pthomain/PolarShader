@@ -21,6 +21,7 @@
 #include "PolarPipeline.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
+#include "renderer/pipeline/units/Units.h"
 #include <Arduino.h>
 #include "FastLED.h"
 
@@ -156,10 +157,10 @@ namespace PolarShader {
             // Display provides (Angle, Radius) in legacy Q0.16.
             // Convert to UV (Q16.16).
             UV input = polarToCartesianUV(UV(
-                FracQ16_16(static_cast<int32_t>(raw(angle))),
-                FracQ16_16(static_cast<int32_t>(raw(radius)))
+                FracQ16_16(raw(angle)),
+                FracQ16_16(raw(radius))
             ));
-            
+
             PatternNormU16 value = layer(input);
             return mapPalette(palette, value, context);
         };

@@ -29,3 +29,9 @@
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.
 - **Documentation:** Focus on high-quality `README.md` files for each major module that explain the architecture, math, and usage examples. Inline comments should be used sparingly and only to explain "why" complex logic is necessary.
 - **Performance:** While clarity is key, ensure that inner loops are free of virtual dispatch and heap churn. Keep the memory footprint predictable.
+
+## Verification and Safety
+- **Build Verification:** Before finishing any track or committing significant changes, **YOU MUST** verify that the firmware builds and uploads successfully to the `teensy41_matrix` environment.
+- **Hardware Targets:** Always verify compilation for both `native` (for unit tests) and `teensy41_matrix` (for hardware deployment).
+- **Unit Tests:** Write and run unit tests for all new logic (patterns, math, transforms) in the `native` environment.
+- **No Floating Point:** Do not use `float` or `double` in the rendering pipeline. Use fixed-point math exclusively.

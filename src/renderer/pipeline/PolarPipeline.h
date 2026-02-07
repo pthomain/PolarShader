@@ -21,10 +21,10 @@
 #ifndef POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 #define POLAR_SHADER_PIPELINE_POLARPIPELINE_H
 
+#include "renderer/pipeline/units/Units.h"
 #include "patterns/UVPattern.h"
 #include "PipelineContext.h"
 #include "PipelineStep.h"
-#include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include <memory>
 
