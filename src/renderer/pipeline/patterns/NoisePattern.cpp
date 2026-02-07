@@ -20,7 +20,11 @@
 
 #include "NoisePattern.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 #include <algorithm>
 
 namespace PolarShader {
@@ -30,19 +34,15 @@ namespace PolarShader {
         PipelineContext *context;
 
         PatternNormU16 operator()(UV uv) const {
-            int64_t offset = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
+            uint32_t offset = NOISE_DOMAIN_OFFSET << CARTESIAN_FRAC_BITS;
             uint32_t depth = context ? context->depth : 0u;
 
-            // UV is Q16.16 (0.0 .. 1.0, raw 0..65536).
+            // UV is Q16.16 (0.0 .. 1.0, raw 0..65535).
             // We interpret this directly as Cartesian Q24.8 (0.0 .. 256.0).
             // This maps the screen width to 256 noise units, restoring the original texture density.
-            uint32_t ux = static_cast<uint32_t>(raw(uv.u)) + static_cast<uint32_t>(offset);
-            uint32_t uy = static_cast<uint32_t>(raw(uv.v)) + static_cast<uint32_t>(offset);
-            uint32_t uz = depth + static_cast<uint32_t>(offset);
-
-            CartUQ24_8 xu(ux);
-            CartUQ24_8 yu(uy);
-            CartUQ24_8 zu(uz);
+            CartUQ24_8 xu(static_cast<uint32_t>(raw(uv.u)) + offset);
+            CartUQ24_8 yu(static_cast<uint32_t>(raw(uv.v)) + offset);
+            CartUQ24_8 zu(depth + offset);
 
             switch (type) {
                 case NoiseType::FBM:

@@ -19,7 +19,11 @@
  */
 
 #include "renderer/pipeline/maths/NoiseMaths.h"
-#include "FastLED.h"
+#ifdef ARDUINO
+#include <FastLED.h>
+#else
+#include "native/FastLED.h"
+#endif
 
 namespace PolarShader {
     NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
@@ -31,10 +35,10 @@ namespace PolarShader {
         uint16_t x_frac = static_cast<uint16_t>((x & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
         uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
 
-        uint16_t n00 = inoise16(x_int, y_int);
-        uint16_t n10 = inoise16(x_int + 1u, y_int);
-        uint16_t n01 = inoise16(x_int, y_int + 1u);
-        uint16_t n11 = inoise16(x_int + 1u, y_int + 1u);
+        uint16_t n00 = inoise16(x_int << 8, y_int << 8);
+        uint16_t n10 = inoise16((x_int + 1u) << 8, y_int << 8);
+        uint16_t n01 = inoise16(x_int << 8, (y_int + 1u) << 8);
+        uint16_t n11 = inoise16((x_int + 1u) << 8, (y_int + 1u) << 8);
 
         int32_t nx0 = static_cast<int32_t>(n00) +
                       ((static_cast<int32_t>(n10) - static_cast<int32_t>(n00)) * x_frac >> 16);
@@ -57,14 +61,14 @@ namespace PolarShader {
         uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
         uint16_t z_frac = static_cast<uint16_t>((z & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
 
-        uint16_t n000 = inoise16(x_int, y_int, z_int);
-        uint16_t n100 = inoise16(x_int + 1u, y_int, z_int);
-        uint16_t n010 = inoise16(x_int, y_int + 1u, z_int);
-        uint16_t n110 = inoise16(x_int + 1u, y_int + 1u, z_int);
-        uint16_t n001 = inoise16(x_int, y_int, z_int + 1u);
-        uint16_t n101 = inoise16(x_int + 1u, y_int, z_int + 1u);
-        uint16_t n011 = inoise16(x_int, y_int + 1u, z_int + 1u);
-        uint16_t n111 = inoise16(x_int + 1u, y_int + 1u, z_int + 1u);
+        uint16_t n000 = inoise16(x_int << 8, y_int << 8, z_int << 8);
+        uint16_t n100 = inoise16((x_int + 1u) << 8, y_int << 8, z_int << 8);
+        uint16_t n010 = inoise16(x_int << 8, (y_int + 1u) << 8, z_int << 8);
+        uint16_t n110 = inoise16((x_int + 1u) << 8, (y_int + 1u) << 8, z_int << 8);
+        uint16_t n001 = inoise16(x_int << 8, y_int << 8, (z_int + 1u) << 8);
+        uint16_t n101 = inoise16((x_int + 1u) << 8, y_int << 8, (z_int + 1u) << 8);
+        uint16_t n011 = inoise16(x_int << 8, (y_int + 1u) << 8, (z_int + 1u) << 8);
+        uint16_t n111 = inoise16((x_int + 1u) << 8, (y_int + 1u) << 8, (z_int + 1u) << 8);
 
         int32_t nx00 = static_cast<int32_t>(n000) +
                        ((static_cast<int32_t>(n100) - static_cast<int32_t>(n000)) * x_frac >> 16);

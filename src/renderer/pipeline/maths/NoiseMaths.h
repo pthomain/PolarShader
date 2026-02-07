@@ -25,7 +25,7 @@
 #include "renderer/pipeline/maths/PatternMaths.h"
 
 namespace PolarShader {
-    inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x800000;
+    inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x4000;
     inline constexpr uint16_t NOISE_MIN = 12000;
     inline constexpr uint16_t NOISE_MAX = 54000;
 

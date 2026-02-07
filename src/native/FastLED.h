@@ -45,8 +45,16 @@ static inline int16_t cos16(uint16_t theta) {
 }
 
 // Simple linear congruent generator or just return 0 for now
-static inline uint16_t inoise16(uint16_t x) {
-    return (x * 2053) + 13849;
+static inline uint16_t inoise16(uint32_t x) {
+    return (uint16_t)((x * 2053u) + 13849u);
+}
+
+static inline uint16_t inoise16(uint32_t x, uint32_t y) {
+    return (uint16_t)((x * 2053u) ^ (y * 3037u) + 13849u);
+}
+
+static inline uint16_t inoise16(uint32_t x, uint32_t y, uint32_t z) {
+    return (uint16_t)((x * 2053u) ^ (y * 3037u) ^ (z * 4093u) + 13849u);
 }
 
 #endif // POLAR_SHADER_NATIVE_FASTLED_H

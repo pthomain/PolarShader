@@ -45,18 +45,33 @@ void test_range_wraps_across_zero() {
 }
 
 #ifdef ARDUINO
+
 void setup() {
+
     UNITY_BEGIN();
+
     RUN_TEST(test_range_wraps_across_zero);
+
     UNITY_END();
+
 }
 
+
+
 void loop() {
+
 }
+
 #else
+
 int main(int argc, char **argv) {
+
     UNITY_BEGIN();
+
     RUN_TEST(test_range_wraps_across_zero);
+
     return UNITY_END();
+
 }
+
 #endif

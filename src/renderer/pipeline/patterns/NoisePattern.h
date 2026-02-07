@@ -21,7 +21,11 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANNOISEPATTERN_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANNOISEPATTERN_H
 
-#include "FastLED.h"
+#ifdef ARDUINO
+#include <FastLED.h>
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 
