@@ -25,6 +25,7 @@
 #include <utility>
 #include "Layers.h"
 #include "renderer/pipeline/PipelineContext.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     class FrameTransform {

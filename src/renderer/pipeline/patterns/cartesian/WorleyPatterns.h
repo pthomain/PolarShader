@@ -23,7 +23,7 @@
 
 #include "renderer/pipeline/patterns/UVPattern.h"
 #include "renderer/pipeline/patterns/cartesian/WorleyConstants.h"
-#include "renderer/pipeline/maths/CartesianMaths.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     /**

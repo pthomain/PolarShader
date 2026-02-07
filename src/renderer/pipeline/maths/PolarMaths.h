@@ -26,6 +26,7 @@
 #else
 #include "native/FastLED.h"
 #endif
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     /** @brief Converts normalized Polar UV (Angle=U, Radius=V) to Cartesian UV. */

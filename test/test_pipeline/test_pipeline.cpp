@@ -30,9 +30,6 @@
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/PolarMaths.cpp"
-#include "renderer/pipeline/maths/AngleMaths.cpp"
-#include "renderer/pipeline/maths/ScalarMaths.cpp"
-#include "renderer/pipeline/maths/PatternMaths.cpp"
 #include "renderer/pipeline/ranges/PolarRange.cpp"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"

@@ -27,6 +27,8 @@
 #include "native/FastLED.h"
 #endif
 
+#include "renderer/pipeline/units/Units.h"
+
 namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */
     using UVLayer = fl::function<PatternNormU16(UV)>;

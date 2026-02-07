@@ -21,6 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_UNITS_H
 #define POLAR_SHADER_PIPELINE_UNITS_UNITS_H
 
+#include <cstdint>
+
 /**
  * @brief Time alias for standard Arduino millis().
  * 
@@ -28,6 +30,7 @@
  * Defined in global namespace to match Arduino environment.
  */
 using TimeMillis = unsigned long;
+using namespace std;
 
 inline constexpr TimeMillis MAX_DELTA_TIME_MS = 200; // 0 disables delta-time clamping.
 

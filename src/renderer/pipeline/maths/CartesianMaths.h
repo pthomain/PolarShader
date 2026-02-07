@@ -21,6 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_CARTESIANMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_CARTESIANMATHS_H
 
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     /**

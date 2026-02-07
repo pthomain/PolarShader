@@ -9,21 +9,15 @@
 #endif
 #include <unity.h>
 #include "renderer/pipeline/units/Units.h"
-#include "renderer/pipeline/units/Units.h"
 #include "renderer/pipeline/maths/UVMaths.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/PolarMaths.cpp"
-#include "renderer/pipeline/maths/AngleMaths.cpp"
-#include "renderer/pipeline/maths/ScalarMaths.cpp"
-#include "renderer/pipeline/maths/ZoomMaths.cpp"
-#include "renderer/pipeline/maths/PatternMaths.cpp"
 #include "renderer/pipeline/transforms/polar/RotationTransform.cpp"
 #include "renderer/pipeline/transforms/cartesian/ZoomTransform.cpp"
 #include "renderer/pipeline/ranges/PolarRange.cpp"
-#include "renderer/pipeline/ranges/Range.h"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/Accumulators.cpp"
@@ -119,59 +113,6 @@ void test_rotation_transform_uv() {
 
 /** @brief Verify that ZoomTransform correctly scales Cartesian UV coordinates relative to the center. */
 void test_zoom_transform_uv() {
-    // Use a fixed range of 0.5 (0x8000) to ensure the scale is exactly 0.5
-    // regardless of smoothing or signal value.
-    LinearRange<SFracQ0_16> range(SFracQ0_16(0x8000), SFracQ0_16(0x8000));
-    
-    // We need to create a mapped signal manually.
-    // Since min=max, the input to mapSignal doesn't matter.
-    auto mappedSignal = range.mapSignal(constant(SFracQ0_16(0)));
-    
-    // Use the constructor that accepts the mapped signal and the range
-    // But wait, that constructor expects MappedSignal<SFracQ0_16>, which mapSignal returns.
-    // However, ZoomTransform constructor is:
-    // explicit ZoomTransform(MappedSignal<SFracQ0_16> scale, ZoomRange range);
-    // Note: ZoomRange is passed by value (copy/move).
-    
-    // Wait, that constructor is private in the header I read earlier?
-    // Let's check ZoomTransform.h again.
-    // It says: explicit ZoomTransform(MappedSignal<SFracQ0_16> scale, ZoomRange range); is PRIVATE.
-    // Only public is: explicit ZoomTransform(SFracQ0_16Signal scale);
-    
-    // If I can't set the range publicly, I have to rely on default range.
-    // Default range min is ~0.00625.
-    // Signal 0 -> min.
-    // If I use constant(SFracQ0_16(0)), target is min.
-    // ScaleValue starts at min.
-    // So if I set signal to 0, scale should stay at min.
-    // min = scale32(Q0_16_MAX, frac(160)) ~ 409.
-    
-    // That's too small to test easily.
-    // If I set signal to 1.0 (max), target is 4.0.
-    // It will smooth towards 4.0.
-    
-    // I need a way to set immediate scale or use a known start point.
-    // ZoomTransform state initializes scaleValue = minScaleRaw.
-    // So if I know minScaleRaw, I know the starting scale.
-    // MIN_SCALE = scale32(65535, frac(160)).
-    // frac(160) = 65535 / 160 = 409.
-    // scale32(65535, 409) = 409.
-    
-    // So start scale is 409 (0x0199).
-    // Let's verify this behavior.
-    
-    // If I use constant(SFracQ0_16(0)), target is min (409).
-    // Current is min (409).
-    // Delta 0.
-    // Scale stays 409.
-    
-    // Test:
-    // Input (0.75, 0.5) -> Centered (0.5, 0.0).
-    // Scale 409/65536 ~= 0.00624.
-    // Scaled x = 0.5 * 0.00624 = 0.00312.
-    // Back to UV: (0.00312 + 1)/2 = 0.50156.
-    // 0.50156 * 65536 = 32870 (0x8066).
-    
     ZoomTransform zoom(constant(SFracQ0_16(0))); // Target min
     zoom.advanceFrame(0);
     
