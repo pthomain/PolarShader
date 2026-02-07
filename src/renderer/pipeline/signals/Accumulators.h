@@ -36,10 +36,10 @@ namespace PolarShader {
     public:
         explicit PhaseAccumulator(
             MappedSignal<SFracQ0_16> speed,
-            SFracQ0_16 initialPhase = SFracQ0_16(0)
+            FracQ0_16 initialPhase = FracQ0_16(0)
         );
 
-        SFracQ0_16 advance(TimeMillis time);
+        FracQ0_16 advance(TimeMillis time);
 
     private:
         uint32_t phaseRaw32{0};

@@ -25,20 +25,20 @@
 namespace PolarShader {
     PhaseAccumulator::PhaseAccumulator(
         MappedSignal<SFracQ0_16> speed,
-        SFracQ0_16 initialPhase
+        FracQ0_16 initialPhase
     ) : phaseRaw32(static_cast<uint32_t>(raw(initialPhase)) << 16),
         phaseSpeed(std::move(speed)) {
     }
 
-    SFracQ0_16 PhaseAccumulator::advance(TimeMillis time) {
+    FracQ0_16 PhaseAccumulator::advance(TimeMillis time) {
         if (!hasLastTime) {
             lastTime = time;
             hasLastTime = true;
-            return SFracQ0_16(static_cast<int32_t>(phaseRaw32 >> 16));
+            return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
         }
         TimeMillis deltaTime = time - lastTime;
         lastTime = time;
-        if (deltaTime == 0) return SFracQ0_16(static_cast<int32_t>(phaseRaw32 >> 16));
+        if (deltaTime == 0) return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
 
         deltaTime = clampDeltaTime(deltaTime);
 
@@ -46,6 +46,6 @@ namespace PolarShader {
         int64_t increment = static_cast<int64_t>(raw(phaseSpeed(time).get())) *
                             static_cast<int64_t>(raw(dt_q0_16));
         phaseRaw32 = static_cast<uint32_t>(static_cast<int64_t>(phaseRaw32) + increment);
-        return SFracQ0_16(static_cast<int32_t>(phaseRaw32 >> 16));
+        return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
     }
 }

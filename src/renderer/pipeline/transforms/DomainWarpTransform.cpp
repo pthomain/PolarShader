@@ -309,8 +309,8 @@ namespace PolarShader {
             Serial.println("DomainWarpTransform::advanceFrame context is null.");
         }
 
-        SFracQ0_16 phase = state->phase.advance(timeInMillis);
-        state->timeOffsetRaw = raw(phase) << CARTESIAN_FRAC_BITS;
+        FracQ0_16 phase = state->phase.advance(timeInMillis);
+        state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << CARTESIAN_FRAC_BITS;
 
         state->warpScale = state->warpScaleSignal(timeInMillis).get();
         state->maxOffset = (*state->maxOffsetSignal)(timeInMillis).get();

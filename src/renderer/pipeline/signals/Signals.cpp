@@ -34,32 +34,37 @@ namespace PolarShader {
         SFracQ0_16Signal offset,
         SampleSignal sample
     ) {
-        LinearRange<SFracQ0_16> phaseRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE));
-        PhaseAccumulator acc{phaseRange.mapSignal(std::move(phaseSpeed))};
+        // phaseSpeed is turns-per-second.
+        PhaseAccumulator acc{LinearRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE))
+            .mapSignal(std::move(phaseSpeed))};
 
         return SFracQ0_16Signal(
             [acc = std::move(acc),
-                    amplitude = std::move(amplitude),
-                    offset = std::move(offset),
-                    sample = std::move(sample)
-                ](TimeMillis time) mutable -> SFracQ0_16 {
-            SFracQ0_16 phase = acc.advance(time);
-            SFracQ0_16 v = sample(phase);
+                amplitude = std::move(amplitude),
+                offset = std::move(offset),
+                sample = std::move(sample)
+            ](TimeMillis time) mutable -> SFracQ0_16 {
+                FracQ0_16 phase = acc.advance(time);
+                SFracQ0_16 v = sample(phase);
 
-            int32_t sample_raw = raw(v);
-            int32_t amp_raw = raw(amplitude(time));
-            int32_t off_raw = raw(offset(time));
-            uint32_t amp = (amp_raw < 0) ? 0u : static_cast<uint32_t>(amp_raw);
-            if (amp > FRACT_Q0_16_MAX) amp = FRACT_Q0_16_MAX;
+                int32_t sample_raw = raw(v);
+                int32_t amp_raw = raw(amplitude(time));
+                int32_t off_raw = raw(offset(time));
 
-            uint32_t sample_u16 = static_cast<uint32_t>((sample_raw + Q0_16_ONE) >> 1);
-            uint32_t off = (off_raw < 0) ? 0u : static_cast<uint32_t>(off_raw);
-            if (off > FRACT_Q0_16_MAX) off = FRACT_Q0_16_MAX;
-            uint32_t scaled = (sample_u16 * amp) >> 16;
-            uint32_t sum = scaled + off;
-            if (sum > 0xFFFFu) sum = 0xFFFFu;
-            return SFracQ0_16(static_cast<int32_t>(sum));
-        });
+                // Map sample from -1..1 to 0..1
+                uint32_t sample_u16 = static_cast<uint32_t>((sample_raw + Q0_16_ONE) >> 1);
+
+                uint32_t amp = (amp_raw < 0) ? 0u : static_cast<uint32_t>(amp_raw);
+                if (amp > FRACT_Q0_16_MAX) amp = FRACT_Q0_16_MAX;
+
+                uint32_t off = (off_raw < 0) ? 0u : static_cast<uint32_t>(off_raw);
+                if (off > FRACT_Q0_16_MAX) off = FRACT_Q0_16_MAX;
+
+                uint32_t scaled = (sample_u16 * amp) >> 16;
+                uint32_t sum = scaled + off;
+                if (sum > 0xFFFFu) sum = 0xFFFFu;
+                return SFracQ0_16(static_cast<int32_t>(sum));
+            });
     }
 
     SFracQ0_16Signal floor() {
@@ -268,6 +273,6 @@ namespace PolarShader {
     ) {
         uint64_t max = static_cast<uint64_t>(offset) + static_cast<uint64_t>(scale);
         uint32_t max_depth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
-        return depth(std::move(signal), LinearRange<uint32_t>(offset, max_depth));
+        return depth(std::move(signal), LinearRange(offset, max_depth));
     }
 }

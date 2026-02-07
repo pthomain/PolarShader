@@ -32,7 +32,7 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
-    using SampleSignal = fl::function<SFracQ0_16(SFracQ0_16)>;
+    using SampleSignal = fl::function<SFracQ0_16(FracQ0_16)>;
 
     SFracQ0_16Signal createSignal(
         SFracQ0_16Signal phaseSpeed,
