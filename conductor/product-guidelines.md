@@ -8,6 +8,7 @@
 - **Fluent & Declarative:** Provide a builder-style API that allows users to declare the rendering pipeline in a readable, sequential manner.
 - **Strong Typing:** Every core scalar or coordinate is wrapped in a `Strong<T, Tag>` template to prevent unit confusion and ensure math correctness at compile-time.
 - **Balanced Configuration:** Support runtime modulation of parameters and signal sources, while maintaining a stable or semi-static pipeline structure to ensure performance.
+- **Transform Encapsulation:** Public Transform APIs must never expose internal implementation types like `MappedSignal`. They must accept base Signal types and handle mapping/state privately.
 
 ## Strong Type System
 
@@ -24,6 +25,18 @@
 1. **No Implicit Casting:** Never cast between strong types or to raw integers without using the `raw()` helper.
 2. **Semantic Boundaries:** Use `SFracQ0_16` for any value that can go negative (signals), and `FracQ0_16` for values that must wrap or stay positive (angles).
 3. **Internal vs External:** `CartQ24_8` is an implementation detail for patterns; external APIs should only expose `UV`.
+
+## Signal & Timing Rules
+
+### Timing Terminology
+- **Period (TimeMillis):** Used for infinite, periodic signals (e.g., Sine, Noise). Represents cycle length. Independent of scene duration.
+- **Duration (TimeMillis):** Used for finite or looping signals (e.g., Easing functions). 
+    - Default: 0 (matches entire scene duration).
+    - Looping: If `duration > 0` and `duration < sceneDuration`, the signal loops.
+
+### Value Constraints
+- **Normalization:** Periodic scalar signals (Sine, Noise) must span the full `[0, 1]` range by default.
+- **Directionality:** Phase-driving signals and accumulators must use signed speeds (`SFracQ0_16`) to support bidirectional motion and negative phases.
 
 ## Implementation Standards
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.
