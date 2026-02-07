@@ -28,8 +28,13 @@
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/Signals.h"
 #include <utility>
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 
 namespace PolarShader {
     namespace {
@@ -92,17 +97,69 @@ namespace PolarShader {
         MappedSignal<SFracQ0_16> phaseSpeedSignal;
         MappedSignal<int32_t> amplitudeSignal;
         MappedSignal<CartQ24_8> warpScaleSignal;
-        std::shared_ptr<MappedSignal<CartQ24_8> > maxOffsetSignal;
+        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
         MappedSignal<FracQ0_16> flowDirectionSignal;
         MappedSignal<int32_t> flowStrengthSignal;
     };
+
+    DomainWarpTransform::MappedInputs DomainWarpTransform::makeInputs(
+        SFracQ0_16Signal speed,
+        SFracQ0_16Signal amplitude,
+        SFracQ0_16Signal warpScale,
+        SFracQ0_16Signal maxOffset,
+        LinearRange<CartQ24_8> warpScaleRange,
+        LinearRange<CartQ24_8> maxOffsetRange,
+        SFracQ0_16Signal flowDirection,
+        SFracQ0_16Signal flowStrength
+    ) {
+        bool hasFlow = static_cast<bool>(flowDirection) && static_cast<bool>(flowStrength);
+
+        auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8>>(
+            resolveMappedSignal(maxOffsetRange.mapSignal(std::move(maxOffset)))
+        );
+
+        auto mapToMaxOffset = [maxOffsetSignal](SFracQ0_16Signal signal) -> MappedSignal<int32_t> {
+            bool absolute = signal.isAbsolute();
+            return MappedSignal<int32_t>(
+                [signal = std::move(signal), maxOffsetSignal](FracQ0_16 progress, TimeMillis elapsedMs) mutable -> MappedValue<int32_t> {
+                    int32_t max_raw = raw((*maxOffsetSignal)(progress, elapsedMs).get());
+                    if (max_raw <= 0) return MappedValue<int32_t>(0);
+                    uint32_t t_raw = clamp_frac_raw(raw(signal(progress, elapsedMs)));
+                    int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
+                    return MappedValue(static_cast<int32_t>(scaled));
+                },
+                absolute
+            );
+        };
+
+        PolarRange flowDirectionRange;
+        
+        // Use speed signal directly for MappedInputs.
+        auto speedMapped = MappedSignal<SFracQ0_16>(
+            [speed](FracQ0_16 p, TimeMillis t) {
+                return MappedValue(speed(p, t));
+            },
+            speed.isAbsolute()
+        );
+
+        return DomainWarpTransform::MappedInputs{
+            resolveMappedSignal(std::move(speedMapped)),
+            resolveMappedSignal(mapToMaxOffset(std::move(amplitude))),
+            resolveMappedSignal(warpScaleRange.mapSignal(std::move(warpScale))),
+            std::move(maxOffsetSignal),
+            hasFlow
+                ? resolveMappedSignal(flowDirectionRange.mapSignal(std::move(flowDirection)))
+                : MappedSignal<FracQ0_16>(),
+            hasFlow ? resolveMappedSignal(mapToMaxOffset(std::move(flowStrength))) : MappedSignal<int32_t>()
+        };
+    }
 
     struct DomainWarpTransform::State {
         WarpType type;
         PhaseAccumulator phase;
         MappedSignal<int32_t> amplitudeSignal;
         MappedSignal<CartQ24_8> warpScaleSignal;
-        std::shared_ptr<MappedSignal<CartQ24_8> > maxOffsetSignal;
+        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
         CartQ24_8 warpScale = CartQ24_8(0);
         CartQ24_8 maxOffset = CartQ24_8(0);
         uint8_t octaves;
@@ -117,7 +174,7 @@ namespace PolarShader {
             MappedSignal<SFracQ0_16> phaseSpeed,
             MappedSignal<int32_t> amplitude,
             MappedSignal<CartQ24_8> scale,
-            std::shared_ptr<MappedSignal<CartQ24_8> > offset,
+            std::shared_ptr<MappedSignal<CartQ24_8>> offset,
             uint8_t octaves,
             MappedSignal<FracQ0_16> flowDirection,
             MappedSignal<int32_t> flowStrength
@@ -133,153 +190,18 @@ namespace PolarShader {
     };
 
     DomainWarpTransform::DomainWarpTransform(
-        WarpType type,
-        MappedSignal<SFracQ0_16> phaseSpeed,
-        MappedSignal<int32_t> amplitude,
-        MappedSignal<CartQ24_8> warpScale,
-        std::shared_ptr<MappedSignal<CartQ24_8> > maxOffset,
-        uint8_t octaves,
-        MappedSignal<FracQ0_16> flowDirection,
-        MappedSignal<int32_t> flowStrength
-    ) : state(std::make_shared<State>(
-        type,
-        std::move(phaseSpeed),
-        std::move(amplitude),
-        std::move(warpScale),
-        std::move(maxOffset),
-        octaves,
-        std::move(flowDirection),
-        std::move(flowStrength)
-    )) {
-    }
-
-    DomainWarpTransform::DomainWarpTransform(
-        WarpType type,
-        uint8_t octaves,
-        MappedInputs inputs
-    ) : DomainWarpTransform(
-        type,
-        std::move(inputs.phaseSpeedSignal),
-        std::move(inputs.amplitudeSignal),
-        std::move(inputs.warpScaleSignal),
-        std::move(inputs.maxOffsetSignal),
-        octaves,
-        std::move(inputs.flowDirectionSignal),
-        std::move(inputs.flowStrengthSignal)
-    ) {
-    }
-
-    DomainWarpTransform::MappedInputs DomainWarpTransform::makeInputs(
-        SFracQ0_16Signal phaseSpeed,
+        SFracQ0_16Signal speed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal warpScale,
         SFracQ0_16Signal maxOffset,
         LinearRange<CartQ24_8> warpScaleRange,
         LinearRange<CartQ24_8> maxOffsetRange
-    ) {
-        return makeInputsInternal(
-            std::move(phaseSpeed),
-            std::move(amplitude),
-            std::move(warpScale),
-            std::move(maxOffset),
-            std::move(warpScaleRange),
-            std::move(maxOffsetRange),
-            SFracQ0_16Signal(),
-            SFracQ0_16Signal()
-        );
-    }
-
-    DomainWarpTransform::MappedInputs DomainWarpTransform::makeDirectionalInputs(
-        SFracQ0_16Signal phaseSpeed,
-        SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal warpScale,
-        SFracQ0_16Signal maxOffset,
-        LinearRange<CartQ24_8> warpScaleRange,
-        LinearRange<CartQ24_8> maxOffsetRange,
-        SFracQ0_16Signal flowDirection,
-        SFracQ0_16Signal flowStrength
-    ) {
-        return makeInputsInternal(
-            std::move(phaseSpeed),
-            std::move(amplitude),
-            std::move(warpScale),
-            std::move(maxOffset),
-            std::move(warpScaleRange),
-            std::move(maxOffsetRange),
-            std::move(flowDirection),
-            std::move(flowStrength)
-        );
-    }
-
-    DomainWarpTransform::MappedInputs DomainWarpTransform::makeInputsInternal(
-        SFracQ0_16Signal phaseSpeed,
-        SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal warpScale,
-        SFracQ0_16Signal maxOffset,
-        LinearRange<CartQ24_8> warpScaleRange,
-        LinearRange<CartQ24_8> maxOffsetRange,
-        SFracQ0_16Signal flowDirection,
-        SFracQ0_16Signal flowStrength
-    ) {
-        LinearRange phaseRange{SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)};
-        bool hasFlow = flowDirection && flowStrength;
-
-        auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8> >(
-            resolveMappedSignal(maxOffsetRange.mapSignal(std::move(maxOffset)))
-        );
-
-        auto mapToMaxOffset = [maxOffsetSignal](SFracQ0_16Signal signal) -> MappedSignal<int32_t> {
-            bool absolute = signal.isAbsolute();
-            return MappedSignal<int32_t>(
-                [signal = std::move(signal), maxOffsetSignal](TimeMillis time) mutable -> MappedValue<int32_t> {
-                    int32_t max_raw = raw((*maxOffsetSignal)(time).get());
-                    if (max_raw <= 0) return MappedValue<int32_t>(0);
-                    uint32_t t_raw = clamp_frac_raw(raw(signal(time)));
-                    int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
-                    return MappedValue(static_cast<int32_t>(scaled));
-                },
-                absolute
-            );
-        };
-
-        PolarRange flowDirectionRange;
-
-        return MappedInputs{
-            phaseRange.mapSignal(std::move(phaseSpeed)),
-            resolveMappedSignal(mapToMaxOffset(std::move(amplitude))),
-            resolveMappedSignal(warpScaleRange.mapSignal(std::move(warpScale))),
-            std::move(maxOffsetSignal),
-            hasFlow
-                ? resolveMappedSignal(flowDirectionRange.mapSignal(std::move(flowDirection)))
-                : MappedSignal<FracQ0_16>(),
-            hasFlow ? resolveMappedSignal(mapToMaxOffset(std::move(flowStrength))) : MappedSignal<int32_t>()
-        };
-    }
-
-    DomainWarpTransform::DomainWarpTransform(
-        SFracQ0_16Signal phaseSpeed,
-        SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal warpScale,
-        SFracQ0_16Signal maxOffset,
-        LinearRange<CartQ24_8> warpScaleRange,
-        LinearRange<CartQ24_8> maxOffsetRange
-    ) : DomainWarpTransform(
-        WarpType::Basic,
-        3,
-        makeInputs(
-            std::move(phaseSpeed),
-            std::move(amplitude),
-            std::move(warpScale),
-            std::move(maxOffset),
-            std::move(warpScaleRange),
-            std::move(maxOffsetRange)
-        )
-    ) {
+    ) : DomainWarpTransform(WarpType::Basic, std::move(speed), amplitude, warpScale, maxOffset, warpScaleRange, maxOffsetRange, 3) {
     }
 
     DomainWarpTransform::DomainWarpTransform(
         WarpType type,
-        SFracQ0_16Signal phaseSpeed,
+        SFracQ0_16Signal speed,
         SFracQ0_16Signal amplitude,
         SFracQ0_16Signal warpScale,
         SFracQ0_16Signal maxOffset,
@@ -288,38 +210,36 @@ namespace PolarShader {
         uint8_t octaves,
         SFracQ0_16Signal flowDirection,
         SFracQ0_16Signal flowStrength
-    ) : DomainWarpTransform(
-        type,
-        octaves,
-        makeDirectionalInputs(
-            std::move(phaseSpeed),
-            std::move(amplitude),
-            std::move(warpScale),
-            std::move(maxOffset),
-            std::move(warpScaleRange),
-            std::move(maxOffsetRange),
-            std::move(flowDirection),
-            std::move(flowStrength)
-        )
     ) {
+        auto inputs = makeInputs(std::move(speed), amplitude, warpScale, maxOffset, warpScaleRange, maxOffsetRange, flowDirection, flowStrength);
+        state = std::make_shared<State>(
+            type,
+            std::move(inputs.phaseSpeedSignal),
+            std::move(inputs.amplitudeSignal),
+            std::move(inputs.warpScaleSignal),
+            std::move(inputs.maxOffsetSignal),
+            octaves,
+            std::move(inputs.flowDirectionSignal),
+            std::move(inputs.flowStrengthSignal)
+        );
     }
 
-    void DomainWarpTransform::advanceFrame(TimeMillis timeInMillis) {
+    void DomainWarpTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
-            Serial.println("DomainWarpTransform::advanceFrame context is null.");
+            // Serial.println("DomainWarpTransform::advanceFrame context is null.");
         }
 
-        FracQ0_16 phase = state->phase.advance(timeInMillis);
+        FracQ0_16 phase = state->phase.advance(progress, elapsedMs);
         state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << CARTESIAN_FRAC_BITS;
 
-        state->warpScale = state->warpScaleSignal(timeInMillis).get();
-        state->maxOffset = (*state->maxOffsetSignal)(timeInMillis).get();
+        state->warpScale = state->warpScaleSignal(progress, elapsedMs).get();
+        state->maxOffset = (*state->maxOffsetSignal)(progress, elapsedMs).get();
 
-        state->amplitudeRaw = state->amplitudeSignal(timeInMillis).get();
+        state->amplitudeRaw = state->amplitudeSignal(progress, elapsedMs).get();
 
         if (state->type == WarpType::Directional && state->flowDirectionSignal && state->flowStrengthSignal) {
-            FracQ0_16 dir = state->flowDirectionSignal(timeInMillis).get();
-            int32_t strength = state->flowStrengthSignal(timeInMillis).get();
+            FracQ0_16 dir = state->flowDirectionSignal(progress, elapsedMs).get();
+            int32_t strength = state->flowStrengthSignal(progress, elapsedMs).get();
             SFracQ0_16 cos_q0_16 = angleCosQ0_16(dir);
             SFracQ0_16 sin_q0_16 = angleSinQ0_16(dir);
             int64_t dx = static_cast<int64_t>(strength) * static_cast<int64_t>(raw(cos_q0_16));
@@ -339,8 +259,6 @@ namespace PolarShader {
             CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
             CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
 
-            // DomainWarp expects CartQ24.8 coords but internally works mostly with raw ints.
-            // We use the same math as the CartesianLayer operator.
             CartQ24_8 sx = CartesianMaths::mul(cx, state->warpScale);
             CartQ24_8 sy = CartesianMaths::mul(cy, state->warpScale);
 
@@ -378,14 +296,11 @@ namespace PolarShader {
                     break;
                 }
                 case WarpType::Polar: {
-                    // Convert back to UV for polar math
                     UV current_uv(CartesianMaths::to_uv(sx), CartesianMaths::to_uv(sy));
                     UV polar_uv = cartesianToPolarUV(current_uv);
 
-                    // Sample polar noise
                     SPoint32 polarNoise = sampleNoisePair(raw(polar_uv.u), raw(polar_uv.v), time_offset);
 
-                    // Amplitude is in CartQ24.8 scale, convert to UV scale (Q16.16)
                     int32_t uv_amp = state->amplitudeRaw << 8;
                     int32_t angle_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.x) * uv_amp) >> 16);
                     int32_t radius_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.y) * uv_amp) >> 16);

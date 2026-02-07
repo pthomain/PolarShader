@@ -48,23 +48,16 @@ namespace PolarShader {
         }
     };
 
-    RotationTransform::RotationTransform(MappedSignal<FracQ0_16> angle)
-        : state(std::make_shared<State>(std::move(angle))) {
+    RotationTransform::RotationTransform(SFracQ0_16Signal angle) {
+        auto inputs = makeInputs(std::move(angle));
+        state = std::make_shared<State>(std::move(inputs.angleSignal));
     }
 
-    RotationTransform::RotationTransform(MappedInputs inputs)
-        : RotationTransform(std::move(inputs.angleSignal)) {
-    }
-
-    RotationTransform::RotationTransform(SFracQ0_16Signal angle)
-        : RotationTransform(makeInputs(std::move(angle))) {
-    }
-
-    void RotationTransform::advanceFrame(TimeMillis timeInMillis) {
+    void RotationTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("RotationTransform::advanceFrame context is null.");
         }
-        state->angleOffset = state->angleSignal(timeInMillis);
+        state->angleOffset = state->angleSignal(progress, elapsedMs);
     }
 
     UVMap RotationTransform::operator()(const UVMap &layer) const {

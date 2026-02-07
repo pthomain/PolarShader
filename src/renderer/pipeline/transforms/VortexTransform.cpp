@@ -48,23 +48,16 @@ namespace PolarShader {
         }
     };
 
-    VortexTransform::VortexTransform(MappedSignal<SFracQ0_16> strength)
-        : state(std::make_shared<State>(std::move(strength))) {
+    VortexTransform::VortexTransform(SFracQ0_16Signal strength) {
+        auto inputs = VortexTransform::makeInputs(std::move(strength));
+        state = std::make_shared<State>(std::move(inputs.strengthSignal));
     }
 
-    VortexTransform::VortexTransform(MappedInputs inputs)
-        : VortexTransform(std::move(inputs.strengthSignal)) {
-    }
-
-    VortexTransform::VortexTransform(SFracQ0_16Signal strength)
-        : VortexTransform(makeInputs(std::move(strength))) {
-    }
-
-    void VortexTransform::advanceFrame(TimeMillis timeInMillis) {
+    void VortexTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("VortexTransform::advanceFrame context is null.");
         }
-        state->strengthValue = state->strengthSignal(timeInMillis);
+        state->strengthValue = state->strengthSignal(progress, elapsedMs);
     }
 
     UVMap VortexTransform::operator()(const UVMap &layer) const {

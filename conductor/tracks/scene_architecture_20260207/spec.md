@@ -1,7 +1,7 @@
 # Specification: Scene-Based Architecture and Enhanced Animation System
 
 ## Overview
-This track introduces a higher-level "Scene" architecture to PolarShader, allowing for multi-layer composition with blend modes and duration-based transitions. It also overhauls the animation system by replacing basic linear/sine/pulse signals with a unified `animate` function powered by a polymorphic `Interpolator` hierarchy.
+This track introduces a higher-level "Scene" architecture to PolarShader, allowing for multi-layer composition with blend modes and duration-based transitions. It also overhauls the animation system by replacing basic linear/sine/pulse signals with a unified functional signal system.
 
 ## Renaming & Structural Changes
 - **Core Classes:** 
@@ -15,38 +15,36 @@ This track introduces a higher-level "Scene" architecture to PolarShader, allowi
     - (And corresponding .cpp files and builder files).
 
 ## Animation System Overhaul
-- **Interpolators:**
-    - A new directory `src/renderer/pipeline/signals/interpolators/` will house the `Interpolator` base class and its implementations.
-    - **Included Interpolators:**
-        - `LinearInterpolator` (Default)
-        - `QuadraticInterpolator` (In, Out, InOut)
-        - `SinusoidalInterpolator` (In, Out, InOut)
-        - `ElasticInterpolator` (In, Out, InOut)
-        - `BounceInterpolator` (In, Out, InOut)
-- **Signals API:**
-    - `linear(TimeMillis durationMs)` is renamed to `animate(TimeMillis durationMs, const Interpolator& interpolator = LinearInterpolator())`.
-    - `sine()` and `pulse()` are removed in favor of `animate` with appropriate interpolators.
-    - Existing usage of `linear`, `sine`, and `pulse` across the codebase must be updated.
+- **Timing Terminology:**
+    - **Speed:** Periodic signals (`sine`, `noise`) use a **Signed Phase Speed Signal** (`SFracQ0_16Signal`).
+        - Units: Turns per second (1.0 = 1 full cycle per second).
+        - Directional: Positive values move forward, negative values move backward.
+        - Dynamic: As a signal, speed can vary over time.
+    - **Period (Duration):** Non-periodic easing functions (Linear, Quadratic, etc.) use `Period` (TimeMillis).
+        - Represents the duration after which the easing function resets and repeats.
+        - **Default:** If `period` is 0, it defaults to the Scene's duration.
+        - **Looping:** If `0 < period < scene_duration`, the signal loops.
+- **Signal Logic:**
+    - **Independent Phasing:** Signals using `Speed` are independent of Scene duration. They utilize a `PhaseAccumulator` to integrate speed over `elapsedTime`.
+    - **Signed Phase Speed:** `PhaseAccumulator` MUST use signed speed (`MappedSignal<SFracQ0_16>`) to support bidirectional movement.
+    - **Range:** `sine` and `noise` signals must span the full output range of `[0, 1]`.
+- **API Constraints:**
+    - `cPerMil` logic: `cPerMil` stands for "Constant per-mil". It creates a constant signed signal.
+    - `cPerMil16_16` (unsigned) is removed.
+    - **Transforms:** Must **not** accept `MappedSignal` in their public constructors. They should accept `Signal` types and/or `Ranges`, and internally construct/store a `MappedSignal`.
 
 ## Scene & Layering
 - **Layer Attributes:**
-    - Each `Layer` instance now has an `alpha` value (FracQ0_16) and a `BlendMode`.
+    - Each `Layer` instance has an `alpha` value (FracQ0_16) and a `BlendMode`.
     - Supported `BlendMode`s: `Normal`, `Add`, `Multiply`, `Screen`.
 - **Scene Class:**
-    - Manages a collection (list) of `Layer` objects.
+    - Manages a collection of `Layer` objects.
     - Has a `durationMs`.
-    - Receives absolute time and translates it to **relative time** (absolute - startTime) for its layers.
-    - Resets its internal timer to 0 when `durationMs` is reached.
+    - Translates absolute time to **relative time** (absolute - startTime) for its layers.
 - **Scene Management:**
-    - `SceneProvider`: An interface for providing the next `Scene`.
-    - `SceneManager`: Orchestrates the current `Scene`, handles duration expiry, and requests the next scene from the `SceneProvider`.
-    - `DefaultSceneProvider`: A simple implementation that always returns the same scene (loops).
+    - `SceneProvider` / `SceneManager`: Orchestrates scene transitions based on duration.
 
 ## Functional Requirements
-- **Relative Timing:** All layers within a scene must render based on the scene's elapsed time, ensuring deterministic behavior regardless of when the scene started.
-- **Composition:** The `Scene` must composite its layers from bottom to top using the specified blend modes and per-layer alpha.
-- **Fixed-Point Consistency:** All alpha blending and interpolation must continue to use the project's Q16.16 (or relevant Q-format) fixed-point math.
-
-## Out of Scope
-- Complex transition effects between scenes (e.g., cross-fades). Scenes swap instantly for now.
-- Dynamic scene loading from external files/SD cards.
+- **Relative Timing:** All layers within a scene render based on the scene's elapsed time.
+- **Composition:** The `Scene` composites layers from bottom to top using blend modes and alpha.
+- **Fixed-Point Consistency:** All operations use the project's established Q-formats.

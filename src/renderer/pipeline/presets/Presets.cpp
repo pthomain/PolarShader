@@ -50,10 +50,12 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                .addTransform(ZoomTransform(midPoint()))
+                .addTransform(ZoomTransform(
+                    sine(cPerMil(100))
+                ))
                 .addPaletteTransform(
                     PaletteTransform(
-                        animate(5000)
+                        sine(cPerMil(100))
                     )
                 );
     }
@@ -71,11 +73,11 @@ namespace PolarShader {
                 )
                 .addPaletteTransform(PaletteTransform(noise(cPerMil(200))))
                 .addTransform(TranslationTransform(
-                    noise(),
+                    noise(cPerMil(100)),
                     noise(cPerMil(100), cPerMil(300))
                 ))
                 .addTransform(ZoomTransform(
-                    animate(cPerMil(30), QuadraticInterpolatorInOut())
+                    quadraticInOut()
                 ))
                 .addTransform(VortexTransform(
                     noise(cPerMil(10), cPerMil(200))
@@ -103,7 +105,7 @@ namespace PolarShader {
                     perMil(50)
                 ))
                 .addTransform(TranslationTransform(
-                    noise(),
+                    noise(cPerMil(100)),
                     noise(cPerMil(30), cPerMil(200))
                 ))
                 .addTransform(ZoomTransform(

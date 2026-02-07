@@ -31,19 +31,8 @@
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
-#include "renderer/pipeline/signals/interpolators/BasicInterpolators.h"
-#include "renderer/pipeline/signals/interpolators/SinusoidalInterpolators.h"
-#include "renderer/pipeline/signals/interpolators/ComplexInterpolators.h"
-
 namespace PolarShader {
     using SampleSignal = fl::function<SFracQ0_16(FracQ0_16)>;
-
-    SFracQ0_16Signal createSignal(
-        SFracQ0_16Signal phaseSpeed,
-        SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset,
-        SampleSignal sample
-    );
 
     SFracQ0_16Signal floor();
 
@@ -61,18 +50,43 @@ namespace PolarShader {
 
     SFracQ0_16Signal randomPerMil();
 
+    /**
+     * @brief Animated noise signal driven by a speed signal.
+     * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
+     */
     SFracQ0_16Signal noise(
-        SFracQ0_16Signal phaseSpeed = constant(perMil(100)),
+        SFracQ0_16Signal speed = cPerMil(100),
         SFracQ0_16Signal amplitude = ceiling(),
-        SFracQ0_16Signal offset = randomPerMil()
+        SFracQ0_16Signal offset = floor()
     );
 
-    // Renamed from linear, now supports polymorphic interpolators.
-    // Default is LinearInterpolator.
-    SFracQ0_16Signal animate(
-        TimeMillis durationMs,
-        const Interpolator& interpolator = LinearInterpolator()
+    /**
+     * @brief Periodic sine wave signal driven by a speed signal.
+     * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
+     */
+    SFracQ0_16Signal sine(
+        SFracQ0_16Signal speed = cPerMil(100),
+        SFracQ0_16Signal amplitude = ceiling(),
+        SFracQ0_16Signal offset = floor()
     );
+
+    // Easing functions
+    // If duration is 0, the signal spans the entire scene duration once.
+    // If duration > 0, the signal loops every 'duration' milliseconds.
+
+    SFracQ0_16Signal linear(Period duration = 0);
+
+    SFracQ0_16Signal quadraticIn(Period duration = 0);
+
+    SFracQ0_16Signal quadraticOut(Period duration = 0);
+
+    SFracQ0_16Signal quadraticInOut(Period duration = 0);
+
+    SFracQ0_16Signal sinusoidalIn(Period duration = 0);
+
+    SFracQ0_16Signal sinusoidalOut(Period duration = 0);
+
+    SFracQ0_16Signal sinusoidalInOut(Period duration = 0);
 
     // Invert a signal in the 0..1 domain: y = 1 - x.
     SFracQ0_16Signal invert(SFracQ0_16Signal signal);
@@ -94,7 +108,7 @@ namespace PolarShader {
 
     // Map a 0..1 signal into the unsigned Q24.8 depth domain.
     DepthSignal depth(
-        SFracQ0_16Signal signal = constant(perMil(100)),
+        SFracQ0_16Signal signal = cPerMil(100),
         LinearRange<uint32_t> range = LinearRange<uint32_t>(0, 1000)
     );
 }

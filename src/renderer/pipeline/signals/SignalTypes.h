@@ -31,6 +31,7 @@
 #include "renderer/pipeline/maths/UVMaths.h"
 #include <cstdint>
 #include <limits>
+#include <type_traits>
 #include <utility>
 
 namespace PolarShader {
@@ -42,25 +43,50 @@ namespace PolarShader {
      */
     class SFracQ0_16Signal {
     public:
-        using SampleFn = fl::function<SFracQ0_16(TimeMillis)>;
+        using SampleFn = fl::function<SFracQ0_16(FracQ0_16, TimeMillis)>;
 
         SFracQ0_16Signal() = default;
 
-        SFracQ0_16Signal(SampleFn sample, bool absolute = true)
+        SFracQ0_16Signal(SampleFn sample, bool absolute)
             : sampleFn(std::move(sample)),
               absoluteMode(absolute) {
         }
 
-        SFracQ0_16 sample(TimeMillis time) const {
-            return sampleFn ? sampleFn(time) : SFracQ0_16(0);
+        template<typename Fn, typename std::enable_if_t<
+            std::is_invocable_r_v<SFracQ0_16, Fn &, FracQ0_16, TimeMillis>, int> = 0>
+        SFracQ0_16Signal(Fn sample, bool absolute = true)
+            : sampleFn(std::move(sample)),
+              absoluteMode(absolute) {
+        }
+
+        template<typename Fn, typename std::enable_if_t<
+            !std::is_invocable_r_v<SFracQ0_16, Fn &, FracQ0_16, TimeMillis> &&
+            std::is_invocable_r_v<SFracQ0_16, Fn &, FracQ0_16>, int> = 0>
+        SFracQ0_16Signal(Fn sample, bool absolute = true)
+            : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
+                return sample(progress);
+            }),
+              absoluteMode(absolute) {
+        }
+
+        SFracQ0_16 sample(FracQ0_16 progress, TimeMillis elapsedMs) const {
+            return sampleFn ? sampleFn(progress, elapsedMs) : SFracQ0_16(0);
+        }
+
+        SFracQ0_16 sample(FracQ0_16 progress) const {
+            return sample(progress, 0);
         }
 
         bool isAbsolute() const {
             return absoluteMode;
         }
 
-        SFracQ0_16 operator()(TimeMillis time) const {
-            return sample(time);
+        SFracQ0_16 operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
+            return sample(progress, elapsedMs);
+        }
+
+        SFracQ0_16 operator()(FracQ0_16 progress) const {
+            return sample(progress, 0);
         }
 
         explicit operator bool() const {
@@ -79,22 +105,43 @@ namespace PolarShader {
     };
 
     /**
-     * @brief Time-indexed signal that emits mapped values.
+     * @brief Progress-indexed signal that emits mapped values.
      */
     template<typename T>
     class MappedSignal {
     public:
-        using SampleFn = fl::function<MappedValue<T>(TimeMillis)>;
+        using SampleFn = fl::function<MappedValue<T>(FracQ0_16, TimeMillis)>;
 
         MappedSignal() = default;
 
-        MappedSignal(SampleFn sample, bool absolute = true)
+        MappedSignal(SampleFn sample, bool absolute)
             : sampleFn(std::move(sample)),
               absoluteMode(absolute) {
         }
 
-        MappedValue<T> operator()(TimeMillis time) const {
-            return sampleFn ? sampleFn(time) : MappedValue<T>();
+        template<typename Fn, typename std::enable_if_t<
+            std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16, TimeMillis>, int> = 0>
+        MappedSignal(Fn sample, bool absolute = true)
+            : sampleFn(std::move(sample)),
+              absoluteMode(absolute) {
+        }
+
+        template<typename Fn, typename std::enable_if_t<
+            !std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16, TimeMillis> &&
+            std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16>, int> = 0>
+        MappedSignal(Fn sample, bool absolute = true)
+            : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
+                return sample(progress);
+            }),
+              absoluteMode(absolute) {
+        }
+
+        MappedValue<T> operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
+            return sampleFn ? sampleFn(progress, elapsedMs) : MappedValue<T>();
+        }
+
+        MappedValue<T> operator()(FracQ0_16 progress) const {
+            return (*this)(progress, 0);
         }
 
         bool isAbsolute() const {
@@ -119,7 +166,68 @@ namespace PolarShader {
     /**
      * @brief Time-indexed signal that emits unified UV coordinates.
      */
-    using UVSignal = MappedSignal<UV>;
+    class UVSignal {
+    public:
+        using SampleFn = fl::function<UV(FracQ0_16, TimeMillis)>;
+
+        UVSignal() = default;
+
+        UVSignal(SampleFn sample, bool absolute)
+            : sampleFn(std::move(sample)),
+              absoluteMode(absolute) {
+        }
+
+        template<typename Fn, typename std::enable_if_t<
+            std::is_invocable_r_v<UV, Fn &, FracQ0_16, TimeMillis>, int> = 0>
+        UVSignal(Fn sample, bool absolute = true)
+            : sampleFn(std::move(sample)),
+              absoluteMode(absolute) {
+        }
+
+        template<typename Fn, typename std::enable_if_t<
+            !std::is_invocable_r_v<UV, Fn &, FracQ0_16, TimeMillis> &&
+            std::is_invocable_r_v<UV, Fn &, FracQ0_16>, int> = 0>
+        UVSignal(Fn sample, bool absolute = true)
+            : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
+                return sample(progress);
+            }),
+              absoluteMode(absolute) {
+        }
+
+        UV sample(FracQ0_16 progress, TimeMillis elapsedMs) const {
+            return sampleFn ? sampleFn(progress, elapsedMs) : UV();
+        }
+
+        UV sample(FracQ0_16 progress) const {
+            return sample(progress, 0);
+        }
+
+        UV operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
+            return sample(progress, elapsedMs);
+        }
+
+        UV operator()(FracQ0_16 progress) const {
+            return sample(progress, 0);
+        }
+
+        bool isAbsolute() const {
+            return absoluteMode;
+        }
+
+        explicit operator bool() const {
+            return static_cast<bool>(sampleFn);
+        }
+
+        UVSignal withAbsolute(bool absolute) const {
+            UVSignal copy(*this);
+            copy.absoluteMode = absolute;
+            return copy;
+        }
+
+    private:
+        SampleFn sampleFn;
+        bool absoluteMode{true};
+    };
 
     namespace detail {
         template<typename T>
@@ -200,10 +308,29 @@ namespace PolarShader {
         if (!signal || signal.isAbsolute()) return signal;
         return MappedSignal<T>(
             [signal = std::move(signal),
-                    accumulated = detail::SignalAccumulator<T>::zero()](TimeMillis time) mutable {
-                MappedValue<T> value = signal(time);
+                    accumulated = detail::SignalAccumulator<T>::zero()](
+                FracQ0_16 progress,
+                TimeMillis elapsedMs
+            ) mutable {
+                MappedValue<T> value = signal(progress, elapsedMs);
                 accumulated = detail::SignalAccumulator<T>::add(accumulated, value.get());
                 return MappedValue<T>(accumulated);
+            },
+            true
+        );
+    }
+
+    inline UVSignal resolveMappedSignal(UVSignal signal) {
+        if (!signal || signal.isAbsolute()) return signal;
+        return UVSignal(
+            [signal = std::move(signal),
+                    accumulated = detail::SignalAccumulator<UV>::zero()](
+                FracQ0_16 progress,
+                TimeMillis elapsedMs
+            ) mutable {
+                UV value = signal(progress, elapsedMs);
+                accumulated = detail::SignalAccumulator<UV>::add(accumulated, value);
+                return accumulated;
             },
             true
         );

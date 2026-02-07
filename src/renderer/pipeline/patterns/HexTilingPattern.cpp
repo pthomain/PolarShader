@@ -171,9 +171,9 @@ namespace PolarShader {
 
     uint16_t HexTilingPattern::sampleSignal(SFracQ0_16Signal signal) {
         if (!signal) return 0;
-        LinearRange<PatternNormU16> range(PatternNormU16(0), PatternNormU16(FRACT_Q0_16_MAX));
+        LinearRange range(PatternNormU16(0), PatternNormU16(FRACT_Q0_16_MAX));
         auto mapped = range.mapSignal(std::move(signal));
-        PatternNormU16 value = mapped(TimeMillis(0)).get();
+        PatternNormU16 value = mapped(FracQ0_16(0)).get();
         return raw(value);
     }
 

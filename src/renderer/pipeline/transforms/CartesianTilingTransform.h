@@ -30,21 +30,6 @@ namespace PolarShader {
      * Tiles the cartesian plane into square cells of uniform size and optionally mirrors every other cell.
      */
     class CartesianTilingTransform : public UVTransform {
-        struct State;
-        std::shared_ptr<State> state;
-
-        struct MappedInputs {
-            MappedSignal<int32_t> cellSizeSignal;
-        };
-
-        CartesianTilingTransform(MappedInputs inputs, bool mirrored);
-
-        static MappedInputs makeInputs(
-            SFracQ0_16Signal cellSize,
-            int32_t minCellSize,
-            int32_t maxCellSize
-        );
-
     public:
         explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false);
 
@@ -55,9 +40,20 @@ namespace PolarShader {
             bool mirrored = false
         );
 
-        void advanceFrame(TimeMillis timeInMillis) override;
+        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
+
+    private:
+        struct MappedInputs;
+        static MappedInputs makeInputs(
+            SFracQ0_16Signal cellSize,
+            int32_t minCellSize,
+            int32_t maxCellSize
+        );
+
+        struct State;
+        std::shared_ptr<State> state;
     };
 }
 

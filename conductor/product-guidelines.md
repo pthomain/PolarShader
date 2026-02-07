@@ -29,14 +29,14 @@
 ## Signal & Timing Rules
 
 ### Timing Terminology
-- **Period (TimeMillis):** Used for infinite, periodic signals (e.g., Sine, Noise). Represents cycle length. Independent of scene duration.
-- **Duration (TimeMillis):** Used for finite or looping signals (e.g., Easing functions). 
-    - Default: 0 (matches entire scene duration).
-    - Looping: If `duration > 0` and `duration < sceneDuration`, the signal loops.
+- **Speed (SFracQ0_16Signal):** Used for infinite, periodic signals (e.g., Sine, Noise). Represents turns-per-second. Supports dynamic and bidirectional motion via signed signals. Independent of scene duration.
+- **Period (TimeMillis):** Used for finite or looping signals (e.g., Easing functions). 
+    - Default: 0 (matches entire scene duration once).
+    - Looping: If `period > 0` and `period < scene_duration`, the signal loops.
 
 ### Value Constraints
 - **Normalization:** Periodic scalar signals (Sine, Noise) must span the full `[0, 1]` range by default.
-- **Directionality:** Phase-driving signals and accumulators must use signed speeds (`SFracQ0_16`) to support bidirectional motion and negative phases.
+- **Directionality:** All speed-based signals must support signed values to enable negative phase progression (backward motion).
 
 ## Implementation Standards
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.

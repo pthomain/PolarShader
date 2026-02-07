@@ -14,7 +14,7 @@ Rename existing pipeline components to reflect the new "Layer" terminology and u
     - Rename `ColourLayer` to `ColourMap`.
 - [x] Task: Propagate name changes across the codebase. [cecceae]
     - Update `PolarRenderer`, `Presets`, and `test_pipeline.cpp`.
-- [ ] Task: Conductor - User Manual Verification 'Core Renaming and Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Core Renaming and Infrastructure' (Protocol in workflow.md)
 
 ## Phase 2: Interpolator Hierarchy
 Introduce the `Interpolator` base class and its various easing implementations.
@@ -48,3 +48,28 @@ Enhance `Layer` with composition properties and implement the `Scene` and `Scene
     - Handle scene lifecycle and duration-based transitions.
 - [x] Task: Update `PolarRenderer` to use `SceneManager`.
 - [x] Task: Conductor - User Manual Verification 'Layer and Scene Architecture' (Protocol in workflow.md)
+
+## Phase 5: Unified Signal & Progress-based Timing
+Refactor the signal system to use normalized progress (0..1) instead of absolute time, aligning with the new Scene-based architecture.
+
+- [x] Task: Refactor `SignalTypes.h` and `Signals.h` to use `FracQ0_16 progress` instead of `TimeMillis`. [3651167]
+- [x] Task: Update `SceneManager` to calculate progress and pass it to `Scene`. [b2f91a5]
+- [x] Task: Update `Scene` and `Layer` to use progress for sampling signals. [573a4b9]
+- [x] Task: Remove `Interpolator` hierarchy and replace with unified `SFracQ0_16Signal` functions (easing functions). [919d7a2]
+- [x] Task: Remove `animate()` function from `Signals.h/cpp`. [cecceae]
+- [x] Task: Update all existing signals, transforms, and patterns to the new progress-based API. [f8e4b3c]
+- [x] Task: Conductor - User Manual Verification 'Unified Signal & Progress-based Timing' (Protocol in workflow.md)
+
+## Phase 6: Signal Refinement and Corrections
+Address API regressions and enforce strict timing/phase logic.
+
+- [x] Task: Restore Signed Phase Speed for Periodic Signals.
+    - Update `sine` and `noise` to accept `SFracQ0_16Signal speed`.
+    - Restore `PhaseAccumulator` usage in periodic signals to support varying speed and direction.
+    - Ensure easing functions retain `Period` (TimeMillis) for looping.
+- [x] Task: Update Transforms and Presets for Speed Signals.
+    - Update `DomainWarpTransform` to use speed signal.
+    - Fix all `Presets.cpp` calls to use `cPerMil` or similar for speed.
+- [x] Task: Enforce Transform API Constraints. [fed1b49]
+- [x] Task: Verify Negative Phase Support and Timing Independence. [fed1b49]
+- [x] Task: Conductor - User Manual Verification 'Signal Refinement and Corrections' (Protocol in workflow.md)

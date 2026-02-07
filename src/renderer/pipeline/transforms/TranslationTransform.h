@@ -33,14 +33,6 @@ namespace PolarShader {
      * Velocity is a 0..1 scalar in Q0.16 mapped to a max speed (Q24.8 units).
      */
     class TranslationTransform : public UVTransform {
-        struct MappedInputs;
-        struct State;
-        std::shared_ptr<State> state;
-
-        explicit TranslationTransform(MappedInputs inputs);
-
-        static MappedInputs makeInputs(UVSignal offsetSignal);
-
     public:
         explicit TranslationTransform(UVSignal offsetSignal);
 
@@ -49,9 +41,13 @@ namespace PolarShader {
             SFracQ0_16Signal speed
         );
 
-        void advanceFrame(TimeMillis timeInMillis) override;
+        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
+
+    private:
+        struct State;
+        std::shared_ptr<State> state;
     };
 }
 

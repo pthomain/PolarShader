@@ -29,7 +29,7 @@ namespace PolarShader {
     /**
      * Cartesian domain warp driven by animated noise.
      *
-     * - phaseSpeed: turns-per-second for the time axis.
+     * - phaseSpeed: turns-per-second for the time axis (independent from scene duration).
      * - amplitude: 0..1 signal that scales maxOffset.
      * - warpScale: 0..1 signal mapped via LinearRange, applied before sampling warp noise.
      * - maxOffset: 0..1 signal mapped via LinearRange, maximum warp displacement in Q24.8 units.
@@ -45,85 +45,47 @@ namespace PolarShader {
             Directional
         };
 
+        DomainWarpTransform(
+            SFracQ0_16Signal speed,
+            SFracQ0_16Signal amplitude,
+            SFracQ0_16Signal warpScale,
+            SFracQ0_16Signal maxOffset,
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange
+        );
+
+        DomainWarpTransform(
+            WarpType type,
+            SFracQ0_16Signal speed,
+            SFracQ0_16Signal amplitude,
+            SFracQ0_16Signal warpScale,
+            SFracQ0_16Signal maxOffset,
+            LinearRange<CartQ24_8> warpScaleRange,
+            LinearRange<CartQ24_8> maxOffsetRange,
+            uint8_t octaves,
+            SFracQ0_16Signal flowDirection = SFracQ0_16Signal(),
+            SFracQ0_16Signal flowStrength = SFracQ0_16Signal()
+        );
+
+        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
+
+        UVMap operator()(const UVMap &layer) const override;
+
     private:
         struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
 
-        DomainWarpTransform(
-            WarpType type,
-            MappedSignal<SFracQ0_16> phaseSpeed,
-            MappedSignal<int32_t> amplitude,
-            MappedSignal<CartQ24_8> warpScale,
-            std::shared_ptr<MappedSignal<CartQ24_8>> maxOffset,
-            uint8_t octaves,
-            MappedSignal<FracQ0_16> flowDirection,
-            MappedSignal<int32_t> flowStrength
-        );
-
-        DomainWarpTransform(
-            WarpType type,
-            uint8_t octaves,
-            MappedInputs inputs
-        );
-
         static MappedInputs makeInputs(
-            SFracQ0_16Signal phaseSpeed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange
-        );
-
-        static MappedInputs makeDirectionalInputs(
-            SFracQ0_16Signal phaseSpeed,
+            SFracQ0_16Signal speed,
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal warpScale,
             SFracQ0_16Signal maxOffset,
             LinearRange<CartQ24_8> warpScaleRange,
             LinearRange<CartQ24_8> maxOffsetRange,
-            SFracQ0_16Signal flowDirection,
-            SFracQ0_16Signal flowStrength
+            SFracQ0_16Signal flowDirection = SFracQ0_16Signal(),
+            SFracQ0_16Signal flowStrength = SFracQ0_16Signal()
         );
-
-        static MappedInputs makeInputsInternal(
-            SFracQ0_16Signal phaseSpeed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange,
-            SFracQ0_16Signal flowDirection,
-            SFracQ0_16Signal flowStrength
-        );
-
-    public:
-        DomainWarpTransform(
-            SFracQ0_16Signal phaseSpeed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange
-        );
-
-        DomainWarpTransform(
-            WarpType type,
-            SFracQ0_16Signal phaseSpeed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange,
-            uint8_t octaves,
-            SFracQ0_16Signal flowDirection,
-            SFracQ0_16Signal flowStrength
-        );
-
-        void advanceFrame(TimeMillis timeInMillis) override;
-
-        UVMap operator()(const UVMap &layer) const override;
     };
 }
 

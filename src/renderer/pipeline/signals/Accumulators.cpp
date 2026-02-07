@@ -20,7 +20,6 @@
 
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/maths/AngleMaths.h"
-#include "renderer/pipeline/maths/Maths.h"
 
 namespace PolarShader {
     PhaseAccumulator::PhaseAccumulator(
@@ -30,22 +29,29 @@ namespace PolarShader {
         phaseSpeed(std::move(speed)) {
     }
 
-    FracQ0_16 PhaseAccumulator::advance(TimeMillis time) {
-        if (!hasLastTime) {
-            lastTime = time;
-            hasLastTime = true;
+    FracQ0_16 PhaseAccumulator::advance(FracQ0_16 progress, TimeMillis elapsedMs) {
+        if (!hasLastElapsed) {
+            lastElapsedMs = elapsedMs;
+            hasLastElapsed = true;
             return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
         }
-        TimeMillis deltaTime = time - lastTime;
-        lastTime = time;
-        if (deltaTime == 0) return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
 
-        deltaTime = clampDeltaTime(deltaTime);
+        int64_t deltaMs = static_cast<int64_t>(elapsedMs) - static_cast<int64_t>(lastElapsedMs);
+        lastElapsedMs = elapsedMs;
+        
+        // We allow negative deltaMs if elapsedMs resets (e.g. scene loop), 
+        // but typically it should be positive or zero.
+        if (deltaMs == 0) return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
 
-        SFracQ0_16 dt_q0_16 = timeMillisToScalar(deltaTime);
-        int64_t increment = static_cast<int64_t>(raw(phaseSpeed(time).get())) *
-                            static_cast<int64_t>(raw(dt_q0_16));
+        int64_t speedRaw = raw(phaseSpeed(progress, elapsedMs).get());
+        
+        // Accumulate phase using a 32-bit container where the top 16 bits represent the 
+        // integer phase (turns) and the bottom 16 bits provide fractional precision.
+        // speedRaw is in SFracQ0_16 (1.0 = 65536 turns/sec).
+        // increment = (speed * deltaMs / 1000) * 65536
+        int64_t increment = (speedRaw * deltaMs * 65536LL) / 1000LL;
         phaseRaw32 = static_cast<uint32_t>(static_cast<int64_t>(phaseRaw32) + increment);
+
         return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
     }
 }

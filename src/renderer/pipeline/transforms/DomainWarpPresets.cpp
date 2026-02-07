@@ -51,9 +51,7 @@ namespace PolarShader {
             ceiling(),
             LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             LinearRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
-            octaves,
-            SFracQ0_16Signal(),
-            SFracQ0_16Signal()
+            octaves
         );
     }
 
@@ -66,9 +64,7 @@ namespace PolarShader {
             ceiling(),
             LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             LinearRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
-            2,
-            SFracQ0_16Signal(),
-            SFracQ0_16Signal()
+            2
         );
     }
 
@@ -81,31 +77,27 @@ namespace PolarShader {
             ceiling(),
             LinearRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
             LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
-            1,
-            SFracQ0_16Signal(),
-            SFracQ0_16Signal()
+            1
         );
     }
 
     DomainWarpTransform domainWarpPolar() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Polar,
-            noise(cPerMil(110)),
+            cPerMil(110),
             cPerMil(220),
             ceiling(),
             ceiling(),
             LinearRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
             LinearRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
-            1,
-            SFracQ0_16Signal(),
-            SFracQ0_16Signal()
+            1
         );
     }
 
     DomainWarpTransform domainWarpDirectional() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Directional,
-            noise(cPerMil(130)),
+            cPerMil(130),
             cPerMil(240),
             ceiling(),
             ceiling(),

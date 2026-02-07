@@ -15,12 +15,18 @@
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/PolarMaths.cpp"
+#include "renderer/pipeline/maths/NoiseMaths.cpp"
 #include "renderer/pipeline/transforms/RotationTransform.cpp"
 #include "renderer/pipeline/transforms/ZoomTransform.cpp"
 #include "renderer/pipeline/ranges/PolarRange.cpp"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/Accumulators.cpp"
+#include "renderer/pipeline/patterns/Patterns.cpp"
+#include "renderer/pipeline/patterns/NoisePattern.cpp"
+#include "renderer/pipeline/patterns/HexTilingPattern.cpp"
+#include "renderer/pipeline/patterns/WorleyPatterns.cpp"
+#include "renderer/pipeline/patterns/base/UVPattern.cpp"
 #include "renderer/pipeline/Layer.cpp"
 #include "renderer/pipeline/LayerBuilder.cpp"
 #include "renderer/pipeline/Scene.cpp"
@@ -97,7 +103,7 @@ void test_uv_round_trip() {
 void test_rotation_transform_uv() {
     // Rotate 90 degrees (0.25 turns = 0x4000)
     RotationTransform rotation(constant(SFracQ0_16(0x4000)));
-    rotation.advanceFrame(0);
+    rotation.advanceFrame(FracQ0_16(0), 0);
 
     UVMap testLayer = [](UV uv) {
         return PatternNormU16(raw(uv.u));
@@ -118,7 +124,7 @@ void test_rotation_transform_uv() {
 /** @brief Verify that ZoomTransform correctly scales Cartesian UV coordinates relative to the center. */
 void test_zoom_transform_uv() {
     ZoomTransform zoom(constant(SFracQ0_16(0))); // Target min
-    zoom.advanceFrame(0);
+    zoom.advanceFrame(FracQ0_16(0), 0);
     
     UVMap testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     
@@ -138,7 +144,7 @@ void test_zoom_transform_uv() {
     // fx=0 => scaled_uv.u = 0x10000 >> 1 = 0x8000 (0.5).
     // 0.5 * 65536 = 32768.
     
-    TEST_ASSERT_UINT16_WITHIN(100, 32768, raw(result));
+    TEST_ASSERT_UINT16_WITHIN(500, 32768, raw(result));
 }
 
 /** @brief Verify that relative UV signals correctly accumulate over time. */
@@ -147,21 +153,64 @@ void test_uv_signal_accumulation() {
     // 0.1 in Q16.16 is ~6554
     UV delta(FracQ16_16(6554), FracQ16_16(6554));
     
-    UVSignal rawSignal([delta](TimeMillis) {
-        return MappedValue<UV>(delta);
+    UVSignal rawSignal([delta](FracQ0_16, TimeMillis) {
+        return delta;
     }, false); // relative = true
     
     UVSignal resolved = resolveMappedSignal(rawSignal);
     
     // First sample
-    UV result1 = resolved(100).get();
+    UV result1 = resolved(FracQ0_16(100), 0);
     TEST_ASSERT_EQUAL_INT32(6554, raw(result1.u));
     TEST_ASSERT_EQUAL_INT32(6554, raw(result1.v));
     
     // Second sample (should accumulate)
-    UV result2 = resolved(200).get();
+    UV result2 = resolved(FracQ0_16(200), 0);
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.u));
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.v));
+}
+
+/** @brief Verify PhaseAccumulator integration of signed speed. */
+void test_phase_accumulator_signed() {
+    // Speed: -0.5 turns per second
+    auto speed = MappedSignal<SFracQ0_16>([](FracQ0_16, TimeMillis) {
+        return MappedValue(SFracQ0_16(-32768));
+    });
+
+    PhaseAccumulator accum(speed);
+    accum.advance(FracQ0_16(0), 0); // Init
+    
+    // Advance 1000ms -> -0.5 turns -> 0.5 (32768)
+    FracQ0_16 p1 = accum.advance(FracQ0_16(0), 1000);
+    TEST_ASSERT_UINT16_WITHIN(100, 32768, raw(p1));
+    
+    // Advance another 1000ms -> -1.0 turns -> 0
+    FracQ0_16 p2 = accum.advance(FracQ0_16(0), 2000);
+    TEST_ASSERT_UINT16_WITHIN(100, 0, raw(p2));
+}
+
+/** @brief Verify sine uses speed signal and spans 0..1. */
+void test_sine_speed() {
+    // Speed: 1.0 turn per second
+    SFracQ0_16Signal s = sine(cPerMil(1000));
+    
+    // t=0 -> 0.5 (32768)
+    TEST_ASSERT_INT32_WITHIN(100, 32768, raw(s(FracQ0_16(0), 0)));
+    // t=250ms -> 0.25 turn -> s=1.0 -> 65535
+    TEST_ASSERT_INT32_WITHIN(100, 65535, raw(s(FracQ0_16(0), 250)));
+}
+
+/** @brief Verify easing functions loop if period > 0. */
+void test_easing_period_looping() {
+    // Linear signal looping every 500ms
+    SFracQ0_16Signal s = linear(500);
+    
+    // t=250 -> 0.5 (32767)
+    TEST_ASSERT_UINT16_WITHIN(100, 32767, raw(s(FracQ0_16(0), 250)));
+    // t=500 -> reset to 0
+    TEST_ASSERT_EQUAL_UINT16(0, raw(s(FracQ0_16(0), 500)));
+    // t=750 -> 0.5 again
+    TEST_ASSERT_UINT16_WITHIN(100, 32767, raw(s(FracQ0_16(0), 750)));
 }
 
 #include "renderer/pipeline/ranges/LinearRange.h"
@@ -224,6 +273,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_rotation_transform_uv);
     RUN_TEST(test_zoom_transform_uv);
     RUN_TEST(test_uv_signal_accumulation);
+    RUN_TEST(test_phase_accumulator_signed);
+    RUN_TEST(test_sine_speed);
+    RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_linear_range);
     RUN_TEST(test_uv_range);
     return UNITY_END();

@@ -150,6 +150,15 @@ namespace PolarShader {
             return std::move(*this);
         }
 
+        // duplicates
+        LayerBuilder &withDepth(DepthSignal signal) & {
+            return setDepthSignal(std::move(signal));
+        }
+
+        LayerBuilder &&withDepth(DepthSignal signal) && {
+            return std::move(setDepthSignal(std::move(signal)));
+        }
+
         Layer build();
     };
 }

@@ -31,22 +31,19 @@ namespace PolarShader {
      * Strength is mapped with SFracRange to a signed turn-based offset.
      */
     class VortexTransform : public UVTransform {
-        struct MappedInputs;
-        struct State;
-        std::shared_ptr<State> state;
-
-        explicit VortexTransform(MappedSignal<SFracQ0_16> strength);
-
-        explicit VortexTransform(MappedInputs inputs);
-
-        static MappedInputs makeInputs(SFracQ0_16Signal strength);
-
     public:
         explicit VortexTransform(SFracQ0_16Signal strength);
 
-        void advanceFrame(TimeMillis timeInMillis) override;
+        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
+
+    private:
+        struct MappedInputs;
+        static MappedInputs makeInputs(SFracQ0_16Signal strength);
+
+        struct State;
+        std::shared_ptr<State> state;
     };
 }
 

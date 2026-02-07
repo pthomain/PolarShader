@@ -32,7 +32,7 @@ namespace PolarShader {
         sceneManager(std::make_unique<DefaultSceneProvider>([]() {
             fl::vector<std::shared_ptr<Layer>> layers;
             layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
-            return std::make_unique<Scene>(std::move(layers), 10000);
+            return std::make_unique<Scene>(std::move(layers));
         })),
         nbLeds(nbLeds) {
     }

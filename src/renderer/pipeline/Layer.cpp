@@ -127,19 +127,19 @@ namespace PolarShader {
         return color;
     }
 
-    void Layer::advanceFrame(TimeMillis timeInMillis) {
+    void Layer::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("Layer::advanceFrame context is null.");
         } else {
-            context->depth = depthSignal(timeInMillis);
+            context->depth = depthSignal(progress, elapsedMs);
         }
 
         for (const auto &step: steps) {
             if (step.uvTransform) {
-                step.uvTransform->advanceFrame(timeInMillis);
+                step.uvTransform->advanceFrame(progress, elapsedMs);
             }
             if (step.paletteTransform) {
-                step.paletteTransform->advanceFrame(timeInMillis);
+                step.paletteTransform->advanceFrame(progress, elapsedMs);
             }
         }
     }

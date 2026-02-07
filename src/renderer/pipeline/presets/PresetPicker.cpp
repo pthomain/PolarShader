@@ -19,7 +19,11 @@
  */
 
 #include "PresetPicker.h"
+#ifdef ARDUINO
 #include <FastLED.h>
+#else
+#include "native/FastLED.h"
+#endif
 #include "renderer/pipeline/patterns/Patterns.h"
 
 namespace PolarShader {

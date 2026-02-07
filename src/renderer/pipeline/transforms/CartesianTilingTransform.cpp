@@ -36,13 +36,6 @@ namespace {
 }
 
 namespace PolarShader {
-    struct CartesianTilingTransform::State {
-        int32_t cellSizeRaw;
-        bool mirrored;
-        MappedSignal<int32_t> cellSizeSignal;
-        bool hasSignal;
-    };
-
     static constexpr int32_t kCellSizeScale = 10000;
 
     static int32_t clampCellSize(int64_t value) {
@@ -50,6 +43,37 @@ namespace PolarShader {
         if (value >= INT32_MAX) return INT32_MAX;
         return static_cast<int32_t>(value);
     }
+
+    struct CartesianTilingTransform::MappedInputs {
+        MappedSignal<int32_t> cellSizeSignal;
+    };
+
+    CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
+        SFracQ0_16Signal cellSize,
+        int32_t minCellSize,
+        int32_t maxCellSize
+    ) {
+        LinearRange range(minCellSize, maxCellSize);
+        auto signal = resolveMappedSignal(range.mapSignal(std::move(cellSize)));
+        bool absolute = signal.isAbsolute();
+        return MappedInputs{
+            MappedSignal<int32_t>(
+                [signal = std::move(signal)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
+                    int32_t value = signal(progress, elapsedMs).get();
+                    int64_t scaled = static_cast<int64_t>(value) * kCellSizeScale;
+                    return MappedValue(clampCellSize(scaled));
+                },
+                absolute
+            )
+        };
+    }
+
+    struct CartesianTilingTransform::State {
+        int32_t cellSizeRaw;
+        bool mirrored;
+        MappedSignal<int32_t> cellSizeSignal;
+        bool hasSignal;
+    };
 
     CartesianTilingTransform::CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored)
         : state(std::make_shared<State>(State{
@@ -60,51 +84,29 @@ namespace PolarShader {
         })) {
     }
 
-    CartesianTilingTransform::CartesianTilingTransform(MappedInputs inputs, bool mirrored)
-        : state(std::make_shared<State>(State{
-            static_cast<int32_t>(INT32_MAX),
-            mirrored,
-            std::move(inputs.cellSizeSignal),
-            true
-        })) {
-        if (state->cellSizeSignal) {
-            int32_t starting = state->cellSizeSignal(TimeMillis(0)).get();
-            if (starting <= 0) starting = 1;
-            state->cellSizeRaw = starting;
-        }
-    }
-
     CartesianTilingTransform::CartesianTilingTransform(
         SFracQ0_16Signal cellSize,
         int32_t minCellSize,
         int32_t maxCellSize,
         bool mirrored
-    ) : CartesianTilingTransform(makeInputs(cellSize, minCellSize, maxCellSize), mirrored) {
-    }
-
-    CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
-        SFracQ0_16Signal cellSize,
-        int32_t minCellSize,
-        int32_t maxCellSize
     ) {
-        LinearRange<int32_t> range(minCellSize, maxCellSize);
-        auto signal = resolveMappedSignal(range.mapSignal(std::move(cellSize)));
-        bool absolute = signal.isAbsolute();
-        return MappedInputs{
-            MappedSignal<int32_t>(
-                [signal = std::move(signal)](TimeMillis time) mutable {
-                    int32_t value = signal(time).get();
-                    int64_t scaled = static_cast<int64_t>(value) * kCellSizeScale;
-                    return MappedValue<int32_t>(clampCellSize(scaled));
-                },
-                absolute
-            )
-        };
+        auto inputs = CartesianTilingTransform::makeInputs(std::move(cellSize), minCellSize, maxCellSize);
+        state = std::make_shared<State>(State{
+            INT32_MAX,
+            mirrored,
+            std::move(inputs.cellSizeSignal),
+            true
+        });
+        if (state->cellSizeSignal) {
+            int32_t starting = state->cellSizeSignal(FracQ0_16(0), 0).get();
+            if (starting <= 0) starting = 1;
+            state->cellSizeRaw = starting;
+        }
     }
 
-    void CartesianTilingTransform::advanceFrame(TimeMillis timeInMillis) {
+    void CartesianTilingTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (state->hasSignal && state->cellSizeSignal) {
-            int32_t value = state->cellSizeSignal(timeInMillis).get();
+            int32_t value = state->cellSizeSignal(progress, elapsedMs).get();
             if (value <= 0) value = 1;
             state->cellSizeRaw = value;
         }

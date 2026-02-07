@@ -12,16 +12,25 @@ by wrapping a layer function (or by updating shared context).
 
 ## Signals and ranges
 
-All transform inputs are time-indexed signals:
+All transform inputs are time-indexed signals driven by scene progress:
 
-- `SFracQ0_16Signal` is a function `TimeMillis -> SFracQ0_16` (usually 0..1 in Q0.16).
-- `UVSignal` is a function `TimeMillis -> UV`, used for spatial modulation (e.g., translation).
-- `MappedValue<T>` represents a value that has already been mapped by a range.
-- Ranges own all signal mapping via `map` and `mapSignal`.
-- Transforms store only `MappedSignal` values, not raw `SFracQ0_16Signal` inputs.
-- `ZoomMaths` owns normalization of zoom scale back to 0..1 for `PipelineContext::zoomNormalized`.
-- Avoid pre-mapping or scaling signals manually; pass normalized signals and let the transform range
-  do the conversion.
+- `SceneManager` computes `progress` as 0..1 across the current scene duration.
+- Easing signals (`linear`, `quadratic*`, `sinusoidal*`) emit 0 at scene start and 1 at scene end.
+- Periodic/open-ended signals (`noise`, `sine`) use `phaseSpeed` in **turns-per-second** (Q16.16),
+  integrated with elapsed milliseconds.
+
+Signal types:
+
+- `SFracQ0_16Signal` is a function `FracQ0_16 -> SFracQ0_16` (typically 0..1 in Q0.16).
+- `UVSignal` is a `MappedSignal<UV>` used for spatial modulation (e.g., translation offsets).
+- `MappedValue<T>` is the output of a range mapping at a specific progress value.
+- `MappedSignal<T>` is the output of `Range::mapSignal(...)`. Transforms should store `MappedSignal`
+  values internally, not raw `SFracQ0_16Signal` inputs.
+- If a signal is relative (`absolute=false`), call `resolveMappedSignal(...)` after mapping so deltas
+  accumulate into absolute values.
+
+Avoid pre-mapping or scaling signals manually; pass normalized signals and let the transform range
+do the conversion.
 
 Ranges used by transforms:
 
@@ -31,19 +40,25 @@ Ranges used by transforms:
 
 ## Pipeline usage
 
-Transforms are added via `LayerBuilder`. `advanceFrame(time)` must be called each frame
-to update transform state before sampling layers.
+Transforms are added via `LayerBuilder`. `SceneManager` handles progress and elapsed time and calls
+`advanceFrame(progress, elapsedMs)` each frame before sampling layers.
 
 Example:
 
 ```cpp
-auto pipeline = LayerBuilder(noisePattern(), palette, "demo")
-    .addTransform(ZoomTransform(noise(cPerMil(120))))
-    .addTransform(RotationTransform(noise(cPerMil(80))))
-    .build();
+auto manager = SceneManager(std::make_unique<DefaultSceneProvider>([] {
+    fl::vector<std::shared_ptr<Layer>> layers;
+    layers.push_back(std::make_shared<Layer>(
+        LayerBuilder(noisePattern(), palette, "demo")
+            .addTransform(ZoomTransform(sine()))
+            .addTransform(RotationTransform(noise(phasePerMil(200))))
+            .build()
+    ));
+    return std::make_unique<Scene>(std::move(layers), 30000);
+}));
 
-pipeline.advanceFrame(timeInMillis);
-auto layer = pipeline.build();
+manager.advanceFrame(millis());
+auto layer = manager.build();
 ```
 
 ## Transform details
@@ -59,7 +74,7 @@ auto layer = pipeline.build();
 ### VortexTransform (polar)
 
 - Input: `strength` signal (turns, Q0.16).
-- Uses `SFracRange` to map the signal into a signed angular strength.
+- Maps via `LinearRange<SFracQ0_16>(Q0_16_MIN, Q0_16_MAX)` to a signed angular strength.
 - `operator()` adds `radius * strength` to the incoming angle, producing a radial twist.
 
 ### KaleidoscopeTransform (polar)
@@ -71,20 +86,22 @@ auto layer = pipeline.build();
 ### TranslationTransform (cartesian)
 
 - Inputs: `direction` (turns, Q0.16) and `speed` (0..1, Q0.16).
-- Uses `PolarRange` for direction and `ScalarRange` for speed, then integrates with `CartesianMotionAccumulator`.
-- Applies smoothing based on `PipelineContext::zoomNormalized` (higher zoom -> less smoothing).
+- Uses `PolarRange` for direction and `LinearRange<int32_t>` for speed (Q16.16 units per scene).
+- Builds a **relative** UV velocity signal and resolves it into an accumulated offset.
+- Applies smoothing based on `PipelineContext::zoomScale` (higher zoom -> less smoothing).
 - Result is an offset added to every `(x, y)` sample.
 
 ### ZoomTransform (cartesian)
 
 - Input: `scale` signal (0..1, Q0.16).
-- Uses `ZoomRange` to map into `[MIN_SCALE, MAX_SCALE]` and smooths changes based on current frequency.
-- Updates `PipelineContext::zoomScale` and `zoomNormalized` each frame.
+- Uses `LinearRange<SFracQ0_16>` to map into `[MIN_SCALE, MAX_SCALE]` and smooths changes based on current frequency.
+- Zoom treats its mapped signal as absolute (relative accumulation is intentionally disabled).
+- Updates `PipelineContext::zoomScale` each frame.
 
 ### DomainWarpTransform (cartesian)
 
 - Inputs:
-  - `phaseSpeed`: turns-per-second for the time axis (mapped via `SFracRange`). Signed; negative values reverse motion.
+  - `phaseSpeed`: turns-per-second for the time axis (mapped via `LinearRange` into Q16.16 turns/s).
   - `amplitude`: 0..1 signal mapped to `[0, maxOffset]` (Q24.8). Controls warp displacement strength.
   - `warpScale`: 0..1 signal mapped via `CartRange`, applied to input coords before sampling warp noise (Q24.8).
     - Smaller than 1.0 => lower-frequency, broad bends.
@@ -112,8 +129,8 @@ Example values (Q24.8 constants shown as `CartQ24_8(n << CARTESIAN_FRAC_BITS)`):
   - Strong: `CartQ24_8(4096 << CARTESIAN_FRAC_BITS)`
 
 - Typical presets:
-  - `phaseSpeed`: `noise(cPerMil(80))` for gentle drift, `noise(cPerMil(200))` for faster motion.
-  - `amplitude`: `cPerMil(200)` (20%) subtle, `cPerMil(500)` (50%) obvious, `full()` (100%) max.
+  - `phaseSpeed`: `noise(phasePerMil(800))` for gentle drift, `noise(phasePerMil(2000))` for faster motion.
+  - `amplitude`: `cPerMil(200)` (20%) subtle, `cPerMil(500)` (50%) obvious, `ceiling()` (100%) max.
 - Warp types:
   - `Basic`, `FBM`, `Nested`, `Curl`, `Polar`, `Directional`.
 - `advanceFrame` updates phase (time offset), amplitude, and directional flow offset.
@@ -124,7 +141,7 @@ Presets are provided in `DomainWarpPresets.*` for common parameter sets.
 ### PaletteTransform (palette)
 
 - Input: `offset` signal (0..1, Q0.16).
-- Uses `PaletteRange` to map the signal into a palette index offset.
+- Uses `LinearRange<uint8_t>` to map the signal into a palette index offset.
 - `advanceFrame` writes the offset into `PipelineContext::paletteOffset` for use during palette lookup.
 
 ## Context expectations

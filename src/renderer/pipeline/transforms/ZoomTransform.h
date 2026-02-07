@@ -33,22 +33,19 @@ namespace PolarShader {
      * Recommended order: early in Cartesian chain before warps/tiling.
      */
     class ZoomTransform : public UVTransform {
-        struct MappedInputs;
-        struct State;
-        std::shared_ptr<State> state;
-
-        explicit ZoomTransform(MappedSignal<SFracQ0_16> scale, LinearRange<SFracQ0_16> range);
-
-        explicit ZoomTransform(MappedInputs inputs);
-
-        static MappedInputs makeInputs(SFracQ0_16Signal scale);
-
     public:
         explicit ZoomTransform(SFracQ0_16Signal scale);
 
-        void advanceFrame(TimeMillis timeInMillis) override;
+        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
+
+    private:
+        struct MappedInputs;
+        static MappedInputs makeInputs(SFracQ0_16Signal scale);
+
+        struct State;
+        std::shared_ptr<State> state;
     };
 }
 

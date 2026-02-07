@@ -34,6 +34,7 @@
  * Defined in global namespace to match Arduino environment.
  */
 using TimeMillis = unsigned long;
+using Period = TimeMillis;
 
 inline constexpr TimeMillis MAX_DELTA_TIME_MS = 200; // 0 disables delta-time clamping.
 

@@ -31,15 +31,15 @@
 #include "renderer/pipeline/ranges/LinearRange.h"
 
 namespace PolarShader {
-    struct TranslationTransform::MappedInputs {
-        UVSignal offsetSignal;
-    };
-
     namespace {
         // Smoothing controls when zoom is at minimum (highest noise frequency).
         const int32_t TRANSLATION_SMOOTH_ALPHA_MIN = Q0_16_ONE / 16;
         const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = Q0_16_ONE / 2;
         const int32_t TRANSLATION_MAX_SPEED = 1000; // units per second in Q16.16 domain
+
+        UVSignal resolveTranslationSignal(UVSignal signal) {
+            return resolveMappedSignal(std::move(signal));
+        }
     }
 
     struct TranslationTransform::State {
@@ -51,46 +51,38 @@ namespace PolarShader {
     };
 
     TranslationTransform::TranslationTransform(UVSignal signal)
-        : state(std::make_shared<State>(std::move(signal))) {
-    }
-
-    TranslationTransform::TranslationTransform(MappedInputs inputs)
-        : TranslationTransform(std::move(inputs.offsetSignal)) {
-    }
-
-    TranslationTransform::MappedInputs TranslationTransform::makeInputs(UVSignal signal) {
-        return MappedInputs{ resolveMappedSignal(std::move(signal)) };
+        : state(std::make_shared<State>(resolveTranslationSignal(std::move(signal)))) {
     }
 
     TranslationTransform::TranslationTransform(
         SFracQ0_16Signal direction,
         SFracQ0_16Signal speed
-    ) : TranslationTransform(makeInputs([direction, speed]() {
+    ) : TranslationTransform(UVSignal([direction, speed]() {
         // Map speed 0..1 to 0..TRANSLATION_MAX_SPEED
         auto mappedSpeed = LinearRange<int32_t>(0, TRANSLATION_MAX_SPEED).mapSignal(speed);
         
         // Use a lambda to combine direction and speed into a velocity UV vector
         // This is a relative signal (absolute=false)
-        return UVSignal([direction, mappedSpeed](TimeMillis time) mutable {
-            FracQ0_16 dir = PolarRange().map(direction(time)).get();
-            int32_t s = mappedSpeed(time).get();
+        return UVSignal([direction, mappedSpeed](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
+            FracQ0_16 dir = PolarRange().map(direction(progress, elapsedMs)).get();
+            int32_t s = mappedSpeed(progress, elapsedMs).get();
             
             SFracQ0_16 cos_val = angleCosQ0_16(dir);
             SFracQ0_16 sin_val = angleSinQ0_16(dir);
             
-            // Velocity vector in UV units (Q16.16) per second
-            // Trig is Q0.16, s is Q16.16 units/sec. 
+            // Velocity vector in UV units (Q16.16) per scene
+            // Trig is Q0.16, s is Q16.16 units/scene. 
             // Result is Q16.16.
             int32_t vx = static_cast<int32_t>((static_cast<int64_t>(s) * raw(cos_val)) >> 16);
             int32_t vy = static_cast<int32_t>((static_cast<int64_t>(s) * raw(sin_val)) >> 16);
             
-            return MappedValue(UV(FracQ16_16(vx), FracQ16_16(vy)));
+            return UV(FracQ16_16(vx), FracQ16_16(vy));
         }, false);
     }())) {
     }
 
-    void TranslationTransform::advanceFrame(TimeMillis timeInMillis) {
-        UV target = state->offsetSignal(timeInMillis).get();
+    void TranslationTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
+        UV target = state->offsetSignal(progress, elapsedMs);
         if (!state->hasSmoothed) {
             state->offset = target;
             state->hasSmoothed = true;

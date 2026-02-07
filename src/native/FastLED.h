@@ -85,7 +85,21 @@ static inline CRGB blend(const CRGB& a, const CRGB& b, uint8_t amount) {
     );
 }
 
+extern const CRGBPalette16 RainbowColors_p;
+extern const CRGBPalette16 CloudColors_p;
+extern const CRGBPalette16 PartyColors_p;
+extern const CRGBPalette16 ForestColors_p;
 extern const CRGBPalette16 Rainbow_gp;
+
+// Define them so we don't get linker errors in native tests
+#ifndef POLAR_SHADER_UNIT_TEST_PALETTES
+#define POLAR_SHADER_UNIT_TEST_PALETTES
+inline const CRGBPalette16 RainbowColors_p = CRGBPalette16();
+inline const CRGBPalette16 CloudColors_p = CRGBPalette16();
+inline const CRGBPalette16 PartyColors_p = CRGBPalette16();
+inline const CRGBPalette16 ForestColors_p = CRGBPalette16();
+inline const CRGBPalette16 Rainbow_gp = CRGBPalette16();
+#endif
 
 // Mock FastLED trig functions
 static inline int16_t sin16(uint16_t theta) {

@@ -41,6 +41,15 @@ namespace PolarShader {
         LinearRange<SFracQ0_16> range;
     };
 
+    ZoomTransform::MappedInputs ZoomTransform::makeInputs(SFracQ0_16Signal scale) {
+        LinearRange range{SFracQ0_16(MIN_SCALE_RAW), SFracQ0_16(MAX_SCALE_RAW)};
+        auto mapped = range.mapSignal(std::move(scale));
+        return MappedInputs{
+            mapped.withAbsolute(true),
+            std::move(range)
+        };
+    }
+
     struct ZoomTransform::State {
         MappedSignal<SFracQ0_16> scaleSignal;
         LinearRange<SFracQ0_16> range;
@@ -59,32 +68,13 @@ namespace PolarShader {
         }
     };
 
-    ZoomTransform::ZoomTransform(
-        MappedSignal<SFracQ0_16> scale,
-        LinearRange<SFracQ0_16> range
-    ) : state(std::make_shared<State>(std::move(scale), std::move(range))) {
+    ZoomTransform::ZoomTransform(SFracQ0_16Signal scale) {
+        auto inputs = makeInputs(std::move(scale));
+        state = std::make_shared<State>(std::move(inputs.scaleSignal), std::move(inputs.range));
     }
 
-    ZoomTransform::ZoomTransform(MappedInputs inputs)
-        : ZoomTransform(std::move(inputs.scaleSignal), std::move(inputs.range)) {
-    }
-
-    ZoomTransform::MappedInputs ZoomTransform::makeInputs(
-        SFracQ0_16Signal scale
-    ) {
-        LinearRange<SFracQ0_16> range{SFracQ0_16(MIN_SCALE_RAW), SFracQ0_16(MAX_SCALE_RAW)};
-        return ZoomTransform::MappedInputs{
-            range.mapSignal(std::move(scale)),
-            std::move(range)
-        };
-    }
-
-    ZoomTransform::ZoomTransform(SFracQ0_16Signal scale)
-        : ZoomTransform(makeInputs(std::move(scale))) {
-    }
-
-    void ZoomTransform::advanceFrame(TimeMillis timeInMillis) {
-        int32_t target_raw = raw(state->scaleSignal(timeInMillis).get());
+    void ZoomTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
+        int32_t target_raw = raw(state->scaleSignal(progress, elapsedMs).get());
         int32_t current_raw = raw(state->scaleValue);
         int32_t delta = target_raw - current_raw;
         int64_t alpha_span = static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MAX) - static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MIN);

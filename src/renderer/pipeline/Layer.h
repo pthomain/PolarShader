@@ -84,7 +84,7 @@ namespace PolarShader {
         friend class LayerBuilder;
 
     public:
-        void advanceFrame(TimeMillis timeInMillis);
+        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs);
 
         ColourMap build() const;
 
