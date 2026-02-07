@@ -24,7 +24,11 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
+#ifdef ARDUINO
 #include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 #include "PipelineContext.h"
 #include "Layer.h"
 #include "patterns/base/UVPattern.h"
@@ -42,6 +46,8 @@ namespace PolarShader {
         const char *name;
         std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
         DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << CARTESIAN_FRAC_BITS);
+        FracQ0_16 alpha{0xFFFFu};
+        BlendMode blendMode{BlendMode::Normal};
 
     public:
         LayerBuilder(
@@ -63,6 +69,26 @@ namespace PolarShader {
          *   They enable move semantics for internal containers (fl::vector, unique_ptr), 
          *   minimizing memory allocations and copies on microcontrollers.
          */
+
+        LayerBuilder &setAlpha(FracQ0_16 a) & {
+            alpha = a;
+            return *this;
+        }
+
+        LayerBuilder &&setAlpha(FracQ0_16 a) && {
+            alpha = a;
+            return std::move(*this);
+        }
+
+        LayerBuilder &setBlendMode(BlendMode mode) & {
+            blendMode = mode;
+            return *this;
+        }
+
+        LayerBuilder &&setBlendMode(BlendMode mode) && {
+            blendMode = mode;
+            return std::move(*this);
+        }
 
         LayerBuilder &setDepthSignal(DepthSignal signal) & {
             if (built) return *this;

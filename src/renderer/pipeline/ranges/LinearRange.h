@@ -63,6 +63,11 @@ namespace PolarShader {
 
             uint32_t t_raw = clamp_frac_raw(raw(t));
             int64_t scaled = (span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
+            
+            #ifndef ARDUINO
+            // printf("LinearRange::map: t=%u, min=%lld, max=%lld, span=%lld, scaled=%lld, result=%lld\n", t_raw, min_raw, max_raw, span, scaled, min_raw + scaled);
+            #endif
+
             return MappedValue<T>(T(static_cast<Rep>(min_raw + scaled)));
         }
 

@@ -53,7 +53,7 @@ namespace PolarShader {
                 .addTransform(ZoomTransform(midPoint()))
                 .addPaletteTransform(
                     PaletteTransform(
-                        linear(5000)
+                        animate(5000)
                     )
                 );
     }
@@ -75,7 +75,7 @@ namespace PolarShader {
                     noise(cPerMil(100), cPerMil(300))
                 ))
                 .addTransform(ZoomTransform(
-                    pulse(cPerMil(30))
+                    animate(cPerMil(30), QuadraticInterpolatorInOut())
                 ))
                 .addTransform(VortexTransform(
                     noise(cPerMil(10), cPerMil(200))

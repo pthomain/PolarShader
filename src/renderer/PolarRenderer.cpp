@@ -22,17 +22,18 @@
 #include <utility>
 #include <renderer/pipeline/presets/Presets.h>
 #include <renderer/pipeline/patterns/Patterns.h>
+#include <renderer/pipeline/SceneProvider.h>
 
 namespace PolarShader {
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
         PolarCoordsMapper coordsMapper
     ) : coordsMapper(std::move(coordsMapper)),
-        pipeline(
-            defaultPreset(Rainbow_gp)
-            .build()
-        ),
-        colourMap(pipeline.build()),
+        sceneManager(std::make_unique<DefaultSceneProvider>([]() {
+            fl::vector<std::shared_ptr<Layer>> layers;
+            layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
+            return std::make_unique<Scene>(std::move(layers), 10000);
+        })),
         nbLeds(nbLeds) {
     }
 
@@ -40,7 +41,8 @@ namespace PolarShader {
         CRGB *outputArray,
         TimeMillis timeInMillis
     ) {
-        pipeline.advanceFrame(timeInMillis);
+        sceneManager.advanceFrame(timeInMillis);
+        ColourMap colourMap = sceneManager.build();
         for (uint16_t pixelIndex = 0; pixelIndex < nbLeds; ++pixelIndex) {
             auto [angle, radius] = coordsMapper(pixelIndex);
             outputArray[pixelIndex] = colourMap(angle, radius);

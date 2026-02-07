@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_POLAREFFECT_H
 #define POLAR_SHADER_POLAREFFECT_H
 
-#include <renderer/pipeline/LayerBuilder.h>
+#include <renderer/pipeline/SceneManager.h>
 #include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
@@ -29,14 +29,11 @@ namespace PolarShader {
     using PolarCoordsMapper = fl::function<PolarCoords(uint16_t pixelIndex)>;
 
     /**
-     * PolarRenderer builds a Layer from the current palette and renders using 16-bit turn angles
-     * (Q0.16). The pipeline assumes base patterns already produce palette-ready intensities in
-     * [0..65535]; no normalization occurs past the base pattern.
+     * PolarRenderer uses a SceneManager to render complex multi-layered scenes.
      */
     class PolarRenderer {
         const PolarCoordsMapper coordsMapper;
-        Layer pipeline;
-        ColourMap colourMap;
+        SceneManager sceneManager;
 
     public:
         const uint16_t nbLeds;

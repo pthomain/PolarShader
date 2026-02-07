@@ -21,14 +21,28 @@
 #ifndef POLAR_SHADER_PIPELINE_LAYER_H
 #define POLAR_SHADER_PIPELINE_LAYER_H
 
+#ifdef ARDUINO
+#include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
+
 #include "renderer/pipeline/maths/units/Units.h"
 #include "patterns/base/UVPattern.h"
 #include "PipelineContext.h"
 #include "PipelineStep.h"
 #include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/transforms/base/Layers.h"
 #include <memory>
 
 namespace PolarShader {
+    enum class BlendMode {
+        Normal,
+        Add,
+        Multiply,
+        Screen
+    };
+
     /**
      * @brief Manages the rendering pipeline for polar effects.
      *
@@ -44,6 +58,9 @@ namespace PolarShader {
         const char *name;
         std::shared_ptr<PipelineContext> context;
         DepthSignal depthSignal;
+        
+        FracQ0_16 alpha{0xFFFFu};
+        BlendMode blendMode{BlendMode::Normal};
 
         static ColourMap blackLayer(const char *reason);
 
@@ -59,7 +76,9 @@ namespace PolarShader {
             fl::vector<PipelineStep> steps,
             const char *name,
             std::shared_ptr<PipelineContext> context,
-            DepthSignal depthSignal
+            DepthSignal depthSignal,
+            FracQ0_16 alpha = FracQ0_16(0xFFFFu),
+            BlendMode blendMode = BlendMode::Normal
         );
 
         friend class LayerBuilder;
@@ -70,6 +89,9 @@ namespace PolarShader {
         ColourMap build() const;
 
         const char *getName() const { return name; }
+
+        FracQ0_16 getAlpha() const { return alpha; }
+        BlendMode getBlendMode() const { return blendMode; }
     };
 }
 

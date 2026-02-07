@@ -31,6 +31,10 @@
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
+#include "renderer/pipeline/signals/interpolators/BasicInterpolators.h"
+#include "renderer/pipeline/signals/interpolators/SinusoidalInterpolators.h"
+#include "renderer/pipeline/signals/interpolators/ComplexInterpolators.h"
+
 namespace PolarShader {
     using SampleSignal = fl::function<SFracQ0_16(FracQ0_16)>;
 
@@ -63,26 +67,12 @@ namespace PolarShader {
         SFracQ0_16Signal offset = randomPerMil()
     );
 
-    SFracQ0_16Signal sine(
-        SFracQ0_16Signal phaseSpeed = midPoint(),
-        SFracQ0_16Signal amplitude = ceiling(),
-        SFracQ0_16Signal offset = floor()
+    // Renamed from linear, now supports polymorphic interpolators.
+    // Default is LinearInterpolator.
+    SFracQ0_16Signal animate(
+        TimeMillis durationMs,
+        const Interpolator& interpolator = LinearInterpolator()
     );
-
-    SFracQ0_16Signal pulse(
-        SFracQ0_16Signal phaseSpeed = midPoint(),
-        SFracQ0_16Signal amplitude = ceiling(),
-        SFracQ0_16Signal offset = floor()
-    );
-
-    // Standard easing signals that loop over durationMs and return 0..1 in Q0.16.
-    SFracQ0_16Signal linear(TimeMillis durationMs);
-
-    SFracQ0_16Signal easeIn(TimeMillis durationMs);
-
-    SFracQ0_16Signal easeOut(TimeMillis durationMs);
-
-    SFracQ0_16Signal easeInOut(TimeMillis durationMs);
 
     // Invert a signal in the 0..1 domain: y = 1 - x.
     SFracQ0_16Signal invert(SFracQ0_16Signal signal);

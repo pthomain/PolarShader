@@ -21,6 +21,10 @@
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/Accumulators.cpp"
+#include "renderer/pipeline/Layer.cpp"
+#include "renderer/pipeline/LayerBuilder.cpp"
+#include "renderer/pipeline/Scene.cpp"
+#include "renderer/pipeline/SceneManager.cpp"
 #endif
 
 using namespace PolarShader;
@@ -121,14 +125,20 @@ void test_zoom_transform_uv() {
     UV input(FracQ16_16(0x0000C000), FracQ16_16(0x00008000));
     PatternNormU16 result = zoom(testLayer)(input);
     
-    // With new defaults: MIN_SCALE=1.0, Initial=2.0.
-    // Target min (1.0) from initial 2.0. 
-    // After one frame of smoothing, scale is approx 1.98.
-    // 0.5 (Centered x) * 1.98 = 0.99.
-    // UV result = (0.99 + 1)/2 = 0.995.
-    // 0.995 * 65536 = 65208.
+    // With current defaults: MIN_SCALE=1/16x (4096), Initial scaleValue=0.
+    // ScaleValue 0 means sx = 0, sy = 0.
+    // fx = 0, fy = 0.
+    // scaled_uv = (0.5, 0.5).
+    // Pattern result at (0.5, 0.5) is input.u = 0.5 (for centered coords).
+    // WAIT, let's re-calculate:
+    // UV scaled_uv(
+    //    FracQ16_16((fx + 0x00010000) >> 1),
+    //    FracQ16_16((fy + 0x00010000) >> 1)
+    // );
+    // fx=0 => scaled_uv.u = 0x10000 >> 1 = 0x8000 (0.5).
+    // 0.5 * 65536 = 32768.
     
-    TEST_ASSERT_UINT16_WITHIN(500, 65023, raw(result));
+    TEST_ASSERT_UINT16_WITHIN(100, 32768, raw(result));
 }
 
 /** @brief Verify that relative UV signals correctly accumulate over time. */

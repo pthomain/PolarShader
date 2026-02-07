@@ -12,6 +12,9 @@
 
 class SerialMock {
 public:
+    void print(const char* msg) {
+        std::cout << msg;
+    }
     void println(const char* msg) {
         std::cout << msg << std::endl;
     }

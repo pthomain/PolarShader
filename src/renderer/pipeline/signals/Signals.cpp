@@ -26,6 +26,7 @@
 #include "renderer/pipeline/ranges/UVRange.h"
 #include <cstdint>
 #include <utility>
+#include <memory>
 
 namespace PolarShader {
     SFracQ0_16Signal createSignal(
@@ -134,32 +135,6 @@ namespace PolarShader {
         );
     }
 
-    SFracQ0_16Signal sine(
-        SFracQ0_16Signal phaseSpeed,
-        SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset
-    ) {
-        return createSignal(
-            std::move(phaseSpeed),
-            std::move(amplitude),
-            std::move(offset),
-            sampleSine()
-        );
-    }
-
-    SFracQ0_16Signal pulse(
-        SFracQ0_16Signal phaseSpeed,
-        SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset
-    ) {
-        return createSignal(
-            std::move(phaseSpeed),
-            std::move(amplitude),
-            std::move(offset),
-            samplePulse()
-        );
-    }
-
     namespace {
         uint32_t normalizeLooped(TimeMillis time, TimeMillis durationMs) {
             if (durationMs == 0) return FRACT_Q0_16_MAX;
@@ -168,54 +143,14 @@ namespace PolarShader {
             if (scaled > FRACT_Q0_16_MAX) scaled = FRACT_Q0_16_MAX;
             return static_cast<uint32_t>(scaled);
         }
-
-        uint32_t easeInQuadRaw(uint32_t t) {
-            uint64_t tt = static_cast<uint64_t>(t) * static_cast<uint64_t>(t);
-            return static_cast<uint32_t>(tt >> 16);
-        }
-
-        uint32_t easeOutQuadRaw(uint32_t t) {
-            uint32_t one = Q0_16_ONE;
-            uint32_t two = Q0_16_ONE * 2u;
-            uint64_t value = static_cast<uint64_t>(t) * static_cast<uint64_t>(two - t);
-            uint32_t result = static_cast<uint32_t>(value >> 16);
-            return (result > one) ? one : result;
-        }
-
-        uint32_t easeInOutQuadRaw(uint32_t t) {
-            if (t < U16_HALF) {
-                uint64_t tt = static_cast<uint64_t>(t) * static_cast<uint64_t>(t);
-                return static_cast<uint32_t>(tt >> 15);
-            }
-            uint32_t one = Q0_16_ONE;
-            uint32_t u = one - t;
-            uint64_t uu = static_cast<uint64_t>(u) * static_cast<uint64_t>(u);
-            uint32_t tail = static_cast<uint32_t>(uu >> 15);
-            return (tail > one) ? 0u : (one - tail);
-        }
     } // namespace
 
-    SFracQ0_16Signal linear(TimeMillis durationMs) {
-        return SFracQ0_16Signal([durationMs](TimeMillis time) {
-            return SFracQ0_16(static_cast<int32_t>(normalizeLooped(time, durationMs)));
-        });
-    }
-
-    SFracQ0_16Signal easeIn(TimeMillis durationMs) {
-        return SFracQ0_16Signal([durationMs](TimeMillis time) {
-            return SFracQ0_16(static_cast<int32_t>(easeInQuadRaw(normalizeLooped(time, durationMs))));
-        });
-    }
-
-    SFracQ0_16Signal easeOut(TimeMillis durationMs) {
-        return SFracQ0_16Signal([durationMs](TimeMillis time) {
-            return SFracQ0_16(static_cast<int32_t>(easeOutQuadRaw(normalizeLooped(time, durationMs))));
-        });
-    }
-
-    SFracQ0_16Signal easeInOut(TimeMillis durationMs) {
-        return SFracQ0_16Signal([durationMs](TimeMillis time) {
-            return SFracQ0_16(static_cast<int32_t>(easeInOutQuadRaw(normalizeLooped(time, durationMs))));
+    SFracQ0_16Signal animate(TimeMillis durationMs, const Interpolator& interpolator) {
+        // Clone the interpolator into a shared_ptr for capture by value in the lambda.
+        auto cloned = std::shared_ptr<const Interpolator>(interpolator.clone());
+        return SFracQ0_16Signal([durationMs, cloned](TimeMillis time) -> SFracQ0_16 {
+            uint32_t progress = normalizeLooped(time, durationMs);
+            return SFracQ0_16(raw(cloned->calculate(FracQ0_16(static_cast<uint16_t>(progress)))));
         });
     }
 

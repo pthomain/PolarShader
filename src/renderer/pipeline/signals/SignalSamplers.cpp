@@ -31,21 +31,4 @@ namespace PolarShader {
             return SFracQ0_16(static_cast<int32_t>(signedNoise) << 1);
         };
     }
-
-    SampleSignal sampleSine() {
-        return [](FracQ0_16 phase) -> SFracQ0_16 {
-            return angleSinQ0_16(phase);
-        };
-    }
-
-    SampleSignal samplePulse() {
-        return [](FracQ0_16 phase) -> SFracQ0_16 {
-            uint16_t saw_raw = raw(phase);
-            uint16_t pulse_raw = (saw_raw < HALF_TURN_U16)
-                                     ? static_cast<uint16_t>(saw_raw << 1)
-                                     : static_cast<uint16_t>((ANGLE_U16_MAX - saw_raw) << 1);
-            int16_t signedPulse = static_cast<int16_t>(static_cast<int32_t>(pulse_raw) - U16_HALF);
-            return SFracQ0_16(static_cast<int32_t>(signedPulse) << 1);
-        };
-    }
 }

@@ -18,13 +18,29 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
-#define POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
+#ifndef POLAR_SHADER_PIPELINE_SIGNALS_INTERPOLATORS_INTERPOLATOR_H
+#define POLAR_SHADER_PIPELINE_SIGNALS_INTERPOLATORS_INTERPOLATOR_H
 
-#include "renderer/pipeline/signals/Signals.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-    SampleSignal sampleNoise();
+    /**
+     * @brief Base class for all progress interpolators (easing functions).
+     */
+    class Interpolator {
+    public:
+        virtual ~Interpolator() = default;
+
+        /**
+         * @brief Maps a linear 0..1 progress value (Q0.16) to an interpolated 0..1 value (Q0.16).
+         */
+        virtual FracQ0_16 calculate(FracQ0_16 progress) const = 0;
+
+        /**
+         * @brief Clones the interpolator for ownership in signals.
+         */
+        virtual Interpolator* clone() const = 0;
+    };
 }
 
-#endif // POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
+#endif // POLAR_SHADER_PIPELINE_SIGNALS_INTERPOLATORS_INTERPOLATOR_H

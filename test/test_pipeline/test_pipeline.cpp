@@ -34,6 +34,10 @@
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/Accumulators.cpp"
+#include "renderer/pipeline/Layer.cpp"
+#include "renderer/pipeline/LayerBuilder.cpp"
+#include "renderer/pipeline/Scene.cpp"
+#include "renderer/pipeline/SceneManager.cpp"
 #endif
 
 using namespace PolarShader;

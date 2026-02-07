@@ -22,8 +22,13 @@
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/maths/units/Units.h"
+#ifdef ARDUINO
 #include <Arduino.h>
 #include "FastLED.h"
+#else
+#include "native/Arduino.h"
+#include "native/FastLED.h"
+#endif
 
 namespace PolarShader {
     Layer::Layer(
@@ -32,13 +37,17 @@ namespace PolarShader {
         fl::vector<PipelineStep> steps,
         const char *name,
         std::shared_ptr<PipelineContext> context,
-        DepthSignal depthSignal
+        DepthSignal depthSignal,
+        FracQ0_16 alpha,
+        BlendMode blendMode
     ) : pattern(std::move(pattern)),
         palette(palette),
         steps(std::move(steps)),
         name(name ? name : "unnamed"),
         context(std::move(context)),
-        depthSignal(std::move(depthSignal)) {
+        depthSignal(std::move(depthSignal)),
+        alpha(alpha),
+        blendMode(blendMode) {
         Serial.print("Building layer: ");
         Serial.println(this->name);
 

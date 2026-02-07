@@ -55,7 +55,7 @@ Effects are built by stacking **small, pure transforms**, similar to GPU shaders
 pipeline
   .addTransform(RotationTransform(noise(cPerMil(120))))
   .addTransform(KaleidoscopeTransform(6, true))
-  .addTransform(ZoomTransform(sine(cPerMil(30))))
+  .addTransform(ZoomTransform(animate(cPerMil(30), SinusoidalInterpolatorInOut())))
 ````
 
 Each transform:
