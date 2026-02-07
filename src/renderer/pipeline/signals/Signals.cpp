@@ -115,8 +115,8 @@ namespace PolarShader {
         );
     }
 
-    SFracQ0_16Signal full() {
-        return constant(frac(1));
+    SFracQ0_16Signal randomPerMil() {
+        return cPerMil(1000 * random16() / UINT16_MAX);
     }
 
     SFracQ0_16Signal noise(

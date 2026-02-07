@@ -20,7 +20,6 @@
 
 #include "ZoomTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
-#include "renderer/pipeline/maths/ZoomMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -31,10 +30,10 @@ namespace PolarShader {
     namespace {
         const int32_t ZOOM_SMOOTH_ALPHA_MIN = Q0_16_ONE / 32; // 0.03125 in Q0.16
         const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
-        
+
         // Default Zoom scale boundaries
-        const int32_t MIN_SCALE_RAW = Q0_16_ONE; // 1.0x (Native)
-        const int32_t MAX_SCALE_RAW = Q0_16_ONE * 12; // 12.0x (Zoomed Out)
+        const int32_t MIN_SCALE_RAW = Q0_16_ONE >> 4; // (1/16)x
+        const int32_t MAX_SCALE_RAW = Q0_16_ONE << 4; // 16x (Zoomed Out)
     }
 
     struct ZoomTransform::MappedInputs {
@@ -55,10 +54,8 @@ namespace PolarShader {
               scaleValue(SFracQ0_16(0)),
               minScaleRaw(0),
               maxScaleRaw(0) {
-            minScaleRaw = zoomMinScaleRaw(this->range);
-            maxScaleRaw = zoomMaxScaleRaw(this->range);
-            // Start at 2.0x zoom out to ensure texture is immediately visible
-            scaleValue = SFracQ0_16(minScaleRaw * 2);
+            minScaleRaw = this->range.minRaw();
+            maxScaleRaw = this->range.minRaw();
         }
     };
 
@@ -110,7 +107,6 @@ namespace PolarShader {
         state->scaleValue = SFracQ0_16(static_cast<int32_t>(static_cast<int64_t>(current_raw) + step));
         if (context) {
             context->zoomScale = state->scaleValue;
-            context->zoomNormalized = zoomNormalize(state->scaleValue, min_scale_raw, max_scale_raw);
         } else {
             Serial.println("ZoomTransform::advanceFrame context is null.");
         }

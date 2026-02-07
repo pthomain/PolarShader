@@ -34,11 +34,11 @@ namespace PolarShader {
     DomainWarpTransform domainWarpBasic() {
         return DomainWarpTransform(
             cPerMil(200),
-            full(),
-            full(),
-            full(),
-            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange<CartQ24_8>(MAX_OFFSET_MED, MAX_OFFSET_MED)
+            ceiling(),
+            ceiling(),
+            ceiling(),
+            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED)
         );
     }
 
@@ -46,11 +46,11 @@ namespace PolarShader {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::FBM,
             cPerMil(140),
-            full(),
-            full(),
-            full(),
-            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange<CartQ24_8>(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
+            ceiling(),
+            ceiling(),
+            ceiling(),
+            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             octaves,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -61,11 +61,11 @@ namespace PolarShader {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Nested,
             cPerMil(100),
-            full(),
-            full(),
-            full(),
-            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange<CartQ24_8>(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
+            ceiling(),
+            ceiling(),
+            ceiling(),
+            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             2,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -76,11 +76,11 @@ namespace PolarShader {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Curl,
             cPerMil(260),
-            full(),
-            full(),
-            full(),
-            LinearRange<CartQ24_8>(BASE_WARP_SCALE, STRONG_WARP_SCALE),
-            LinearRange<CartQ24_8>(MAX_OFFSET_MED, MAX_OFFSET_MED),
+            ceiling(),
+            ceiling(),
+            ceiling(),
+            LinearRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
+            LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -92,10 +92,10 @@ namespace PolarShader {
             DomainWarpTransform::WarpType::Polar,
             noise(cPerMil(110)),
             cPerMil(220),
-            full(),
-            full(),
-            LinearRange<CartQ24_8>(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
-            LinearRange<CartQ24_8>(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
+            ceiling(),
+            ceiling(),
+            LinearRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
+            LinearRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
             1,
             SFracQ0_16Signal(),
             SFracQ0_16Signal()
@@ -107,10 +107,10 @@ namespace PolarShader {
             DomainWarpTransform::WarpType::Directional,
             noise(cPerMil(130)),
             cPerMil(240),
-            full(),
-            full(),
-            LinearRange<CartQ24_8>(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange<CartQ24_8>(MAX_OFFSET_MED, MAX_OFFSET_MED),
+            ceiling(),
+            ceiling(),
+            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             noise(cPerMil(40)),
             cPerMil(180)

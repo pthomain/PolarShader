@@ -84,7 +84,7 @@ namespace PolarShader {
             int32_t vx = static_cast<int32_t>((static_cast<int64_t>(s) * raw(cos_val)) >> 16);
             int32_t vy = static_cast<int32_t>((static_cast<int64_t>(s) * raw(sin_val)) >> 16);
             
-            return MappedValue<UV>(UV(FracQ16_16(vx), FracQ16_16(vy)));
+            return MappedValue(UV(FracQ16_16(vx), FracQ16_16(vy)));
         }, false);
     }())) {
     }
@@ -97,23 +97,16 @@ namespace PolarShader {
             return;
         }
 
-        int32_t zoom_norm_raw = Q0_16_ONE;
-        if (context) {
-            zoom_norm_raw = raw(context->zoomNormalized);
-        } else {
-            Serial.println("TranslationTransform::advanceFrame context is null.");
-        }
-
         int64_t alpha_span = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MAX) -
                              static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN);
         int64_t alpha = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN) +
-                        ((alpha_span * static_cast<int64_t>(zoom_norm_raw)) >> 16);
+                        ((alpha_span * raw(context->zoomScale)) >> 16);
 
         int64_t du = static_cast<int64_t>(raw(target.u)) - static_cast<int64_t>(raw(state->offset.u));
         int64_t dv = static_cast<int64_t>(raw(target.v)) - static_cast<int64_t>(raw(state->offset.v));
         du = (du * alpha) >> 16;
         dv = (dv * alpha) >> 16;
-        
+
         state->offset.u = FracQ16_16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.u)) + du));
         state->offset.v = FracQ16_16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.v)) + dv));
     }

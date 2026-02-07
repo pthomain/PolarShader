@@ -55,24 +55,24 @@ namespace PolarShader {
 
     SFracQ0_16Signal cPerMil(int32_t value);
 
-    SFracQ0_16Signal full();
+    SFracQ0_16Signal randomPerMil();
 
     SFracQ0_16Signal noise(
         SFracQ0_16Signal phaseSpeed = constant(perMil(100)),
-        SFracQ0_16Signal amplitude = full(),
-        SFracQ0_16Signal offset = constant(SFracQ0_16(0))
+        SFracQ0_16Signal amplitude = ceiling(),
+        SFracQ0_16Signal offset = randomPerMil()
     );
 
     SFracQ0_16Signal sine(
         SFracQ0_16Signal phaseSpeed = midPoint(),
-        SFracQ0_16Signal amplitude = constant(SFracQ0_16(Q0_16_MAX)),
-        SFracQ0_16Signal offset = constant(SFracQ0_16(0))
+        SFracQ0_16Signal amplitude = ceiling(),
+        SFracQ0_16Signal offset = floor()
     );
 
     SFracQ0_16Signal pulse(
         SFracQ0_16Signal phaseSpeed = midPoint(),
-        SFracQ0_16Signal amplitude = constant(SFracQ0_16(Q0_16_MAX)),
-        SFracQ0_16Signal offset = constant(SFracQ0_16(0))
+        SFracQ0_16Signal amplitude = ceiling(),
+        SFracQ0_16Signal offset = floor()
     );
 
     // Standard easing signals that loop over durationMs and return 0..1 in Q0.16.
