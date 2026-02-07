@@ -18,31 +18,32 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_POLAR_VORTEXTRANSFORM_H
-#define POLAR_SHADER_TRANSFORMS_POLAR_VORTEXTRANSFORM_H
+#ifndef POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H
+#define POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H
 
-#include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/transforms/Transforms.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 
 namespace PolarShader {
     /**
-     * Polar vortex: angle += (radius * strength).
+     * Polar rotation driven by an angle signal (Q0.16 turns).
      *
-     * Strength is mapped with SFracRange to a signed turn-based offset.
+     * Signals that emit relative deltas are resolved before being mapped into
+     * an angular offset so the transform follows the resolved value every frame.
      */
-    class VortexTransform : public UVTransform {
+    class RotationTransform : public UVTransform {
         struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
 
-        explicit VortexTransform(MappedSignal<SFracQ0_16> strength);
+        explicit RotationTransform(MappedSignal<FracQ0_16> angle);
 
-        explicit VortexTransform(MappedInputs inputs);
+        explicit RotationTransform(MappedInputs inputs);
 
-        static MappedInputs makeInputs(SFracQ0_16Signal strength);
+        static MappedInputs makeInputs(SFracQ0_16Signal angle);
 
     public:
-        explicit VortexTransform(SFracQ0_16Signal strength);
+        explicit RotationTransform(SFracQ0_16Signal angle);
 
         void advanceFrame(TimeMillis timeInMillis) override;
 
@@ -50,4 +51,4 @@ namespace PolarShader {
     };
 }
 
-#endif // POLAR_SHADER_TRANSFORMS_POLAR_VORTEXTRANSFORM_H
+#endif // POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H

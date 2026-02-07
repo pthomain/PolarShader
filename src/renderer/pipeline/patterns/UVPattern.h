@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_UVPATTERN_H
 #define POLAR_SHADER_PIPELINE_UVPATTERN_H
 
-#include "renderer/pipeline/transforms/base/Layers.h"
+#include "renderer/pipeline/transforms/Layers.h"
 #include "renderer/pipeline/PipelineContext.h"
 #include <memory>
 #include <utility>

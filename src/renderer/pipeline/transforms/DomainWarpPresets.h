@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_TRANSFORMS_CARTESIAN_DOMAINWARPPRESETS_H
 #define POLAR_SHADER_TRANSFORMS_CARTESIAN_DOMAINWARPPRESETS_H
 
-#include "renderer/pipeline/transforms/cartesian/DomainWarpTransform.h"
+#include "renderer/pipeline/transforms/DomainWarpTransform.h"
 #include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {

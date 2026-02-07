@@ -15,8 +15,8 @@
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/PolarMaths.cpp"
-#include "renderer/pipeline/transforms/polar/RotationTransform.cpp"
-#include "renderer/pipeline/transforms/cartesian/ZoomTransform.cpp"
+#include "renderer/pipeline/transforms/RotationTransform.cpp"
+#include "renderer/pipeline/transforms/ZoomTransform.cpp"
 #include "renderer/pipeline/ranges/PolarRange.cpp"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
@@ -86,8 +86,8 @@ void test_uv_round_trip() {
     TEST_ASSERT_INT32_WITHIN(100, original.v.raw(), back.v.raw());
 }
 
-#include "renderer/pipeline/transforms/polar/RotationTransform.h"
-#include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
+#include "renderer/pipeline/transforms/RotationTransform.h"
+#include "renderer/pipeline/transforms/ZoomTransform.h"
 
 /** @brief Verify that RotationTransform correctly rotates Cartesian UV coordinates. */
 void test_rotation_transform_uv() {

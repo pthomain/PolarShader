@@ -18,25 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_POLAR_KALEIDOSCOPETRANSFORM_H
-#define POLAR_SHADER_TRANSFORMS_POLAR_KALEIDOSCOPETRANSFORM_H
+#ifndef POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
+#define POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
 
-#include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/transforms/Transforms.h"
 #include <memory>
 
 namespace PolarShader {
     /**
-     * Polar kaleidoscope: folds angle into nbFacets wedges, with optional mirroring.
+     * Radial kaleidoscope: folds radius into concentric bands, optionally mirroring every other band.
      */
-    class KaleidoscopeTransform : public UVTransform {
+    class RadialKaleidoscopeTransform : public UVTransform {
         struct State;
         std::shared_ptr<State> state;
 
     public:
-        KaleidoscopeTransform(uint8_t nbFacets, bool isMirrored);
+        RadialKaleidoscopeTransform(uint16_t radialDivisions, bool isMirrored = true);
 
         UVLayer operator()(const UVLayer &layer) const override;
     };
 }
 
-#endif // POLAR_SHADER_TRANSFORMS_POLAR_KALEIDOSCOPETRANSFORM_H
+#endif // POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H

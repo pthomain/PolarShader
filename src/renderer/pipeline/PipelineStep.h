@@ -22,8 +22,8 @@
 #define POLAR_SHADER_SPECS_PIPELINESTEP_H
 
 #include <memory>
-#include "transforms/base/Transforms.h"
-#include "transforms/palette/PaletteTransform.h"
+#include "transforms/Transforms.h"
+#include "transforms/PaletteTransform.h"
 
 namespace PolarShader {
     enum class PipelineStepKind {

@@ -29,7 +29,7 @@
 #include "PolarPipeline.h"
 #include "patterns/UVPattern.h"
 #include "renderer/pipeline/signals/Accumulators.h"
-#include "renderer/pipeline/transforms/palette/PaletteTransform.h"
+#include "renderer/pipeline/transforms/PaletteTransform.h"
 #include "signals/Signals.h"
 
 namespace PolarShader {
@@ -52,6 +52,17 @@ namespace PolarShader {
             palette(palette),
             name(name ? name : "unnamed") {
         }
+
+        /**
+         * @brief The following methods use C++ ref-qualifiers (& and &&) to optimize 
+         * both named (lvalue) and temporary (rvalue) builder usage.
+         * 
+         * - Methods ending in '&' (Lvalue): Support step-by-step building where the 
+         *   builder is stored in a named variable.
+         * - Methods ending in '&&' (Rvalue): Support fluent "one-liner" chaining. 
+         *   They enable move semantics for internal containers (fl::vector, unique_ptr), 
+         *   minimizing memory allocations and copies on microcontrollers.
+         */
 
         PolarPipelineBuilder &setDepthSignal(DepthSignal signal) & {
             if (built) return *this;

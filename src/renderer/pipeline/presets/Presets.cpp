@@ -20,16 +20,16 @@
 
 #include "Presets.h"
 #include <renderer/pipeline/signals/Signals.h>
-#include "renderer/pipeline/transforms/polar/RotationTransform.h"
-#include "renderer/pipeline/transforms/cartesian/TranslationTransform.h"
-#include "renderer/pipeline/transforms/cartesian/ZoomTransform.h"
-#include "renderer/pipeline/transforms/polar/KaleidoscopeTransform.h"
-#include "renderer/pipeline/transforms/polar/RadialKaleidoscopeTransform.h"
-#include "renderer/pipeline/transforms/polar/VortexTransform.h"
+#include "renderer/pipeline/transforms/RotationTransform.h"
+#include "renderer/pipeline/transforms/TranslationTransform.h"
+#include "renderer/pipeline/transforms/ZoomTransform.h"
+#include "renderer/pipeline/transforms/KaleidoscopeTransform.h"
+#include "renderer/pipeline/transforms/RadialKaleidoscopeTransform.h"
+#include "renderer/pipeline/transforms/VortexTransform.h"
 #include "renderer/pipeline/patterns/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
-#include "renderer/pipeline/transforms/cartesian/CartesianTilingTransform.h"
+#include "renderer/pipeline/transforms/CartesianTilingTransform.h"
 
 namespace PolarShader {
     namespace {

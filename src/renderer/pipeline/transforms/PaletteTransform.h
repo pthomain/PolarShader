@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_TRANSFORMS_PALETTE_PALETTE_TRANSFORM_H
 #define POLAR_SHADER_TRANSFORMS_PALETTE_PALETTE_TRANSFORM_H
 
-#include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/transforms/Transforms.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/PipelineContext.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"

@@ -18,25 +18,41 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
-#define POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
+#ifndef POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
+#define POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
 
-#include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/transforms/Transforms.h"
 #include <memory>
 
 namespace PolarShader {
     /**
-     * Radial kaleidoscope: folds radius into concentric bands, optionally mirroring every other band.
+     * Cartesian translation using direction and speed signals.
+     *
+     * Direction is a full-turn phase in Q0.16.
+     * Velocity is a 0..1 scalar in Q0.16 mapped to a max speed (Q24.8 units).
      */
-    class RadialKaleidoscopeTransform : public UVTransform {
+    class TranslationTransform : public UVTransform {
+        struct MappedInputs;
         struct State;
         std::shared_ptr<State> state;
 
+        explicit TranslationTransform(MappedInputs inputs);
+
+        static MappedInputs makeInputs(UVSignal offsetSignal);
+
     public:
-        RadialKaleidoscopeTransform(uint16_t radialDivisions, bool isMirrored = true);
+        explicit TranslationTransform(UVSignal offsetSignal);
+
+        TranslationTransform(
+            SFracQ0_16Signal direction,
+            SFracQ0_16Signal speed
+        );
+
+        void advanceFrame(TimeMillis timeInMillis) override;
 
         UVLayer operator()(const UVLayer &layer) const override;
     };
 }
 
-#endif // POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
+#endif // POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
