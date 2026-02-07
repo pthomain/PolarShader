@@ -21,7 +21,6 @@
 #include "PolarPipeline.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 #include <Arduino.h>
 #include "FastLED.h"
 

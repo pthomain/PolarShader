@@ -19,7 +19,6 @@
  */
 
 #include "PatternMaths.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     PatternNormU16 patternNormalize(uint16_t value, uint16_t min_value, uint16_t max_value) {

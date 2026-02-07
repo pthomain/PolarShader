@@ -19,12 +19,18 @@
  */
 
 #ifndef POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H
+
 #define POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H
 
-#include "renderer/pipeline/units/AngleUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+
+
+#include "renderer/pipeline/units/Units.h"
+
+
 
 namespace PolarShader {
+
+
     SFracQ0_16 angleSinQ0_16(FracQ0_16 a);
 
     SFracQ0_16 angleCosQ0_16(FracQ0_16 a);
@@ -43,6 +49,17 @@ namespace PolarShader {
 
     // FastLED trig sampling helpers (explicit angle/phase conversions).
     constexpr uint16_t angleToFastLedPhase(FracQ0_16 a) { return raw(a); }
+
+    // --- Angle wrap arithmetic (mod 2^16) ---
+    constexpr FracQ0_16 angleWrapAdd(FracQ0_16 a, uint16_t delta) {
+        return FracQ0_16(static_cast<uint16_t>(raw(a) + delta));
+    }
+
+    // Wrap-add using signed raw delta (Q0.16), interpreted via two's-complement.
+    constexpr FracQ0_16 angleWrapAddSigned(FracQ0_16 a, int32_t delta_raw_q0_16) {
+        uint32_t sum = static_cast<uint32_t>(raw(a)) + static_cast<uint32_t>(delta_raw_q0_16);
+        return FracQ0_16(static_cast<uint16_t>(sum));
+    }
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_ANGLEMATHS_H

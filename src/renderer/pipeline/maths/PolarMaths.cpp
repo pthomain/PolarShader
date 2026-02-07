@@ -26,7 +26,6 @@
 #endif
 #include "renderer/pipeline/maths/AngleMaths.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     UV polarToCartesianUV(UV polar_uv) {

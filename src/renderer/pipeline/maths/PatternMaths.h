@@ -21,7 +21,6 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H
 
-#include "renderer/pipeline/units/PatternUnits.h"
 
 namespace PolarShader {
     PatternNormU16 patternNormalize(uint16_t value, uint16_t min_value, uint16_t max_value);

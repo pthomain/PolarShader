@@ -21,9 +21,6 @@
 #ifndef POLAR_SHADER_PIPELINE_PIPELINECONTEXT_H
 #define POLAR_SHADER_PIPELINE_PIPELINECONTEXT_H
 
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     struct PipelineContext {

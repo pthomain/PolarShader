@@ -26,7 +26,6 @@
 #include "renderer/pipeline/ranges/PolarRange.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include <cstdint>
 #include <utility>

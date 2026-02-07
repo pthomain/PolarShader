@@ -20,7 +20,6 @@
 
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #include "FastLED.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {

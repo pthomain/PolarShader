@@ -19,7 +19,6 @@
  */
 
 #include "KaleidoscopeTransform.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 
 namespace PolarShader {

@@ -19,7 +19,6 @@
  */
 
 #include "DomainWarpPresets.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 
 namespace PolarShader {

@@ -22,7 +22,6 @@
 #define POLAR_SHADER_PIPELINE_SIGNALS_ACCUMULATORS_H
 
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
 
 namespace PolarShader {
     /**

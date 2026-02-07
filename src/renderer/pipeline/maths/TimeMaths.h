@@ -19,12 +19,18 @@
  */
 
 #ifndef POLAR_SHADER_PIPELINE_MATHS_TIMEMATHS_H
+
 #define POLAR_SHADER_PIPELINE_MATHS_TIMEMATHS_H
 
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/TimeUnits.h"
+
+
+#include "renderer/pipeline/units/Units.h"
+
+
 
 namespace PolarShader {
+
+
     inline constexpr uint16_t MILLIS_PER_SECOND = 1000;
 
     /**
@@ -34,6 +40,11 @@ namespace PolarShader {
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
         return SFracQ0_16(static_cast<int32_t>(dt_raw));
+    }
+
+    inline TimeMillis clampDeltaTime(TimeMillis deltaTime) {
+        if (MAX_DELTA_TIME_MS == 0) return deltaTime;
+        return (deltaTime > MAX_DELTA_TIME_MS) ? MAX_DELTA_TIME_MS : deltaTime;
     }
 }
 

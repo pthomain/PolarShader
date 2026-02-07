@@ -23,7 +23,6 @@
 
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
 #include "renderer/pipeline/PipelineContext.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include <memory>

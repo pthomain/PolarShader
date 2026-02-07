@@ -26,9 +26,7 @@
 #else
 #include "native/FastLED.h"
 #endif
-#include "renderer/pipeline/units/AngleUnits.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
+#include "renderer/pipeline/units/Units.h"
 
 namespace PolarShader {
     fl::i32 scale32(fl::i32 value, FracQ0_16 scale);

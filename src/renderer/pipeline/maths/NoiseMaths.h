@@ -21,8 +21,6 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
 
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/PatternUnits.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
 
 namespace PolarShader {

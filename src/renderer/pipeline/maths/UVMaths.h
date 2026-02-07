@@ -21,7 +21,6 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_UVMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_UVMATHS_H
 
-#include "renderer/pipeline/units/UVUnits.h"
 
 namespace PolarShader {
     /**

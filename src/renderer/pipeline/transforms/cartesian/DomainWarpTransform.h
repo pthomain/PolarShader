@@ -23,7 +23,6 @@
 
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include <memory>
 

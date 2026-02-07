@@ -19,8 +19,6 @@
  */
 
 #include "CartesianTilingTransform.h"
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/TimeUnits.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"

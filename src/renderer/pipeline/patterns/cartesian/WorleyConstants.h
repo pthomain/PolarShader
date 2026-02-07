@@ -21,7 +21,6 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYCONSTANTS_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYCONSTANTS_H
 
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     // Standard cell size for Cartesian lattice space (typically 0..256 wide).

@@ -22,7 +22,6 @@
 #define POLAR_SHADER_PIPELINE_RANGES_UVRANGE_H
 
 #include "renderer/pipeline/ranges/Range.h"
-#include "renderer/pipeline/units/UVUnits.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {

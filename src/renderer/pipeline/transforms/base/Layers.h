@@ -26,10 +26,6 @@
 #else
 #include "native/FastLED.h"
 #endif
-#include "renderer/pipeline/units/CartesianUnits.h"
-#include "renderer/pipeline/units/PatternUnits.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/UVUnits.h"
 
 namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */

@@ -23,7 +23,6 @@
 
 #include <utility>
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/units/StrongTypes.h"
 
 namespace PolarShader {
     template<typename Derived, typename T>

@@ -22,8 +22,6 @@
 #define POLAR_SHADER_PIPELINE_MATHS_ZOOMMATHS_H
 
 #include "renderer/pipeline/ranges/LinearRange.h"
-#include "renderer/pipeline/units/ScalarUnits.h"
-#include "renderer/pipeline/units/UnitConstants.h"
 
 namespace PolarShader {
     int32_t zoomMinScaleRaw(const LinearRange<SFracQ0_16> &range);
