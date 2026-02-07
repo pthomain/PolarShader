@@ -57,4 +57,10 @@ static inline uint16_t inoise16(uint32_t x, uint32_t y, uint32_t z) {
     return (uint16_t)((x * 2053u) ^ (y * 3037u) ^ (z * 4093u) + 13849u);
 }
 
+static inline uint16_t random16() {
+    static uint32_t seed = 42;
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return (uint16_t)(seed >> 16);
+}
+
 #endif // POLAR_SHADER_NATIVE_FASTLED_H

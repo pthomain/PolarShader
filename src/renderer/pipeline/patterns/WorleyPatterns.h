@@ -75,7 +75,7 @@ namespace PolarShader {
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
 
-        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
         PatternNormU16 sampleFast(CartQ24_8 x, CartQ24_8 y) const;
@@ -102,7 +102,7 @@ namespace PolarShader {
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
 
-        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
         PatternNormU16 sampleIdFast(CartQ24_8 x, CartQ24_8 y) const;

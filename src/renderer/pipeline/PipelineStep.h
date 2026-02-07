@@ -31,7 +31,7 @@ namespace PolarShader {
         Palette
     };
 
-    // PolarPipeline.h (or a dedicated header if you prefer)
+    // Layer.h (or a dedicated header if you prefer)
     struct PipelineStep {
         PipelineStepKind kind;
         std::unique_ptr<UVTransform> uvTransform;

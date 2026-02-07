@@ -24,16 +24,16 @@
 
 namespace PolarShader {
     namespace {
-        PolarPipeline makeHexKaleidoscope(const CRGBPalette16 &palette) {
+        Layer makeHexKaleidoscope(const CRGBPalette16 &palette) {
             return hexKaleidoscopePreset(palette).build();
         }
         
-        PolarPipeline makeNoiseKaleidoscope(const CRGBPalette16 &palette) {
+        Layer makeNoiseKaleidoscope(const CRGBPalette16 &palette) {
             return noiseKaleidoscopePattern(palette).build();
         }
     }
 
-    PolarPipeline PresetPicker::pickRandom(const CRGBPalette16 &palette) {
+    Layer PresetPicker::pickRandom(const CRGBPalette16 &palette) {
         static const PipelineFactory factories[] = {
             makeHexKaleidoscope,
             makeNoiseKaleidoscope

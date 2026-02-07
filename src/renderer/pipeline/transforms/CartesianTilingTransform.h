@@ -57,7 +57,7 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis timeInMillis) override;
 
-        UVLayer operator()(const UVLayer &layer) const override;
+        UVMap operator()(const UVMap &layer) const override;
     };
 }
 

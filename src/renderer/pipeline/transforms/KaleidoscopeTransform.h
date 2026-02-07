@@ -35,7 +35,7 @@ namespace PolarShader {
     public:
         KaleidoscopeTransform(uint8_t nbFacets, bool isMirrored);
 
-        UVLayer operator()(const UVLayer &layer) const override;
+        UVMap operator()(const UVMap &layer) const override;
     };
 }
 

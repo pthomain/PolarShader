@@ -18,8 +18,8 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_POLARPIPELINE_H
-#define POLAR_SHADER_PIPELINE_POLARPIPELINE_H
+#ifndef POLAR_SHADER_PIPELINE_LAYER_H
+#define POLAR_SHADER_PIPELINE_LAYER_H
 
 #include "renderer/pipeline/maths/units/Units.h"
 #include "patterns/base/UVPattern.h"
@@ -37,7 +37,7 @@ namespace PolarShader {
      * Angles are represented as 16-bit turns (Q0.16). Cartesian coords are Q24.8. Any domain conversion (polar<->cartesian)
      * happens at explicit PipelineStep boundaries.
      */
-    class PolarPipeline {
+    class Layer {
         std::unique_ptr<UVPattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
@@ -45,7 +45,7 @@ namespace PolarShader {
         std::shared_ptr<PipelineContext> context;
         DepthSignal depthSignal;
 
-        static ColourLayer blackLayer(const char *reason);
+        static ColourMap blackLayer(const char *reason);
 
         static CRGB mapPalette(
             const CRGBPalette16 &palette,
@@ -53,7 +53,7 @@ namespace PolarShader {
             const std::shared_ptr<PipelineContext> &context
         );
 
-        PolarPipeline(
+        Layer(
             std::unique_ptr<UVPattern> pattern,
             const CRGBPalette16 &palette,
             fl::vector<PipelineStep> steps,
@@ -62,15 +62,15 @@ namespace PolarShader {
             DepthSignal depthSignal
         );
 
-        friend class PolarPipelineBuilder;
+        friend class LayerBuilder;
 
     public:
         void advanceFrame(TimeMillis timeInMillis);
 
-        ColourLayer build() const;
+        ColourMap build() const;
 
         const char *getName() const { return name; }
     };
 }
 
-#endif //POLAR_SHADER_PIPELINE_POLARPIPELINE_H
+#endif //POLAR_SHADER_PIPELINE_LAYER_H

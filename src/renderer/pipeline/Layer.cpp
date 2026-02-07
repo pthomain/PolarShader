@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "PolarPipeline.h"
+#include "Layer.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/maths/units/Units.h"
@@ -26,7 +26,7 @@
 #include "FastLED.h"
 
 namespace PolarShader {
-    PolarPipeline::PolarPipeline(
+    Layer::Layer(
         std::unique_ptr<UVPattern> pattern,
         const CRGBPalette16 &palette,
         fl::vector<PipelineStep> steps,
@@ -39,7 +39,7 @@ namespace PolarShader {
         name(name ? name : "unnamed"),
         context(std::move(context)),
         depthSignal(std::move(depthSignal)) {
-        Serial.print("Building pipeline: ");
+        Serial.print("Building layer: ");
         Serial.println(this->name);
 
         if (!this->context) this->context = std::make_shared<PipelineContext>();
@@ -51,14 +51,14 @@ namespace PolarShader {
         }
     }
 
-    ColourLayer PolarPipeline::blackLayer(const char *reason) {
+    ColourMap Layer::blackLayer(const char *reason) {
         if (reason) Serial.println(reason);
         return [](FracQ0_16, FracQ0_16) {
             return CRGB::Black;
         };
     }
 
-    CRGB PolarPipeline::mapPalette(
+    CRGB Layer::mapPalette(
         const CRGBPalette16 &palette,
         PatternNormU16 value,
         const std::shared_ptr<PipelineContext> &context
@@ -118,9 +118,9 @@ namespace PolarShader {
         return color;
     }
 
-    void PolarPipeline::advanceFrame(TimeMillis timeInMillis) {
+    void Layer::advanceFrame(TimeMillis timeInMillis) {
         if (!context) {
-            Serial.println("PolarPipeline::advanceFrame context is null.");
+            Serial.println("Layer::advanceFrame context is null.");
         } else {
             context->depth = depthSignal(timeInMillis);
         }
@@ -135,10 +135,10 @@ namespace PolarShader {
         }
     }
 
-    ColourLayer PolarPipeline::build() const {
-        if (!pattern) return blackLayer("PolarPipeline::build has no base pattern.");
+    ColourMap Layer::build() const {
+        if (!pattern) return blackLayer("Layer::build has no base pattern.");
 
-        UVLayer currentUV = pattern->layer(context);
+        UVMap currentUV = pattern->layer(context);
 
         // Apply transforms in order. All are UVTransforms now.
         for (const auto &step: steps) {

@@ -21,20 +21,20 @@
 #ifndef POLAR_SHADER_PIPELINE_PRESETS_H
 #define POLAR_SHADER_PIPELINE_PRESETS_H
 
-#include <renderer/pipeline/PolarPipelineBuilder.h>
+#include <renderer/pipeline/LayerBuilder.h>
 
 namespace PolarShader {
     class UVPattern;
 
-    PolarPipelineBuilder defaultPreset(
+    LayerBuilder defaultPreset(
         const CRGBPalette16 &palette
     );
 
-    PolarPipelineBuilder hexKaleidoscopePreset(
+    LayerBuilder hexKaleidoscopePreset(
         const CRGBPalette16 &palette
     );
 
-    PolarPipelineBuilder noiseKaleidoscopePattern(
+    LayerBuilder noiseKaleidoscopePattern(
         const CRGBPalette16 &palette
     );
 }

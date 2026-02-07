@@ -33,7 +33,7 @@
 
 namespace PolarShader {
     namespace {
-        PolarPipelineBuilder makeBuilder(
+        LayerBuilder makeBuilder(
             std::unique_ptr<UVPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
@@ -42,7 +42,7 @@ namespace PolarShader {
         }
     }
 
-    PolarPipelineBuilder defaultPreset(
+    LayerBuilder defaultPreset(
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
@@ -50,15 +50,15 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
+                .addTransform(ZoomTransform(midPoint()))
                 .addPaletteTransform(
                     PaletteTransform(
-                        noise(cPerMil(200))
+                        linear(5000)
                     )
-                )
-                .addTransform(ZoomTransform(sine()));
+                );
     }
 
-    PolarPipelineBuilder hexKaleidoscopePreset(
+    LayerBuilder hexKaleidoscopePreset(
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
@@ -86,7 +86,7 @@ namespace PolarShader {
                 ));
     }
 
-    PolarPipelineBuilder noiseKaleidoscopePattern(
+    LayerBuilder noiseKaleidoscopePattern(
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(

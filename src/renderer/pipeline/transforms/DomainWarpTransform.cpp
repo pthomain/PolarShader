@@ -334,7 +334,7 @@ namespace PolarShader {
         }
     }
 
-    UVLayer DomainWarpTransform::operator()(const UVLayer &layer) const {
+    UVMap DomainWarpTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
             CartQ24_8 cy = CartesianMaths::from_uv(uv.v);

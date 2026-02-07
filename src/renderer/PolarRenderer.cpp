@@ -32,7 +32,7 @@ namespace PolarShader {
             defaultPreset(Rainbow_gp)
             .build()
         ),
-        colourLayer(pipeline.build()),
+        colourMap(pipeline.build()),
         nbLeds(nbLeds) {
     }
 
@@ -43,7 +43,7 @@ namespace PolarShader {
         pipeline.advanceFrame(timeInMillis);
         for (uint16_t pixelIndex = 0; pixelIndex < nbLeds; ++pixelIndex) {
             auto [angle, radius] = coordsMapper(pixelIndex);
-            outputArray[pixelIndex] = colourLayer(angle, radius);
+            outputArray[pixelIndex] = colourMap(angle, radius);
         }
     }
 }

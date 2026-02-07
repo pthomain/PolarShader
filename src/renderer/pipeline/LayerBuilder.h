@@ -18,22 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
-#define POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
+#ifndef POLAR_SHADER_PIPELINE_LAYERBUILDER_H
+#define POLAR_SHADER_PIPELINE_LAYERBUILDER_H
 
 #include <memory>
 #include <type_traits>
 #include <utility>
 #include "FastLED.h"
 #include "PipelineContext.h"
-#include "PolarPipeline.h"
+#include "Layer.h"
 #include "patterns/base/UVPattern.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/PaletteTransform.h"
-#include "signals/Signals.h"
+#include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {
-    class PolarPipelineBuilder {
+    class LayerBuilder {
         std::unique_ptr<UVPattern> pattern;
         CRGBPalette16 palette;
         fl::vector<PipelineStep> steps;
@@ -44,7 +44,7 @@ namespace PolarShader {
         DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << CARTESIAN_FRAC_BITS);
 
     public:
-        PolarPipelineBuilder(
+        LayerBuilder(
             std::unique_ptr<UVPattern> pattern,
             const CRGBPalette16 &palette,
             const char *name
@@ -64,7 +64,7 @@ namespace PolarShader {
          *   minimizing memory allocations and copies on microcontrollers.
          */
 
-        PolarPipelineBuilder &setDepthSignal(DepthSignal signal) & {
+        LayerBuilder &setDepthSignal(DepthSignal signal) & {
             if (built) return *this;
             if (!signal) {
                 return *this;
@@ -73,7 +73,7 @@ namespace PolarShader {
             return *this;
         }
 
-        PolarPipelineBuilder &&setDepthSignal(DepthSignal signal) && {
+        LayerBuilder &&setDepthSignal(DepthSignal signal) && {
             if (built) return std::move(*this);
             if (!signal) return std::move(*this);
 
@@ -81,7 +81,7 @@ namespace PolarShader {
             return std::move(*this);
         }
 
-        PolarPipelineBuilder &setDepthSignal(SFracQ0_16Signal signal) & {
+        LayerBuilder &setDepthSignal(SFracQ0_16Signal signal) & {
             if (built) return *this;
             if (!signal) {
                 return *this;
@@ -90,7 +90,7 @@ namespace PolarShader {
             return *this;
         }
 
-        PolarPipelineBuilder &&setDepthSignal(SFracQ0_16Signal signal) && {
+        LayerBuilder &&setDepthSignal(SFracQ0_16Signal signal) && {
             if (built) return std::move(*this);
             if (!signal) return std::move(*this);
 
@@ -99,33 +99,33 @@ namespace PolarShader {
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of<UVTransform, T>::value> >
-        PolarPipelineBuilder &addTransform(T transform) & {
+        LayerBuilder &addTransform(T transform) & {
             if (built) return *this;
             steps.push_back(PipelineStep::uv(std::make_unique<T>(std::move(transform))));
             return *this;
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of<UVTransform, T>::value> >
-        PolarPipelineBuilder &&addTransform(T transform) && {
+        LayerBuilder &&addTransform(T transform) && {
             if (built) return std::move(*this);
             steps.push_back(PipelineStep::uv(std::make_unique<T>(std::move(transform))));
             return std::move(*this);
         }
 
-        PolarPipelineBuilder &addPaletteTransform(PaletteTransform transform) & {
+        LayerBuilder &addPaletteTransform(PaletteTransform transform) & {
             if (built) return *this;
             steps.push_back(PipelineStep::palette(std::make_unique<PaletteTransform>(std::move(transform))));
             return *this;
         }
 
-        PolarPipelineBuilder &&addPaletteTransform(PaletteTransform transform) && {
+        LayerBuilder &&addPaletteTransform(PaletteTransform transform) && {
             if (built) return std::move(*this);
             steps.push_back(PipelineStep::palette(std::make_unique<PaletteTransform>(std::move(transform))));
             return std::move(*this);
         }
 
-        PolarPipeline build();
+        Layer build();
     };
 }
 
-#endif //POLAR_SHADER_SPECS_POLARPIPELINEBUILDER_H
+#endif //POLAR_SHADER_PIPELINE_LAYERBUILDER_H

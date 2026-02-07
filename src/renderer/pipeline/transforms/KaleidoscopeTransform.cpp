@@ -31,7 +31,7 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{nbFacets, isMirrored})) {
     }
 
-    UVLayer KaleidoscopeTransform::operator()(const UVLayer &layer) const {
+    UVMap KaleidoscopeTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             UV polar_uv = cartesianToPolarUV(uv);
             

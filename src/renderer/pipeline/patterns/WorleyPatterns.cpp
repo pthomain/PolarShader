@@ -161,7 +161,7 @@ namespace PolarShader {
         configureCellSize(cellSize);
     }
 
-    UVLayer WorleyPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+    UVMap WorleyPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return UVFunctor{this};
     }
 
@@ -199,7 +199,7 @@ namespace PolarShader {
         configureCellSize(cellSize);
     }
 
-    UVLayer VoronoiPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+    UVMap VoronoiPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return UVFunctor{this};
     }
 

@@ -57,7 +57,7 @@ namespace PolarShader {
             SFracQ0_16Signal edgeSoftness = SFracQ0_16Signal()
         );
 
-        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
         static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (8 - 1); // 8 is CARTESIAN_FRAC_BITS

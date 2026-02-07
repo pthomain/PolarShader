@@ -31,13 +31,13 @@ Ranges used by transforms:
 
 ## Pipeline usage
 
-Transforms are added via `PolarPipelineBuilder`. `advanceFrame(time)` must be called each frame
+Transforms are added via `LayerBuilder`. `advanceFrame(time)` must be called each frame
 to update transform state before sampling layers.
 
 Example:
 
 ```cpp
-auto pipeline = PolarPipelineBuilder(noisePattern(), palette, "demo")
+auto pipeline = LayerBuilder(noisePattern(), palette, "demo")
     .addTransform(ZoomTransform(noise(cPerMil(120))))
     .addTransform(RotationTransform(noise(cPerMil(80))))
     .build();

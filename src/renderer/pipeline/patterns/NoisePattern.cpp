@@ -102,7 +102,7 @@ namespace PolarShader {
           octaves(octaveCount) {
     }
 
-    UVLayer NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+    UVMap NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return UVNoisePatternFunctor{type, octaves, context.get()};
     }
 }

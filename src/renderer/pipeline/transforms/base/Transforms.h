@@ -50,8 +50,8 @@ namespace PolarShader {
     public:
         UVTransform() = default;
 
-        /** @brief Transforms one UV layer into another. */
-        virtual UVLayer operator()(const UVLayer &layer) const = 0;
+        /** @brief Transforms one UV map into another. */
+        virtual UVMap operator()(const UVMap &layer) const = 0;
     };
 }
 

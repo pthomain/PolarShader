@@ -55,7 +55,7 @@ namespace PolarShader {
               minScaleRaw(0),
               maxScaleRaw(0) {
             minScaleRaw = this->range.minRaw();
-            maxScaleRaw = this->range.minRaw();
+            maxScaleRaw = this->range.maxRaw();
         }
     };
 
@@ -112,7 +112,7 @@ namespace PolarShader {
         }
     }
 
-    UVLayer ZoomTransform::operator()(const UVLayer &layer) const {
+    UVMap ZoomTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             // Map from [0, 1] to [-1, 1] (relative to center)
             int64_t x = (static_cast<int64_t>(raw(uv.u)) << 1) - 0x00010000;

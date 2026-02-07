@@ -110,7 +110,7 @@ namespace PolarShader {
         }
     }
 
-    UVLayer CartesianTilingTransform::operator()(const UVLayer &layer) const {
+    UVMap CartesianTilingTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             int32_t cellSizeRaw = state->cellSizeRaw;
             if (cellSizeRaw <= 0) {

@@ -29,14 +29,14 @@ namespace PolarShader {
         : layerValue([](UV) { return PatternNormU16(0); }) {
     }
 
-    UVPattern::UVPattern(UVLayer layer)
+    UVPattern::UVPattern(UVMap layer)
         : layerValue(std::move(layer)) {
         if (!layerValue) {
             layerValue = [](UV) { return PatternNormU16(0); };
         }
     }
 
-    UVLayer UVPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+    UVMap UVPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return layerValue;
     }
 }

@@ -111,7 +111,7 @@ namespace PolarShader {
         state->offset.v = FracQ16_16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.v)) + dv));
     }
 
-    UVLayer TranslationTransform::operator()(const UVLayer &layer) const {
+    UVMap TranslationTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             UV translated_uv(
                 FracQ16_16(raw(uv.u) + raw(state->offset.u)),

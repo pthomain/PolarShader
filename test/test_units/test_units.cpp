@@ -95,7 +95,7 @@ void test_rotation_transform_uv() {
     RotationTransform rotation(constant(SFracQ0_16(0x4000)));
     rotation.advanceFrame(0);
 
-    UVLayer testLayer = [](UV uv) {
+    UVMap testLayer = [](UV uv) {
         return PatternNormU16(raw(uv.u));
     };
 
@@ -105,7 +105,7 @@ void test_rotation_transform_uv() {
     // Expected U: 0.5 (0x8000)
     UV input(FracQ16_16(0x00010000), FracQ16_16(0x00008000));
     
-    UVLayer transformedLayer = rotation(testLayer);
+    UVMap transformedLayer = rotation(testLayer);
     PatternNormU16 result = transformedLayer(input);
 
     TEST_ASSERT_UINT16_WITHIN(100, 0x8000, raw(result));
@@ -116,7 +116,7 @@ void test_zoom_transform_uv() {
     ZoomTransform zoom(constant(SFracQ0_16(0))); // Target min
     zoom.advanceFrame(0);
     
-    UVLayer testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
+    UVMap testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     
     UV input(FracQ16_16(0x0000C000), FracQ16_16(0x00008000));
     PatternNormU16 result = zoom(testLayer)(input);

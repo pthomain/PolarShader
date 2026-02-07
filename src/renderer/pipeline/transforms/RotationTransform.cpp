@@ -67,7 +67,7 @@ namespace PolarShader {
         state->angleOffset = state->angleSignal(timeInMillis);
     }
 
-    UVLayer RotationTransform::operator()(const UVLayer &layer) const {
+    UVMap RotationTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             // Convert to Polar UV (Angle=U, Radius=V)
             UV polar_uv = cartesianToPolarUV(uv);

@@ -35,8 +35,10 @@ namespace PolarShader {
         SampleSignal sample
     ) {
         // phaseSpeed is turns-per-second.
-        PhaseAccumulator acc{LinearRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE))
-            .mapSignal(std::move(phaseSpeed))};
+        PhaseAccumulator acc{
+            LinearRange(SFracQ0_16(0), SFracQ0_16(Q0_16_ONE))
+            .mapSignal(std::move(phaseSpeed))
+        };
 
         return SFracQ0_16Signal(
             [acc = std::move(acc),

@@ -143,7 +143,7 @@ namespace PolarShader {
         initDerived();
     }
 
-    UVLayer HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+    UVMap HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         return UVHexTilingFunctor{hex_radius_raw, color_count, softness_raw};
     }
 

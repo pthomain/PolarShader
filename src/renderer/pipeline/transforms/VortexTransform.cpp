@@ -67,7 +67,7 @@ namespace PolarShader {
         state->strengthValue = state->strengthSignal(timeInMillis);
     }
 
-    UVLayer VortexTransform::operator()(const UVLayer &layer) const {
+    UVMap VortexTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             UV polar_uv = cartesianToPolarUV(uv);
             

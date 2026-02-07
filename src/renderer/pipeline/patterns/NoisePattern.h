@@ -56,7 +56,7 @@ namespace PolarShader {
     public:
         explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4);
 
-        UVLayer layer(const std::shared_ptr<PipelineContext> &context) const override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };
 }
 

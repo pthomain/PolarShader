@@ -8,8 +8,8 @@ PolarDisplay	KEYWORD1
 PolarDisplaySpec	KEYWORD1
 DefaultPolarDisplaySpec	KEYWORD1
 PolarRenderer	KEYWORD1
-PolarPipeline	KEYWORD1
-PolarPipelineBuilder	KEYWORD1
+Layer	KEYWORD1
+LayerBuilder	KEYWORD1
 
 AnisotropicScaleTransform	KEYWORD2
 BendTransform	KEYWORD2

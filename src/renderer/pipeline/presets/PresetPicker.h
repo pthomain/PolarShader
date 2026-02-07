@@ -29,9 +29,9 @@ namespace PolarShader {
      */
     class PresetPicker {
     public:
-        using PipelineFactory = PolarPipeline(*)(const CRGBPalette16 &);
+        using PipelineFactory = Layer(*)(const CRGBPalette16 &);
 
-        static PolarPipeline pickRandom(const CRGBPalette16 &palette);
+        static Layer pickRandom(const CRGBPalette16 &palette);
     };
 }
 
