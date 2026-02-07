@@ -26,6 +26,7 @@
 #include "native/Arduino.h"
 #endif
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
@@ -64,7 +65,7 @@ namespace PolarShader {
         // Use a lambda to combine direction and speed into a velocity UV vector
         // This is a relative signal (absolute=false)
         return UVSignal([direction, mappedSpeed](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-            FracQ0_16 dir = PolarRange().map(direction(progress, elapsedMs)).get();
+            FracQ0_16 dir = PolarRange().map(direction(elapsedMs)).get();
             int32_t s = mappedSpeed(progress, elapsedMs).get();
             
             SFracQ0_16 cos_val = angleCosQ0_16(dir);

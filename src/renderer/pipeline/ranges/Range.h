@@ -36,13 +36,12 @@ namespace PolarShader {
 
         MappedSignal<T> mapSignal(SFracQ0_16Signal signal) const {
             Derived range_copy = static_cast<const Derived &>(*this);
-            bool absolute = signal.isAbsolute();
             return MappedSignal<T>(
                 [range_copy = std::move(range_copy),
                     signal = std::move(signal)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-                    return range_copy.map(signal(progress, elapsedMs));
-                },
-                absolute
+                    (void) progress;
+                    return range_copy.map(signal(elapsedMs));
+                }
             );
         }
     };

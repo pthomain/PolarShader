@@ -21,6 +21,7 @@
 #include "VortexTransform.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -35,7 +36,7 @@ namespace PolarShader {
 
     VortexTransform::MappedInputs VortexTransform::makeInputs(SFracQ0_16Signal strength) {
         return MappedInputs{
-            resolveMappedSignal(LinearRange<SFracQ0_16>(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(strength)))
+            resolveMappedSignal(LinearRange(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(strength)))
         };
     }
 
@@ -49,7 +50,7 @@ namespace PolarShader {
     };
 
     VortexTransform::VortexTransform(SFracQ0_16Signal strength) {
-        auto inputs = VortexTransform::makeInputs(std::move(strength));
+        auto inputs = makeInputs(std::move(strength));
         state = std::make_shared<State>(std::move(inputs.strengthSignal));
     }
 
@@ -67,8 +68,8 @@ namespace PolarShader {
             int32_t strength_raw = raw(state->strengthValue.get());
             uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
             int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
-            int32_t new_angle = static_cast<int32_t>(raw(polar_uv.u)) + scaled;
-            polar_uv.u = FracQ16_16(static_cast<int32_t>(static_cast<uint16_t>(new_angle)));
+            int32_t new_angle = raw(polar_uv.u) + scaled;
+            polar_uv.u = FracQ16_16(static_cast<uint16_t>(new_angle));
 
             return layer(polarToCartesianUV(polar_uv));
         };

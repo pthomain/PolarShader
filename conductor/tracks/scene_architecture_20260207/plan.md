@@ -2,6 +2,16 @@
 
 This plan outlines the steps to refactor the current pipeline into a layer-based scene architecture and introduce a polymorphic interpolation system for animations.
 
+## Status Update (2026-02-07)
+
+This file is kept as historical execution detail. Current signal behavior differs from older
+entries in this plan:
+
+- Scalar signals are elapsed-time sampled (`elapsedMs`) with `SignalKind::{PERIODIC, APERIODIC}`.
+- Periodic factories use `(speed, amplitude, offset, phaseOffset)`.
+- Aperiodic factories use `(duration, loopMode)` with `LoopMode::RESET` modulo behavior.
+- Signed phase speed is preserved internally for phase accumulation.
+
 ## Phase 1: Core Renaming and Infrastructure
 Rename existing pipeline components to reflect the new "Layer" terminology and update basic type aliases.
 

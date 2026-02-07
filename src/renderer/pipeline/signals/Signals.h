@@ -26,13 +26,20 @@
 #else
 #include "native/FastLED.h"
 #endif
+
 #include "renderer/pipeline/signals/Accumulators.h"
-#include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
     using SampleSignal = fl::function<SFracQ0_16(FracQ0_16)>;
+    using PeriodicSignalFactory = SFracQ0_16Signal (*)(
+        SFracQ0_16Signal speed,
+        SFracQ0_16Signal amplitude,
+        SFracQ0_16Signal offset,
+        SFracQ0_16Signal phaseOffset
+    );
+    using AperiodicSignalFactory = SFracQ0_16Signal (*)(TimeMillis duration, LoopMode loopMode);
 
     SFracQ0_16Signal floor();
 
@@ -48,7 +55,7 @@ namespace PolarShader {
 
     SFracQ0_16Signal cPerMil(int32_t value);
 
-    SFracQ0_16Signal randomPerMil();
+    SFracQ0_16Signal cRandom();
 
     /**
      * @brief Animated noise signal driven by a speed signal.
@@ -57,7 +64,8 @@ namespace PolarShader {
     SFracQ0_16Signal noise(
         SFracQ0_16Signal speed = cPerMil(100),
         SFracQ0_16Signal amplitude = ceiling(),
-        SFracQ0_16Signal offset = floor()
+        SFracQ0_16Signal offset = floor(),
+        SFracQ0_16Signal phaseOffset = floor()
     );
 
     /**
@@ -67,29 +75,17 @@ namespace PolarShader {
     SFracQ0_16Signal sine(
         SFracQ0_16Signal speed = cPerMil(100),
         SFracQ0_16Signal amplitude = ceiling(),
-        SFracQ0_16Signal offset = floor()
+        SFracQ0_16Signal offset = floor(),
+        SFracQ0_16Signal phaseOffset = floor()
     );
 
-    // Easing functions
-    // If duration is 0, the signal spans the entire scene duration once.
-    // If duration > 0, the signal loops every 'duration' milliseconds.
+    SFracQ0_16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    SFracQ0_16Signal linear(Period duration = 0);
+    SFracQ0_16Signal quadraticIn(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    SFracQ0_16Signal quadraticIn(Period duration = 0);
+    SFracQ0_16Signal quadraticOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    SFracQ0_16Signal quadraticOut(Period duration = 0);
-
-    SFracQ0_16Signal quadraticInOut(Period duration = 0);
-
-    SFracQ0_16Signal sinusoidalIn(Period duration = 0);
-
-    SFracQ0_16Signal sinusoidalOut(Period duration = 0);
-
-    SFracQ0_16Signal sinusoidalInOut(Period duration = 0);
-
-    // Invert a signal in the 0..1 domain: y = 1 - x.
-    SFracQ0_16Signal invert(SFracQ0_16Signal signal);
+    SFracQ0_16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
     // Scale a signal in the 0..1 domain by a Q0.16 fraction.
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor);

@@ -77,7 +77,7 @@ namespace PolarShader {
                     noise(cPerMil(100), cPerMil(300))
                 ))
                 .addTransform(ZoomTransform(
-                    quadraticInOut()
+                    quadraticInOut(10000)
                 ))
                 .addTransform(VortexTransform(
                     noise(cPerMil(10), cPerMil(200))

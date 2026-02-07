@@ -16,21 +16,21 @@ This track introduces a higher-level "Scene" architecture to PolarShader, allowi
 
 ## Animation System Overhaul
 - **Timing Terminology:**
-    - **Speed:** Periodic signals (`sine`, `noise`) use a **Signed Phase Speed Signal** (`SFracQ0_16Signal`).
-        - Units: Turns per second (1.0 = 1 full cycle per second).
-        - Directional: Positive values move forward, negative values move backward.
-        - Dynamic: As a signal, speed can vary over time.
-    - **Period (Duration):** Non-periodic easing functions (Linear, Quadratic, etc.) use `Period` (TimeMillis).
-        - Represents the duration after which the easing function resets and repeats.
-        - **Default:** If `period` is 0, it defaults to the Scene's duration.
-        - **Looping:** If `0 < period < scene_duration`, the signal loops.
+    - **Elapsed Time:** Scalar signals are sampled with scene-relative `elapsedMs`.
+    - **Speed:** Periodic signals (`sine`, `noise`) use a signed speed signal in turns/second.
+    - **Duration:** Aperiodic signals (`linear`, `quadratic*`) use explicit `duration` and `LoopMode`.
+        - `LoopMode::RESET` wraps by modulo.
+        - `duration == 0` emits `0`.
 - **Signal Logic:**
-    - **Independent Phasing:** Signals using `Speed` are independent of Scene duration. They utilize a `PhaseAccumulator` to integrate speed over `elapsedTime`.
-    - **Signed Phase Speed:** `PhaseAccumulator` MUST use signed speed (`MappedSignal<SFracQ0_16>`) to support bidirectional movement.
-    - **Range:** `sine` and `noise` signals must span the full output range of `[0, 1]`.
+    - **Independent Phasing:** Speed-based periodic signals are independent of scene duration.
+    - **Signed Phase Speed:** Internal phase accumulation preserves signed speed for bidirectional movement.
+    - **Range:** `sine` and `noise` samplers span full `[0, 1]`.
+    - **Output Contract:** Public scalar signal outputs clamp to `[0, 1]`.
 - **API Constraints:**
-    - `cPerMil` logic: `cPerMil` stands for "Constant per-mil". It creates a constant signed signal.
-    - `cPerMil16_16` (unsigned) is removed.
+    - `cPerMil` creates constant signed scalar values in Q0.16.
+    - `cPerMil16_16` (unsigned helper) is removed.
+    - Scalar signals are absolute by contract (no scalar relative/absolute flag).
+    - Relative accumulation behavior is isolated in mapped/UV signal accumulators.
     - **Transforms:** Must **not** accept `MappedSignal` in their public constructors. They should accept `Signal` types and/or `Ranges`, and internally construct/store a `MappedSignal`.
 
 ## Scene & Layering

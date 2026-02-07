@@ -45,7 +45,7 @@ namespace PolarShader {
         LinearRange range{SFracQ0_16(MIN_SCALE_RAW), SFracQ0_16(MAX_SCALE_RAW)};
         auto mapped = range.mapSignal(std::move(scale));
         return MappedInputs{
-            mapped.withAbsolute(true),
+            std::move(mapped),
             std::move(range)
         };
     }

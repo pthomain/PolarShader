@@ -27,8 +27,8 @@
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/signals/Accumulators.h"
-#include "renderer/pipeline/signals/Signals.h"
 #include <utility>
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -119,16 +119,14 @@ namespace PolarShader {
         );
 
         auto mapToMaxOffset = [maxOffsetSignal](SFracQ0_16Signal signal) -> MappedSignal<int32_t> {
-            bool absolute = signal.isAbsolute();
             return MappedSignal<int32_t>(
                 [signal = std::move(signal), maxOffsetSignal](FracQ0_16 progress, TimeMillis elapsedMs) mutable -> MappedValue<int32_t> {
                     int32_t max_raw = raw((*maxOffsetSignal)(progress, elapsedMs).get());
                     if (max_raw <= 0) return MappedValue<int32_t>(0);
-                    uint32_t t_raw = clamp_frac_raw(raw(signal(progress, elapsedMs)));
+                    uint32_t t_raw = clamp_frac_raw(raw(signal(elapsedMs)));
                     int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
                     return MappedValue(static_cast<int32_t>(scaled));
-                },
-                absolute
+                }
             );
         };
 
@@ -136,10 +134,9 @@ namespace PolarShader {
         
         // Use speed signal directly for MappedInputs.
         auto speedMapped = MappedSignal<SFracQ0_16>(
-            [speed](FracQ0_16 p, TimeMillis t) {
-                return MappedValue(speed(p, t));
-            },
-            speed.isAbsolute()
+            [speed](FracQ0_16, TimeMillis elapsedMs) {
+                return MappedValue(speed.sampleUnclamped(elapsedMs));
+            }
         );
 
         return DomainWarpTransform::MappedInputs{

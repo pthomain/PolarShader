@@ -20,84 +20,83 @@
 
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/ranges/UVRange.h"
 #include <cstdint>
+#include <limits>
 #include <utility>
-#include <memory>
 
 namespace PolarShader {
     namespace {
-        /**
-         * @brief Creates a signal that evolves based on a speed signal.
-         * 
-         * Uses a PhaseAccumulator to integrate speed over time, supporting dynamic 
-         * and bidirectional motion. Independent of scene duration.
-         */
-        SFracQ0_16Signal createSignal(
+        constexpr int32_t SIGNAL_SPEED_SCALE = 1;
+
+        SFracQ0_16 clamp01(SFracQ0_16 value) {
+            return SFracQ0_16(static_cast<int32_t>(clamp_frac_raw(raw(value))));
+        }
+
+        FracQ0_16 timeToProgress(TimeMillis t, TimeMillis duration) {
+            if (duration == 0) return FracQ0_16(0);
+            if (t >= duration) t = duration;
+            uint64_t scaled = (static_cast<uint64_t>(t) * FRACT_Q0_16_MAX) / duration;
+            if (scaled > FRACT_Q0_16_MAX) scaled = FRACT_Q0_16_MAX;
+            return FracQ0_16(static_cast<uint16_t>(scaled));
+        }
+
+        SFracQ0_16Signal createAperiodicSignal(
+            TimeMillis duration,
+            LoopMode loopMode,
+            SFracQ0_16Signal::WaveformFn waveform
+        ) {
+            return SFracQ0_16Signal(SignalKind::APERIODIC, loopMode, duration, std::move(waveform));
+        }
+
+        SFracQ0_16Signal createPeriodicSignal(
             SFracQ0_16Signal speed,
             SFracQ0_16Signal amplitude,
             SFracQ0_16Signal offset,
+            SFracQ0_16Signal phaseOffset,
             SampleSignal sample
         ) {
-            // Convert SFracQ0_16Signal to MappedSignal<SFracQ0_16> for the accumulator.
             auto speedMapped = MappedSignal<SFracQ0_16>(
-                [speed](FracQ0_16 p, TimeMillis t) {
-                    return MappedValue(speed(p, t));
-                },
-                speed.isAbsolute()
+                [speed = std::move(speed)](FracQ0_16, TimeMillis elapsedMs) mutable {
+                    int64_t speedRaw = static_cast<int64_t>(raw(speed.sampleUnclamped(elapsedMs))) * SIGNAL_SPEED_SCALE;
+                    if (speedRaw > std::numeric_limits<int32_t>::max()) speedRaw = std::numeric_limits<int32_t>::max();
+                    if (speedRaw < std::numeric_limits<int32_t>::min()) speedRaw = std::numeric_limits<int32_t>::min();
+                    return MappedValue(SFracQ0_16(static_cast<int32_t>(speedRaw)));
+                }
             );
 
-            PhaseAccumulator acc{
-                std::move(speedMapped)
-            };
+            PhaseAccumulator acc(std::move(speedMapped));
 
             return SFracQ0_16Signal(
+                SignalKind::PERIODIC,
                 [acc = std::move(acc),
                     amplitude = std::move(amplitude),
                     offset = std::move(offset),
-                    sample = std::move(sample)
-                ](FracQ0_16 progress, TimeMillis elapsedMs) mutable -> SFracQ0_16 {
-                    FracQ0_16 phase = acc.advance(progress, elapsedMs);
-                    SFracQ0_16 v = sample(phase);
+                    phaseOffset = std::move(phaseOffset),
+                    sample = std::move(sample)](TimeMillis elapsedMs) mutable -> SFracQ0_16 {
+                    FracQ0_16 phase = acc.advance(FracQ0_16(0), elapsedMs);
+                    uint32_t basePhase = raw(phase);
+                    uint32_t phaseOffsetRaw = clamp_frac_raw(raw(phaseOffset(elapsedMs)));
+                    FracQ0_16 finalPhase(static_cast<uint16_t>(basePhase + phaseOffsetRaw));
 
-                    int32_t sample_raw = raw(v);
-                    int32_t amp_raw = raw(amplitude(progress, elapsedMs));
-                    int32_t off_raw = raw(offset(progress, elapsedMs));
+                    uint32_t waveRaw = clamp_frac_raw(raw(sample(finalPhase)));
+                    int32_t waveCentered = (static_cast<int32_t>(waveRaw) - static_cast<int32_t>(U16_HALF)) << 1;
 
-                    // Sample is already [0, 65535] (representing 0..1)
-                    uint32_t sample_u16 = static_cast<uint32_t>(sample_raw);
-                    if (sample_raw < 0) sample_u16 = 0;
-                    if (sample_raw > 0xFFFF) sample_u16 = 0xFFFF;
+                    uint32_t ampRaw = clamp_frac_raw(raw(amplitude(elapsedMs)));
+                    int32_t scaledWave = static_cast<int32_t>(
+                        (static_cast<int64_t>(waveCentered) * static_cast<int64_t>(ampRaw)) >> 16
+                    );
 
-                    uint32_t amp = (amp_raw < 0) ? 0u : static_cast<uint32_t>(amp_raw);
-                    if (amp > FRACT_Q0_16_MAX) amp = FRACT_Q0_16_MAX;
-
-                    uint32_t off = (off_raw < 0) ? 0u : static_cast<uint32_t>(off_raw);
-                    if (off > FRACT_Q0_16_MAX) off = FRACT_Q0_16_MAX;
-
-                    uint32_t scaled = (amp >= FRACT_Q0_16_MAX)
-                        ? sample_u16
-                        : (sample_u16 * amp) >> 16;
-                    uint32_t sum = scaled + off;
-                    if (sum > 0xFFFFu) sum = 0xFFFFu;
-                    return SFracQ0_16(static_cast<int32_t>(sum));
-                });
-        }
-
-        /**
-         * @brief Calculates progress (0..1) for a signal.
-         * 
-         * @param sceneProgress The global progress of the current scene (0..1).
-         * @param elapsedMs The time elapsed since the start of the current scene.
-         * @param period The signal's specific duration. If 0, uses sceneProgress.
-         */
-        FracQ0_16 calculateProgress(FracQ0_16 sceneProgress, TimeMillis elapsedMs, Period period) {
-            if (period == 0) return sceneProgress;
-            uint32_t p = (static_cast<uint64_t>(elapsedMs % period) * 0xFFFFu) / period;
-            return FracQ0_16(static_cast<uint16_t>(p));
+                    int32_t halfWave = scaledWave >> 1;
+                    int32_t halfOffset = raw(offset(elapsedMs)) / 2;
+                    int32_t outRaw = static_cast<int32_t>(U16_HALF) + halfWave + halfOffset;
+                    return clamp01(SFracQ0_16(outRaw));
+                }
+            );
         }
     }
 
@@ -114,99 +113,87 @@ namespace PolarShader {
     }
 
     SFracQ0_16Signal constant(SFracQ0_16 value) {
-        return SFracQ0_16Signal([value](FracQ0_16, TimeMillis) { return value; });
+        return SFracQ0_16Signal(SignalKind::PERIODIC, [value](TimeMillis) { return value; });
     }
 
     SFracQ0_16Signal constant(FracQ0_16 value) {
-        return SFracQ0_16Signal([value](FracQ0_16, TimeMillis) { return SFracQ0_16(raw(value)); });
+        return SFracQ0_16Signal(
+            SignalKind::PERIODIC,
+            [value](TimeMillis) { return SFracQ0_16(raw(value)); }
+        );
     }
 
     SFracQ0_16Signal cFrac(int32_t value) {
-        int64_t val = (static_cast<int64_t>(value) * 65536LL) / 100LL;
-        return constant(SFracQ0_16(static_cast<int32_t>(val)));
+        int64_t rawValue = (static_cast<int64_t>(value) * Q0_16_ONE) / 100LL;
+        if (rawValue > std::numeric_limits<int32_t>::max()) rawValue = std::numeric_limits<int32_t>::max();
+        if (rawValue < std::numeric_limits<int32_t>::min()) rawValue = std::numeric_limits<int32_t>::min();
+        return constant(SFracQ0_16(static_cast<int32_t>(rawValue)));
     }
 
     SFracQ0_16Signal cPerMil(int32_t value) {
-        int64_t val = (static_cast<int64_t>(value) * 65536LL) / 1000LL;
-        return constant(SFracQ0_16(static_cast<int32_t>(val)));
+        int64_t signedValue = value;
+        bool isNegative = signedValue < 0;
+        int64_t absValue = isNegative ? -signedValue : signedValue;
+        if (absValue > UINT16_MAX) absValue = UINT16_MAX;
+        uint16_t perMilValue = static_cast<uint16_t>(absValue);
+
+        if (isNegative) {
+            return constant(sPerMil(perMilValue));
+        }
+        return constant(SFracQ0_16(raw(perMil(perMilValue))));
     }
 
-    SFracQ0_16Signal randomPerMil() {
-        return cPerMil(1000 * random16() / UINT16_MAX);
+    SFracQ0_16Signal cRandom() {
+        return constant(SFracQ0_16(random16()));
     }
 
-    SFracQ0_16Signal linear(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 p, TimeMillis t) { 
-            return SFracQ0_16(raw(calculateProgress(p, t, period))); 
+    SFracQ0_16Signal linear(TimeMillis duration, LoopMode loopMode) {
+        return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
+            return SFracQ0_16(raw(timeToProgress(t, duration)));
         });
     }
 
-    SFracQ0_16Signal quadraticIn(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 progress, TimeMillis t) {
-            uint32_t p = raw(calculateProgress(progress, t, period));
+    SFracQ0_16Signal quadraticIn(TimeMillis duration, LoopMode loopMode) {
+        return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
+            uint32_t p = raw(timeToProgress(t, duration));
             uint32_t result = (p * p) >> 16;
             return SFracQ0_16(static_cast<int32_t>(result));
         });
     }
 
-    SFracQ0_16Signal quadraticOut(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 progress, TimeMillis t) {
-            uint32_t p = raw(calculateProgress(progress, t, period));
+    SFracQ0_16Signal quadraticOut(TimeMillis duration, LoopMode loopMode) {
+        return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
+            uint32_t p = raw(timeToProgress(t, duration));
             uint32_t inv = 0xFFFFu - p;
             uint32_t result = 0xFFFFu - ((inv * inv) >> 16);
             return SFracQ0_16(static_cast<int32_t>(result));
         });
     }
 
-    SFracQ0_16Signal quadraticInOut(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 progress, TimeMillis t) {
-            uint32_t p = raw(calculateProgress(progress, t, period));
+    SFracQ0_16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode) {
+        return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
+            uint32_t p = raw(timeToProgress(t, duration));
             if (p < 0x8000u) {
                 uint32_t result = (p * p) >> 15;
                 return SFracQ0_16(static_cast<int32_t>(result));
-            } else {
-                uint32_t inv = 0xFFFFu - p;
-                uint32_t tail = (inv * inv) >> 15;
-                return SFracQ0_16(static_cast<int32_t>(0xFFFFu - tail));
             }
-        });
-    }
-
-    SFracQ0_16Signal sinusoidalIn(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 progress, TimeMillis t) {
-            uint16_t theta = raw(calculateProgress(progress, t, period)) >> 2;
-            int16_t c = cos16(theta);
-            uint32_t result = 0x7FFFf - c;
-            return SFracQ0_16(static_cast<int32_t>(result << 1));
-        });
-    }
-
-    SFracQ0_16Signal sinusoidalOut(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 progress, TimeMillis t) {
-            uint16_t theta = raw(calculateProgress(progress, t, period)) >> 2;
-            int16_t s = sin16(theta);
-            return SFracQ0_16(static_cast<int32_t>(static_cast<uint32_t>(s) << 1));
-        });
-    }
-
-    SFracQ0_16Signal sinusoidalInOut(Period period) {
-        return SFracQ0_16Signal([period](FracQ0_16 progress, TimeMillis t) {
-            uint16_t theta = raw(calculateProgress(progress, t, period)) >> 1;
-            int16_t c = cos16(theta);
-            int32_t result = 0x7FFF - c;
-            return SFracQ0_16(result);
+            uint32_t inv = 0xFFFFu - p;
+            uint32_t tail = (inv * inv) >> 15;
+            return SFracQ0_16(static_cast<int32_t>(0xFFFFu - tail));
         });
     }
 
     SFracQ0_16Signal noise(
         SFracQ0_16Signal speed,
         SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset
+        SFracQ0_16Signal offset,
+        SFracQ0_16Signal phaseOffset
     ) {
-        return createSignal(
+        return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
             std::move(offset),
+            std::move(phaseOffset),
             sampleNoise()
         );
     }
@@ -214,30 +201,34 @@ namespace PolarShader {
     SFracQ0_16Signal sine(
         SFracQ0_16Signal speed,
         SFracQ0_16Signal amplitude,
-        SFracQ0_16Signal offset
+        SFracQ0_16Signal offset,
+        SFracQ0_16Signal phaseOffset
     ) {
-        return createSignal(
+        return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
             std::move(offset),
+            std::move(phaseOffset),
             sampleSine()
         );
     }
 
-    SFracQ0_16Signal invert(SFracQ0_16Signal signal) {
-        return SFracQ0_16Signal([signal = std::move(signal)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-            int32_t value = raw(signal(progress, elapsedMs));
-            const int32_t max = FRACT_Q0_16_MAX;
-            if (value <= 0) return SFracQ0_16(max);
-            if (value >= max) return SFracQ0_16(0);
-            return SFracQ0_16(max - value);
-        });
-    }
-
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor) {
-        return SFracQ0_16Signal([signal = std::move(signal), factor](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-            return mulSFracSat(signal(progress, elapsedMs), SFracQ0_16(raw(factor)));
-        });
+        if (!signal) return signal;
+
+        auto waveform = [signal = std::move(signal), factor](TimeMillis elapsedMs) mutable {
+            return mulSFracSat(signal(elapsedMs), SFracQ0_16(raw(factor)));
+        };
+
+        if (signal.kind() == SignalKind::APERIODIC) {
+            return SFracQ0_16Signal(
+                SignalKind::APERIODIC,
+                signal.loopMode(),
+                signal.duration(),
+                std::move(waveform)
+            );
+        }
+        return SFracQ0_16Signal(SignalKind::PERIODIC, std::move(waveform));
     }
 
     UVSignal constantUV(UV value) {
@@ -245,13 +236,12 @@ namespace PolarShader {
     }
 
     UVSignal uvSignal(SFracQ0_16Signal u, SFracQ0_16Signal v) {
-        bool absolute = u.isAbsolute() && v.isAbsolute();
-        return UVSignal([u = std::move(u), v = std::move(v)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
+        return UVSignal([u = std::move(u), v = std::move(v)](FracQ0_16, TimeMillis elapsedMs) mutable {
             return UV(
-                FracQ16_16(raw(u(progress, elapsedMs))),
-                FracQ16_16(raw(v(progress, elapsedMs)))
+                FracQ16_16(raw(u(elapsedMs))),
+                FracQ16_16(raw(v(elapsedMs)))
             );
-        }, absolute);
+        }, true);
     }
 
     UVSignal uv(SFracQ0_16Signal signal, UV min, UV max) {
@@ -259,7 +249,7 @@ namespace PolarShader {
         auto mapped = range.mapSignal(std::move(signal));
         return UVSignal([mapped = std::move(mapped)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
             return mapped(progress, elapsedMs).get();
-        }, mapped.isAbsolute());
+        }, true);
     }
 
     DepthSignal constantDepth(uint32_t value) {
@@ -282,7 +272,7 @@ namespace PolarShader {
         uint32_t offset
     ) {
         uint64_t max = static_cast<uint64_t>(offset) + static_cast<uint64_t>(scale);
-        uint32_t max_depth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
-        return depth(std::move(signal), LinearRange(offset, max_depth));
+        uint32_t maxDepth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
+        return depth(std::move(signal), LinearRange(offset, maxDepth));
     }
 }

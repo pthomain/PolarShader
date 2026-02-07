@@ -21,6 +21,7 @@
 #include "RotationTransform.h"
 #include "renderer/pipeline/ranges/PolarRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -68,7 +69,7 @@ namespace PolarShader {
             // Apply rotation to U (angle)
             uint16_t angle_raw = static_cast<uint16_t>(raw(polar_uv.u));
             uint16_t offset_raw = raw(state->angleOffset.get());
-            polar_uv.u = FracQ16_16(static_cast<int32_t>(static_cast<uint16_t>(angle_raw + offset_raw)));
+            polar_uv.u = FracQ16_16(static_cast<uint16_t>(angle_raw + offset_raw));
 
             // Convert back to Cartesian UV
             UV rotated_uv = polarToCartesianUV(polar_uv);

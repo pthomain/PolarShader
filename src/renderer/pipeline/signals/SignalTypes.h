@@ -28,85 +28,124 @@
 #endif
 #include "renderer/pipeline/maths/units/Units.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include "renderer/pipeline/maths/UVMaths.h"
-#include <cstdint>
-#include <limits>
 #include <type_traits>
 #include <utility>
 
 namespace PolarShader {
-    /**
-     * @brief Time-indexed scalar signal bounded to Q0.16.
-     *
-     * Use when:
-     * - The consumer maps the output into its own min/max range.
-     */
-    class SFracQ0_16Signal {
-    public:
-        using SampleFn = fl::function<SFracQ0_16(FracQ0_16, TimeMillis)>;
+    enum class SignalKind : uint8_t {
+        PERIODIC,
+        APERIODIC
+    };
 
-        SFracQ0_16Signal() = default;
-
-        SFracQ0_16Signal(SampleFn sample, bool absolute)
-            : sampleFn(std::move(sample)),
-              absoluteMode(absolute) {
-        }
-
-        template<typename Fn, typename std::enable_if_t<
-            std::is_invocable_r_v<SFracQ0_16, Fn &, FracQ0_16, TimeMillis>, int> = 0>
-        SFracQ0_16Signal(Fn sample, bool absolute = true)
-            : sampleFn(std::move(sample)),
-              absoluteMode(absolute) {
-        }
-
-        template<typename Fn, typename std::enable_if_t<
-            !std::is_invocable_r_v<SFracQ0_16, Fn &, FracQ0_16, TimeMillis> &&
-            std::is_invocable_r_v<SFracQ0_16, Fn &, FracQ0_16>, int> = 0>
-        SFracQ0_16Signal(Fn sample, bool absolute = true)
-            : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
-                return sample(progress);
-            }),
-              absoluteMode(absolute) {
-        }
-
-        SFracQ0_16 sample(FracQ0_16 progress, TimeMillis elapsedMs) const {
-            return sampleFn ? sampleFn(progress, elapsedMs) : SFracQ0_16(0);
-        }
-
-        SFracQ0_16 sample(FracQ0_16 progress) const {
-            return sample(progress, 0);
-        }
-
-        bool isAbsolute() const {
-            return absoluteMode;
-        }
-
-        SFracQ0_16 operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
-            return sample(progress, elapsedMs);
-        }
-
-        SFracQ0_16 operator()(FracQ0_16 progress) const {
-            return sample(progress, 0);
-        }
-
-        explicit operator bool() const {
-            return static_cast<bool>(sampleFn);
-        }
-
-        SFracQ0_16Signal withAbsolute(bool absolute) const {
-            SFracQ0_16Signal copy(*this);
-            copy.absoluteMode = absolute;
-            return copy;
-        }
-
-    private:
-        SampleFn sampleFn;
-        bool absoluteMode{true};
+    enum class LoopMode : uint8_t {
+        RESET
     };
 
     /**
-     * @brief Progress-indexed signal that emits mapped values.
+     * @brief Time-indexed scalar signal bounded to [0, 1] in Q0.16.
      */
+    class SFracQ0_16Signal {
+    public:
+        using WaveformFn = fl::function<SFracQ0_16(TimeMillis)>;
+
+        SFracQ0_16Signal() = default;
+
+        SFracQ0_16Signal(
+            SignalKind kind,
+            WaveformFn waveform
+        ) : kind_(kind),
+            waveformFn(std::move(waveform)) {
+        }
+
+        SFracQ0_16Signal(
+            SignalKind kind,
+            LoopMode loopMode,
+            TimeMillis durationMs,
+            WaveformFn waveform
+        ) : kind_(kind),
+            loopMode_(loopMode),
+            durationMs_(durationMs),
+            waveformFn(std::move(waveform)) {
+        }
+
+        static SFracQ0_16Signal periodic(WaveformFn waveform) {
+            return SFracQ0_16Signal(SignalKind::PERIODIC, std::move(waveform));
+        }
+
+        static SFracQ0_16Signal aperiodic(TimeMillis durationMs, LoopMode loopMode, WaveformFn waveform) {
+            return SFracQ0_16Signal(SignalKind::APERIODIC, loopMode, durationMs, std::move(waveform));
+        }
+
+        SFracQ0_16 sampleUnclamped(TimeMillis elapsedMs) const {
+            if (!waveformFn) return SFracQ0_16(0);
+
+            if (kind_ == SignalKind::PERIODIC) {
+                return waveformFn(elapsedMs);
+            }
+
+            if (durationMs_ == 0) return SFracQ0_16(0);
+
+            TimeMillis relativeTime = elapsedMs;
+            switch (loopMode_) {
+                case LoopMode::RESET:
+                default:
+                    relativeTime = elapsedMs % durationMs_;
+                    break;
+            }
+
+            return waveformFn(relativeTime);
+        }
+
+        // Compatibility overload for existing call sites.
+        SFracQ0_16 sampleUnclamped(FracQ0_16, TimeMillis elapsedMs) const {
+            return sampleUnclamped(elapsedMs);
+        }
+
+        SFracQ0_16 sample(TimeMillis elapsedMs) const {
+            return clamp01(sampleUnclamped(elapsedMs));
+        }
+
+        // Compatibility overload for existing call sites.
+        SFracQ0_16 sample(FracQ0_16, TimeMillis elapsedMs) const {
+            return sample(elapsedMs);
+        }
+
+        SFracQ0_16 operator()(TimeMillis elapsedMs) const {
+            return sample(elapsedMs);
+        }
+
+        // Compatibility overload for existing call sites.
+        SFracQ0_16 operator()(FracQ0_16, TimeMillis elapsedMs) const {
+            return sample(elapsedMs);
+        }
+
+        SignalKind kind() const {
+            return kind_;
+        }
+
+        LoopMode loopMode() const {
+            return loopMode_;
+        }
+
+        TimeMillis duration() const {
+            return durationMs_;
+        }
+
+        explicit operator bool() const {
+            return static_cast<bool>(waveformFn);
+        }
+
+    private:
+        static SFracQ0_16 clamp01(SFracQ0_16 value) {
+            return SFracQ0_16(static_cast<int32_t>(clamp_frac_raw(raw(value))));
+        }
+
+        SignalKind kind_{SignalKind::PERIODIC};
+        LoopMode loopMode_{LoopMode::RESET};
+        TimeMillis durationMs_{0};
+        WaveformFn waveformFn;
+    };
+
     template<typename T>
     class MappedSignal {
     public:
@@ -114,26 +153,23 @@ namespace PolarShader {
 
         MappedSignal() = default;
 
-        MappedSignal(SampleFn sample, bool absolute)
-            : sampleFn(std::move(sample)),
-              absoluteMode(absolute) {
+        explicit MappedSignal(SampleFn sample)
+            : sampleFn(std::move(sample)) {
         }
 
         template<typename Fn, typename std::enable_if_t<
             std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16, TimeMillis>, int> = 0>
-        MappedSignal(Fn sample, bool absolute = true)
-            : sampleFn(std::move(sample)),
-              absoluteMode(absolute) {
+        explicit MappedSignal(Fn sample)
+            : sampleFn(std::move(sample)) {
         }
 
         template<typename Fn, typename std::enable_if_t<
             !std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16, TimeMillis> &&
             std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16>, int> = 0>
-        MappedSignal(Fn sample, bool absolute = true)
+        explicit MappedSignal(Fn sample)
             : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
-                return sample(progress);
-            }),
-              absoluteMode(absolute) {
+                  return sample(progress);
+              }) {
         }
 
         MappedValue<T> operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
@@ -144,28 +180,14 @@ namespace PolarShader {
             return (*this)(progress, 0);
         }
 
-        bool isAbsolute() const {
-            return absoluteMode;
-        }
-
         explicit operator bool() const {
             return static_cast<bool>(sampleFn);
         }
 
-        MappedSignal withAbsolute(bool absolute) const {
-            MappedSignal copy(*this);
-            copy.absoluteMode = absolute;
-            return copy;
-        }
-
     private:
         SampleFn sampleFn;
-        bool absoluteMode{true};
     };
 
-    /**
-     * @brief Time-indexed signal that emits unified UV coordinates.
-     */
     class UVSignal {
     public:
         using SampleFn = fl::function<UV(FracQ0_16, TimeMillis)>;
@@ -189,8 +211,8 @@ namespace PolarShader {
             std::is_invocable_r_v<UV, Fn &, FracQ0_16>, int> = 0>
         UVSignal(Fn sample, bool absolute = true)
             : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
-                return sample(progress);
-            }),
+                  return sample(progress);
+              }),
               absoluteMode(absolute) {
         }
 
@@ -228,113 +250,6 @@ namespace PolarShader {
         SampleFn sampleFn;
         bool absoluteMode{true};
     };
-
-    namespace detail {
-        template<typename T>
-        struct SignalAccumulator {
-            static T zero() { return T(0); }
-            static T add(T base, T delta) {
-                return static_cast<T>(static_cast<int64_t>(base) + static_cast<int64_t>(delta));
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<FracQ0_16> {
-            static FracQ0_16 zero() { return FracQ0_16(0); }
-            static FracQ0_16 add(FracQ0_16 base, FracQ0_16 delta) {
-                uint32_t sum = static_cast<uint32_t>(raw(base)) + static_cast<uint32_t>(raw(delta));
-                return FracQ0_16(static_cast<uint16_t>(sum));
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<SFracQ0_16> {
-            static SFracQ0_16 zero() { return SFracQ0_16(0); }
-            static SFracQ0_16 add(SFracQ0_16 base, SFracQ0_16 delta) {
-                int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
-                return scalarClampQ0_16Raw(sum);
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<int32_t> {
-            static int32_t zero() { return 0; }
-            static int32_t add(int32_t base, int32_t delta) {
-                int64_t sum = static_cast<int64_t>(base) + static_cast<int64_t>(delta);
-                if (sum > std::numeric_limits<int32_t>::max()) sum = std::numeric_limits<int32_t>::max();
-                if (sum < std::numeric_limits<int32_t>::min()) sum = std::numeric_limits<int32_t>::min();
-                return static_cast<int32_t>(sum);
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<uint8_t> {
-            static uint8_t zero() { return 0; }
-            static uint8_t add(uint8_t base, uint8_t delta) {
-                return static_cast<uint8_t>(static_cast<uint16_t>(base) + static_cast<uint16_t>(delta));
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<CartQ24_8> {
-            static CartQ24_8 zero() { return CartQ24_8(0); }
-            static CartQ24_8 add(CartQ24_8 base, CartQ24_8 delta) {
-                int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
-                if (sum > std::numeric_limits<int32_t>::max()) sum = std::numeric_limits<int32_t>::max();
-                if (sum < std::numeric_limits<int32_t>::min()) sum = std::numeric_limits<int32_t>::min();
-                return CartQ24_8(static_cast<int32_t>(sum));
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<FracQ16_16> {
-            static FracQ16_16 zero() { return FracQ16_16(0); }
-            static FracQ16_16 add(FracQ16_16 base, FracQ16_16 delta) {
-                return FracQ16_16(raw(base) + raw(delta));
-            }
-        };
-
-        template<>
-        struct SignalAccumulator<UV> {
-            static UV zero() { return UV(FracQ16_16(0), FracQ16_16(0)); }
-            static UV add(UV base, UV delta) {
-                return UVMaths::add(base, delta);
-            }
-        };
-    }
-
-    template<typename T>
-    MappedSignal<T> resolveMappedSignal(MappedSignal<T> signal) {
-        if (!signal || signal.isAbsolute()) return signal;
-        return MappedSignal<T>(
-            [signal = std::move(signal),
-                    accumulated = detail::SignalAccumulator<T>::zero()](
-                FracQ0_16 progress,
-                TimeMillis elapsedMs
-            ) mutable {
-                MappedValue<T> value = signal(progress, elapsedMs);
-                accumulated = detail::SignalAccumulator<T>::add(accumulated, value.get());
-                return MappedValue<T>(accumulated);
-            },
-            true
-        );
-    }
-
-    inline UVSignal resolveMappedSignal(UVSignal signal) {
-        if (!signal || signal.isAbsolute()) return signal;
-        return UVSignal(
-            [signal = std::move(signal),
-                    accumulated = detail::SignalAccumulator<UV>::zero()](
-                FracQ0_16 progress,
-                TimeMillis elapsedMs
-            ) mutable {
-                UV value = signal(progress, elapsedMs);
-                accumulated = detail::SignalAccumulator<UV>::add(accumulated, value);
-                return accumulated;
-            },
-            true
-        );
-    }
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H

@@ -29,14 +29,36 @@
 ## Signal & Timing Rules
 
 ### Timing Terminology
-- **Speed (SFracQ0_16Signal):** Used for infinite, periodic signals (e.g., Sine, Noise). Represents turns-per-second. Supports dynamic and bidirectional motion via signed signals. Independent of scene duration.
-- **Period (TimeMillis):** Used for finite or looping signals (e.g., Easing functions). 
-    - Default: 0 (matches entire scene duration once).
-    - Looping: If `period > 0` and `period < scene_duration`, the signal loops.
+- **Elapsed Time (`TimeMillis elapsedMs`):** Canonical time source for scalar signal sampling.
+- **Progress (`FracQ0_16 progress`):** Scene-normalized progress used where mapped signal APIs require it.
+
+### Signal Kinds
+- **Periodic (`SignalKind::PERIODIC`):**
+  - Factories: `sine`, `noise`.
+  - Signature must be: `(speed, amplitude, offset, phaseOffset)`.
+  - `speed` is signed turns-per-second, scene-duration independent.
+  - `phaseOffset` is normalized turns (`0..1`).
+- **Aperiodic (`SignalKind::APERIODIC`):**
+  - Factories: `linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`.
+  - Signature must be: `(duration, loopMode)`.
+  - `LoopMode::RESET` wraps relative time with modulo.
+  - `duration == 0` emits `0`.
 
 ### Value Constraints
-- **Normalization:** Periodic scalar signals (Sine, Noise) must span the full `[0, 1]` range by default.
-- **Directionality:** All speed-based signals must support signed values to enable negative phase progression (backward motion).
+- **Normalization:** `SFracQ0_16Signal` public outputs are clamped to `[0, 1]`.
+- **Range Coverage:** Periodic samplers (`sine`, `noise`) must span the full `[0, 1]` range by default.
+- **Directionality:** Internal phase accumulation must preserve signed speed for reverse motion.
+
+### Signal Responsibilities
+- `SFracQ0_16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).
+- Accumulation logic is separated into `SignalAccumulators.h` and applied explicitly (not via mapped-signal mode flags).
+- Scalar signals are absolute by contract (no scalar `absolute`/relative mode).
+
+### Transform Signal Rules
+- Transform public constructors must accept base signal types, not `MappedSignal`.
+- Transform internals should map signals immediately and store mapped forms.
+- `MappedSignal` has no absolute/relative mode.
+- `ZoomTransform` scale mapping is absolute by design.
 
 ## Implementation Standards
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.

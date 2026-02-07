@@ -213,6 +213,87 @@ void test_easing_period_looping() {
     TEST_ASSERT_UINT16_WITHIN(100, 32767, raw(s(FracQ0_16(0), 750)));
 }
 
+/** @brief Verify periodic signals receive scene elapsed time directly. */
+void test_periodic_signal_uses_elapsed_time() {
+    SFracQ0_16Signal s(
+        SignalKind::PERIODIC,
+        [](TimeMillis t) {
+            return SFracQ0_16(static_cast<int32_t>(t));
+        }
+    );
+
+    TEST_ASSERT_EQUAL_INT32(42, raw(s(42)));
+    TEST_ASSERT_EQUAL_INT32(1234, raw(s(1234)));
+}
+
+/** @brief Verify aperiodic RESET mode wraps time by duration modulo. */
+void test_aperiodic_reset_wraps_time() {
+    SFracQ0_16Signal s(
+        SignalKind::APERIODIC,
+        LoopMode::RESET,
+        1000,
+        [](TimeMillis t) {
+            return SFracQ0_16(static_cast<int32_t>(t));
+        }
+    );
+
+    TEST_ASSERT_EQUAL_INT32(250, raw(s(250)));
+    TEST_ASSERT_EQUAL_INT32(250, raw(s(1250)));
+}
+
+/** @brief Verify aperiodic duration=0 emits zero regardless of waveform. */
+void test_aperiodic_zero_duration_emits_zero() {
+    SFracQ0_16Signal s(
+        SignalKind::APERIODIC,
+        LoopMode::RESET,
+        0,
+        [](TimeMillis) {
+            return SFracQ0_16(0xFFFF);
+        }
+    );
+
+    TEST_ASSERT_EQUAL_INT32(0, raw(s(0)));
+    TEST_ASSERT_EQUAL_INT32(0, raw(s(1000)));
+}
+
+/** @brief Verify unclamped sampling preserves signed internal values. */
+void test_signal_sample_unclamped() {
+    SFracQ0_16Signal s(
+        SignalKind::PERIODIC,
+        [](TimeMillis) {
+            return SFracQ0_16(-1000);
+        }
+    );
+
+    TEST_ASSERT_EQUAL_INT32(-1000, raw(s.sampleUnclamped(123)));
+    TEST_ASSERT_EQUAL_INT32(0, raw(s(123)));
+}
+
+/** @brief Verify signed negative speed reverses sine direction. */
+void test_sine_negative_speed_reverses_direction() {
+    SFracQ0_16Signal forward = sine(cPerMil(1000));
+    SFracQ0_16Signal reverse = sine(cPerMil(-1000));
+
+    // Prime accumulators (first sample only initializes elapsed baseline).
+    (void) forward(0);
+    (void) reverse(0);
+
+    // +0.25 turns -> max, -0.25 turns (==0.75) -> min
+    TEST_ASSERT_INT32_WITHIN(200, 0xFFFF, raw(forward(250)));
+    TEST_ASSERT_INT32_WITHIN(200, 0x0000, raw(reverse(250)));
+}
+
+/** @brief Verify mapped-signal resolver is a no-op under the new model. */
+void test_mapped_signal_resolver_noop() {
+    auto signal = MappedSignal<int32_t>([](FracQ0_16, TimeMillis) {
+        return MappedValue<int32_t>(1);
+    });
+
+    auto resolved = resolveMappedSignal(signal);
+    TEST_ASSERT_EQUAL_INT32(1, resolved(FracQ0_16(0), 0).get());
+    TEST_ASSERT_EQUAL_INT32(1, resolved(FracQ0_16(0), 1).get());
+}
+
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/ranges/UVRange.h"
 
@@ -254,6 +335,15 @@ void setup() {
     RUN_TEST(test_rotation_transform_uv);
     RUN_TEST(test_zoom_transform_uv);
     RUN_TEST(test_uv_signal_accumulation);
+    RUN_TEST(test_phase_accumulator_signed);
+    RUN_TEST(test_sine_speed);
+    RUN_TEST(test_easing_period_looping);
+    RUN_TEST(test_periodic_signal_uses_elapsed_time);
+    RUN_TEST(test_aperiodic_reset_wraps_time);
+    RUN_TEST(test_aperiodic_zero_duration_emits_zero);
+    RUN_TEST(test_signal_sample_unclamped);
+    RUN_TEST(test_sine_negative_speed_reverses_direction);
+    RUN_TEST(test_mapped_signal_resolver_noop);
     RUN_TEST(test_linear_range);
     RUN_TEST(test_uv_range);
     UNITY_END();
@@ -276,6 +366,12 @@ int main(int argc, char **argv) {
     RUN_TEST(test_phase_accumulator_signed);
     RUN_TEST(test_sine_speed);
     RUN_TEST(test_easing_period_looping);
+    RUN_TEST(test_periodic_signal_uses_elapsed_time);
+    RUN_TEST(test_aperiodic_reset_wraps_time);
+    RUN_TEST(test_aperiodic_zero_duration_emits_zero);
+    RUN_TEST(test_signal_sample_unclamped);
+    RUN_TEST(test_sine_negative_speed_reverses_direction);
+    RUN_TEST(test_mapped_signal_resolver_noop);
     RUN_TEST(test_linear_range);
     RUN_TEST(test_uv_range);
     return UNITY_END();

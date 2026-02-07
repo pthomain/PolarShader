@@ -55,8 +55,8 @@ Effects are built by stacking **small, pure transforms**, similar to GPU shaders
 pipeline
   .addTransform(RotationTransform(noise(cPerMil(120))))
   .addTransform(KaleidoscopeTransform(6, true))
-  .addTransform(ZoomTransform(animate(cPerMil(30), SinusoidalInterpolatorInOut())))
-````
+  .addTransform(ZoomTransform(sine(cPerMil(100))))
+```
 
 Each transform:
 
@@ -68,34 +68,30 @@ Each transform:
 
 ## Key Concepts
 
-### Modulators (Signals)
+### Signals
 
-A **Modulator** is a time-based signal source:
+PolarShader uses `SFracQ0_16Signal` factories for time-varying scalar control values.
 
-```cpp
-using ScalarModulator = fl::function<FracQ16_16(TimeMillis)>;
-```
+Signal kinds:
 
-Modulators are used for:
+* `PERIODIC`: waveform receives scene `elapsedMs` directly.
+* `APERIODIC`: waveform receives a relative time derived from `duration` and `LoopMode`.
+  - `LoopMode::RESET` wraps by `elapsedMs % duration`.
+  - `duration == 0` emits 0.
 
-* Speed
-* Amplitude
-* Phase velocity
-* Offsets
-* Control-rate parameters
+Factory families:
 
-Examples:
+* Periodic factories (`sine`, `noise`) share one signature:
+  - `(speed, amplitude, offset, phaseOffset)`.
+  - `speed` is signed turns/second and independent of scene duration.
+* Aperiodic factories (`linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`) share:
+  - `(duration, loopMode)`.
 
-```cpp
-auto speed = ConstantPhaseVelocity(FracQ16_16(60));
-auto wobble = Sine(speed, Constant(FracQ16_16(200)));
-```
+Output contract:
 
-They are:
-
-* Cheap
-* Deterministic
-* Explicit about units
+* `SFracQ0_16Signal` emits values in `[0, 1]`.
+* Periodic factories span `[0, 1]` by default.
+* Internal phase integration uses signed speed for direction reversal.
 
 ---
 
@@ -103,11 +99,11 @@ They are:
 
 PolarShader clearly distinguishes:
 
-* **AngleUnitsQ0_16**
-  A sampled angle (0…65535 → 0…1 turn)
+* **`FracQ0_16` angle samples**
+  A wrapped turn-domain angle (0..65535 -> 0..1 turn)
 
-* **AngleTurnsUQ16_16**
-  A high-resolution phase accumulator for smooth motion
+* **`PhaseAccumulator` internal phase state**
+  A higher-precision integrated phase used for smooth periodic motion
 
 This avoids:
 
@@ -123,8 +119,8 @@ Motion is not implicit.
 All motion goes through **explicit integrators**:
 
 * Phase accumulators for rotation
-* Scalar accumulators for scale / offset
-* Cartesian integrators for translation
+* Mapped-signal accumulators for relative mapped/UV domains
+* Cartesian integrators for translation and domain warp drift
 
 This ensures:
 
@@ -180,4 +176,3 @@ PolarShader treats LED effects as **deterministic programs over space and time**
 ## License
 
 GPL-3.0-or-later
-
