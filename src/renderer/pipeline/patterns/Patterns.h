@@ -22,8 +22,8 @@
 #define POLAR_SHADER_PIPELINE_PATTERNS_H
 
 #include <memory>
-#include <renderer/pipeline/patterns/cartesian/WorleyConstants.h>
-#include <renderer/pipeline/patterns/cartesian/WorleyPatterns.h>
+#include <renderer/pipeline/patterns/WorleyConstants.h>
+#include <renderer/pipeline/patterns/WorleyPatterns.h>
 
 namespace PolarShader {
     // Pattern factory helpers. These mirror the Presets API for quick creation.

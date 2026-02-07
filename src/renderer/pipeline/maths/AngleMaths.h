@@ -26,7 +26,7 @@
 #else
 #include "native/FastLED.h"
 #endif
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
     constexpr FracQ0_16 angleFrac(uint32_t denominator) {

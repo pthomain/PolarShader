@@ -144,7 +144,7 @@ namespace PolarShader {
         PatternNormU16 operator()(UV uv) const {
             CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
             CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
-            
+
             if (self->aliasing == WorleyAliasing::Precise) {
                 return self->samplePrecise(cx, cy);
             }
@@ -186,7 +186,7 @@ namespace PolarShader {
         PatternNormU16 operator()(UV uv) const {
             CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
             CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
-            
+
             if (self->aliasing == WorleyAliasing::Precise) {
                 return self->samplePrecise(cx, cy);
             }

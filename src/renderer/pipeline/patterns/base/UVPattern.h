@@ -18,22 +18,34 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#ifndef POLAR_SHADER_PIPELINE_UVPATTERN_H
+#define POLAR_SHADER_PIPELINE_UVPATTERN_H
 
-#ifdef ARDUINO
-#include "FastLED.h"
-#else
-#include "native/FastLED.h"
-#endif
-
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/transforms/base/Layers.h"
+#include "renderer/pipeline/PipelineContext.h"
+#include <memory>
 
 namespace PolarShader {
-    /** @brief The new unified sampling interface using normalized UV coordinates. */
-    using UVLayer = fl::function<PatternNormU16(UV)>;
+    /**
+     * @brief Standard interface for all spatial patterns in the unified UV pipeline.
+     */
+    class UVPattern {
+    public:
+        virtual ~UVPattern() = default;
 
-    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
+        virtual void setContext(std::shared_ptr<PipelineContext> context);
+
+        virtual UVLayer layer(const std::shared_ptr<PipelineContext> &context) const;
+
+    protected:
+        UVPattern();
+
+        explicit UVPattern(UVLayer layer);
+
+    private:
+        std::shared_ptr<PipelineContext> context;
+        UVLayer layerValue;
+    };
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#endif // POLAR_SHADER_PIPELINE_UVPATTERN_H

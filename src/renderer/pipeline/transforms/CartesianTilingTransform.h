@@ -22,7 +22,7 @@
 #define POLAR_SHADER_TRANSFORMS_CARTESIAN_CARTESIANTILINGTRANSFORM_H
 
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/transforms/Transforms.h"
+#include "renderer/pipeline/transforms/base/Transforms.h"
 #include <memory>
 
 namespace PolarShader {
@@ -47,6 +47,7 @@ namespace PolarShader {
 
     public:
         explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false);
+
         CartesianTilingTransform(
             SFracQ0_16Signal cellSize,
             int32_t minCellSize = 4096,

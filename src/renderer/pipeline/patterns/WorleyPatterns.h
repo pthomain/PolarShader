@@ -21,9 +21,9 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYPATTERNS_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_WORLEYPATTERNS_H
 
-#include "renderer/pipeline/patterns/UVPattern.h"
-#include "renderer/pipeline/patterns/cartesian/WorleyConstants.h"
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/patterns/base/UVPattern.h"
+#include "renderer/pipeline/patterns/WorleyConstants.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
     /**

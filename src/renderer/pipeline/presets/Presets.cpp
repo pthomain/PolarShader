@@ -26,7 +26,7 @@
 #include "renderer/pipeline/transforms/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/RadialKaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/VortexTransform.h"
-#include "renderer/pipeline/patterns/UVPattern.h"
+#include "renderer/pipeline/patterns/base/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/transforms/CartesianTilingTransform.h"

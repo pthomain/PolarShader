@@ -27,7 +27,7 @@
 #include "renderer/pipeline/ranges/LinearRange.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include <cstdint>
+#include "renderer/pipeline/signals/Accumulators.h"
 #include <utility>
 #include <Arduino.h>
 
@@ -38,7 +38,7 @@ namespace PolarShader {
         constexpr uint32_t WARP_SEED_Z = 0xB5297A4Du;
         constexpr uint32_t WARP_SEED_W = 0x68E31DA4u;
 
-        inline SPoint32 sampleNoisePair(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw) {
+        SPoint32 sampleNoisePair(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw) {
             int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
             uint32_t ux = static_cast<uint32_t>(sx_raw + base);
             uint32_t uy = static_cast<uint32_t>(sy_raw + base);
@@ -60,14 +60,14 @@ namespace PolarShader {
             return SPoint32{nx, ny};
         }
 
-        inline SPoint32 sampleWarp(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
+        SPoint32 sampleWarp(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
             SPoint32 n = sampleNoisePair(sx_raw, sy_raw, timeOffsetRaw);
             int32_t dx = static_cast<int32_t>((static_cast<int64_t>(n.x) * amp) >> 16);
             int32_t dy = static_cast<int32_t>((static_cast<int64_t>(n.y) * amp) >> 16);
             return SPoint32{dx, dy};
         }
 
-        inline SPoint32 sampleCurl(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
+        SPoint32 sampleCurl(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
             constexpr int32_t EPS = 1 << CARTESIAN_FRAC_BITS;
             int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
             uint32_t ux = static_cast<uint32_t>(sx_raw + base);
@@ -92,7 +92,7 @@ namespace PolarShader {
         MappedSignal<SFracQ0_16> phaseSpeedSignal;
         MappedSignal<int32_t> amplitudeSignal;
         MappedSignal<CartQ24_8> warpScaleSignal;
-        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
+        std::shared_ptr<MappedSignal<CartQ24_8> > maxOffsetSignal;
         MappedSignal<FracQ0_16> flowDirectionSignal;
         MappedSignal<int32_t> flowStrengthSignal;
     };
@@ -102,7 +102,7 @@ namespace PolarShader {
         PhaseAccumulator phase;
         MappedSignal<int32_t> amplitudeSignal;
         MappedSignal<CartQ24_8> warpScaleSignal;
-        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
+        std::shared_ptr<MappedSignal<CartQ24_8> > maxOffsetSignal;
         CartQ24_8 warpScale = CartQ24_8(0);
         CartQ24_8 maxOffset = CartQ24_8(0);
         uint8_t octaves;
@@ -117,7 +117,7 @@ namespace PolarShader {
             MappedSignal<SFracQ0_16> phaseSpeed,
             MappedSignal<int32_t> amplitude,
             MappedSignal<CartQ24_8> scale,
-            std::shared_ptr<MappedSignal<CartQ24_8>> offset,
+            std::shared_ptr<MappedSignal<CartQ24_8> > offset,
             uint8_t octaves,
             MappedSignal<FracQ0_16> flowDirection,
             MappedSignal<int32_t> flowStrength
@@ -137,7 +137,7 @@ namespace PolarShader {
         MappedSignal<SFracQ0_16> phaseSpeed,
         MappedSignal<int32_t> amplitude,
         MappedSignal<CartQ24_8> warpScale,
-        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffset,
+        std::shared_ptr<MappedSignal<CartQ24_8> > maxOffset,
         uint8_t octaves,
         MappedSignal<FracQ0_16> flowDirection,
         MappedSignal<int32_t> flowStrength
@@ -221,10 +221,10 @@ namespace PolarShader {
         SFracQ0_16Signal flowDirection,
         SFracQ0_16Signal flowStrength
     ) {
-        LinearRange<SFracQ0_16> phaseRange{SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)};
+        LinearRange phaseRange{SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)};
         bool hasFlow = flowDirection && flowStrength;
 
-        auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8>>(
+        auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8> >(
             resolveMappedSignal(maxOffsetRange.mapSignal(std::move(maxOffset)))
         );
 
@@ -236,7 +236,7 @@ namespace PolarShader {
                     if (max_raw <= 0) return MappedValue<int32_t>(0);
                     uint32_t t_raw = clamp_frac_raw(raw(signal(time)));
                     int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
-                    return MappedValue<int32_t>(static_cast<int32_t>(scaled));
+                    return MappedValue(static_cast<int32_t>(scaled));
                 },
                 absolute
             );
@@ -249,7 +249,9 @@ namespace PolarShader {
             resolveMappedSignal(mapToMaxOffset(std::move(amplitude))),
             resolveMappedSignal(warpScaleRange.mapSignal(std::move(warpScale))),
             std::move(maxOffsetSignal),
-            hasFlow ? resolveMappedSignal(flowDirectionRange.mapSignal(std::move(flowDirection))) : MappedSignal<FracQ0_16>(),
+            hasFlow
+                ? resolveMappedSignal(flowDirectionRange.mapSignal(std::move(flowDirection)))
+                : MappedSignal<FracQ0_16>(),
             hasFlow ? resolveMappedSignal(mapToMaxOffset(std::move(flowStrength))) : MappedSignal<int32_t>()
         };
     }
@@ -379,10 +381,10 @@ namespace PolarShader {
                     // Convert back to UV for polar math
                     UV current_uv(CartesianMaths::to_uv(sx), CartesianMaths::to_uv(sy));
                     UV polar_uv = cartesianToPolarUV(current_uv);
-                    
+
                     // Sample polar noise
                     SPoint32 polarNoise = sampleNoisePair(raw(polar_uv.u), raw(polar_uv.v), time_offset);
-                    
+
                     // Amplitude is in CartQ24.8 scale, convert to UV scale (Q16.16)
                     int32_t uv_amp = state->amplitudeRaw << 8;
                     int32_t angle_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.x) * uv_amp) >> 16);

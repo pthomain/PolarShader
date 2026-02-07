@@ -22,7 +22,7 @@
 #define POLAR_SHADER_SPECS_PIPELINESTEP_H
 
 #include <memory>
-#include "transforms/Transforms.h"
+#include "transforms/base/Transforms.h"
 #include "transforms/PaletteTransform.h"
 
 namespace PolarShader {

@@ -26,12 +26,11 @@
 #else
 #include "native/FastLED.h"
 #endif
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-
     namespace detail {
-        inline constexpr int64_t clamp_raw_q0_16_i64(int64_t value) {
+        constexpr int64_t clamp_raw_q0_16_i64(int64_t value) {
             if (value > Q0_16_MAX) return Q0_16_MAX;
             if (value < Q0_16_MIN) return Q0_16_MIN;
             return value;

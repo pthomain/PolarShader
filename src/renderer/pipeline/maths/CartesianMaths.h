@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_CARTESIANMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_CARTESIANMATHS_H
 
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
     /**
@@ -31,50 +31,48 @@ namespace PolarShader {
      * incorrect scaling or precision loss, especially in grid-based patterns.
      */
     namespace CartesianMaths {
-
         /** @brief Converts an integer into a Q24.8 fixed-point value. */
-        inline constexpr CartQ24_8 from_int(int32_t i) {
+        constexpr CartQ24_8 from_int(int32_t i) {
             return CartQ24_8(i << CARTESIAN_FRAC_BITS);
         }
 
         /** @brief Converts UV to CartQ24.8, typically for sampling. */
-        inline constexpr CartQ24_8 from_uv(FracQ16_16 uv_coord) {
+        constexpr CartQ24_8 from_uv(FracQ16_16 uv_coord) {
             // UV is Q16.16, CartQ24.8 is Q24.8.
             // We shift right by 8 to convert from 16 fractional bits to 8.
             return CartQ24_8(raw(uv_coord) >> 8);
         }
 
         /** @brief Converts CartQ24.8 back to UV. */
-        inline constexpr FracQ16_16 to_uv(CartQ24_8 cart) {
+        constexpr FracQ16_16 to_uv(CartQ24_8 cart) {
             // CartQ24.8 is Q24.8, UV is Q16.16.
             // We shift left by 8 to convert from 8 fractional bits to 16.
             return FracQ16_16(raw(cart) << 8);
         }
 
         /** @brief Gets the integer part of a Q24.8 value, effectively flooring it. */
-        inline constexpr int32_t floor_to_int(CartQ24_8 q) {
+        constexpr int32_t floor_to_int(CartQ24_8 q) {
             return raw(q) >> CARTESIAN_FRAC_BITS;
         }
 
         /** @brief Extracts the fractional part of a Q24.8 value. */
-        inline constexpr CartQ24_8 fract(CartQ24_8 q) {
+        constexpr CartQ24_8 fract(CartQ24_8 q) {
             constexpr int32_t frac_mask = (1 << CARTESIAN_FRAC_BITS) - 1;
             return CartQ24_8(raw(q) & frac_mask);
         }
 
         /** @brief Multiplies two Q24.8 values. */
-        inline constexpr CartQ24_8 mul(CartQ24_8 a, CartQ24_8 b) {
+        constexpr CartQ24_8 mul(CartQ24_8 a, CartQ24_8 b) {
             int64_t temp = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
             return CartQ24_8(static_cast<int32_t>(temp >> CARTESIAN_FRAC_BITS));
         }
 
         /** @brief Divides two Q24.8 values. */
-        inline constexpr CartQ24_8 div(CartQ24_8 a, CartQ24_8 b) {
+        constexpr CartQ24_8 div(CartQ24_8 a, CartQ24_8 b) {
             if (raw(b) == 0) return CartQ24_8(INT32_MAX); // Should be handled by caller
             int64_t temp = static_cast<int64_t>(raw(a)) << CARTESIAN_FRAC_BITS;
             return CartQ24_8(static_cast<int32_t>(temp / raw(b)));
         }
-
     } // namespace CartesianMaths
 } // namespace PolarShader
 

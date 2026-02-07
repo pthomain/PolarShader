@@ -27,7 +27,7 @@
 #include "FastLED.h"
 #include "PipelineContext.h"
 #include "PolarPipeline.h"
-#include "patterns/UVPattern.h"
+#include "patterns/base/UVPattern.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/PaletteTransform.h"
 #include "signals/Signals.h"

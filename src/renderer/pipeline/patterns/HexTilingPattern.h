@@ -21,9 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
 
-#include "renderer/pipeline/patterns/UVPattern.h"
+#include "renderer/pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/maths/CartesianMaths.h"
 
 namespace PolarShader {
     /**

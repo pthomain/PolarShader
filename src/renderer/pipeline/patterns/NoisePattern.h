@@ -22,7 +22,7 @@
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANNOISEPATTERN_H
 
 #include "FastLED.h"
-#include "renderer/pipeline/patterns/UVPattern.h"
+#include "renderer/pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 
 namespace PolarShader {

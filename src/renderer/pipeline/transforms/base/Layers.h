@@ -18,27 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_TIMEMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_TIMEMATHS_H
+#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+
+#ifdef ARDUINO
+#include "FastLED.h"
+#else
+#include "native/FastLED.h"
+#endif
 
 #include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-    inline constexpr uint16_t MILLIS_PER_SECOND = 1000;
+    /** @brief The new unified sampling interface using normalized UV coordinates. */
+    using UVLayer = fl::function<PatternNormU16(UV)>;
 
-    /**
-     * @brief Converts milliseconds to a Q0.16 fixed-point representation of seconds.
-     */
-    inline SFracQ0_16 timeMillisToScalar(TimeMillis millis) {
-        int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
-        dt_raw /= MILLIS_PER_SECOND;
-        return SFracQ0_16(static_cast<int32_t>(dt_raw));
-    }
-
-    inline TimeMillis clampDeltaTime(TimeMillis deltaTime) {
-        if (MAX_DELTA_TIME_MS == 0) return deltaTime;
-        return (deltaTime > MAX_DELTA_TIME_MS) ? MAX_DELTA_TIME_MS : deltaTime;
-    }
+    using ColourLayer = fl::function<CRGB(FracQ0_16, FracQ0_16)>;
 }
 
-#endif // POLAR_SHADER_PIPELINE_MATHS_TIMEMATHS_H
+#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H

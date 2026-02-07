@@ -19,8 +19,8 @@
  */
 
 #include "Patterns.h"
-#include "cartesian/NoisePattern.h"
-#include "cartesian/HexTilingPattern.h"
+#include "NoisePattern.h"
+#include "HexTilingPattern.h"
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> worleyPattern(

@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
 #define POLAR_SHADER_TRANSFORMS_POLAR_RADIALKALEIDOSCOPETRANSFORM_H
 
-#include "renderer/pipeline/transforms/Transforms.h"
+#include "renderer/pipeline/transforms/base/Transforms.h"
 #include <memory>
 
 namespace PolarShader {

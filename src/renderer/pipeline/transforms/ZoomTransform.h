@@ -22,8 +22,7 @@
 #define POLAR_SHADER_TRANSFORMS_ZOOMTRANSFORM_H
 
 #include <renderer/pipeline/ranges/LinearRange.h>
-#include <renderer/pipeline/transforms/Transforms.h>
-#include <renderer/pipeline/signals/Signals.h>
+#include <renderer/pipeline/transforms/base/Transforms.h>
 
 namespace PolarShader {
     /**

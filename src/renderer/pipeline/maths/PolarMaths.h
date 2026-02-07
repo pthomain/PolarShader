@@ -22,11 +22,10 @@
 #define POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 
 #ifdef ARDUINO
-#include "FastLED.h"
 #else
 #include "native/FastLED.h"
 #endif
-#include "renderer/pipeline/units/Units.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
     /** @brief Converts normalized Polar UV (Angle=U, Radius=V) to Cartesian UV. */
