@@ -1,0 +1,6 @@
+{
+  "id": "math_inlining_20260206",
+  "name": "Math Inlining and Unit Consolidation",
+  "description": "Consolidate units and inline math implementations for performance.",
+  "status": "completed"
+}
