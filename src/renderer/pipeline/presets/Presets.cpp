@@ -50,33 +50,12 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                .setDepthSignal(
-                    noise(cPerMil(100))
-                )
                 .addPaletteTransform(
                     PaletteTransform(
                         noise(cPerMil(200))
-                        // ceiling(),
-                        // perMil(50)
                     )
                 )
-                .addTransform(
-                    ZoomTransform(
-                        sine()
-                    )
-                )
-                // .addTransform(
-                //     VortexTransform(
-                //         noise(cPerMil(10), cPerMil(100))
-                //     )
-                // )
-                // // .addTransform(KaleidoscopeTransform(4, true))
-                // .addTransform(
-                //     RotationTransform(
-                //         noise(cPerMil(100))
-                //     )
-                // )
-                ;
+                .addTransform(ZoomTransform(sine()));
     }
 
     PolarPipelineBuilder hexKaleidoscopePreset(

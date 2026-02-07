@@ -34,6 +34,10 @@ namespace PolarShader {
         static constexpr uint16_t SEGMENT_SIZE = MATRIX_WIDTH;
         static constexpr uint16_t NB_LEDS = NB_SEGMENTS * SEGMENT_SIZE;
 
+        // Scale so the unit circle has a diameter equal to the matrix diagonal.
+        // 1 / sqrt(2) in Q0.16 (~0.7071).
+        static constexpr uint16_t DIAGONAL_SCALE_Q0_16 = 46341u;
+
         uint16_t numSegments() const override {
             return NB_SEGMENTS;
         }
@@ -64,10 +68,14 @@ namespace PolarShader {
             const int32_t x_q0_16 = (centered_x * Q0_16_ONE) / denom_x;
             const int32_t y_q0_16 = (centered_y * Q0_16_ONE) / denom_y;
 
-            // Convert to UV space [0, 1] then to Polar UV
+            const FracQ0_16 diagonal_scale(DIAGONAL_SCALE_Q0_16);
+            const int32_t scaled_x = scale32(x_q0_16, diagonal_scale);
+            const int32_t scaled_y = scale32(y_q0_16, diagonal_scale);
+
+            // Convert to UV space [0, 1] then to Polar UV.
             UV cart_uv(
-                FracQ16_16((x_q0_16 + Q0_16_ONE) >> 1),
-                FracQ16_16((y_q0_16 + Q0_16_ONE) >> 1)
+                FracQ16_16((scaled_x + Q0_16_ONE) >> 1),
+                FracQ16_16((scaled_y + Q0_16_ONE) >> 1)
             );
             UV polar = cartesianToPolarUV(cart_uv);
             return {
