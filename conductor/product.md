@@ -11,7 +11,9 @@ The primary goal of PolarShader is to enable smooth, deterministic animations on
 
 ## Key Features
 - **Unified UV Pipeline:** A normalized spatial domain ([0, 1] in Q16.16) that unifies all spatial operations into a single, stackable transform chain.
+- **Multi-Layer Composition:** Support for stacking multiple layers with per-layer alpha and standard blend modes (Normal, Add, Multiply, Screen).
 - **Deterministic Fixed-Point Math:** Utilizes explicit Q-formats for float-free, predictable performance.
 - **Procedural Pattern Samplers:** Built-in support for Noise (Perlin/Worley), Tiling, and Gradients, optimized for MCU performance.
-- **Explicit Parameter Modulation:** Time-based signals (e.g., oscillators, velocity vectors) for controlling parameters and unified UV motion with high precision.
+- **Polymorphic Animation System:** Unified `animate` function powered by a hierarchy of interpolators (Easing functions) for smooth, expressive motion.
+- **Scene Management:** High-level `Scene` and `SceneManager` constructs for orchestrating complex multi-layered effects over time with relative timing.
 - **Library Integration:** Seamless integration with popular LED IO libraries, including FastLED and SmartMatrix.

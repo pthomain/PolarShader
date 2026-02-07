@@ -19,3 +19,4 @@
 ## Hardware & Architecture
 - **Focus:** 32-bit MCUs with sufficient clock speed for real-time rendering.
 - **Constraint:** Fixed-point arithmetic only; no reliance on hardware floating-point units (FPU).
+- **Architecture:** Utilizes a mix of template-based strong typing and a polymorphic class hierarchy for high-level abstractions like Interpolators and Scenes.
