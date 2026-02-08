@@ -132,10 +132,12 @@ namespace PolarShader {
         return SFracQ0_16(-static_cast<int32_t>(raw(value)));
     }
 
-    constexpr uint32_t clamp_frac_raw(int32_t raw_value) {
-        if (raw_value <= 0) return 0u;
-        if (raw_value >= static_cast<int32_t>(FRACT_Q0_16_MAX)) return FRACT_Q0_16_MAX;
-        return static_cast<uint32_t>(raw_value);
+    // Map signed Q0.16 [-1..1] raw values to unsigned Q0.16 [0..1] with 0 at midpoint.
+    // -1 -> 0, 0 -> ~0.5, +1 -> 1.
+    constexpr uint32_t signed_to_unit_raw(int32_t raw_value) {
+        if (raw_value <= Q0_16_MIN) return 0u;
+        if (raw_value >= Q0_16_MAX) return FRACT_Q0_16_MAX;
+        return static_cast<uint32_t>(raw_value + Q0_16_ONE) >> 1;
     }
 }
 

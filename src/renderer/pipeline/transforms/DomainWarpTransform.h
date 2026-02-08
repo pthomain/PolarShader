@@ -21,8 +21,9 @@
 #ifndef POLAR_SHADER_TRANSFORMS_DOMAINWARPTRANSFORM_H
 #define POLAR_SHADER_TRANSFORMS_DOMAINWARPTRANSFORM_H
 
+#include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include <memory>
 
 namespace PolarShader {

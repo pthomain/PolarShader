@@ -21,7 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_POLAR_RANGE_H
 #define POLAR_SHADER_PIPELINE_UNITS_POLAR_RANGE_H
 
-#include "renderer/pipeline/ranges/Range.h"
+#include "renderer/pipeline/signals/ranges/Range.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
     /**
@@ -29,16 +30,37 @@ namespace PolarShader {
      *
      * Handles wrapping logic appropriate for angles (e.g., 0-360 degrees).
      */
-    class PolarRange : public Range<PolarRange, FracQ0_16> {
+    class PolarRange : public Range<FracQ0_16> {
     public:
-        PolarRange(FracQ0_16 min = FracQ0_16(0), FracQ0_16 max = FracQ0_16(FRACT_Q0_16_MAX));
+        inline PolarRange(FracQ0_16 min = FracQ0_16(0), FracQ0_16 max = FracQ0_16(FRACT_Q0_16_MAX))
+            : min_frac(min), max_frac(max) {
+        }
 
         /**
          * @brief Maps a signed signal value [-1, 1] to an angle in the specified range.
          * @param t The input signal value.
-         * @return A MappedValue containing the resulting angle.
+         * @return The resulting angle.
          */
-        MappedValue<FracQ0_16> map(SFracQ0_16 t) const override;
+        inline FracQ0_16 map(SFracQ0_16 t) const override {
+            uint16_t min_raw = raw(min_frac);
+            uint16_t max_raw = raw(max_frac);
+            if (min_raw == max_raw) return min_frac;
+            uint32_t full_turn = static_cast<uint32_t>(FRACT_Q0_16_MAX) + 1u;
+
+            uint32_t span = 0;
+            if (max_raw > min_raw) {
+                span = static_cast<uint32_t>(max_raw - min_raw);
+            } else {
+                span = (full_turn - static_cast<uint32_t>(min_raw)) + static_cast<uint32_t>(max_raw);
+            }
+
+            uint32_t t_raw = signed_to_unit_raw(raw(t));
+            uint32_t scaled = (span * t_raw) >> 16;
+            uint32_t result = static_cast<uint32_t>(min_raw) + scaled;
+            if (result >= full_turn) result -= full_turn;
+
+            return FracQ0_16(static_cast<uint16_t>(result));
+        }
 
     private:
         FracQ0_16 min_frac = FracQ0_16(0);

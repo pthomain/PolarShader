@@ -42,7 +42,7 @@ namespace PolarShader {
     };
 
     /**
-     * @brief Time-indexed scalar signal bounded to [0, 1] in Q0.16.
+     * @brief Time-indexed scalar signal saturated to signed Q0.16 [-1, 1].
      */
     class SFracQ0_16Signal {
     public:
@@ -76,47 +76,24 @@ namespace PolarShader {
             return SFracQ0_16Signal(SignalKind::APERIODIC, loopMode, durationMs, std::move(waveform));
         }
 
-        SFracQ0_16 sampleUnclamped(TimeMillis elapsedMs) const {
-            if (!waveformFn) return SFracQ0_16(0);
-
-            if (kind_ == SignalKind::PERIODIC) {
-                return waveformFn(elapsedMs);
-            }
-
-            if (durationMs_ == 0) return SFracQ0_16(0);
+        template<typename RangeT>
+        auto sample(const RangeT &range, TimeMillis elapsedMs) const {
+            if (!waveformFn) return range.map(SFracQ0_16(0));
 
             TimeMillis relativeTime = elapsedMs;
-            switch (loopMode_) {
-                case LoopMode::RESET:
-                default:
-                    relativeTime = elapsedMs % durationMs_;
-                    break;
+            if (kind_ == SignalKind::APERIODIC) {
+                if (durationMs_ == 0) return range.map(SFracQ0_16(0));
+
+                switch (loopMode_) {
+                    case LoopMode::RESET:
+                    default:
+                        relativeTime = elapsedMs % durationMs_;
+                        break;
+                }
             }
 
-            return waveformFn(relativeTime);
-        }
-
-        // Compatibility overload for existing call sites.
-        SFracQ0_16 sampleUnclamped(FracQ0_16, TimeMillis elapsedMs) const {
-            return sampleUnclamped(elapsedMs);
-        }
-
-        SFracQ0_16 sample(TimeMillis elapsedMs) const {
-            return clamp01(sampleUnclamped(elapsedMs));
-        }
-
-        // Compatibility overload for existing call sites.
-        SFracQ0_16 sample(FracQ0_16, TimeMillis elapsedMs) const {
-            return sample(elapsedMs);
-        }
-
-        SFracQ0_16 operator()(TimeMillis elapsedMs) const {
-            return sample(elapsedMs);
-        }
-
-        // Compatibility overload for existing call sites.
-        SFracQ0_16 operator()(FracQ0_16, TimeMillis elapsedMs) const {
-            return sample(elapsedMs);
+            SFracQ0_16 value = scalarClampQ0_16Raw(raw(waveformFn(relativeTime)));
+            return range.map(value);
         }
 
         SignalKind kind() const {
@@ -136,56 +113,10 @@ namespace PolarShader {
         }
 
     private:
-        static SFracQ0_16 clamp01(SFracQ0_16 value) {
-            return SFracQ0_16(static_cast<int32_t>(clamp_frac_raw(raw(value))));
-        }
-
         SignalKind kind_{SignalKind::PERIODIC};
         LoopMode loopMode_{LoopMode::RESET};
         TimeMillis durationMs_{0};
         WaveformFn waveformFn;
-    };
-
-    template<typename T>
-    class MappedSignal {
-    public:
-        using SampleFn = fl::function<MappedValue<T>(FracQ0_16, TimeMillis)>;
-
-        MappedSignal() = default;
-
-        explicit MappedSignal(SampleFn sample)
-            : sampleFn(std::move(sample)) {
-        }
-
-        template<typename Fn, typename std::enable_if_t<
-            std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16, TimeMillis>, int> = 0>
-        explicit MappedSignal(Fn sample)
-            : sampleFn(std::move(sample)) {
-        }
-
-        template<typename Fn, typename std::enable_if_t<
-            !std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16, TimeMillis> &&
-            std::is_invocable_r_v<MappedValue<T>, Fn &, FracQ0_16>, int> = 0>
-        explicit MappedSignal(Fn sample)
-            : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
-                  return sample(progress);
-              }) {
-        }
-
-        MappedValue<T> operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
-            return sampleFn ? sampleFn(progress, elapsedMs) : MappedValue<T>();
-        }
-
-        MappedValue<T> operator()(FracQ0_16 progress) const {
-            return (*this)(progress, 0);
-        }
-
-        explicit operator bool() const {
-            return static_cast<bool>(sampleFn);
-        }
-
-    private:
-        SampleFn sampleFn;
     };
 
     class UVSignal {
@@ -194,26 +125,23 @@ namespace PolarShader {
 
         UVSignal() = default;
 
-        UVSignal(SampleFn sample, bool absolute)
-            : sampleFn(std::move(sample)),
-              absoluteMode(absolute) {
+        explicit UVSignal(SampleFn sample)
+            : sampleFn(std::move(sample)) {
         }
 
         template<typename Fn, typename std::enable_if_t<
             std::is_invocable_r_v<UV, Fn &, FracQ0_16, TimeMillis>, int> = 0>
-        UVSignal(Fn sample, bool absolute = true)
-            : sampleFn(std::move(sample)),
-              absoluteMode(absolute) {
+        explicit UVSignal(Fn sample)
+            : sampleFn(std::move(sample)) {
         }
 
         template<typename Fn, typename std::enable_if_t<
             !std::is_invocable_r_v<UV, Fn &, FracQ0_16, TimeMillis> &&
             std::is_invocable_r_v<UV, Fn &, FracQ0_16>, int> = 0>
-        UVSignal(Fn sample, bool absolute = true)
+        explicit UVSignal(Fn sample)
             : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
                   return sample(progress);
-              }),
-              absoluteMode(absolute) {
+              }) {
         }
 
         UV sample(FracQ0_16 progress, TimeMillis elapsedMs) const {
@@ -232,24 +160,14 @@ namespace PolarShader {
             return sample(progress, 0);
         }
 
-        bool isAbsolute() const {
-            return absoluteMode;
-        }
-
         explicit operator bool() const {
             return static_cast<bool>(sampleFn);
         }
 
-        UVSignal withAbsolute(bool absolute) const {
-            UVSignal copy(*this);
-            copy.absoluteMode = absolute;
-            return copy;
-        }
-
     private:
         SampleFn sampleFn;
-        bool absoluteMode{true};
     };
+
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_TYPES_H

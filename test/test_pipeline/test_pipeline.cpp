@@ -25,15 +25,14 @@
 #include "native/FastLED.h"
 #endif
 #include <unity.h>
-#include "renderer/pipeline/ranges/PolarRange.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/PolarRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/patterns/Patterns.h"
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/PolarMaths.cpp"
 #include "renderer/pipeline/maths/NoiseMaths.cpp"
-#include "renderer/pipeline/ranges/PolarRange.cpp"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/Accumulators.cpp"
@@ -52,8 +51,9 @@ using namespace PolarShader;
 
 void test_range_wraps_across_zero() {
     PolarRange range(FracQ0_16(0xC000u), FracQ0_16(0x4000u));
-    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(SFracQ0_16(0)).get()));
-    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(SFracQ0_16(0x8000)).get()));
+    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(SFracQ0_16(Q0_16_MIN))));
+    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(SFracQ0_16(0))));
+    TEST_ASSERT_EQUAL_UINT16(0x3FFFu, raw(range.map(SFracQ0_16(Q0_16_MAX))));
 }
 
 // Global variable to capture progress

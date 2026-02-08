@@ -28,8 +28,8 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/ranges/PolarRange.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/PolarRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 
 namespace PolarShader {
     namespace {
@@ -38,8 +38,18 @@ namespace PolarShader {
         const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = Q0_16_ONE / 2;
         const int32_t TRANSLATION_MAX_SPEED = 1000; // units per second in Q16.16 domain
 
-        UVSignal resolveTranslationSignal(UVSignal signal) {
-            return resolveMappedSignal(std::move(signal));
+        UVSignal accumulateUVSignal(UVSignal signal) {
+            return UVSignal(
+                [signal = std::move(signal), accumulated = UV(FracQ16_16(0), FracQ16_16(0))](
+                    FracQ0_16 progress,
+                    TimeMillis elapsedMs
+                ) mutable {
+                    UV value = signal(progress, elapsedMs);
+                    accumulated.u = FracQ16_16(raw(accumulated.u) + raw(value.u));
+                    accumulated.v = FracQ16_16(raw(accumulated.v) + raw(value.v));
+                    return accumulated;
+                }
+            );
         }
     }
 
@@ -52,21 +62,22 @@ namespace PolarShader {
     };
 
     TranslationTransform::TranslationTransform(UVSignal signal)
-        : state(std::make_shared<State>(resolveTranslationSignal(std::move(signal)))) {
+        : state(std::make_shared<State>(std::move(signal))) {
     }
 
     TranslationTransform::TranslationTransform(
         SFracQ0_16Signal direction,
         SFracQ0_16Signal speed
-    ) : TranslationTransform(UVSignal([direction, speed]() {
+    ) : TranslationTransform(accumulateUVSignal(UVSignal([direction, speed]() {
         // Map speed 0..1 to 0..TRANSLATION_MAX_SPEED
-        auto mappedSpeed = LinearRange<int32_t>(0, TRANSLATION_MAX_SPEED).mapSignal(speed);
+        LinearRange<int32_t> speedRange(0, TRANSLATION_MAX_SPEED);
         
         // Use a lambda to combine direction and speed into a velocity UV vector
-        // This is a relative signal (absolute=false)
-        return UVSignal([direction, mappedSpeed](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-            FracQ0_16 dir = PolarRange().map(direction(elapsedMs)).get();
-            int32_t s = mappedSpeed(progress, elapsedMs).get();
+        // This is a per-frame delta signal that is accumulated into absolute offset.
+        PolarRange directionRange;
+        return UVSignal([direction, speed, speedRange, directionRange](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
+            FracQ0_16 dir = direction.sample(directionRange, elapsedMs);
+            int32_t s = speed.sample(speedRange, elapsedMs);
             
             SFracQ0_16 cos_val = angleCosQ0_16(dir);
             SFracQ0_16 sin_val = angleSinQ0_16(dir);
@@ -78,8 +89,8 @@ namespace PolarShader {
             int32_t vy = static_cast<int32_t>((static_cast<int64_t>(s) * raw(sin_val)) >> 16);
             
             return UV(FracQ16_16(vx), FracQ16_16(vy));
-        }, false);
-    }())) {
+        });
+    }()))) {
     }
 
     void TranslationTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {

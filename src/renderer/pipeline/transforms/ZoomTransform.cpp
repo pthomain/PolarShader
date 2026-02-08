@@ -34,29 +34,28 @@ namespace PolarShader {
     }
 
     struct ZoomTransform::MappedInputs {
-        MappedSignal<SFracQ0_16> scaleSignal;
+        SFracQ0_16Signal scaleSignal;
         LinearRange<SFracQ0_16> range;
     };
 
     ZoomTransform::MappedInputs ZoomTransform::makeInputs(SFracQ0_16Signal scale) {
         LinearRange range{SFracQ0_16(MIN_SCALE_RAW), SFracQ0_16(MAX_SCALE_RAW)};
-        auto mapped = range.mapSignal(std::move(scale));
         return MappedInputs{
-            std::move(mapped),
+            std::move(scale),
             std::move(range)
         };
     }
 
     struct ZoomTransform::State {
-        MappedSignal<SFracQ0_16> scaleSignal;
+        SFracQ0_16Signal scaleSignal;
         LinearRange<SFracQ0_16> range;
         SFracQ0_16 scaleValue;
         int32_t minScaleRaw;
         int32_t maxScaleRaw;
 
-        State(MappedSignal<SFracQ0_16> s, LinearRange<SFracQ0_16> range)
-            : scaleSignal(std::move(s)),
-              range(std::move(range)),
+        explicit State(MappedInputs inputs)
+            : scaleSignal(std::move(inputs.scaleSignal)),
+              range(std::move(inputs.range)),
               scaleValue(SFracQ0_16(0)),
               minScaleRaw(0),
               maxScaleRaw(0) {
@@ -67,12 +66,12 @@ namespace PolarShader {
 
     ZoomTransform::ZoomTransform(SFracQ0_16Signal scale) {
         auto inputs = makeInputs(std::move(scale));
-        state = std::make_shared<State>(std::move(inputs.scaleSignal), std::move(inputs.range));
+        state = std::make_shared<State>(std::move(inputs));
     }
 
     void ZoomTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         // Zoom scale should follow the mapped scalar signal directly every frame.
-        state->scaleValue = state->scaleSignal(progress, elapsedMs).get();
+        state->scaleValue = state->scaleSignal.sample(state->range, elapsedMs);
         if (context) {
             context->zoomScale = state->scaleValue;
         } else {

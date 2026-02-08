@@ -19,7 +19,7 @@
  */
 
 #include "PaletteTransform.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
@@ -27,8 +27,10 @@
 
 namespace PolarShader {
     struct PaletteTransform::MappedInputs {
-        MappedSignal<uint8_t> offsetSignal;
-        MappedSignal<SFracQ0_16> clipSignal;
+        SFracQ0_16Signal offsetSignal;
+        LinearRange<uint8_t> offsetRange{0, 255};
+        SFracQ0_16Signal clipSignal;
+        LinearRange<FracQ0_16> clipRange{FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)};
         FracQ0_16 feather = FracQ0_16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
@@ -36,7 +38,7 @@ namespace PolarShader {
 
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(SFracQ0_16Signal offset) {
         return MappedInputs{
-            resolveMappedSignal(LinearRange<uint8_t>(0, 255).mapSignal(std::move(offset)))
+            std::move(offset)
         };
     }
 
@@ -47,8 +49,10 @@ namespace PolarShader {
         PipelineContext::PaletteClipPower clipPower
     ) {
         return MappedInputs{
-            resolveMappedSignal(LinearRange<uint8_t>(0, 255).mapSignal(std::move(offset))),
-            resolveMappedSignal(LinearRange(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(clipSignal))),
+            std::move(offset),
+            LinearRange<uint8_t>(0, 255),
+            std::move(clipSignal),
+            LinearRange<FracQ0_16>(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)),
             feather,
             clipPower,
             true
@@ -56,9 +60,11 @@ namespace PolarShader {
     }
 
     struct PaletteTransform::State {
-        MappedSignal<uint8_t> offsetSignal;
-        MappedValue<uint8_t> offsetValue = MappedValue(static_cast<uint8_t>(0));
-        MappedSignal<SFracQ0_16> clipSignal;
+        SFracQ0_16Signal offsetSignal;
+        LinearRange<uint8_t> offsetRange;
+        uint8_t offsetValue = 0;
+        SFracQ0_16Signal clipSignal;
+        LinearRange<FracQ0_16> clipRange;
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
         FracQ0_16 feather = FracQ0_16(0);
@@ -67,7 +73,9 @@ namespace PolarShader {
 
         explicit State(MappedInputs inputs)
             : offsetSignal(std::move(inputs.offsetSignal)),
+              offsetRange(std::move(inputs.offsetRange)),
               clipSignal(std::move(inputs.clipSignal)),
+              clipRange(std::move(inputs.clipRange)),
               feather(inputs.feather),
               clipPower(inputs.clipPower),
               hasClip(inputs.hasClip) {
@@ -93,22 +101,18 @@ namespace PolarShader {
     }
 
     void PaletteTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
-        state->offsetValue = state->offsetSignal(progress, elapsedMs);
+        state->offsetValue = state->offsetSignal.sample(state->offsetRange, elapsedMs);
         if (context) {
-            context->paletteOffset = state->offsetValue.get();
+            context->paletteOffset = state->offsetValue;
             if (state->hasClip) {
-            SFracQ0_16 clipRaw = state->clipSignal(progress, elapsedMs).get();
-                int32_t clipRawValue = raw(clipRaw);
-                if (clipRawValue == 0) {
+                FracQ0_16 clipRaw = state->clipSignal.sample(state->clipRange, elapsedMs);
+                if (raw(clipRaw) == 0) {
                     context->paletteClipEnabled = false;
                     context->paletteClipInvert = false;
                     return;
                 }
-                state->clipInvert = (clipRawValue < 0);
-                int32_t mag = clipRawValue < 0 ? -clipRawValue : clipRawValue;
-                uint32_t clipped = clamp_frac_raw(mag);
-                LinearRange range(PatternNormU16(0), PatternNormU16(FRACT_Q0_16_MAX));
-                state->clipValue = range.map(SFracQ0_16(static_cast<int32_t>(clipped))).get();
+                state->clipInvert = false;
+                state->clipValue = PatternNormU16(raw(clipRaw));
                 context->paletteClip = state->clipValue;
                 context->paletteClipFeather = state->feather;
                 context->paletteClipPower = state->clipPower;

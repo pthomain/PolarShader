@@ -21,32 +21,22 @@
 #ifndef POLAR_SHADER_PIPELINE_RANGES_LINEARRANGE_H
 #define POLAR_SHADER_PIPELINE_RANGES_LINEARRANGE_H
 
-#include "renderer/pipeline/ranges/Range.h"
+#include "renderer/pipeline/signals/ranges/Range.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include <algorithm>
+#include <type_traits>
+#include <utility>
 
 namespace PolarShader {
-    namespace detail {
-        template<typename T, typename = void>
-        struct rep_type_trait {
-            using type = T;
-        };
-
-        template<typename T>
-        struct rep_type_trait<T, std::void_t<typename T::rep_type>> {
-            using type = typename T::rep_type;
-        };
-    }
-
     /**
      * @brief Generic linear range that maps a 0..1 signal into a [min, max] range of type T.
      * 
      * Handles any type T that can be converted to/from an integer via raw() and constructor.
      */
     template<typename T>
-    class LinearRange : public Range<LinearRange<T>, T> {
+    class LinearRange : public Range<T> {
     public:
-        using Rep = typename detail::rep_type_trait<T>::type;
+        using Rep = typename std::decay<decltype(raw(std::declval<T>()))>::type;
 
         LinearRange(T minValue, T maxValue) {
             min_raw = static_cast<int64_t>(raw(minValue));
@@ -56,14 +46,14 @@ namespace PolarShader {
             }
         }
 
-        MappedValue<T> map(SFracQ0_16 t) const override {
+        T map(SFracQ0_16 t) const override {
             int64_t span = max_raw - min_raw;
-            if (span == 0) return MappedValue<T>(T(static_cast<Rep>(min_raw)));
+            if (span == 0) return T(static_cast<Rep>(min_raw));
 
-            uint32_t t_raw = clamp_frac_raw(raw(t));
+            uint32_t t_raw = signed_to_unit_raw(raw(t));
             int64_t scaled = (span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
 
-            return MappedValue<T>(T(static_cast<Rep>(min_raw + scaled)));
+            return T(static_cast<Rep>(min_raw + scaled));
         }
 
         int32_t minRaw() const { return static_cast<int32_t>(min_raw); }

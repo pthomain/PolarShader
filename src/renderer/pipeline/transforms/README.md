@@ -13,7 +13,7 @@ palette mapping state (`PipelineContext`).
 
 `SceneManager` calls `advanceFrame(progress, elapsedMs)` each frame:
 
-- `progress` (`FracQ0_16`) is scene-normalized progress and is still used by mapped signal APIs.
+- `progress` (`FracQ0_16`) is scene-normalized progress for scene/layer orchestration.
 - `elapsedMs` (`TimeMillis`) is scene-relative elapsed time and is the canonical input for
   scalar signal factories (`SFracQ0_16Signal`).
 
@@ -29,10 +29,11 @@ palette mapping state (`PipelineContext`).
   - `LoopMode::RESET` wraps with `elapsedMs % duration`.
   - `duration == 0` emits `0`.
 
-Output behavior:
+Sampling contract:
 
-- Public sampling (`operator()` / `sample`) clamps to `[0, 1]`.
-- Internal signed-use sampling is available via `sampleUnclamped(...)` for phase speed paths.
+- Scalar waveform output is saturated to signed Q0.16 `[-1, 1]`.
+- Sampling always requires an explicit range: `signal.sample(range, elapsedMs)`.
+- There is no range-less scalar sampling path.
 
 Factory signatures:
 
@@ -49,23 +50,26 @@ Factory signatures:
 
 Periodic shaping:
 
-- Sine/noise samplers provide full-range `0..1`.
-- Factory output follows: `0.5 + (waveCentered * amplitude)/2 + offset/2`, then clamped to `[0, 1]`.
+- Sine/noise factories emit signed waveform values, then saturate to `[-1, 1]`.
 
 ## Mapping and accumulation
 
-- `Range::mapSignal(...)` maps normalized scalar signals into typed domains (`MappedSignal<T>`).
-- `MappedSignal<T>` no longer carries an absolute/relative flag.
-- UV relative accumulation is handled via `resolveMappedSignal(UVSignal)` in
-  `signals/SignalAccumulators.h`.
+- `SFracQ0_16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
+- Signed mapping rule for unsigned ranges: `-1 -> min`, `0 -> midpoint`, `+1 -> max`.
+- Signed ranges still map linearly across their full signed domain.
+- `UVSignal` no longer carries an absolute/relative flag.
+- UV delta accumulation is handled explicitly by transforms that need it.
 - Scalar `SFracQ0_16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
+- Shared mapping ranges in `Signals`:
+  - `unitRange()` for unsigned normalized scalar use (`[0, 1]` domain).
+  - `signedUnitRange()` for signed scalar use (`[-1, 1]` domain).
 
 ## Transform details
 
 ### RotationTransform
 
 - Input: scalar angle signal.
-- Internally maps with `PolarRange` to turn offsets and stores a mapped signal.
+- Internally maps with `PolarRange` to turn offsets.
 
 ### VortexTransform
 
@@ -80,8 +84,7 @@ Periodic shaping:
 ### TranslationTransform
 
 - Inputs: either a `UVSignal` or `(direction, speed)` scalar signals.
-- `(direction, speed)` is converted to a relative UV vector signal and then accumulated via
-  `resolveMappedSignal(...)`.
+- `(direction, speed)` is converted to a per-frame UV delta signal and accumulated internally.
 - Applies smoothing influenced by `PipelineContext::zoomScale`.
 
 ### ZoomTransform
@@ -100,7 +103,7 @@ Periodic shaping:
   - `maxOffset`: mapped displacement cap.
   - Optional directional flow controls.
 - Uses `PhaseAccumulator` for time evolution.
-- Uses unclamped scalar speed sampling internally to preserve signed direction.
+- Samples signed speed directly with `signedUnitRange()`.
 
 ### PaletteTransform
 

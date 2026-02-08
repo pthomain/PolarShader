@@ -19,7 +19,7 @@
  */
 
 #include "VortexTransform.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
@@ -31,41 +31,45 @@
 
 namespace PolarShader {
     struct VortexTransform::MappedInputs {
-        MappedSignal<SFracQ0_16> strengthSignal;
+        SFracQ0_16Signal strengthSignal;
+        LinearRange<SFracQ0_16> strengthRange;
     };
 
     VortexTransform::MappedInputs VortexTransform::makeInputs(SFracQ0_16Signal strength) {
         return MappedInputs{
-            resolveMappedSignal(LinearRange(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)).mapSignal(std::move(strength)))
+            std::move(strength),
+            LinearRange(SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX))
         };
     }
 
     struct VortexTransform::State {
-        MappedSignal<SFracQ0_16> strengthSignal;
-        MappedValue<SFracQ0_16> strengthValue = MappedValue(SFracQ0_16(0));
+        SFracQ0_16Signal strengthSignal;
+        LinearRange<SFracQ0_16> strengthRange;
+        SFracQ0_16 strengthValue = SFracQ0_16(0);
 
-        explicit State(MappedSignal<SFracQ0_16> s)
-            : strengthSignal(std::move(s)) {
+        explicit State(MappedInputs inputs)
+            : strengthSignal(std::move(inputs.strengthSignal)),
+              strengthRange(std::move(inputs.strengthRange)) {
         }
     };
 
     VortexTransform::VortexTransform(SFracQ0_16Signal strength) {
         auto inputs = makeInputs(std::move(strength));
-        state = std::make_shared<State>(std::move(inputs.strengthSignal));
+        state = std::make_shared<State>(std::move(inputs));
     }
 
     void VortexTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("VortexTransform::advanceFrame context is null.");
         }
-        state->strengthValue = state->strengthSignal(progress, elapsedMs);
+        state->strengthValue = state->strengthSignal.sample(state->strengthRange, elapsedMs);
     }
 
     UVMap VortexTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             UV polar_uv = cartesianToPolarUV(uv);
             
-            int32_t strength_raw = raw(state->strengthValue.get());
+            int32_t strength_raw = raw(state->strengthValue);
             uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
             int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
             int32_t new_angle = raw(polar_uv.u) + scaled;

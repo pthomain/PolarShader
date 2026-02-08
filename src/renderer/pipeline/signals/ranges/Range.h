@@ -21,29 +21,15 @@
 #ifndef POLAR_SHADER_PIPELINE_RANGES_RANGE_H
 #define POLAR_SHADER_PIPELINE_RANGES_RANGE_H
 
-#include <utility>
-#include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-    template<typename Derived, typename T>
+    template<typename T>
     class Range {
     public:
-        using value_type = T;
-
         virtual ~Range() = default;
 
-        virtual MappedValue<T> map(SFracQ0_16 t) const = 0;
-
-        MappedSignal<T> mapSignal(SFracQ0_16Signal signal) const {
-            Derived range_copy = static_cast<const Derived &>(*this);
-            return MappedSignal<T>(
-                [range_copy = std::move(range_copy),
-                    signal = std::move(signal)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-                    (void) progress;
-                    return range_copy.map(signal(elapsedMs));
-                }
-            );
-        }
+        virtual T map(SFracQ0_16 t) const = 0;
     };
 }
 

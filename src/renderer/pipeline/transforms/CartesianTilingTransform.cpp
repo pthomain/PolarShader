@@ -19,7 +19,7 @@
  */
 
 #include "CartesianTilingTransform.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
@@ -46,7 +46,8 @@ namespace PolarShader {
     }
 
     struct CartesianTilingTransform::MappedInputs {
-        MappedSignal<int32_t> cellSizeSignal;
+        SFracQ0_16Signal cellSizeSignal;
+        LinearRange<int32_t> cellSizeRange;
     };
 
     CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
@@ -54,23 +55,17 @@ namespace PolarShader {
         int32_t minCellSize,
         int32_t maxCellSize
     ) {
-        LinearRange range(minCellSize, maxCellSize);
-        auto signal = resolveMappedSignal(range.mapSignal(std::move(cellSize)));
         return MappedInputs{
-            MappedSignal<int32_t>(
-                [signal = std::move(signal)](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
-                    int32_t value = signal(progress, elapsedMs).get();
-                    int64_t scaled = static_cast<int64_t>(value) * kCellSizeScale;
-                    return MappedValue(clampCellSize(scaled));
-                }
-            )
+            std::move(cellSize),
+            LinearRange<int32_t>(minCellSize, maxCellSize)
         };
     }
 
     struct CartesianTilingTransform::State {
         int32_t cellSizeRaw;
         bool mirrored;
-        MappedSignal<int32_t> cellSizeSignal;
+        SFracQ0_16Signal cellSizeSignal;
+        LinearRange<int32_t> cellSizeRange;
         bool hasSignal;
     };
 
@@ -78,7 +73,8 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{
             clampCellSize(static_cast<int64_t>(cellSizeQ24_8) * kCellSizeScale),
             mirrored,
-            MappedSignal<int32_t>(),
+            SFracQ0_16Signal(),
+            LinearRange<int32_t>(1, 1),
             false
         })) {
     }
@@ -94,10 +90,12 @@ namespace PolarShader {
             INT32_MAX,
             mirrored,
             std::move(inputs.cellSizeSignal),
+            std::move(inputs.cellSizeRange),
             true
         });
         if (state->cellSizeSignal) {
-            int32_t starting = state->cellSizeSignal(FracQ0_16(0), 0).get();
+            int32_t starting = state->cellSizeSignal.sample(state->cellSizeRange, 0);
+            starting = clampCellSize(static_cast<int64_t>(starting) * kCellSizeScale);
             if (starting <= 0) starting = 1;
             state->cellSizeRaw = starting;
         }
@@ -105,7 +103,8 @@ namespace PolarShader {
 
     void CartesianTilingTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         if (state->hasSignal && state->cellSizeSignal) {
-            int32_t value = state->cellSizeSignal(progress, elapsedMs).get();
+            int32_t value = state->cellSizeSignal.sample(state->cellSizeRange, elapsedMs);
+            value = clampCellSize(static_cast<int64_t>(value) * kCellSizeScale);
             if (value <= 0) value = 1;
             state->cellSizeRaw = value;
         }

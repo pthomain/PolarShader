@@ -23,10 +23,11 @@
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
-#include "renderer/pipeline/ranges/PolarRange.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/PolarRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/signals/SignalAccumulators.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include <utility>
@@ -42,6 +43,10 @@ namespace PolarShader {
         constexpr uint32_t WARP_SEED_Y = 0x7F4A7C15u;
         constexpr uint32_t WARP_SEED_Z = 0xB5297A4Du;
         constexpr uint32_t WARP_SEED_W = 0x68E31DA4u;
+
+        int32_t sampleSignedSpeedRaw(SFracQ0_16Signal &signal, TimeMillis elapsedMs) {
+            return raw(signal.sample(signedUnitRange(), elapsedMs));
+        }
 
         SPoint32 sampleNoisePair(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw) {
             int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << CARTESIAN_FRAC_BITS;
@@ -94,12 +99,16 @@ namespace PolarShader {
     }
 
     struct DomainWarpTransform::MappedInputs {
-        MappedSignal<SFracQ0_16> phaseSpeedSignal;
-        MappedSignal<int32_t> amplitudeSignal;
-        MappedSignal<CartQ24_8> warpScaleSignal;
-        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
-        MappedSignal<FracQ0_16> flowDirectionSignal;
-        MappedSignal<int32_t> flowStrengthSignal;
+        SFracQ0_16Signal phaseSpeedSignal;
+        SFracQ0_16Signal amplitudeSignal;
+        SFracQ0_16Signal warpScaleSignal;
+        LinearRange<CartQ24_8> warpScaleRange;
+        SFracQ0_16Signal maxOffsetSignal;
+        LinearRange<CartQ24_8> maxOffsetRange;
+        SFracQ0_16Signal flowDirectionSignal;
+        PolarRange flowDirectionRange;
+        SFracQ0_16Signal flowStrengthSignal;
+        bool hasFlow{false};
     };
 
     DomainWarpTransform::MappedInputs DomainWarpTransform::makeInputs(
@@ -114,75 +123,68 @@ namespace PolarShader {
     ) {
         bool hasFlow = static_cast<bool>(flowDirection) && static_cast<bool>(flowStrength);
 
-        auto maxOffsetSignal = std::make_shared<MappedSignal<CartQ24_8>>(
-            resolveMappedSignal(maxOffsetRange.mapSignal(std::move(maxOffset)))
-        );
-
-        auto mapToMaxOffset = [maxOffsetSignal](SFracQ0_16Signal signal) -> MappedSignal<int32_t> {
-            return MappedSignal<int32_t>(
-                [signal = std::move(signal), maxOffsetSignal](FracQ0_16 progress, TimeMillis elapsedMs) mutable -> MappedValue<int32_t> {
-                    int32_t max_raw = raw((*maxOffsetSignal)(progress, elapsedMs).get());
-                    if (max_raw <= 0) return MappedValue<int32_t>(0);
-                    uint32_t t_raw = clamp_frac_raw(raw(signal(elapsedMs)));
-                    int64_t scaled = (static_cast<int64_t>(max_raw) * static_cast<int64_t>(t_raw)) >> 16;
-                    return MappedValue(static_cast<int32_t>(scaled));
-                }
-            );
-        };
-
-        PolarRange flowDirectionRange;
-        
-        // Use speed signal directly for MappedInputs.
-        auto speedMapped = MappedSignal<SFracQ0_16>(
-            [speed](FracQ0_16, TimeMillis elapsedMs) {
-                return MappedValue(speed.sampleUnclamped(elapsedMs));
-            }
-        );
-
         return DomainWarpTransform::MappedInputs{
-            resolveMappedSignal(std::move(speedMapped)),
-            resolveMappedSignal(mapToMaxOffset(std::move(amplitude))),
-            resolveMappedSignal(warpScaleRange.mapSignal(std::move(warpScale))),
-            std::move(maxOffsetSignal),
+            std::move(speed),
+            std::move(amplitude),
+            std::move(warpScale),
+            std::move(warpScaleRange),
+            std::move(maxOffset),
+            std::move(maxOffsetRange),
+            std::move(flowDirection),
+            PolarRange(),
+            std::move(flowStrength),
             hasFlow
-                ? resolveMappedSignal(flowDirectionRange.mapSignal(std::move(flowDirection)))
-                : MappedSignal<FracQ0_16>(),
-            hasFlow ? resolveMappedSignal(mapToMaxOffset(std::move(flowStrength))) : MappedSignal<int32_t>()
         };
     }
 
     struct DomainWarpTransform::State {
         WarpType type;
         PhaseAccumulator phase;
-        MappedSignal<int32_t> amplitudeSignal;
-        MappedSignal<CartQ24_8> warpScaleSignal;
-        std::shared_ptr<MappedSignal<CartQ24_8>> maxOffsetSignal;
+        SFracQ0_16Signal amplitudeSignal;
+        SFracQ0_16Signal warpScaleSignal;
+        LinearRange<CartQ24_8> warpScaleRange;
+        SFracQ0_16Signal maxOffsetSignal;
+        LinearRange<CartQ24_8> maxOffsetRange;
         CartQ24_8 warpScale = CartQ24_8(0);
         CartQ24_8 maxOffset = CartQ24_8(0);
         uint8_t octaves;
-        MappedSignal<FracQ0_16> flowDirectionSignal;
-        MappedSignal<int32_t> flowStrengthSignal;
+        SFracQ0_16Signal flowDirectionSignal;
+        PolarRange flowDirectionRange;
+        SFracQ0_16Signal flowStrengthSignal;
+        bool hasFlow{false};
         SPoint32 flowOffset{0, 0};
         int32_t timeOffsetRaw{0};
         int32_t amplitudeRaw{0};
 
         State(
             WarpType type,
-            MappedSignal<SFracQ0_16> phaseSpeed,
-            MappedSignal<int32_t> amplitude,
-            MappedSignal<CartQ24_8> scale,
-            std::shared_ptr<MappedSignal<CartQ24_8>> offset,
+            SFracQ0_16Signal phaseSpeedSignal,
+            SFracQ0_16Signal amplitudeSignal,
+            SFracQ0_16Signal warpScaleSignal,
+            LinearRange<CartQ24_8> warpScaleRange,
+            SFracQ0_16Signal maxOffsetSignal,
+            LinearRange<CartQ24_8> maxOffsetRange,
             uint8_t octaves,
-            MappedSignal<FracQ0_16> flowDirection,
-            MappedSignal<int32_t> flowStrength
+            SFracQ0_16Signal flowDirectionSignal,
+            PolarRange flowDirectionRange,
+            SFracQ0_16Signal flowStrengthSignal,
+            bool hasFlow
         ) : type(type),
-            phase(std::move(phaseSpeed)),
-            amplitudeSignal(std::move(amplitude)),
-            warpScaleSignal(std::move(scale)),
-            maxOffsetSignal(std::move(offset)),
+            phase(
+                [speed = std::move(phaseSpeedSignal)](TimeMillis elapsedMs) mutable {
+                    return SFracQ0_16(sampleSignedSpeedRaw(speed, elapsedMs));
+                }
+            ),
+            amplitudeSignal(std::move(amplitudeSignal)),
+            warpScaleSignal(std::move(warpScaleSignal)),
+            warpScaleRange(std::move(warpScaleRange)),
+            maxOffsetSignal(std::move(maxOffsetSignal)),
+            maxOffsetRange(std::move(maxOffsetRange)),
             octaves(octaves),
-            flowDirectionSignal(std::move(flowDirection)),
-            flowStrengthSignal(std::move(flowStrength)) {
+            flowDirectionSignal(std::move(flowDirectionSignal)),
+            flowDirectionRange(std::move(flowDirectionRange)),
+            flowStrengthSignal(std::move(flowStrengthSignal)),
+            hasFlow(hasFlow) {
         }
     };
 
@@ -214,10 +216,14 @@ namespace PolarShader {
             std::move(inputs.phaseSpeedSignal),
             std::move(inputs.amplitudeSignal),
             std::move(inputs.warpScaleSignal),
+            std::move(inputs.warpScaleRange),
             std::move(inputs.maxOffsetSignal),
+            std::move(inputs.maxOffsetRange),
             octaves,
             std::move(inputs.flowDirectionSignal),
-            std::move(inputs.flowStrengthSignal)
+            std::move(inputs.flowDirectionRange),
+            std::move(inputs.flowStrengthSignal),
+            inputs.hasFlow
         );
     }
 
@@ -226,17 +232,23 @@ namespace PolarShader {
             // Serial.println("DomainWarpTransform::advanceFrame context is null.");
         }
 
-        FracQ0_16 phase = state->phase.advance(progress, elapsedMs);
+        FracQ0_16 phase = state->phase.advance(elapsedMs);
         state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << CARTESIAN_FRAC_BITS;
 
-        state->warpScale = state->warpScaleSignal(progress, elapsedMs).get();
-        state->maxOffset = (*state->maxOffsetSignal)(progress, elapsedMs).get();
+        state->warpScale = state->warpScaleSignal.sample(state->warpScaleRange, elapsedMs);
+        state->maxOffset = state->maxOffsetSignal.sample(state->maxOffsetRange, elapsedMs);
 
-        state->amplitudeRaw = state->amplitudeSignal(progress, elapsedMs).get();
+        int32_t maxOffsetRaw = raw(state->maxOffset);
+        uint32_t ampT = static_cast<uint32_t>(raw(state->amplitudeSignal.sample(unitRange(), elapsedMs)));
+        int64_t ampScaled = (static_cast<int64_t>(maxOffsetRaw) * static_cast<int64_t>(ampT)) >> 16;
+        state->amplitudeRaw = static_cast<int32_t>(ampScaled);
 
-        if (state->type == WarpType::Directional && state->flowDirectionSignal && state->flowStrengthSignal) {
-            FracQ0_16 dir = state->flowDirectionSignal(progress, elapsedMs).get();
-            int32_t strength = state->flowStrengthSignal(progress, elapsedMs).get();
+        if (state->type == WarpType::Directional && state->hasFlow && state->flowDirectionSignal && state->flowStrengthSignal) {
+            FracQ0_16 dir = state->flowDirectionSignal.sample(state->flowDirectionRange, elapsedMs);
+            uint32_t flowT = static_cast<uint32_t>(raw(state->flowStrengthSignal.sample(unitRange(), elapsedMs)));
+            int32_t strength = static_cast<int32_t>(
+                (static_cast<int64_t>(maxOffsetRaw) * static_cast<int64_t>(flowT)) >> 16
+            );
             SFracQ0_16 cos_q0_16 = angleCosQ0_16(dir);
             SFracQ0_16 sin_q0_16 = angleSinQ0_16(dir);
             int64_t dx = static_cast<int64_t>(strength) * static_cast<int64_t>(raw(cos_q0_16));

@@ -92,21 +92,6 @@ namespace PolarShader {
     constexpr uint16_t raw(uint16_t v) { return v; }
     constexpr uint8_t raw(uint8_t v) { return v; }
 
-    template<typename T>
-    class MappedValue {
-    public:
-        constexpr MappedValue() : value_() {
-        }
-
-        explicit constexpr MappedValue(T value) : value_(value) {
-        }
-
-        constexpr T get() const { return value_; }
-
-    private:
-        T value_;
-    };
-
     // --- Constants ---
 
     // Represents the midpoint of a 16-bit unsigned integer range, often used for remapping.

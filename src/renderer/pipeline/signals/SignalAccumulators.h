@@ -22,7 +22,6 @@
 #define POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_ACCUMULATORS_H
 
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/maths/UVMaths.h"
 #include <cstdint>
 #include <limits>
 
@@ -99,38 +98,9 @@ namespace PolarShader {
             }
         };
 
-        template<>
-        struct SignalAccumulator<UV> {
-            static UV zero() { return UV(FracQ16_16(0), FracQ16_16(0)); }
-
-            static UV add(UV base, UV delta) {
-                return UVMaths::add(base, delta);
-            }
-        };
     }
 
-    template<typename T>
-    MappedSignal<T> resolveMappedSignal(MappedSignal<T> signal) {
-        // MappedSignal no longer carries an absolute/relative mode.
-        // Keep this helper for API compatibility as a no-op for mapped signals.
-        return signal;
-    }
-
-    inline UVSignal resolveMappedSignal(UVSignal signal) {
-        if (!signal || signal.isAbsolute()) return signal;
-        return UVSignal(
-            [signal = std::move(signal),
-                    accumulated = detail::SignalAccumulator<UV>::zero()](
-                FracQ0_16 progress,
-                TimeMillis elapsedMs
-            ) mutable {
-                UV value = signal(progress, elapsedMs);
-                accumulated = detail::SignalAccumulator<UV>::add(accumulated, value);
-                return accumulated;
-            },
-            true
-        );
-    }
+    inline UVSignal resolveMappedSignal(UVSignal signal) { return signal; }
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_ACCUMULATORS_H

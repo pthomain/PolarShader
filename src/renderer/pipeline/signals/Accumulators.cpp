@@ -23,13 +23,13 @@
 
 namespace PolarShader {
     PhaseAccumulator::PhaseAccumulator(
-        MappedSignal<SFracQ0_16> speed,
+        SpeedSampleFn speed,
         FracQ0_16 initialPhase
     ) : phaseRaw32(static_cast<uint32_t>(raw(initialPhase)) << 16),
         phaseSpeed(std::move(speed)) {
     }
 
-    FracQ0_16 PhaseAccumulator::advance(FracQ0_16 progress, TimeMillis elapsedMs) {
+    FracQ0_16 PhaseAccumulator::advance(TimeMillis elapsedMs) {
         if (!hasLastElapsed) {
             lastElapsedMs = elapsedMs;
             hasLastElapsed = true;
@@ -43,7 +43,7 @@ namespace PolarShader {
         // but typically it should be positive or zero.
         if (deltaMs == 0) return FracQ0_16(static_cast<uint16_t>(phaseRaw32 >> 16));
 
-        int64_t speedRaw = raw(phaseSpeed(progress, elapsedMs).get());
+        int64_t speedRaw = raw(phaseSpeed ? phaseSpeed(elapsedMs) : SFracQ0_16(0));
         
         // Accumulate phase using a 32-bit container where the top 16 bits represent the 
         // integer phase (turns) and the bottom 16 bits provide fractional precision.

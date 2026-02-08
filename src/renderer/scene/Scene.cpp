@@ -22,8 +22,9 @@
 #include <utility>
 
 namespace PolarShader {
-    Scene::Scene(fl::vector<std::shared_ptr<Layer>> layers, TimeMillis durationMs)
-        : layers(std::move(layers)), durationMs(durationMs) {
+    Scene::Scene(fl::vector<std::shared_ptr<Layer> > layers, TimeMillis durationMs)
+        : layers(std::move(layers)),
+          durationMs(durationMs) {
     }
 
     void Scene::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
@@ -40,8 +41,8 @@ namespace PolarShader {
     namespace {
         CRGB blend(CRGB base, CRGB top, FracQ0_16 alpha, BlendMode mode) {
             if (raw(alpha) == 0) return base;
-            
-            // Apply layer alpha to top color
+
+            // Apply layer alpha to top colour
             if (raw(alpha) != 0xFFFFu) {
                 top.nscale8_video(static_cast<uint8_t>(raw(alpha) >> 8));
             }

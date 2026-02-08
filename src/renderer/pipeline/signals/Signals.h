@@ -28,10 +28,14 @@
 #endif
 
 #include "renderer/pipeline/signals/Accumulators.h"
-#include "renderer/pipeline/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
+    using Waveform = SFracQ0_16Signal::WaveformFn;
+    const LinearRange<SFracQ0_16> &unitRange();
+    const LinearRange<SFracQ0_16> &signedUnitRange();
+
     using SampleSignal = fl::function<SFracQ0_16(FracQ0_16)>;
     using PeriodicSignalFactory = SFracQ0_16Signal (*)(
         SFracQ0_16Signal speed,

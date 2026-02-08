@@ -149,7 +149,7 @@ namespace PolarShader {
 
         UVMap currentUV = pattern->layer(context);
 
-        // Apply transforms in order. All are UVTransforms now.
+        // Apply transforms in order
         for (const auto &step: steps) {
             if (step.kind == PipelineStepKind::UV) {
                 if (!step.uvTransform) return blackLayer("UV step missing transform.");
