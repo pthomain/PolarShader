@@ -28,9 +28,6 @@
 
 namespace PolarShader {
     namespace {
-        const int32_t ZOOM_SMOOTH_ALPHA_MIN = Q0_16_ONE / 32; // 0.03125 in Q0.16
-        const int32_t ZOOM_SMOOTH_ALPHA_MAX = Q0_16_ONE;
-
         // Default Zoom scale boundaries
         const int32_t MIN_SCALE_RAW = Q0_16_ONE >> 4; // (1/16)x
         const int32_t MAX_SCALE_RAW = Q0_16_ONE << 4; // 16x (Zoomed Out)
@@ -74,27 +71,8 @@ namespace PolarShader {
     }
 
     void ZoomTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
-        int32_t target_raw = raw(state->scaleSignal(progress, elapsedMs).get());
-        int32_t current_raw = raw(state->scaleValue);
-        int32_t delta = target_raw - current_raw;
-        int64_t alpha_span = static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MAX) - static_cast<int64_t>(ZOOM_SMOOTH_ALPHA_MIN);
-        int32_t min_scale_raw = state->minScaleRaw;
-        int32_t max_scale_raw = state->maxScaleRaw;
-        int64_t span = static_cast<int64_t>(max_scale_raw) - static_cast<int64_t>(min_scale_raw);
-        int64_t freq_bias = static_cast<int64_t>(max_scale_raw) - static_cast<int64_t>(target_raw);
-
-        if (freq_bias < 0) freq_bias = 0;
-        if (span > 0 && freq_bias > span) freq_bias = span;
-
-        // Increase smoothing as noise frequency rises (lower scale => lower alpha).
-        int64_t alpha = ZOOM_SMOOTH_ALPHA_MAX;
-        if (span > 0) alpha -= (alpha_span * freq_bias) / span;
-
-        int64_t step = static_cast<int64_t>(delta) * alpha;
-        step = (step >= 0) ? (step + U16_HALF) : (step - U16_HALF);
-        step >>= 16;
-
-        state->scaleValue = SFracQ0_16(static_cast<int32_t>(static_cast<int64_t>(current_raw) + step));
+        // Zoom scale should follow the mapped scalar signal directly every frame.
+        state->scaleValue = state->scaleSignal(progress, elapsedMs).get();
         if (context) {
             context->zoomScale = state->scaleValue;
         } else {

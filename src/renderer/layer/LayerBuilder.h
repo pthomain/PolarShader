@@ -29,9 +29,9 @@
 #else
 #include "native/FastLED.h"
 #endif
-#include "PipelineContext.h"
+#include "../pipeline/PipelineContext.h"
 #include "Layer.h"
-#include "patterns/base/UVPattern.h"
+#include "../pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/PaletteTransform.h"
 #include "renderer/pipeline/signals/Signals.h"

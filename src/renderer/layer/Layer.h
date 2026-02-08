@@ -28,9 +28,9 @@
 #endif
 
 #include "renderer/pipeline/maths/units/Units.h"
-#include "patterns/base/UVPattern.h"
-#include "PipelineContext.h"
-#include "PipelineStep.h"
+#include "../pipeline/patterns/base/UVPattern.h"
+#include "../pipeline/PipelineContext.h"
+#include "../pipeline/PipelineStep.h"
 #include "renderer/pipeline/signals/Accumulators.h"
 #include "renderer/pipeline/transforms/base/Layers.h"
 #include <memory>

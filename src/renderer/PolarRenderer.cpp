@@ -22,7 +22,8 @@
 #include <utility>
 #include <renderer/pipeline/presets/Presets.h>
 #include <renderer/pipeline/patterns/Patterns.h>
-#include <renderer/pipeline/SceneProvider.h>
+#include <renderer/scene/SceneManager.h>
+#include <renderer/layer/Layer.h>
 
 namespace PolarShader {
     PolarRenderer::PolarRenderer(
@@ -30,7 +31,7 @@ namespace PolarShader {
         PolarCoordsMapper coordsMapper
     ) : coordsMapper(std::move(coordsMapper)),
         sceneManager(std::make_unique<DefaultSceneProvider>([]() {
-            fl::vector<std::shared_ptr<Layer>> layers;
+            fl::vector<std::shared_ptr<Layer> > layers;
             layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
             return std::make_unique<Scene>(std::move(layers));
         })),

@@ -27,10 +27,10 @@
 #include "renderer/pipeline/patterns/HexTilingPattern.cpp"
 #include "renderer/pipeline/patterns/WorleyPatterns.cpp"
 #include "renderer/pipeline/patterns/base/UVPattern.cpp"
-#include "renderer/pipeline/Layer.cpp"
-#include "renderer/pipeline/LayerBuilder.cpp"
-#include "renderer/pipeline/Scene.cpp"
-#include "renderer/pipeline/SceneManager.cpp"
+#include "renderer/layer/Layer.cpp"
+#include "renderer/layer/LayerBuilder.cpp"
+#include "renderer/scene/Scene.cpp"
+#include "renderer/scene/SceneManager.cpp"
 #endif
 
 using namespace PolarShader;
@@ -131,20 +131,10 @@ void test_zoom_transform_uv() {
     UV input(FracQ16_16(0x0000C000), FracQ16_16(0x00008000));
     PatternNormU16 result = zoom(testLayer)(input);
     
-    // With current defaults: MIN_SCALE=1/16x (4096), Initial scaleValue=0.
-    // ScaleValue 0 means sx = 0, sy = 0.
-    // fx = 0, fy = 0.
-    // scaled_uv = (0.5, 0.5).
-    // Pattern result at (0.5, 0.5) is input.u = 0.5 (for centered coords).
-    // WAIT, let's re-calculate:
-    // UV scaled_uv(
-    //    FracQ16_16((fx + 0x00010000) >> 1),
-    //    FracQ16_16((fy + 0x00010000) >> 1)
-    // );
-    // fx=0 => scaled_uv.u = 0x10000 >> 1 = 0x8000 (0.5).
-    // 0.5 * 65536 = 32768.
-    
-    TEST_ASSERT_UINT16_WITHIN(500, 32768, raw(result));
+    // With direct-mapped zoom and MIN_SCALE=1/16x (4096):
+    // centered x at input.u=0.75 is +0.5 -> fx ~= 0x0800.
+    // scaled_uv.u = (0x10000 + 0x0800) >> 1 = 0x8400 (33792).
+    TEST_ASSERT_UINT16_WITHIN(500, 33792, raw(result));
 }
 
 /** @brief Verify that relative UV signals correctly accumulate over time. */
@@ -198,6 +188,25 @@ void test_sine_speed() {
     TEST_ASSERT_INT32_WITHIN(100, 32768, raw(s(FracQ0_16(0), 0)));
     // t=250ms -> 0.25 turn -> s=1.0 -> 65535
     TEST_ASSERT_INT32_WITHIN(100, 65535, raw(s(FracQ0_16(0), 250)));
+}
+
+/** @brief Verify zoom driven by sine changes over elapsed time (not treated as constant). */
+void test_zoom_transform_sine_varies_over_time() {
+    ZoomTransform zoom(sine(cPerMil(1000)));
+    UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
+    UV input(FracQ16_16(0x0000C000), FracQ16_16(0x00008000));
+
+    zoom.advanceFrame(FracQ0_16(0), 0);
+    uint16_t a = raw(zoom(probeLayer)(input));
+
+    zoom.advanceFrame(FracQ0_16(0), 250);
+    uint16_t b = raw(zoom(probeLayer)(input));
+
+    zoom.advanceFrame(FracQ0_16(0), 500);
+    uint16_t c = raw(zoom(probeLayer)(input));
+
+    // If zoom is animated, at least one later sample must differ from the initial one.
+    TEST_ASSERT_TRUE(a != b || a != c);
 }
 
 /** @brief Verify easing functions loop if period > 0. */
@@ -337,6 +346,7 @@ void setup() {
     RUN_TEST(test_uv_signal_accumulation);
     RUN_TEST(test_phase_accumulator_signed);
     RUN_TEST(test_sine_speed);
+    RUN_TEST(test_zoom_transform_sine_varies_over_time);
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);
@@ -365,6 +375,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_uv_signal_accumulation);
     RUN_TEST(test_phase_accumulator_signed);
     RUN_TEST(test_sine_speed);
+    RUN_TEST(test_zoom_transform_sine_varies_over_time);
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);

@@ -51,11 +51,16 @@ namespace PolarShader {
                     "kaleidoscope"
                 )
                 .addTransform(ZoomTransform(
-                    sine(cPerMil(100))
+                    // Keep zoom oscillation explicit and visible on the default noise preset.
+                    sine(
+                        cPerMil(500),
+                        cPerMil(800),
+                        cPerMil(200)
+                    )
                 ))
                 .addPaletteTransform(
                     PaletteTransform(
-                        sine(cPerMil(100))
+                        sine()
                     )
                 );
     }

@@ -42,10 +42,10 @@
 #include "renderer/pipeline/patterns/HexTilingPattern.cpp"
 #include "renderer/pipeline/patterns/WorleyPatterns.cpp"
 #include "renderer/pipeline/patterns/base/UVPattern.cpp"
-#include "renderer/pipeline/Layer.cpp"
-#include "renderer/pipeline/LayerBuilder.cpp"
-#include "renderer/pipeline/Scene.cpp"
-#include "renderer/pipeline/SceneManager.cpp"
+#include "renderer/layer/Layer.cpp"
+#include "renderer/layer/LayerBuilder.cpp"
+#include "renderer/scene/Scene.cpp"
+#include "renderer/scene/SceneManager.cpp"
 #endif
 
 using namespace PolarShader;

@@ -23,6 +23,7 @@
 
 #include "SceneProvider.h"
 #include <memory>
+#include "renderer/pipeline/transforms/base/Layers.h"
 
 namespace PolarShader {
     /**

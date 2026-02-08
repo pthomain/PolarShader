@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_SCENE_H
 #define POLAR_SHADER_PIPELINE_SCENE_H
 
-#include "Layer.h"
+#include "../layer/Layer.h"
 
 namespace PolarShader {
     /**

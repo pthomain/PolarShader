@@ -21,8 +21,12 @@
 #ifndef POLAR_SHADER_POLAREFFECT_H
 #define POLAR_SHADER_POLAREFFECT_H
 
-#include <renderer/pipeline/SceneManager.h>
+#include "fl/function.h"
+#include "fl/pair.h"
 #include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/scene/SceneManager.h"
+
+struct CRGB;
 
 namespace PolarShader {
     using PolarCoords = fl::pair<FracQ0_16, FracQ0_16>;
