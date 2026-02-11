@@ -26,7 +26,7 @@
 
 namespace PolarShader {
     /**
-     * @brief Maps a 0..1 scalar signal to a 2D line segment in UV space.
+     * @brief Maps a signed scalar signal to a 2D line segment in UV space.
      */
     class UVRange : public Range<UV> {
     public:
@@ -34,7 +34,7 @@ namespace PolarShader {
         }
 
         UV map(SFracQ0_16 t) const override {
-            uint32_t t_raw = signed_to_unit_raw(raw(t));
+            uint32_t t_raw = Range<UV>::mapUnsigned(t);
 
             int64_t u_min = raw(min_uv.u);
             int64_t u_max = raw(max_uv.u);

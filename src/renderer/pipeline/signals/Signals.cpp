@@ -33,13 +33,21 @@ namespace PolarShader {
     const LinearRange<SFracQ0_16> &unitRange() {
         // Normalized scalar signal domain [0..1] in raw Q0.16 units.
         // Used when a caller needs the clamped scalar sample itself before custom math.
-        static const LinearRange<SFracQ0_16> range(SFracQ0_16(0), SFracQ0_16(FRACT_Q0_16_MAX));
+        static const LinearRange<SFracQ0_16> range(
+            SFracQ0_16(0),
+            SFracQ0_16(FRACT_Q0_16_MAX),
+            RangeMappingMode::UnsignedFromSigned
+        );
         return range;
     }
 
     const LinearRange<SFracQ0_16> &signedUnitRange() {
         // Signed scalar signal domain [-1..1] in raw Q0.16 units.
-        static const LinearRange<SFracQ0_16> range{SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)};
+        static const LinearRange<SFracQ0_16> range{
+            SFracQ0_16(Q0_16_MIN),
+            SFracQ0_16(Q0_16_MAX),
+            RangeMappingMode::SignedDirect
+        };
         return range;
     }
 
@@ -94,18 +102,22 @@ namespace PolarShader {
                     uint32_t phaseOffsetRaw = static_cast<uint32_t>(raw(phaseOffset.sample(unitRange(), elapsedMs)));
                     FracQ0_16 finalPhase(static_cast<uint16_t>(basePhase + phaseOffsetRaw));
 
-                    uint32_t waveRaw = static_cast<uint32_t>(raw(sample(finalPhase)));
-                    int32_t waveCentered = (static_cast<int32_t>(waveRaw) - static_cast<int32_t>(U16_HALF)) << 1;
+                    int32_t waveSignedRaw = raw(sample(finalPhase));
+                    uint32_t waveUnitRaw = signed_to_unit_raw(waveSignedRaw);
 
                     uint32_t ampRaw = static_cast<uint32_t>(raw(amplitude.sample(unitRange(), elapsedMs)));
+                    int32_t waveCentered = (static_cast<int32_t>(waveUnitRaw) - static_cast<int32_t>(U16_HALF)) << 1;
                     int32_t scaledWave = static_cast<int32_t>(
                         (static_cast<int64_t>(waveCentered) * static_cast<int64_t>(ampRaw)) >> 16
                     );
 
                     int32_t halfWave = scaledWave >> 1;
-                    int32_t halfOffset = raw(offset.sample(unitRange(), elapsedMs)) / 2;
-                    int32_t outRaw = static_cast<int32_t>(U16_HALF) + halfWave + halfOffset;
-                    return SFracQ0_16(outRaw);
+                    int32_t halfOffset = raw(offset.sample(unitRange(), elapsedMs)) >> 1;
+                    int32_t outUnitRaw = static_cast<int32_t>(U16_HALF) + halfWave + halfOffset;
+                    if (outUnitRaw < 0) outUnitRaw = 0;
+                    if (outUnitRaw > FRACT_Q0_16_MAX) outUnitRaw = FRACT_Q0_16_MAX;
+
+                    return SFracQ0_16(unit_to_signed_raw(static_cast<uint32_t>(outUnitRaw)));
                 }
             );
         }
@@ -130,7 +142,7 @@ namespace PolarShader {
     SFracQ0_16Signal constant(FracQ0_16 value) {
         return SFracQ0_16Signal(
             SignalKind::PERIODIC,
-            [value](TimeMillis) { return SFracQ0_16(raw(value)); }
+            [value](TimeMillis) { return SFracQ0_16(unit_to_signed_raw(raw(value))); }
         );
     }
 
@@ -160,7 +172,8 @@ namespace PolarShader {
 
     SFracQ0_16Signal linear(TimeMillis duration, LoopMode loopMode) {
         return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
-            return SFracQ0_16(raw(timeToProgress(t, duration)));
+            uint32_t progressRaw = raw(timeToProgress(t, duration));
+            return SFracQ0_16(unit_to_signed_raw(progressRaw));
         });
     }
 
@@ -168,7 +181,7 @@ namespace PolarShader {
         return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
             uint32_t p = raw(timeToProgress(t, duration));
             uint32_t result = (p * p) >> 16;
-            return SFracQ0_16(static_cast<int32_t>(result));
+            return SFracQ0_16(unit_to_signed_raw(result));
         });
     }
 
@@ -177,7 +190,7 @@ namespace PolarShader {
             uint32_t p = raw(timeToProgress(t, duration));
             uint32_t inv = 0xFFFFu - p;
             uint32_t result = 0xFFFFu - ((inv * inv) >> 16);
-            return SFracQ0_16(static_cast<int32_t>(result));
+            return SFracQ0_16(unit_to_signed_raw(result));
         });
     }
 
@@ -186,11 +199,11 @@ namespace PolarShader {
             uint32_t p = raw(timeToProgress(t, duration));
             if (p < 0x8000u) {
                 uint32_t result = (p * p) >> 15;
-                return SFracQ0_16(static_cast<int32_t>(result));
+                return SFracQ0_16(unit_to_signed_raw(result));
             }
             uint32_t inv = 0xFFFFu - p;
             uint32_t tail = (inv * inv) >> 15;
-            return SFracQ0_16(static_cast<int32_t>(0xFFFFu - tail));
+            return SFracQ0_16(unit_to_signed_raw(0xFFFFu - tail));
         });
     }
 

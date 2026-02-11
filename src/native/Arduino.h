@@ -15,8 +15,17 @@ public:
     void print(const char* msg) {
         std::cout << msg;
     }
+
+    void print(int32_t value) {
+        std::cout << value;
+    }
+
     void println(const char* msg) {
         std::cout << msg << std::endl;
+    }
+
+    void println(int32_t value) {
+        std::cout << value << std::endl;
     }
 };
 

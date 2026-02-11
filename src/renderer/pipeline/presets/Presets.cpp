@@ -50,10 +50,13 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
+                .addPaletteTransform(
+                    PaletteTransform(sine())
+                )
                 .addTransform(
                     ZoomTransform(
-                        sine(
-                            ceiling(),
+                        noise(
+                            midPoint(),
                             ceiling()
                         )
                     )

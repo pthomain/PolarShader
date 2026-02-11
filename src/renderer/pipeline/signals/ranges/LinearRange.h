@@ -29,16 +29,23 @@
 
 namespace PolarShader {
     /**
-     * @brief Generic linear range that maps a 0..1 signal into a [min, max] range of type T.
-     * 
-     * Handles any type T that can be converted to/from an integer via raw() and constructor.
+     * @brief Generic linear range that maps signed signal samples into [min, max] for type T.
+     *
+     * Signed-domain behavior is configured by RangeMappingMode:
+     * - SignedDirect: use signed signal values directly.
+     * - UnsignedFromSigned: remap [-1, 1] -> [0, 1] first.
+     * - Auto: choose SignedDirect when min<0, otherwise UnsignedFromSigned.
      */
     template<typename T>
     class LinearRange : public Range<T> {
     public:
         using Rep = typename std::decay<decltype(raw(std::declval<T>()))>::type;
 
-        LinearRange(T minValue, T maxValue) {
+        LinearRange(
+            T minValue,
+            T maxValue,
+            RangeMappingMode mappingMode = RangeMappingMode::Auto
+        ) : mode_(mappingMode) {
             min_raw = static_cast<int64_t>(raw(minValue));
             max_raw = static_cast<int64_t>(raw(maxValue));
             if (min_raw > max_raw) {
@@ -50,18 +57,35 @@ namespace PolarShader {
             int64_t span = max_raw - min_raw;
             if (span == 0) return T(static_cast<Rep>(min_raw));
 
-            uint32_t t_raw = signed_to_unit_raw(raw(t));
-            int64_t scaled = (span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
-
-            return T(static_cast<Rep>(min_raw + scaled));
+            switch (resolvedMode()) {
+                case RangeMappingMode::SignedDirect: {
+                    constexpr int64_t signed_span = static_cast<int64_t>(Q0_16_MAX) - static_cast<int64_t>(Q0_16_MIN);
+                    int64_t signed_raw = static_cast<int64_t>(Range<T>::mapSigned(t));
+                    int64_t signed_t = signed_raw - static_cast<int64_t>(Q0_16_MIN);
+                    int64_t scaled = (span * signed_t + (signed_span / 2)) / signed_span;
+                    return T(static_cast<Rep>(min_raw + scaled));
+                }
+                case RangeMappingMode::UnsignedFromSigned:
+                default: {
+                    uint32_t t_raw = Range<T>::mapUnsigned(t);
+                    int64_t scaled = (span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
+                    return T(static_cast<Rep>(min_raw + scaled));
+                }
+            }
         }
 
         int32_t minRaw() const { return static_cast<int32_t>(min_raw); }
         int32_t maxRaw() const { return static_cast<int32_t>(max_raw); }
 
     private:
+        RangeMappingMode resolvedMode() const {
+            if (mode_ != RangeMappingMode::Auto) return mode_;
+            return (min_raw < 0) ? RangeMappingMode::SignedDirect : RangeMappingMode::UnsignedFromSigned;
+        }
+
         int64_t min_raw;
         int64_t max_raw;
+        RangeMappingMode mode_;
     };
 }
 

@@ -76,9 +76,6 @@ namespace PolarShader {
         state->scaleValue = state->scaleSignal.sample(state->range, elapsedMs);
         if (context) {
             context->zoomScale = state->scaleValue;
-            if ((elapsedMs - state->lastLogMs) >= 250) {
-                state->lastLogMs = elapsedMs;
-            }
         } else {
             Serial.println("ZoomTransform::advanceFrame context is null.");
         }

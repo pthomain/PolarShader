@@ -22,14 +22,33 @@
 #define POLAR_SHADER_PIPELINE_RANGES_RANGE_H
 
 #include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
+    enum class RangeMappingMode : uint8_t {
+        Auto,
+        SignedDirect,
+        UnsignedFromSigned
+    };
+
     template<typename T>
     class Range {
     public:
         virtual ~Range() = default;
 
         virtual T map(SFracQ0_16 t) const = 0;
+
+    protected:
+        static constexpr uint32_t mapUnsigned(SFracQ0_16 t) {
+            return signed_to_unit_raw(raw(t));
+        }
+
+        static constexpr int32_t mapSigned(SFracQ0_16 t) {
+            int32_t value = raw(t);
+            if (value > Q0_16_MAX) return Q0_16_MAX;
+            if (value < Q0_16_MIN) return Q0_16_MIN;
+            return value;
+        }
     };
 }
 

@@ -27,8 +27,7 @@ namespace PolarShader {
         return [](FracQ0_16 phase) -> SFracQ0_16 {
             NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(phase)));
             PatternNormU16 normNoise = noiseNormaliseU16(rawNoise);
-            // Span [0, 65535] mapped to SFracQ0_16. 
-            return SFracQ0_16(raw(normNoise));
+            return SFracQ0_16(unit_to_signed_raw(raw(normNoise)));
         };
     }
 
@@ -37,9 +36,7 @@ namespace PolarShader {
             // sin16 expects 0-65535 for a full circle.
             // Result is signed 16-bit [-32768, 32767].
             int32_t s = sin16(raw(phase));
-            // Map to [0, 65535]: (s + 32768) * 65535 / 65536 is roughly (s + 32768) * 2 - offset.
-            // Actually, (s + 32768) already gives [0, 65535].
-            return SFracQ0_16(s + 32768);
+            return SFracQ0_16(s * 2);
         };
     }
 }

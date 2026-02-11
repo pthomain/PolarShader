@@ -37,7 +37,7 @@ namespace PolarShader {
         TimeMillis durationMs;
 
     public:
-        Scene(fl::vector<std::shared_ptr<Layer>> layers, TimeMillis durationMs = 30000);
+        Scene(fl::vector<std::shared_ptr<Layer>> layers, TimeMillis durationMs = UINT32_MAX);
 
         void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs);
 

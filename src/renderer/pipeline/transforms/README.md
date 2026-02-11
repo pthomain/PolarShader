@@ -55,8 +55,8 @@ Periodic shaping:
 ## Mapping and accumulation
 
 - `SFracQ0_16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
-- Signed mapping rule for unsigned ranges: `-1 -> min`, `0 -> midpoint`, `+1 -> max`.
-- Signed ranges still map linearly across their full signed domain.
+- Signed ranges map directly from signed signal output.
+- Unsigned ranges first remap `[-1, 1] -> [0, 1]`, then interpolate to `[min, max]`.
 - `UVSignal` no longer carries an absolute/relative flag.
 - UV delta accumulation is handled explicitly by transforms that need it.
 - Scalar `SFracQ0_16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
@@ -89,7 +89,7 @@ Periodic shaping:
 
 ### ZoomTransform
 
-- Input: scalar scale signal (`0..1`).
+- Input: scalar scale signal (`[-1, 1]` by convention).
 - Maps to internal zoom range `[MIN_SCALE_RAW, MAX_SCALE_RAW]`.
 - Zoom mapping is absolute by design (no mapped relative mode).
 - Writes current zoom scale to `PipelineContext::zoomScale`.

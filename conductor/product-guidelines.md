@@ -45,14 +45,17 @@
   - `duration == 0` emits `0`.
 
 ### Value Constraints
-- **Normalization:** `SFracQ0_16Signal` public outputs are clamped to `[0, 1]`.
-- **Range Coverage:** Periodic samplers (`sine`, `noise`) must span the full `[0, 1]` range by default.
+- **Normalization:** `SFracQ0_16Signal` public outputs are clamped to `[-1, 1]`.
+- **Range Coverage:** Periodic samplers (`sine`, `noise`) must span the full signed range by default.
 - **Directionality:** Internal phase accumulation must preserve signed speed for reverse motion.
 
 ### Signal Responsibilities
 - `SFracQ0_16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).
 - Accumulation logic is separated into `SignalAccumulators.h` and applied explicitly (not via mapped-signal mode flags).
 - Scalar signals are absolute by contract (no scalar `absolute`/relative mode).
+- **Signed Convention:** Signals always emit signed values. Unsigned parameter domains must be produced by range mapping, not by signal factories.
+- **Range Mapping Rule:** Signed ranges map directly from signal output. Unsigned ranges must first remap signal `[-1, 1] -> [0, 1]` before interpolating to target min/max.
+- **Placement:** This conversion policy must live in `Range` helpers (`mapSigned` / `mapUnsigned`) so all transforms inherit one consistent behaviour.
 
 ### Transform Signal Rules
 - Transform public constructors must accept base signal types, not `MappedSignal`.

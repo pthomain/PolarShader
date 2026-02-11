@@ -91,7 +91,7 @@ namespace PolarShader {
 
     SFracQ0_16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    // Scale a signal in the 0..1 domain by a Q0.16 fraction.
+    // Scale a signed signal in the [-1..1] domain by a Q0.16 fraction.
     SFracQ0_16Signal scale(SFracQ0_16Signal signal, FracQ0_16 factor);
 
     /** @brief Emits a constant UV coordinate. */
@@ -100,13 +100,13 @@ namespace PolarShader {
     /** @brief Combines two scalar signals into a 2D UV signal. */
     UVSignal uvSignal(SFracQ0_16Signal u, SFracQ0_16Signal v);
 
-    /** @brief Maps a 0..1 signal into a UV area. */
+    /** @brief Maps a signed signal into a UV area via unsigned range mapping. */
     UVSignal uv(SFracQ0_16Signal signal, UV min, UV max);
 
     // Depth signals for animating noise domains (unsigned Q24.8).
     DepthSignal constantDepth(uint32_t value);
 
-    // Map a 0..1 signal into the unsigned Q24.8 depth domain.
+    // Map a signed signal into the unsigned Q24.8 depth domain.
     DepthSignal depth(
         SFracQ0_16Signal signal = cPerMil(100),
         LinearRange<uint32_t> range = LinearRange<uint32_t>(0, 1000)

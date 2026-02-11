@@ -27,6 +27,7 @@ static SmartMatrixDisplay *display = nullptr;
 
 void setup() {
     static MatrixDisplaySpec specInstance;
+    Serial.begin(115200);
     display = new SmartMatrixDisplay(specInstance, 255, 30);
 }
 

@@ -30,9 +30,6 @@ static PolarDisplay *display = nullptr;
 void setup() {
     static RoundDisplaySpec specInstance;
     Serial.begin(115200);
-    while (!Serial && millis() < 2000) {
-    }
-
     display = new PolarDisplay(specInstance, 30);
 }
 

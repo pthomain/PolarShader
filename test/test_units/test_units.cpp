@@ -191,10 +191,10 @@ void test_phase_accumulator_signed() {
 /** @brief Verify sine uses speed signal and is centered in signed space. */
 void test_sine_speed() {
     // Speed: 1.0 turn per second
-    SFracQ0_16Signal s = sine(cPerMil(1000));
+    SFracQ0_16Signal s = sine(cPerMil(1000), ceiling(), floor(), floor());
     
     // t=0 -> centered
-    TEST_ASSERT_INT32_WITHIN(100, 32767, raw(s.sample(TEST_SIGNED_RANGE, 0)));
+    TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
     // t=250ms -> positive peak
     TEST_ASSERT_INT32_WITHIN(200, 65535, raw(s.sample(TEST_SIGNED_RANGE, 250)));
 }
@@ -223,12 +223,12 @@ void test_easing_period_looping() {
     // Linear signal looping every 500ms
     SFracQ0_16Signal s = linear(500);
     
-    // Linear emits unsigned progress; mapped through signed range it sits around midpoint.
+    // Linear now emits signed values by convention.
     int32_t a = raw(s.sample(TEST_SIGNED_RANGE, 250));
     int32_t b = raw(s.sample(TEST_SIGNED_RANGE, 500));
     int32_t c = raw(s.sample(TEST_SIGNED_RANGE, 750));
-    TEST_ASSERT_INT32_WITHIN(20, 32767, a);
-    TEST_ASSERT_INT32_WITHIN(20, 0, b);
+    TEST_ASSERT_INT32_WITHIN(20, 0, a);
+    TEST_ASSERT_INT32_WITHIN(20, -65536, b);
     TEST_ASSERT_INT32_WITHIN(20, a, c);
 }
 
@@ -289,8 +289,8 @@ void test_signal_sample_clamped() {
 
 /** @brief Verify signed negative speed reverses sine direction. */
 void test_sine_negative_speed_reverses_direction() {
-    SFracQ0_16Signal forward = sine(cPerMil(1000));
-    SFracQ0_16Signal reverse = sine(cPerMil(-1000));
+    SFracQ0_16Signal forward = sine(cPerMil(1000), ceiling(), floor(), floor());
+    SFracQ0_16Signal reverse = sine(cPerMil(-1000), ceiling(), floor(), floor());
 
     // Prime accumulators (first sample only initializes elapsed baseline).
     (void) forward.sample(TEST_SIGNED_RANGE, 0);
@@ -298,7 +298,7 @@ void test_sine_negative_speed_reverses_direction() {
 
     // +0.25 turns -> max, -0.25 turns (==0.75) -> min
     TEST_ASSERT_INT32_WITHIN(200, Q0_16_MAX, raw(forward.sample(TEST_SIGNED_RANGE, 250)));
-    TEST_ASSERT_INT32_WITHIN(200, 0, raw(reverse.sample(TEST_SIGNED_RANGE, 250)));
+    TEST_ASSERT_INT32_WITHIN(200, Q0_16_MIN, raw(reverse.sample(TEST_SIGNED_RANGE, 250)));
 }
 
 /** @brief Verify scalar signal range mapping is done directly via sample(range, elapsedMs). */
@@ -328,6 +328,19 @@ void test_linear_range() {
     TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(SFracQ0_16(0xFFFF))));
     // -1.0 -> 0
     TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SFracQ0_16(Q0_16_MIN))));
+}
+
+/** @brief Verify signed-direct mapping preserves signed identity range exactly. */
+void test_linear_range_signed_direct_identity() {
+    LinearRange<SFracQ0_16> range(
+        SFracQ0_16(Q0_16_MIN),
+        SFracQ0_16(Q0_16_MAX),
+        RangeMappingMode::SignedDirect
+    );
+
+    TEST_ASSERT_EQUAL_INT32(Q0_16_MIN, raw(range.map(SFracQ0_16(Q0_16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SFracQ0_16(0))));
+    TEST_ASSERT_EQUAL_INT32(Q0_16_MAX, raw(range.map(SFracQ0_16(Q0_16_MAX))));
 }
 
 /** @brief Verify that UVRange correctly interpolates 2D coordinates. */
@@ -367,6 +380,7 @@ void setup() {
     RUN_TEST(test_sine_negative_speed_reverses_direction);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_linear_range);
+    RUN_TEST(test_linear_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
     UNITY_END();
 }
@@ -396,6 +410,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_sine_negative_speed_reverses_direction);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_linear_range);
+    RUN_TEST(test_linear_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
     return UNITY_END();
 }

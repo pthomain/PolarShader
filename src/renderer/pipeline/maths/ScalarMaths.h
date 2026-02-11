@@ -139,6 +139,13 @@ namespace PolarShader {
         if (raw_value >= Q0_16_MAX) return FRACT_Q0_16_MAX;
         return static_cast<uint32_t>(raw_value + Q0_16_ONE) >> 1;
     }
+
+    // Map unsigned Q0.16 [0..1] raw values to signed Q0.16 [-1..1] with 0 at midpoint.
+    // 0 -> -1, ~0.5 -> 0, +1 -> +1.
+    constexpr int32_t unit_to_signed_raw(uint32_t raw_value) {
+        if (raw_value >= FRACT_Q0_16_MAX) return Q0_16_MAX;
+        return static_cast<int32_t>(raw_value << 1) - Q0_16_ONE;
+    }
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_SCALARMATHS_H
