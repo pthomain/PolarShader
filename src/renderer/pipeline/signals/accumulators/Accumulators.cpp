@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/maths/AngleMaths.h"
 
 namespace PolarShader {

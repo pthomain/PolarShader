@@ -29,6 +29,8 @@ namespace PolarShader {
 
     void Scene::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         for (auto &layer: layers) {
+            Serial.println("advanceFrame");
+
             layer->advanceFrame(progress, elapsedMs);
         }
     }

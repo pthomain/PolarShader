@@ -32,7 +32,7 @@
 #include "../pipeline/PipelineContext.h"
 #include "Layer.h"
 #include "../pipeline/patterns/base/UVPattern.h"
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/transforms/PaletteTransform.h"
 #include "renderer/pipeline/signals/Signals.h"
 

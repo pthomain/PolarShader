@@ -21,7 +21,7 @@
 #include "PaletteTransform.h"
 #include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/SignalAccumulators.h"
+#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include <Arduino.h>
 

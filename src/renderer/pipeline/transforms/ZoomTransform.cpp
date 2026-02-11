@@ -20,6 +20,7 @@
 
 #include "ZoomTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
+#include <cstdio>
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -52,13 +53,15 @@ namespace PolarShader {
         SFracQ0_16 scaleValue;
         int32_t minScaleRaw;
         int32_t maxScaleRaw;
+        TimeMillis lastLogMs;
 
         explicit State(MappedInputs inputs)
             : scaleSignal(std::move(inputs.scaleSignal)),
               range(std::move(inputs.range)),
               scaleValue(SFracQ0_16(0)),
               minScaleRaw(0),
-              maxScaleRaw(0) {
+              maxScaleRaw(0),
+              lastLogMs(0) {
             minScaleRaw = this->range.minRaw();
             maxScaleRaw = this->range.maxRaw();
         }
@@ -70,10 +73,21 @@ namespace PolarShader {
     }
 
     void ZoomTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
-        // Zoom scale should follow the mapped scalar signal directly every frame.
         state->scaleValue = state->scaleSignal.sample(state->range, elapsedMs);
         if (context) {
             context->zoomScale = state->scaleValue;
+            if ((elapsedMs - state->lastLogMs) >= 250) {
+                state->lastLogMs = elapsedMs;
+                char logLine[64];
+                std::snprintf(
+                    logLine,
+                    sizeof(logLine),
+                    "zoom elapsedMs=%lu scaleRaw=%ld",
+                    static_cast<unsigned long>(elapsedMs),
+                    static_cast<long>(raw(state->scaleValue))
+                );
+                Serial.println(logLine);
+            }
         } else {
             Serial.println("ZoomTransform::advanceFrame context is null.");
         }
@@ -84,10 +98,11 @@ namespace PolarShader {
             // Map from [0, 1] to [-1, 1] (relative to center)
             int64_t x = (static_cast<int64_t>(raw(uv.u)) << 1) - 0x00010000;
             int64_t y = (static_cast<int64_t>(raw(uv.v)) << 1) - 0x00010000;
+            int32_t scale = raw(state->scaleValue);
 
             // Apply Q0.16 scale
-            int64_t sx = x * static_cast<int64_t>(raw(state->scaleValue));
-            int64_t sy = y * static_cast<int64_t>(raw(state->scaleValue));
+            int64_t sx = x * static_cast<int64_t>(scale);
+            int64_t sy = y * static_cast<int64_t>(scale);
 
             // Shift back down
             int32_t fx = static_cast<int32_t>(sx >> 16);

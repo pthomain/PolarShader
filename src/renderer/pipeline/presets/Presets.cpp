@@ -51,9 +51,8 @@ namespace PolarShader {
                     "kaleidoscope"
                 )
                 .addTransform(
-                    TranslationTransform(
-                        cPerMil(500),
-                        cPerMil(200)
+                    ZoomTransform(
+                    sine()
                     )
                 );
     }

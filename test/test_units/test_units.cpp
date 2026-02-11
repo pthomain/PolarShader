@@ -20,7 +20,7 @@
 #include "renderer/pipeline/transforms/ZoomTransform.cpp"
 #include "renderer/pipeline/signals/Signals.cpp"
 #include "renderer/pipeline/signals/SignalSamplers.cpp"
-#include "renderer/pipeline/signals/Accumulators.cpp"
+#include "renderer/pipeline/signals/accumulators/Accumulators.cpp"
 #include "renderer/pipeline/patterns/Patterns.cpp"
 #include "renderer/pipeline/patterns/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/HexTilingPattern.cpp"

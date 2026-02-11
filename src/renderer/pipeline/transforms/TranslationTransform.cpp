@@ -26,7 +26,7 @@
 #include "native/Arduino.h"
 #endif
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/SignalAccumulators.h"
+#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include "renderer/pipeline/signals/ranges/PolarRange.h"
 #include "renderer/pipeline/signals/ranges/LinearRange.h"

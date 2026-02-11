@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
 #define POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
 
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include <memory>
 

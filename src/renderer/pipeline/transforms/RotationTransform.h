@@ -22,7 +22,7 @@
 #define POLAR_SHADER_TRANSFORMS_POLAR_ROTATIONTRANSFORM_H
 
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 
 namespace PolarShader {
     /**

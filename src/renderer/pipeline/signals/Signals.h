@@ -27,7 +27,7 @@
 #include "native/FastLED.h"
 #endif
 
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/signals/ranges/LinearRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 

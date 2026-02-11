@@ -21,7 +21,7 @@
 #include "RotationTransform.h"
 #include "renderer/pipeline/signals/ranges/PolarRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/SignalAccumulators.h"
+#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>

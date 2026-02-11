@@ -31,7 +31,7 @@
 #include "../pipeline/patterns/base/UVPattern.h"
 #include "../pipeline/PipelineContext.h"
 #include "../pipeline/PipelineStep.h"
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/transforms/base/Layers.h"
 #include <memory>
 

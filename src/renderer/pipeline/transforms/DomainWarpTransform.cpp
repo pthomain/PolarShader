@@ -28,8 +28,8 @@
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/Signals.h"
-#include "renderer/pipeline/signals/SignalAccumulators.h"
-#include "renderer/pipeline/signals/Accumulators.h"
+#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
+#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include <utility>
 #ifdef ARDUINO
 #include <Arduino.h>
