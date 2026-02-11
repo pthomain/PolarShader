@@ -46,7 +46,7 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis currentTimeMs);
 
-        ColourMap build() const;
+        const ColourMap &build() const;
     };
 }
 

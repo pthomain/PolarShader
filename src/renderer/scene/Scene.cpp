@@ -29,8 +29,6 @@ namespace PolarShader {
 
     void Scene::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
         for (auto &layer: layers) {
-            Serial.println("advanceFrame");
-
             layer->advanceFrame(progress, elapsedMs);
         }
     }
@@ -41,26 +39,29 @@ namespace PolarShader {
     }
 
     namespace {
+        struct CompositedLayer {
+            ColourMap map;
+            FracQ0_16 alpha;
+            BlendMode blendMode;
+        };
+
         CRGB blend(CRGB base, CRGB top, FracQ0_16 alpha, BlendMode mode) {
             if (raw(alpha) == 0) return base;
 
-            // Apply layer alpha to top colour
-            if (raw(alpha) != 0xFFFFu) {
-                top.nscale8_video(static_cast<uint8_t>(raw(alpha) >> 8));
-            }
-
             switch (mode) {
                 case BlendMode::Normal: {
-                    // Simple alpha compositing (assuming top is already scaled by alpha)
-                    // For Normal blend mode with explicit alpha, we usually do lerp.
-                    // But here top is already premultiplied by alpha.
-                    uint8_t a = static_cast<uint8_t>(raw(alpha) >> 8);
-                    return blend(base, top, a);
+                    return blend(base, top, static_cast<uint8_t>(raw(alpha) >> 8));
                 }
                 case BlendMode::Add: {
+                    if (raw(alpha) != 0xFFFFu) {
+                        top.nscale8_video(static_cast<uint8_t>(raw(alpha) >> 8));
+                    }
                     return base + top;
                 }
                 case BlendMode::Multiply: {
+                    if (raw(alpha) != 0xFFFFu) {
+                        top.nscale8_video(static_cast<uint8_t>(raw(alpha) >> 8));
+                    }
                     CRGB result;
                     result.r = (static_cast<uint16_t>(base.r) * top.r) >> 8;
                     result.g = (static_cast<uint16_t>(base.g) * top.g) >> 8;
@@ -68,6 +69,9 @@ namespace PolarShader {
                     return result;
                 }
                 case BlendMode::Screen: {
+                    if (raw(alpha) != 0xFFFFu) {
+                        top.nscale8_video(static_cast<uint8_t>(raw(alpha) >> 8));
+                    }
                     CRGB result;
                     result.r = 255 - ((static_cast<uint16_t>(255 - base.r) * (255 - top.r)) >> 8);
                     result.g = 255 - ((static_cast<uint16_t>(255 - base.g) * (255 - top.g)) >> 8);
@@ -85,16 +89,21 @@ namespace PolarShader {
             return [](FracQ0_16, FracQ0_16) { return CRGB::Black; };
         }
 
-        fl::vector<ColourMap> maps;
+        fl::vector<CompositedLayer> composedLayers;
+        composedLayers.reserve(layers.size());
         for (const auto &layer: layers) {
-            maps.push_back(layer->build());
+            composedLayers.push_back(CompositedLayer{
+                layer->build(),
+                layer->getAlpha(),
+                layer->getBlendMode()
+            });
         }
 
-        return [layers = this->layers, maps = std::move(maps)](FracQ0_16 angle, FracQ0_16 radius) {
+        return [composedLayers = std::move(composedLayers)](FracQ0_16 angle, FracQ0_16 radius) {
             CRGB result = CRGB::Black;
-            for (size_t i = 0; i < layers.size(); ++i) {
-                CRGB layerColor = maps[i](angle, radius);
-                result = blend(result, layerColor, layers[i]->getAlpha(), layers[i]->getBlendMode());
+            for (const auto &entry: composedLayers) {
+                CRGB layerColor = entry.map(angle, radius);
+                result = blend(result, layerColor, entry.alpha, entry.blendMode);
             }
             return result;
         };

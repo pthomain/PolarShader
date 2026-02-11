@@ -52,7 +52,10 @@ namespace PolarShader {
                 )
                 .addTransform(
                     ZoomTransform(
-                    sine()
+                        sine(
+                            ceiling(),
+                            ceiling()
+                        )
                     )
                 );
     }

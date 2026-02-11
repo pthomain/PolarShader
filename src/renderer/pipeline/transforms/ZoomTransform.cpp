@@ -78,15 +78,6 @@ namespace PolarShader {
             context->zoomScale = state->scaleValue;
             if ((elapsedMs - state->lastLogMs) >= 250) {
                 state->lastLogMs = elapsedMs;
-                char logLine[64];
-                std::snprintf(
-                    logLine,
-                    sizeof(logLine),
-                    "zoom elapsedMs=%lu scaleRaw=%ld",
-                    static_cast<unsigned long>(elapsedMs),
-                    static_cast<long>(raw(state->scaleValue))
-                );
-                Serial.println(logLine);
             }
         } else {
             Serial.println("ZoomTransform::advanceFrame context is null.");

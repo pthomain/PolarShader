@@ -69,7 +69,7 @@ namespace PolarShader {
         SFracQ0_16Signal speed = cPerMil(100),
         SFracQ0_16Signal amplitude = ceiling(),
         SFracQ0_16Signal offset = floor(),
-        SFracQ0_16Signal phaseOffset = floor()
+        SFracQ0_16Signal phaseOffset = cRandom()
     );
 
     /**
@@ -80,7 +80,7 @@ namespace PolarShader {
         SFracQ0_16Signal speed = cPerMil(100),
         SFracQ0_16Signal amplitude = ceiling(),
         SFracQ0_16Signal offset = floor(),
-        SFracQ0_16Signal phaseOffset = floor()
+        SFracQ0_16Signal phaseOffset = cRandom()
     );
 
     SFracQ0_16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);

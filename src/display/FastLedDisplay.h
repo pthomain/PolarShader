@@ -52,7 +52,6 @@ namespace PolarShader {
 
         void loop() {
             EVERY_N_MILLISECONDS(refreshRateInMillis) {
-                Serial.println("loop");
                 renderer.render(outputArray, millis());
                 FastLED.show();
             }

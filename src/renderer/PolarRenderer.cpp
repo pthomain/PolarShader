@@ -43,7 +43,7 @@ namespace PolarShader {
         TimeMillis timeInMillis
     ) {
         sceneManager.advanceFrame(timeInMillis);
-        ColourMap colourMap = sceneManager.build();
+        const ColourMap &colourMap = sceneManager.build();
         for (uint16_t pixelIndex = 0; pixelIndex < nbLeds; ++pixelIndex) {
             auto [angle, radius] = coordsMapper(pixelIndex);
             outputArray[pixelIndex] = colourMap(angle, radius);
