@@ -29,11 +29,11 @@
 
 namespace PolarShader {
     UV polarToCartesianUV(UV polar_uv) {
-        FracQ0_16 angle_turns = FracQ0_16(static_cast<uint16_t>(raw(polar_uv.u)));
-        FracQ0_16 radius = FracQ0_16(static_cast<uint16_t>(raw(polar_uv.v)));
+        UQ0_16 angle_turns = UQ0_16(static_cast<uint16_t>(raw(polar_uv.u)));
+        UQ0_16 radius = UQ0_16(static_cast<uint16_t>(raw(polar_uv.v)));
 
-        SFracQ0_16 cos_val = angleCosQ0_16(angle_turns);
-        SFracQ0_16 sin_val = angleSinQ0_16(angle_turns);
+        SQ0_16 cos_val = angleCosQ0_16(angle_turns);
+        SQ0_16 sin_val = angleSinQ0_16(angle_turns);
 
         // x = cos(angle) * radius, y = sin(angle) * radius
         // Result is in range [-1, 1] relative to center
@@ -46,7 +46,7 @@ namespace PolarShader {
         int32_t x_norm = (x_raw + 0x00010000) >> 1;
         int32_t y_norm = (y_raw + 0x00010000) >> 1;
 
-        return UV(FracQ16_16(x_norm), FracQ16_16(y_norm));
+        return UV(SQ16_16(x_norm), SQ16_16(y_norm));
     }
 
     UV cartesianToPolarUV(UV cart_uv) {
@@ -55,22 +55,22 @@ namespace PolarShader {
         int32_t x = (raw(cart_uv.u) << 1) - 0x00010000;
         int32_t y = (raw(cart_uv.v) << 1) - 0x00010000;
 
-        int32_t clamped_x = constrain(x, Q0_16_MIN, Q0_16_MAX);
-        int32_t clamped_y = constrain(y, Q0_16_MIN, Q0_16_MAX);
+        int32_t clamped_x = constrain(x, SQ0_16_MIN, SQ0_16_MAX);
+        int32_t clamped_y = constrain(y, SQ0_16_MIN, SQ0_16_MAX);
         int16_t x16 = static_cast<int16_t>(clamped_x >> 1);
         int16_t y16 = static_cast<int16_t>(clamped_y >> 1);
 
-        FracQ0_16 angle_units = angleAtan2TurnsApprox(y16, x16);
+        UQ0_16 angle_units = angleAtan2TurnsApprox(y16, x16);
         int64_t dx = clamped_x;
         int64_t dy = clamped_y;
 
         uint64_t radius_squared = static_cast<uint64_t>(dx * dx) + static_cast<uint64_t>(dy * dy);
         uint64_t magnitude_raw = sqrtU64(radius_squared);
 
-        if (magnitude_raw > static_cast<uint64_t>(FRACT_Q0_16_MAX)) {
-            magnitude_raw = FRACT_Q0_16_MAX;
+        if (magnitude_raw > static_cast<uint64_t>(SQ0_16_MAX)) {
+            magnitude_raw = SQ0_16_MAX;
         }
 
-        return UV(FracQ16_16(raw(angle_units)), FracQ16_16(static_cast<int32_t>(magnitude_raw)));
+        return UV(SQ16_16(raw(angle_units)), SQ16_16(static_cast<int32_t>(magnitude_raw)));
     }
 }

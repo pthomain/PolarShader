@@ -32,6 +32,8 @@
 #include <utility>
 
 namespace PolarShader {
+    using SampleSignal = fl::function<SQ0_16(UQ0_16)>;
+
     enum class SignalKind : uint8_t {
         PERIODIC,
         APERIODIC
@@ -44,20 +46,20 @@ namespace PolarShader {
     /**
      * @brief Time-indexed scalar signal saturated to signed Q0.16 [-1, 1].
      */
-    class SFracQ0_16Signal {
+    class SQ0_16Signal {
     public:
-        using WaveformFn = fl::function<SFracQ0_16(TimeMillis)>;
+        using WaveformFn = fl::function<SQ0_16(TimeMillis)>;
 
-        SFracQ0_16Signal() = default;
+        SQ0_16Signal() = default;
 
-        SFracQ0_16Signal(
+        SQ0_16Signal(
             SignalKind kind,
             WaveformFn waveform
         ) : kind_(kind),
             waveformFn(std::move(waveform)) {
         }
 
-        SFracQ0_16Signal(
+        SQ0_16Signal(
             SignalKind kind,
             LoopMode loopMode,
             TimeMillis durationMs,
@@ -68,21 +70,21 @@ namespace PolarShader {
             waveformFn(std::move(waveform)) {
         }
 
-        static SFracQ0_16Signal periodic(WaveformFn waveform) {
-            return SFracQ0_16Signal(SignalKind::PERIODIC, std::move(waveform));
+        static SQ0_16Signal periodic(WaveformFn waveform) {
+            return {SignalKind::PERIODIC, std::move(waveform)};
         }
 
-        static SFracQ0_16Signal aperiodic(TimeMillis durationMs, LoopMode loopMode, WaveformFn waveform) {
-            return SFracQ0_16Signal(SignalKind::APERIODIC, loopMode, durationMs, std::move(waveform));
+        static SQ0_16Signal aperiodic(TimeMillis durationMs, LoopMode loopMode, WaveformFn waveform) {
+            return {SignalKind::APERIODIC, loopMode, durationMs, std::move(waveform)};
         }
 
         template<typename RangeT>
         auto sample(const RangeT &range, TimeMillis elapsedMs) const {
-            if (!waveformFn) return range.map(SFracQ0_16(0));
+            if (!waveformFn) return range.map(SQ0_16(0));
 
             TimeMillis relativeTime = elapsedMs;
             if (kind_ == SignalKind::APERIODIC) {
-                if (durationMs_ == 0) return range.map(SFracQ0_16(0));
+                if (durationMs_ == 0) return range.map(SQ0_16(0));
 
                 switch (loopMode_) {
                     case LoopMode::RESET:
@@ -92,7 +94,7 @@ namespace PolarShader {
                 }
             }
 
-            SFracQ0_16 value = scalarClampQ0_16Raw(raw(waveformFn(relativeTime)));
+            SQ0_16 value = scalarClampQ0_16Raw(raw(waveformFn(relativeTime)));
             return range.map(value);
         }
 
@@ -121,7 +123,7 @@ namespace PolarShader {
 
     class UVSignal {
     public:
-        using SampleFn = fl::function<UV(FracQ0_16, TimeMillis)>;
+        using SampleFn = fl::function<UV(UQ0_16, TimeMillis)>;
 
         UVSignal() = default;
 
@@ -130,33 +132,33 @@ namespace PolarShader {
         }
 
         template<typename Fn, typename std::enable_if_t<
-            std::is_invocable_r_v<UV, Fn &, FracQ0_16, TimeMillis>, int> = 0>
+            std::is_invocable_r_v<UV, Fn &, UQ0_16, TimeMillis>, int> = 0>
         explicit UVSignal(Fn sample)
             : sampleFn(std::move(sample)) {
         }
 
         template<typename Fn, typename std::enable_if_t<
-            !std::is_invocable_r_v<UV, Fn &, FracQ0_16, TimeMillis> &&
-            std::is_invocable_r_v<UV, Fn &, FracQ0_16>, int> = 0>
+            !std::is_invocable_r_v<UV, Fn &, UQ0_16, TimeMillis> &&
+            std::is_invocable_r_v<UV, Fn &, UQ0_16>, int> = 0>
         explicit UVSignal(Fn sample)
-            : sampleFn([sample = std::move(sample)](FracQ0_16 progress, TimeMillis) mutable {
+            : sampleFn([sample = std::move(sample)](UQ0_16 progress, TimeMillis) mutable {
                   return sample(progress);
               }) {
         }
 
-        UV sample(FracQ0_16 progress, TimeMillis elapsedMs) const {
+        UV sample(UQ0_16 progress, TimeMillis elapsedMs) const {
             return sampleFn ? sampleFn(progress, elapsedMs) : UV();
         }
 
-        UV sample(FracQ0_16 progress) const {
+        UV sample(UQ0_16 progress) const {
             return sample(progress, 0);
         }
 
-        UV operator()(FracQ0_16 progress, TimeMillis elapsedMs) const {
+        UV operator()(UQ0_16 progress, TimeMillis elapsedMs) const {
             return sample(progress, elapsedMs);
         }
 
-        UV operator()(FracQ0_16 progress) const {
+        UV operator()(UQ0_16 progress) const {
             return sample(progress, 0);
         }
 

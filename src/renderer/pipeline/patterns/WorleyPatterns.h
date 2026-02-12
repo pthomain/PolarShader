@@ -48,11 +48,11 @@ namespace PolarShader {
 
         explicit WorleyBasePattern(WorleyAliasing aliasingMode);
 
-        void configureCellSize(CartQ24_8 cellSize);
+        void configureCellSize(SQ24_8 cellSize);
 
-        CartQ24_8 aliasingOffset() const;
+        SQ24_8 aliasingOffset() const;
 
-        Distances computeDistances(CartQ24_8 x, CartQ24_8 y) const;
+        Distances computeDistances(SQ24_8 x, SQ24_8 y) const;
 
         PatternNormU16 normalizeDistance(uint64_t dist) const;
 
@@ -71,16 +71,16 @@ namespace PolarShader {
 
     public:
         explicit WorleyPattern(
-            CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
+            SQ24_8 cellSize = SQ24_8(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        PatternNormU16 sampleFast(CartQ24_8 x, CartQ24_8 y) const;
+        PatternNormU16 sampleFast(SQ24_8 x, SQ24_8 y) const;
 
-        PatternNormU16 samplePrecise(CartQ24_8 x, CartQ24_8 y) const;
+        PatternNormU16 samplePrecise(SQ24_8 x, SQ24_8 y) const;
     };
 
     /**
@@ -98,21 +98,21 @@ namespace PolarShader {
 
     public:
         explicit VoronoiPattern(
-            CartQ24_8 cellSize = CartQ24_8(WorleyCellUnit),
+            SQ24_8 cellSize = SQ24_8(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        PatternNormU16 sampleIdFast(CartQ24_8 x, CartQ24_8 y) const;
+        PatternNormU16 sampleIdFast(SQ24_8 x, SQ24_8 y) const;
 
         PatternNormU16 sampleFastestId(
-            CartQ24_8 x0, CartQ24_8 y0,
-            CartQ24_8 x1, CartQ24_8 y1
+            SQ24_8 x0, SQ24_8 y0,
+            SQ24_8 x1, SQ24_8 y1
         ) const;
 
-        PatternNormU16 samplePrecise(CartQ24_8 x, CartQ24_8 y) const;
+        PatternNormU16 samplePrecise(SQ24_8 x, SQ24_8 y) const;
     };
 }
 

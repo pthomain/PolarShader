@@ -46,12 +46,12 @@ namespace PolarShader {
     }
 
     struct CartesianTilingTransform::MappedInputs {
-        SFracQ0_16Signal cellSizeSignal;
+        SQ0_16Signal cellSizeSignal;
         LinearRange<int32_t> cellSizeRange;
     };
 
     CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
-        SFracQ0_16Signal cellSize,
+        SQ0_16Signal cellSize,
         int32_t minCellSize,
         int32_t maxCellSize
     ) {
@@ -64,7 +64,7 @@ namespace PolarShader {
     struct CartesianTilingTransform::State {
         int32_t cellSizeRaw;
         bool mirrored;
-        SFracQ0_16Signal cellSizeSignal;
+        SQ0_16Signal cellSizeSignal;
         LinearRange<int32_t> cellSizeRange;
         bool hasSignal;
     };
@@ -73,14 +73,14 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{
             clampCellSize(static_cast<int64_t>(cellSizeQ24_8) * kCellSizeScale),
             mirrored,
-            SFracQ0_16Signal(),
+            SQ0_16Signal(),
             LinearRange<int32_t>(1, 1),
             false
         })) {
     }
 
     CartesianTilingTransform::CartesianTilingTransform(
-        SFracQ0_16Signal cellSize,
+        SQ0_16Signal cellSize,
         int32_t minCellSize,
         int32_t maxCellSize,
         bool mirrored
@@ -101,7 +101,7 @@ namespace PolarShader {
         }
     }
 
-    void CartesianTilingTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
+    void CartesianTilingTransform::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
         if (state->hasSignal && state->cellSizeSignal) {
             int32_t value = state->cellSizeSignal.sample(state->cellSizeRange, elapsedMs);
             value = clampCellSize(static_cast<int64_t>(value) * kCellSizeScale);
@@ -122,8 +122,8 @@ namespace PolarShader {
             // That's unusual. Let's check from_uv.
             // from_uv(uv) returns CartQ24.8 (Q24.8).
             
-            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            SQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            SQ24_8 cy = CartesianMaths::from_uv(uv.v);
             
             // Tiling logic using existing CartesianLayer operator's math
             int32_t x_raw = raw(cx);
@@ -139,8 +139,8 @@ namespace PolarShader {
             }
             
             UV tiled_uv(
-                CartesianMaths::to_uv(CartQ24_8(local_x)),
-                CartesianMaths::to_uv(CartQ24_8(local_y))
+                CartesianMaths::to_uv(SQ24_8(local_x)),
+                CartesianMaths::to_uv(SQ24_8(local_y))
             );
 
             return layer(tiled_uv);

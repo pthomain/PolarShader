@@ -1,7 +1,7 @@
 {
   "id": "uv_signals_20260206",
   "name": "UV Signal Integration",
-  "description": "Introduce UVSignal and update the signal engine to support UV and FracQ16_16 accumulation.",
+  "description": "Introduce UVSignal and update the signal engine to support UV and SQ16_16 accumulation.",
   "status": "todo",
   "created_at": "2026-02-06"
 }

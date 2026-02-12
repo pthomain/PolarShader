@@ -24,6 +24,7 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include <cstdint>
 #include <limits>
+#include <type_traits>
 
 namespace PolarShader {
     namespace detail {
@@ -32,25 +33,46 @@ namespace PolarShader {
             static T zero() { return T(0); }
 
             static T add(T base, T delta) {
-                return static_cast<T>(static_cast<int64_t>(base) + static_cast<int64_t>(delta));
+                if constexpr (std::is_arithmetic_v<T>) {
+                    return static_cast<T>(static_cast<int64_t>(base) + static_cast<int64_t>(delta));
+                } else {
+                    using Rep = std::decay_t<decltype(raw(base))>;
+                    int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
+                    if constexpr (std::numeric_limits<Rep>::is_integer) {
+                        if constexpr (std::numeric_limits<Rep>::is_signed) {
+                            if (sum > static_cast<int64_t>(std::numeric_limits<Rep>::max())) {
+                                sum = static_cast<int64_t>(std::numeric_limits<Rep>::max());
+                            }
+                            if (sum < static_cast<int64_t>(std::numeric_limits<Rep>::min())) {
+                                sum = static_cast<int64_t>(std::numeric_limits<Rep>::min());
+                            }
+                        } else {
+                            if (sum < 0) sum = 0;
+                            if (sum > static_cast<int64_t>(std::numeric_limits<Rep>::max())) {
+                                sum = static_cast<int64_t>(std::numeric_limits<Rep>::max());
+                            }
+                        }
+                    }
+                    return T(static_cast<Rep>(sum));
+                }
             }
         };
 
         template<>
-        struct SignalAccumulator<FracQ0_16> {
-            static FracQ0_16 zero() { return FracQ0_16(0); }
+        struct SignalAccumulator<UQ0_16> {
+            static UQ0_16 zero() { return UQ0_16(0); }
 
-            static FracQ0_16 add(FracQ0_16 base, FracQ0_16 delta) {
+            static UQ0_16 add(UQ0_16 base, UQ0_16 delta) {
                 uint32_t sum = static_cast<uint32_t>(raw(base)) + static_cast<uint32_t>(raw(delta));
-                return FracQ0_16(static_cast<uint16_t>(sum));
+                return UQ0_16(static_cast<uint16_t>(sum));
             }
         };
 
         template<>
-        struct SignalAccumulator<SFracQ0_16> {
-            static SFracQ0_16 zero() { return SFracQ0_16(0); }
+        struct SignalAccumulator<SQ0_16> {
+            static SQ0_16 zero() { return SQ0_16(0); }
 
-            static SFracQ0_16 add(SFracQ0_16 base, SFracQ0_16 delta) {
+            static SQ0_16 add(SQ0_16 base, SQ0_16 delta) {
                 int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
                 return scalarClampQ0_16Raw(sum);
             }
@@ -78,29 +100,28 @@ namespace PolarShader {
         };
 
         template<>
-        struct SignalAccumulator<CartQ24_8> {
-            static CartQ24_8 zero() { return CartQ24_8(0); }
+        struct SignalAccumulator<SQ24_8> {
+            static SQ24_8 zero() { return SQ24_8(0); }
 
-            static CartQ24_8 add(CartQ24_8 base, CartQ24_8 delta) {
+            static SQ24_8 add(SQ24_8 base, SQ24_8 delta) {
                 int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
                 if (sum > std::numeric_limits<int32_t>::max()) sum = std::numeric_limits<int32_t>::max();
                 if (sum < std::numeric_limits<int32_t>::min()) sum = std::numeric_limits<int32_t>::min();
-                return CartQ24_8(static_cast<int32_t>(sum));
+                return SQ24_8(static_cast<int32_t>(sum));
             }
         };
 
         template<>
-        struct SignalAccumulator<FracQ16_16> {
-            static FracQ16_16 zero() { return FracQ16_16(0); }
+        struct SignalAccumulator<SQ16_16> {
+            static SQ16_16 zero() { return SQ16_16(0); }
 
-            static FracQ16_16 add(FracQ16_16 base, FracQ16_16 delta) {
-                return FracQ16_16(raw(base) + raw(delta));
+            static SQ16_16 add(SQ16_16 base, SQ16_16 delta) {
+                return SQ16_16(raw(base) + raw(delta));
             }
         };
 
     }
 
-    inline UVSignal resolveMappedSignal(UVSignal signal) { return signal; }
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_ACCUMULATORS_H

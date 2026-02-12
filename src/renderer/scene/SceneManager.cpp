@@ -23,7 +23,7 @@
 namespace PolarShader {
     SceneManager::SceneManager(std::unique_ptr<SceneProvider> provider)
         : provider(std::move(provider)),
-          currentMap([](FracQ0_16, FracQ0_16) { return CRGB::Black; }) {
+          currentMap([](UQ0_16, UQ0_16) { return CRGB::Black; }) {
     }
 
     void SceneManager::advanceFrame(TimeMillis currentTimeMs) {
@@ -33,21 +33,21 @@ namespace PolarShader {
                 currentSceneStartTimeMs = currentTimeMs;
                 currentMap = currentScene->build();
             } else {
-                currentMap = [](FracQ0_16, FracQ0_16) { return CRGB::Black; };
+                currentMap = [](UQ0_16, UQ0_16) { return CRGB::Black; };
             }
         }
 
         if (currentScene) {
             TimeMillis elapsed = currentTimeMs - currentSceneStartTimeMs;
             TimeMillis duration = currentScene->getDuration();
-            FracQ0_16 progress;
+            UQ0_16 progress;
 
             if (duration == 0) {
-                progress = FracQ0_16(0xFFFFu);
+                progress = UQ0_16(0xFFFFu);
             } else {
                 uint64_t p = (static_cast<uint64_t>(elapsed) * 0xFFFFu) / duration;
                 if (p > 0xFFFFu) p = 0xFFFFu;
-                progress = FracQ0_16(static_cast<uint16_t>(p));
+                progress = UQ0_16(static_cast<uint16_t>(p));
             }
             currentScene->advanceFrame(progress, elapsed);
         }

@@ -30,20 +30,20 @@ namespace PolarShader {
      * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in Q0.16.
      * s in 0..~1 scales towards the origin; negative values flip axes.
      *
-     * Parameters: scale (SFracQ0_16Signal, Q0.16), mapped to the transform's zoom range.
+     * Parameters: scale (SQ0_16Signal, Q0.16), mapped to the transform's zoom range.
      * Recommended order: early in Cartesian chain before warps/tiling.
      */
     class ZoomTransform : public UVTransform {
     public:
-        explicit ZoomTransform(SFracQ0_16Signal scale);
+        explicit ZoomTransform(SQ0_16Signal scale);
 
-        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
 
     private:
         struct MappedInputs;
-        static MappedInputs makeInputs(SFracQ0_16Signal scale);
+        static MappedInputs makeInputs(SQ0_16Signal scale);
 
         struct State;
         std::shared_ptr<State> state;

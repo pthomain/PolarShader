@@ -65,22 +65,22 @@ namespace PolarShader {
             const int32_t denom_x = MATRIX_WIDTH > 1 ? (MATRIX_WIDTH - 1) : 1;
             const int32_t denom_y = MATRIX_HEIGHT > 1 ? (MATRIX_HEIGHT - 1) : 1;
 
-            const int32_t x_q0_16 = (centered_x * Q0_16_ONE) / denom_x;
-            const int32_t y_q0_16 = (centered_y * Q0_16_ONE) / denom_y;
+            const int32_t x_q0_16 = (centered_x * SQ0_16_ONE) / denom_x;
+            const int32_t y_q0_16 = (centered_y * SQ0_16_ONE) / denom_y;
 
-            const FracQ0_16 diagonal_scale(DIAGONAL_SCALE_Q0_16);
+            const UQ0_16 diagonal_scale(DIAGONAL_SCALE_Q0_16);
             const int32_t scaled_x = scale32(x_q0_16, diagonal_scale);
             const int32_t scaled_y = scale32(y_q0_16, diagonal_scale);
 
             // Convert to UV space [0, 1] then to Polar UV.
             UV cart_uv(
-                FracQ16_16((scaled_x + Q0_16_ONE) >> 1),
-                FracQ16_16((scaled_y + Q0_16_ONE) >> 1)
+                SQ16_16((scaled_x + SQ0_16_ONE) >> 1),
+                SQ16_16((scaled_y + SQ0_16_ONE) >> 1)
             );
             UV polar = cartesianToPolarUV(cart_uv);
             return {
-                FracQ0_16(static_cast<uint16_t>(raw(polar.u))),
-                FracQ0_16(static_cast<uint16_t>(raw(polar.v)))
+                UQ0_16(static_cast<uint16_t>(raw(polar.u))),
+                UQ0_16(static_cast<uint16_t>(raw(polar.v)))
             };
         }
     };

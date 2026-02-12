@@ -24,11 +24,11 @@
 namespace PolarShader {
     namespace {
         constexpr int32_t BASE_CART = 200 << CARTESIAN_FRAC_BITS;
-        constexpr CartQ24_8 BASE_WARP_SCALE = CartQ24_8(6 * BASE_CART);
-        constexpr CartQ24_8 STRONG_WARP_SCALE = CartQ24_8(12 * BASE_CART);
-        constexpr CartQ24_8 MAX_OFFSET_SOFT = CartQ24_8(12 * BASE_CART);
-        constexpr CartQ24_8 MAX_OFFSET_MED = CartQ24_8(24 * BASE_CART);
-        constexpr CartQ24_8 MAX_OFFSET_STRONG = CartQ24_8(36 * BASE_CART);
+        constexpr SQ24_8 BASE_WARP_SCALE = SQ24_8(6 * BASE_CART);
+        constexpr SQ24_8 STRONG_WARP_SCALE = SQ24_8(12 * BASE_CART);
+        constexpr SQ24_8 MAX_OFFSET_SOFT = SQ24_8(12 * BASE_CART);
+        constexpr SQ24_8 MAX_OFFSET_MED = SQ24_8(24 * BASE_CART);
+        constexpr SQ24_8 MAX_OFFSET_STRONG = SQ24_8(36 * BASE_CART);
     }
 
     DomainWarpTransform domainWarpBasic() {

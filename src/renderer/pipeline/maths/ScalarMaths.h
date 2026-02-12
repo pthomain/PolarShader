@@ -31,15 +31,15 @@
 namespace PolarShader {
     namespace detail {
         constexpr int64_t clamp_raw_q0_16_i64(int64_t value) {
-            if (value > Q0_16_MAX) return Q0_16_MAX;
-            if (value < Q0_16_MIN) return Q0_16_MIN;
+            if (value > SQ0_16_MAX) return SQ0_16_MAX;
+            if (value < SQ0_16_MIN) return SQ0_16_MIN;
             return value;
         }
     }
 
-    inline fl::i32 scale32(fl::i32 value, FracQ0_16 scale) {
+    inline fl::i32 scale32(fl::i32 value, UQ0_16 scale) {
         uint16_t scale_raw = raw(scale);
-        if (scale_raw == FRACT_Q0_16_MAX) return value;
+        if (scale_raw == USQ0_16_MAX) return value;
         int64_t result = static_cast<int64_t>(value) * static_cast<int64_t>(scale_raw);
         result += (result >= 0) ? U16_HALF : -U16_HALF;
         result >>= 16;
@@ -47,19 +47,19 @@ namespace PolarShader {
         return static_cast<int32_t>(result);
     }
 
-    inline SFracQ0_16 mulSFracSat(SFracQ0_16 a, SFracQ0_16 b) {
+    inline SQ0_16 mulSFracSat(SQ0_16 a, SQ0_16 b) {
         int64_t result = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
         result += (result >= 0) ? U16_HALF : -U16_HALF;
         result >>= 16;
         result = detail::clamp_raw_q0_16_i64(result);
-        return SFracQ0_16(static_cast<int32_t>(result));
+        return SQ0_16(static_cast<int32_t>(result));
     }
 
-    inline SFracQ0_16 mulSFracWrap(SFracQ0_16 a, SFracQ0_16 b) {
+    inline SQ0_16 mulSFracWrap(SQ0_16 a, SQ0_16 b) {
         int64_t result_i64 = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
         result_i64 += (result_i64 >= 0) ? (1LL << 15) : -(1LL << 15);
         result_i64 >>= 16;
-        return SFracQ0_16(static_cast<int32_t>(result_i64));
+        return SQ0_16(static_cast<int32_t>(result_i64));
     }
 
     inline uint64_t sqrtU64(uint64_t value) {
@@ -83,22 +83,22 @@ namespace PolarShader {
         return res;
     }
 
-    inline SFracQ0_16 scalarClampQ0_16Raw(int64_t raw_value) {
-        return SFracQ0_16(static_cast<int32_t>(detail::clamp_raw_q0_16_i64(raw_value)));
+    inline SQ0_16 scalarClampQ0_16Raw(int64_t raw_value) {
+        return SQ0_16(static_cast<int32_t>(detail::clamp_raw_q0_16_i64(raw_value)));
     }
 
     /**
      * @brief Create a Q0.16 bounded scalar from a rational fraction without floating point.
      */
-    constexpr FracQ0_16 frac(uint16_t numerator, uint16_t denominator) {
-        if (numerator == 0 || denominator == 0) return FracQ0_16(0);
-        uint64_t raw_value = (static_cast<uint64_t>(FRACT_Q0_16_MAX) * numerator) / denominator;
-        if (raw_value > FRACT_Q0_16_MAX) raw_value = FRACT_Q0_16_MAX;
-        return FracQ0_16(static_cast<uint16_t>(raw_value));
+    constexpr UQ0_16 uFrac(uint16_t numerator, uint16_t denominator) {
+        if (numerator == 0 || denominator == 0) return UQ0_16(0);
+        uint64_t raw_value = (static_cast<uint64_t>(USQ0_16_MAX) * numerator) / denominator;
+        if (raw_value > USQ0_16_MAX) raw_value = USQ0_16_MAX;
+        return UQ0_16(static_cast<uint16_t>(raw_value));
     }
 
-    constexpr FracQ0_16 frac(uint16_t denominator) {
-        return frac(1u, denominator);
+    constexpr UQ0_16 uFrac(uint16_t denominator) {
+        return uFrac(1u, denominator);
     }
 
     /**
@@ -106,20 +106,20 @@ namespace PolarShader {
      *
      * Returns the negated result of frac().
      */
-    constexpr SFracQ0_16 sFrac(uint16_t numerator, uint16_t denominator) {
-        FracQ0_16 value = frac(numerator, denominator);
-        return SFracQ0_16(-static_cast<int32_t>(raw(value)));
+    constexpr SQ0_16 sFrac(uint16_t numerator, uint16_t denominator) {
+        UQ0_16 value = uFrac(numerator, denominator);
+        return SQ0_16(-static_cast<int32_t>(raw(value)));
     }
 
-    constexpr SFracQ0_16 sFrac(uint16_t denominator) {
+    constexpr SQ0_16 sFrac(uint16_t denominator) {
         return sFrac(1u, denominator);
     }
 
-    constexpr FracQ0_16 perMil(uint16_t perMil) {
-        if (perMil == 0) return FracQ0_16(0);
-        uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(FRACT_Q0_16_MAX) * perMil) / 1000);
-        if (raw_value > FRACT_Q0_16_MAX) raw_value = FRACT_Q0_16_MAX;
-        return FracQ0_16(static_cast<uint16_t>(raw_value));
+    constexpr UQ0_16 uPerMil(uint16_t perMil) {
+        if (perMil == 0) return UQ0_16(0);
+        uint32_t raw_value = static_cast<uint32_t>((static_cast<uint64_t>(USQ0_16_MAX) * perMil) / 1000);
+        if (raw_value > USQ0_16_MAX) raw_value = USQ0_16_MAX;
+        return UQ0_16(static_cast<uint16_t>(raw_value));
     }
 
     /**
@@ -127,24 +127,24 @@ namespace PolarShader {
      *
      * Returns the negated result of perMil().
      */
-    constexpr SFracQ0_16 sPerMil(uint16_t perMilValue) {
-        FracQ0_16 value = perMil(perMilValue);
-        return SFracQ0_16(-static_cast<int32_t>(raw(value)));
+    constexpr SQ0_16 sPerMil(uint16_t perMil) {
+        UQ0_16 value = uPerMil(perMil);
+        return SQ0_16(-static_cast<int32_t>(raw(value)));
     }
 
     // Map signed Q0.16 [-1..1] raw values to unsigned Q0.16 [0..1] with 0 at midpoint.
     // -1 -> 0, 0 -> ~0.5, +1 -> 1.
     constexpr uint32_t signed_to_unit_raw(int32_t raw_value) {
-        if (raw_value <= Q0_16_MIN) return 0u;
-        if (raw_value >= Q0_16_MAX) return FRACT_Q0_16_MAX;
-        return static_cast<uint32_t>(raw_value + Q0_16_ONE) >> 1;
+        if (raw_value <= SQ0_16_MIN) return 0u;
+        if (raw_value >= SQ0_16_MAX) return USQ0_16_MAX;
+        return static_cast<uint32_t>(raw_value + SQ0_16_ONE) >> 1;
     }
 
     // Map unsigned Q0.16 [0..1] raw values to signed Q0.16 [-1..1] with 0 at midpoint.
     // 0 -> -1, ~0.5 -> 0, +1 -> +1.
     constexpr int32_t unit_to_signed_raw(uint32_t raw_value) {
-        if (raw_value >= FRACT_Q0_16_MAX) return Q0_16_MAX;
-        return static_cast<int32_t>(raw_value << 1) - Q0_16_ONE;
+        if (raw_value >= USQ0_16_MAX) return SQ0_16_MAX;
+        return static_cast<int32_t>(raw_value << 1) - SQ0_16_ONE;
     }
 }
 

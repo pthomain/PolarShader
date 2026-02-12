@@ -53,15 +53,15 @@ namespace PolarShader {
             }
         }
 
-        T map(SFracQ0_16 t) const override {
+        T map(SQ0_16 t) const override {
             int64_t span = max_raw - min_raw;
             if (span == 0) return T(static_cast<Rep>(min_raw));
 
             switch (resolvedMode()) {
                 case RangeMappingMode::SignedDirect: {
-                    constexpr int64_t signed_span = static_cast<int64_t>(Q0_16_MAX) - static_cast<int64_t>(Q0_16_MIN);
+                    constexpr int64_t signed_span = static_cast<int64_t>(SQ0_16_MAX) - static_cast<int64_t>(SQ0_16_MIN);
                     int64_t signed_raw = static_cast<int64_t>(Range<T>::mapSigned(t));
-                    int64_t signed_t = signed_raw - static_cast<int64_t>(Q0_16_MIN);
+                    int64_t signed_t = signed_raw - static_cast<int64_t>(SQ0_16_MIN);
                     int64_t scaled = (span * signed_t + (signed_span / 2)) / signed_span;
                     return T(static_cast<Rep>(min_raw + scaled));
                 }
@@ -74,8 +74,8 @@ namespace PolarShader {
             }
         }
 
-        int32_t minRaw() const { return static_cast<int32_t>(min_raw); }
-        int32_t maxRaw() const { return static_cast<int32_t>(max_raw); }
+        int64_t minRaw() const { return min_raw; }
+        int64_t maxRaw() const { return max_raw; }
 
     private:
         RangeMappingMode resolvedMode() const {

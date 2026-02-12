@@ -59,7 +59,7 @@ namespace PolarShader {
         std::shared_ptr<PipelineContext> context;
         DepthSignal depthSignal;
         
-        FracQ0_16 alpha{0xFFFFu};
+        UQ0_16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
 
         static ColourMap blackLayer(const char *reason);
@@ -77,20 +77,20 @@ namespace PolarShader {
             const char *name,
             std::shared_ptr<PipelineContext> context,
             DepthSignal depthSignal,
-            FracQ0_16 alpha = FracQ0_16(0xFFFFu),
+            UQ0_16 alpha = UQ0_16(0xFFFFu),
             BlendMode blendMode = BlendMode::Normal
         );
 
         friend class LayerBuilder;
 
     public:
-        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs);
+        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs);
 
         ColourMap build() const;
 
         const char *getName() const { return name; }
 
-        FracQ0_16 getAlpha() const { return alpha; }
+        UQ0_16 getAlpha() const { return alpha; }
         BlendMode getBlendMode() const { return blendMode; }
     };
 }

@@ -37,11 +37,11 @@ namespace PolarShader {
         explicit TranslationTransform(UVSignal offsetSignal);
 
         TranslationTransform(
-            SFracQ0_16Signal direction,
-            SFracQ0_16Signal speed
+            SQ0_16Signal direction,
+            SQ0_16Signal speed
         );
 
-        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
 

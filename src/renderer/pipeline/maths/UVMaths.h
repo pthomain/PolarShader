@@ -21,6 +21,8 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_UVMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_UVMATHS_H
 
+#include "units/Units.h"
+
 namespace PolarShader {
     /**
      * @brief Provides basic arithmetic for unified UV coordinates.
@@ -30,11 +32,17 @@ namespace PolarShader {
      */
     namespace UVMaths {
         constexpr UV add(UV a, UV b) {
-            return UV(FracQ16_16(raw(a.u) + raw(b.u)), FracQ16_16(raw(a.v) + raw(b.v)));
+            return UV(
+                SQ16_16(raw(a.u) + raw(b.u)),
+                SQ16_16(raw(a.v) + raw(b.v))
+            );
         }
 
         constexpr UV sub(UV a, UV b) {
-            return UV(FracQ16_16(raw(a.u) - raw(b.u)), FracQ16_16(raw(a.v) - raw(b.v)));
+            return UV(
+                SQ16_16(raw(a.u) - raw(b.u)),
+                SQ16_16(raw(a.v) - raw(b.v))
+            );
         }
     }
 }

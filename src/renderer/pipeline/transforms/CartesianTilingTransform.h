@@ -34,20 +34,20 @@ namespace PolarShader {
         explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false);
 
         CartesianTilingTransform(
-            SFracQ0_16Signal cellSize,
+            SQ0_16Signal cellSize,
             int32_t minCellSize = 4096,
             int32_t maxCellSize = 65536,
             bool mirrored = false
         );
 
-        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
 
     private:
         struct MappedInputs;
         static MappedInputs makeInputs(
-            SFracQ0_16Signal cellSize,
+            SQ0_16Signal cellSize,
             int32_t minCellSize,
             int32_t maxCellSize
         );

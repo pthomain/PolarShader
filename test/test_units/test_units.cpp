@@ -1,6 +1,7 @@
 //  SPDX-License-Identifier: GPL-3.0-or-later
 //  Copyright (C) 2025 Pierre Thomain
 
+#include "renderer/pipeline/signals/Signals.h"
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -8,6 +9,7 @@
 #include "native/FastLED.h"
 #endif
 #include <unity.h>
+#include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/units/Units.h"
 #include "renderer/pipeline/maths/UVMaths.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
@@ -35,27 +37,27 @@
 using namespace PolarShader;
 
 namespace {
-    const LinearRange<SFracQ0_16> TEST_UNIT_RANGE{SFracQ0_16(0), SFracQ0_16(FRACT_Q0_16_MAX)};
-    const LinearRange<SFracQ0_16> TEST_SIGNED_RANGE{SFracQ0_16(Q0_16_MIN), SFracQ0_16(Q0_16_MAX)};
+    const LinearRange<SQ0_16> TEST_UNIT_RANGE{SQ0_16(0), SQ0_16(SQ0_16_MAX)};
+    const LinearRange<SQ0_16> TEST_SIGNED_RANGE{SQ0_16(SQ0_16_MIN), SQ0_16(SQ0_16_MAX)};
 }
 
-/** @brief Verify that FracQ16_16 correctly stores 32-bit fixed-point values. */
+/** @brief Verify that SQ16_16 correctly stores 32-bit fixed-point values. */
 void test_frac_q16_16_raw_values() {
-    FracQ16_16 f(0x00010000); // 1.0
+    SQ16_16 f(0x00010000); // 1.0
     TEST_ASSERT_EQUAL_INT32(0x00010000, f.raw());
 }
 
 /** @brief Verify that the UV structure correctly holds U and V components. */
 void test_uv_coordinate_structure() {
-    UV uv(FracQ16_16(0x00010000), FracQ16_16(0x00008000));
+    UV uv(SQ16_16(0x00010000), SQ16_16(0x00008000));
     TEST_ASSERT_EQUAL_INT32(0x00010000, uv.u.raw());
     TEST_ASSERT_EQUAL_INT32(0x00008000, uv.v.raw());
 }
 
 /** @brief Verify basic additive arithmetic for UV coordinates. */
 void test_uv_addition() {
-    UV uv1(FracQ16_16(0x00010000), FracQ16_16(0x00008000));
-    UV uv2(FracQ16_16(0x00004000), FracQ16_16(0x00002000));
+    UV uv1(SQ16_16(0x00010000), SQ16_16(0x00008000));
+    UV uv2(SQ16_16(0x00004000), SQ16_16(0x00002000));
     UV result = UVMaths::add(uv1, uv2);
     TEST_ASSERT_EQUAL_INT32(0x00014000, result.u.raw());
     TEST_ASSERT_EQUAL_INT32(0x0000A000, result.v.raw());
@@ -63,18 +65,18 @@ void test_uv_addition() {
 
 /** @brief Verify conversion between UV (Q16.16) and legacy CartQ24.8. */
 void test_cartesian_uv_conversion() {
-    FracQ16_16 uv_val(0x00008000); // 0.5
-    CartQ24_8 cart = CartesianMaths::from_uv(uv_val);
+    SQ16_16 uv_val(0x00008000); // 0.5
+    SQ24_8 cart = CartesianMaths::from_uv(uv_val);
     TEST_ASSERT_EQUAL_INT32(0x00000080, cart.raw()); // 0.5 * 256 = 128 (0x80)
     
-    FracQ16_16 back = CartesianMaths::to_uv(cart);
+    SQ16_16 back = CartesianMaths::to_uv(cart);
     TEST_ASSERT_EQUAL_INT32(0x00008000, back.raw());
 }
 
 /** @brief Verify that the center of the UV domain maps to the origin of the Polar domain. */
 void test_polar_uv_conversion_center() {
     // Center of screen (0.5, 0.5) should have radius 0
-    UV cart_uv(FracQ16_16(0x00008000), FracQ16_16(0x00008000));
+    UV cart_uv(SQ16_16(0x00008000), SQ16_16(0x00008000));
     UV polar_uv = cartesianToPolarUV(cart_uv);
     TEST_ASSERT_EQUAL_INT32(0, polar_uv.v.raw()); // Radius should be 0
 }
@@ -82,7 +84,7 @@ void test_polar_uv_conversion_center() {
 /** @brief Verify that points on the right edge map to angle 0 and radius 1.0. */
 void test_polar_uv_conversion_right() {
     // Right middle (1.0, 0.5) should have angle 0 and radius 1.0 (0xFFFF in Q0.16)
-    UV cart_uv(FracQ16_16(0x00010000), FracQ16_16(0x00008000));
+    UV cart_uv(SQ16_16(0x00010000), SQ16_16(0x00008000));
     UV polar_uv = cartesianToPolarUV(cart_uv);
     TEST_ASSERT_EQUAL_INT32(0, polar_uv.u.raw()); // Angle 0
     TEST_ASSERT_UINT32_WITHIN(10, 0x0000FFFF, polar_uv.v.raw()); // Radius ~1.0
@@ -92,7 +94,7 @@ void test_polar_uv_conversion_right() {
 void test_uv_round_trip() {
     // Start with a point, convert to polar and back to cartesian
     // (0.75, 0.75)
-    UV original(FracQ16_16(0x0000C000), FracQ16_16(0x0000C000));
+    UV original(SQ16_16(0x0000C000), SQ16_16(0x0000C000));
     UV polar = cartesianToPolarUV(original);
     UV back = polarToCartesianUV(polar);
     
@@ -106,8 +108,8 @@ void test_uv_round_trip() {
 /** @brief Verify that RotationTransform correctly rotates Cartesian UV coordinates. */
 void test_rotation_transform_uv() {
     // Signed range mapping: -0.5 maps to 0.25 turns (90 degrees).
-    RotationTransform rotation(constant(SFracQ0_16(-0x8000)));
-    rotation.advanceFrame(FracQ0_16(0), 0);
+    RotationTransform rotation(constant(SQ0_16(-0x8000)));
+    rotation.advanceFrame(UQ0_16(0), 0);
 
     UVMap testLayer = [](UV uv) {
         return PatternNormU16(raw(uv.u));
@@ -117,7 +119,7 @@ void test_rotation_transform_uv() {
     // Rotated 90 deg -> Centered (0.0, 1.0)
     // Back to Cartesian UV -> (0.5, 1.0)
     // Expected U: 0.5 (0x8000)
-    UV input(FracQ16_16(0x00010000), FracQ16_16(0x00008000));
+    UV input(SQ16_16(0x00010000), SQ16_16(0x00008000));
     
     UVMap transformedLayer = rotation(testLayer);
     PatternNormU16 result = transformedLayer(input);
@@ -127,46 +129,46 @@ void test_rotation_transform_uv() {
 
 /** @brief Verify that ZoomTransform correctly scales Cartesian UV coordinates relative to the center. */
 void test_zoom_transform_uv() {
-    ZoomTransform zoom(constant(SFracQ0_16(Q0_16_MIN))); // Target min
-    zoom.advanceFrame(FracQ0_16(0), 0);
+    ZoomTransform zoom(constant(SQ0_16(SQ0_16_MIN))); // Target min
+    zoom.advanceFrame(UQ0_16(0), 0);
     
     UVMap testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     
-    UV input(FracQ16_16(0x0000C000), FracQ16_16(0x00008000));
+    UV input(SQ16_16(0x0000C000), SQ16_16(0x00008000));
     PatternNormU16 result = zoom(testLayer)(input);
     
     // With direct-mapped zoom and MIN_SCALE=1/16x (4096):
     // centered x at input.u=0.75 is +0.5 -> fx ~= 0x0800.
     // scaled_uv.u = (0x10000 + 0x0800) >> 1 = 0x8400 (33792).
-    TEST_ASSERT_UINT16_WITHIN(500, 33792, raw(result));
+    TEST_ASSERT_UINT16_WITHIN(200, 33792, raw(result));
 }
 
 /** @brief Verify that relative UV signals correctly accumulate over time. */
 void test_uv_signal_accumulation() {
     // A constant relative signal returning (0.1, 0.1) per call
     // 0.1 in Q16.16 is ~6554
-    UV delta(FracQ16_16(6554), FracQ16_16(6554));
+    UV delta(SQ16_16(6554), SQ16_16(6554));
     
-    UVSignal rawSignal([delta](FracQ0_16, TimeMillis) {
+    UVSignal rawSignal([delta](UQ0_16, TimeMillis) {
         return delta;
     });
     
     UVSignal resolved(
-        [rawSignal, accumulated = UV(FracQ16_16(0), FracQ16_16(0))](FracQ0_16 progress, TimeMillis elapsedMs) mutable {
+        [rawSignal, accumulated = UV(SQ16_16(0), SQ16_16(0))](UQ0_16 progress, TimeMillis elapsedMs) mutable {
             UV value = rawSignal(progress, elapsedMs);
-            accumulated.u = FracQ16_16(raw(accumulated.u) + raw(value.u));
-            accumulated.v = FracQ16_16(raw(accumulated.v) + raw(value.v));
+            accumulated.u = SQ16_16(raw(accumulated.u) + raw(value.u));
+            accumulated.v = SQ16_16(raw(accumulated.v) + raw(value.v));
             return accumulated;
         }
     );
     
     // First sample
-    UV result1 = resolved(FracQ0_16(100), 0);
+    UV result1 = resolved(UQ0_16(100), 0);
     TEST_ASSERT_EQUAL_INT32(6554, raw(result1.u));
     TEST_ASSERT_EQUAL_INT32(6554, raw(result1.v));
     
     // Second sample (should accumulate)
-    UV result2 = resolved(FracQ0_16(200), 0);
+    UV result2 = resolved(UQ0_16(200), 0);
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.u));
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.v));
 }
@@ -174,27 +176,38 @@ void test_uv_signal_accumulation() {
 /** @brief Verify PhaseAccumulator integration of signed speed. */
 void test_phase_accumulator_signed() {
     // Speed: -0.5 turns per second
-    auto speed = [](TimeMillis) { return SFracQ0_16(-32768); };
+    auto speed = [](TimeMillis) { return SQ0_16(-32768); };
 
     PhaseAccumulator accum(speed);
     accum.advance(0); // Init
-    
-    // Advance 1000ms -> -0.5 turns -> 0.5 (32768)
-    FracQ0_16 p1 = accum.advance(1000);
+
+    // Advance in clamped chunks (MAX_DELTA_TIME_MS).
+    (void) accum.advance(200);
+    (void) accum.advance(400);
+    (void) accum.advance(600);
+    (void) accum.advance(800);
+    // 1000ms total -> -0.5 turns -> 0.5 (32768)
+    UQ0_16 p1 = accum.advance(1000);
     TEST_ASSERT_UINT16_WITHIN(100, 32768, raw(p1));
-    
+
+    (void) accum.advance(1200);
+    (void) accum.advance(1400);
+    (void) accum.advance(1600);
+    (void) accum.advance(1800);
     // Advance another 1000ms -> -1.0 turns -> 0
-    FracQ0_16 p2 = accum.advance(2000);
+    UQ0_16 p2 = accum.advance(2000);
     TEST_ASSERT_UINT16_WITHIN(100, 0, raw(p2));
 }
 
 /** @brief Verify sine uses speed signal and is centered in signed space. */
 void test_sine_speed() {
     // Speed: 1.0 turn per second
-    SFracQ0_16Signal s = sine(cPerMil(1000), ceiling(), floor(), floor());
+    SQ0_16Signal s = sine(cPerMil(1000), ceiling(), floor(), floor());
     
     // t=0 -> centered
     TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
+    // Prime integration in clamped chunks.
+    (void) s.sample(TEST_SIGNED_RANGE, 200);
     // t=250ms -> positive peak
     TEST_ASSERT_INT32_WITHIN(200, 65535, raw(s.sample(TEST_SIGNED_RANGE, 250)));
 }
@@ -203,15 +216,15 @@ void test_sine_speed() {
 void test_zoom_transform_sine_varies_over_time() {
     ZoomTransform zoom(sine(cPerMil(1000)));
     UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
-    UV input(FracQ16_16(0x0000C000), FracQ16_16(0x00008000));
+    UV input(SQ16_16(0x0000C000), SQ16_16(0x00008000));
 
-    zoom.advanceFrame(FracQ0_16(0), 0);
+    zoom.advanceFrame(UQ0_16(0), 0);
     uint16_t a = raw(zoom(probeLayer)(input));
 
-    zoom.advanceFrame(FracQ0_16(0), 250);
+    zoom.advanceFrame(UQ0_16(0), 250);
     uint16_t b = raw(zoom(probeLayer)(input));
 
-    zoom.advanceFrame(FracQ0_16(0), 500);
+    zoom.advanceFrame(UQ0_16(0), 500);
     uint16_t c = raw(zoom(probeLayer)(input));
 
     // If zoom is animated, at least one later sample must differ from the initial one.
@@ -221,7 +234,7 @@ void test_zoom_transform_sine_varies_over_time() {
 /** @brief Verify easing functions loop if period > 0. */
 void test_easing_period_looping() {
     // Linear signal looping every 500ms
-    SFracQ0_16Signal s = linear(500);
+    SQ0_16Signal s = linear(500);
     
     // Linear now emits signed values by convention.
     int32_t a = raw(s.sample(TEST_SIGNED_RANGE, 250));
@@ -234,10 +247,10 @@ void test_easing_period_looping() {
 
 /** @brief Verify periodic signals receive scene elapsed time directly. */
 void test_periodic_signal_uses_elapsed_time() {
-    SFracQ0_16Signal s(
+    SQ0_16Signal s(
         SignalKind::PERIODIC,
         [](TimeMillis t) {
-            return SFracQ0_16(static_cast<int32_t>(t));
+            return SQ0_16(static_cast<int32_t>(t));
         }
     );
 
@@ -247,12 +260,12 @@ void test_periodic_signal_uses_elapsed_time() {
 
 /** @brief Verify aperiodic RESET mode wraps time by duration modulo. */
 void test_aperiodic_reset_wraps_time() {
-    SFracQ0_16Signal s(
+    SQ0_16Signal s(
         SignalKind::APERIODIC,
         LoopMode::RESET,
         1000,
         [](TimeMillis t) {
-            return SFracQ0_16(static_cast<int32_t>(t));
+            return SQ0_16(static_cast<int32_t>(t));
         }
     );
 
@@ -262,12 +275,12 @@ void test_aperiodic_reset_wraps_time() {
 
 /** @brief Verify aperiodic duration=0 emits zero regardless of waveform. */
 void test_aperiodic_zero_duration_emits_zero() {
-    SFracQ0_16Signal s(
+    SQ0_16Signal s(
         SignalKind::APERIODIC,
         LoopMode::RESET,
         0,
         [](TimeMillis) {
-            return SFracQ0_16(0xFFFF);
+            return SQ0_16(0xFFFF);
         }
     );
 
@@ -277,10 +290,10 @@ void test_aperiodic_zero_duration_emits_zero() {
 
 /** @brief Verify sampling saturates to signed Q0.16 bounds. */
 void test_signal_sample_clamped() {
-    SFracQ0_16Signal s(
+    SQ0_16Signal s(
         SignalKind::PERIODIC,
         [](TimeMillis) {
-            return SFracQ0_16(-1000);
+            return SQ0_16(-1000);
         }
     );
 
@@ -289,24 +302,27 @@ void test_signal_sample_clamped() {
 
 /** @brief Verify signed negative speed reverses sine direction. */
 void test_sine_negative_speed_reverses_direction() {
-    SFracQ0_16Signal forward = sine(cPerMil(1000), ceiling(), floor(), floor());
-    SFracQ0_16Signal reverse = sine(cPerMil(-1000), ceiling(), floor(), floor());
+    SQ0_16Signal forward = sine(cPerMil(1000), ceiling(), floor(), floor());
+    SQ0_16Signal reverse = sine(cPerMil(-1000), ceiling(), floor(), floor());
 
     // Prime accumulators (first sample only initializes elapsed baseline).
     (void) forward.sample(TEST_SIGNED_RANGE, 0);
     (void) reverse.sample(TEST_SIGNED_RANGE, 0);
+    // Respect MAX_DELTA_TIME_MS clamping.
+    (void) forward.sample(TEST_SIGNED_RANGE, 200);
+    (void) reverse.sample(TEST_SIGNED_RANGE, 200);
 
     // +0.25 turns -> max, -0.25 turns (==0.75) -> min
-    TEST_ASSERT_INT32_WITHIN(200, Q0_16_MAX, raw(forward.sample(TEST_SIGNED_RANGE, 250)));
-    TEST_ASSERT_INT32_WITHIN(200, Q0_16_MIN, raw(reverse.sample(TEST_SIGNED_RANGE, 250)));
+    TEST_ASSERT_INT32_WITHIN(200, SQ0_16_MAX, raw(forward.sample(TEST_SIGNED_RANGE, 250)));
+    TEST_ASSERT_INT32_WITHIN(200, SQ0_16_MIN, raw(reverse.sample(TEST_SIGNED_RANGE, 250)));
 }
 
 /** @brief Verify scalar signal range mapping is done directly via sample(range, elapsedMs). */
 void test_signal_range_mapping() {
-    SFracQ0_16Signal signal(
+    SQ0_16Signal signal(
         SignalKind::PERIODIC,
         [](TimeMillis) {
-            return SFracQ0_16(0x8000); // ~0.5
+            return SQ0_16(0x8000); // ~0.5
         }
     );
     LinearRange<int32_t> range(0, 1000);
@@ -318,39 +334,39 @@ void test_signal_range_mapping() {
 
 /** @brief Verify that LinearRange correctly interpolates values. */
 void test_linear_range() {
-    LinearRange<SFracQ0_16> range(SFracQ0_16(0), SFracQ0_16(1000));
+    LinearRange<SQ0_16> range(SQ0_16(0), SQ0_16(1000));
     
     // 0.0 -> midpoint
-    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(SFracQ0_16(0))));
+    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(SQ0_16(0))));
     // +0.5 -> 750
-    TEST_ASSERT_EQUAL_INT32(750, raw(range.map(SFracQ0_16(0x8000))));
+    TEST_ASSERT_EQUAL_INT32(750, raw(range.map(SQ0_16(0x8000))));
     // 1.0 -> 1000
-    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(SFracQ0_16(0xFFFF))));
+    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(SQ0_16(0xFFFF))));
     // -1.0 -> 0
-    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SFracQ0_16(Q0_16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SQ0_16(SQ0_16_MIN))));
 }
 
 /** @brief Verify signed-direct mapping preserves signed identity range exactly. */
 void test_linear_range_signed_direct_identity() {
-    LinearRange<SFracQ0_16> range(
-        SFracQ0_16(Q0_16_MIN),
-        SFracQ0_16(Q0_16_MAX),
+    LinearRange<SQ0_16> range(
+        SQ0_16(SQ0_16_MIN),
+        SQ0_16(SQ0_16_MAX),
         RangeMappingMode::SignedDirect
     );
 
-    TEST_ASSERT_EQUAL_INT32(Q0_16_MIN, raw(range.map(SFracQ0_16(Q0_16_MIN))));
-    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SFracQ0_16(0))));
-    TEST_ASSERT_EQUAL_INT32(Q0_16_MAX, raw(range.map(SFracQ0_16(Q0_16_MAX))));
+    TEST_ASSERT_EQUAL_INT32(SQ0_16_MIN, raw(range.map(SQ0_16(SQ0_16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(SQ0_16(0))));
+    TEST_ASSERT_EQUAL_INT32(SQ0_16_MAX, raw(range.map(SQ0_16(SQ0_16_MAX))));
 }
 
 /** @brief Verify that UVRange correctly interpolates 2D coordinates. */
 void test_uv_range() {
-    UV min(FracQ16_16(0), FracQ16_16(0));
-    UV max(FracQ16_16(0x10000), FracQ16_16(0x10000));
+    UV min(SQ16_16(0), SQ16_16(0));
+    UV max(SQ16_16(0x10000), SQ16_16(0x10000));
     UVRange range(min, max);
     
     // 0.0 -> midpoint (0.5, 0.5)
-    UV result = range.map(SFracQ0_16(0));
+    UV result = range.map(SQ0_16(0));
     TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.u));
     TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.v));
 }

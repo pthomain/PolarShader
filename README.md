@@ -41,7 +41,7 @@ This makes PolarShader suitable for:
 ### 2. Unified Coordinate System (UV)
 
 PolarShader uses a **unified spatial representation (UV)**:
-- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `FracQ16_16`.
+- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `SQ16_16`.
 - **Domain Agnostic:** Transforms like rotation or zoom apply seamlessly to any pattern.
 - **High Precision:** `Q16.16` provides sufficient geometric headroom for large-scale translations and zooms.
 
@@ -70,7 +70,7 @@ Each transform:
 
 ### Signals
 
-PolarShader uses `SFracQ0_16Signal` factories for time-varying scalar control values.
+PolarShader uses `SQ0_16Signal` factories for time-varying scalar control values.
 
 Signal kinds:
 
@@ -89,7 +89,7 @@ Factory families:
 
 Output contract:
 
-* `SFracQ0_16Signal` emits values in `[0, 1]`.
+* `SQ0_16Signal` emits values in `[0, 1]`.
 * Periodic factories span `[0, 1]` by default.
 * Internal phase integration uses signed speed for direction reversal.
 
@@ -99,7 +99,7 @@ Output contract:
 
 PolarShader clearly distinguishes:
 
-* **`FracQ0_16` angle samples**
+* **`SQ0_16` angle samples**
   A wrapped turn-domain angle (0..65535 -> 0..1 turn)
 
 * **`PhaseAccumulator` internal phase state**

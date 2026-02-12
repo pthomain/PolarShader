@@ -40,9 +40,9 @@ namespace PolarShader {
             // UV is Q16.16 (0.0 .. 1.0, raw 0..65535).
             // We interpret this directly as Cartesian Q24.8 (0.0 .. 256.0).
             // This maps the screen width to 256 noise units, restoring the original texture density.
-            CartUQ24_8 xu(static_cast<uint32_t>(raw(uv.u)) + offset);
-            CartUQ24_8 yu(static_cast<uint32_t>(raw(uv.v)) + offset);
-            CartUQ24_8 zu(depth + offset);
+            UQ24_8 xu(static_cast<uint32_t>(raw(uv.u)) + offset);
+            UQ24_8 yu(static_cast<uint32_t>(raw(uv.v)) + offset);
+            UQ24_8 zu(depth + offset);
 
             switch (type) {
                 case NoiseType::FBM:
@@ -58,42 +58,42 @@ namespace PolarShader {
         }
     };
 
-    PatternNormU16 NoisePattern::noiseLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+    PatternNormU16 NoisePattern::noiseLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z) {
         return noiseNormaliseU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
     }
 
-    PatternNormU16 NoisePattern::fBmLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z, fl::u8 octaveCount) {
+    PatternNormU16 NoisePattern::fBmLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z, fl::u8 octaveCount) {
         uint32_t r = 0;
         uint16_t amplitude = U16_HALF;
         for (int o = 0; o < octaveCount; o++) {
             auto n = sampleNoiseTrilinear(raw(x), raw(y), raw(z));
             r += (static_cast<uint32_t>(raw(n)) * amplitude) >> 16;
-            x = CartUQ24_8(raw(x) << 1);
-            y = CartUQ24_8(raw(y) << 1);
-            z = CartUQ24_8(raw(z) << 1);
+            x = UQ24_8(raw(x) << 1);
+            y = UQ24_8(raw(y) << 1);
+            z = UQ24_8(raw(z) << 1);
             amplitude >>= 1;
         }
         if (r > UINT16_MAX) r = UINT16_MAX;
         return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(r)));
     }
 
-    PatternNormU16 NoisePattern::turbulenceLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+    PatternNormU16 NoisePattern::turbulenceLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z) {
         NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
         uint32_t doubled = static_cast<uint32_t>(mag) << 1;
-        if (doubled > FRACT_Q0_16_MAX) doubled = FRACT_Q0_16_MAX;
+        if (doubled > SQ0_16_MAX) doubled = SQ0_16_MAX;
         return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(doubled)));
     }
 
-    PatternNormU16 NoisePattern::ridgedLayerImpl(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+    PatternNormU16 NoisePattern::ridgedLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z) {
         NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(raw(x), raw(y), raw(z)));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
         mag = std::min(mag, static_cast<uint16_t>(U16_HALF - 1));
         uint32_t doubled = static_cast<uint32_t>(mag) << 1;
-        if (doubled > FRACT_Q0_16_MAX) doubled = FRACT_Q0_16_MAX;
-        uint16_t inverted = static_cast<uint16_t>(FRACT_Q0_16_MAX - doubled);
+        if (doubled > SQ0_16_MAX) doubled = SQ0_16_MAX;
+        uint16_t inverted = static_cast<uint16_t>(SQ0_16_MAX - doubled);
         return noiseNormaliseU16(NoiseRawU16(inverted));
     }
 

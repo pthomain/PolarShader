@@ -52,11 +52,11 @@ namespace PolarShader {
     WorleyBasePattern::WorleyBasePattern(WorleyAliasing aliasingMode)
         : cell_size_raw(WorleyCellUnit),
           dist_shift(0),
-          max_dist_scaled(FRACT_Q0_16_MAX),
+          max_dist_scaled(SQ0_16_MAX),
           aliasing(aliasingMode) {
     }
 
-    void WorleyBasePattern::configureCellSize(CartQ24_8 cellSize) {
+    void WorleyBasePattern::configureCellSize(SQ24_8 cellSize) {
         int32_t raw_size = raw(cellSize);
         if (raw_size < WorleyCellUnit) {
             raw_size = WorleyCellUnit;
@@ -73,13 +73,13 @@ namespace PolarShader {
         max_dist_scaled = static_cast<uint16_t>(max_dist);
     }
 
-    CartQ24_8 WorleyBasePattern::aliasingOffset() const {
+    SQ24_8 WorleyBasePattern::aliasingOffset() const {
         int32_t offset = cell_size_raw >> 3;
         if (offset < 1) offset = 1;
-        return CartQ24_8(offset);
+        return SQ24_8(offset);
     }
 
-    WorleyBasePattern::Distances WorleyBasePattern::computeDistances(CartQ24_8 x, CartQ24_8 y) const {
+    WorleyBasePattern::Distances WorleyBasePattern::computeDistances(SQ24_8 x, SQ24_8 y) const {
         int32_t x_raw = raw(x);
         int32_t y_raw = raw(y);
 
@@ -135,15 +135,15 @@ namespace PolarShader {
     }
 
     PatternNormU16 WorleyBasePattern::softenValue(PatternNormU16 value) const {
-        return patternSmoothstepU16(0, FRACT_Q0_16_MAX, raw(value));
+        return patternSmoothstepU16(0, SQ0_16_MAX, raw(value));
     }
 
     struct WorleyPattern::UVFunctor {
         const WorleyPattern *self;
 
         PatternNormU16 operator()(UV uv) const {
-            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            SQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            SQ24_8 cy = CartesianMaths::from_uv(uv.v);
 
             if (self->aliasing == WorleyAliasing::Precise) {
                 return self->samplePrecise(cx, cy);
@@ -156,7 +156,7 @@ namespace PolarShader {
         }
     };
 
-    WorleyPattern::WorleyPattern(CartQ24_8 cellSize, WorleyAliasing aliasingMode)
+    WorleyPattern::WorleyPattern(SQ24_8 cellSize, WorleyAliasing aliasingMode)
         : WorleyBasePattern(aliasingMode) {
         configureCellSize(cellSize);
     }
@@ -165,18 +165,18 @@ namespace PolarShader {
         return UVFunctor{this};
     }
 
-    PatternNormU16 WorleyPattern::sampleFast(CartQ24_8 x, CartQ24_8 y) const {
+    PatternNormU16 WorleyPattern::sampleFast(SQ24_8 x, SQ24_8 y) const {
         auto d = computeDistances(x, y);
         return normalizeDistance(d.f1);
     }
 
-    PatternNormU16 WorleyPattern::samplePrecise(CartQ24_8 x, CartQ24_8 y) const {
-        CartQ24_8 offset = aliasingOffset();
+    PatternNormU16 WorleyPattern::samplePrecise(SQ24_8 x, SQ24_8 y) const {
+        SQ24_8 offset = aliasingOffset();
         uint32_t sum = 0;
-        sum += raw(sampleFast(CartQ24_8(raw(x) - raw(offset)), CartQ24_8(raw(y) - raw(offset))));
-        sum += raw(sampleFast(CartQ24_8(raw(x) + raw(offset)), CartQ24_8(raw(y) - raw(offset))));
-        sum += raw(sampleFast(CartQ24_8(raw(x) - raw(offset)), CartQ24_8(raw(y) + raw(offset))));
-        sum += raw(sampleFast(CartQ24_8(raw(x) + raw(offset)), CartQ24_8(raw(y) + raw(offset))));
+        sum += raw(sampleFast(SQ24_8(raw(x) - raw(offset)), SQ24_8(raw(y) - raw(offset))));
+        sum += raw(sampleFast(SQ24_8(raw(x) + raw(offset)), SQ24_8(raw(y) - raw(offset))));
+        sum += raw(sampleFast(SQ24_8(raw(x) - raw(offset)), SQ24_8(raw(y) + raw(offset))));
+        sum += raw(sampleFast(SQ24_8(raw(x) + raw(offset)), SQ24_8(raw(y) + raw(offset))));
         return PatternNormU16(static_cast<uint16_t>(sum >> 2));
     }
 
@@ -184,8 +184,8 @@ namespace PolarShader {
         const VoronoiPattern *self;
 
         PatternNormU16 operator()(UV uv) const {
-            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            SQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            SQ24_8 cy = CartesianMaths::from_uv(uv.v);
 
             if (self->aliasing == WorleyAliasing::Precise) {
                 return self->samplePrecise(cx, cy);
@@ -194,7 +194,7 @@ namespace PolarShader {
         }
     };
 
-    VoronoiPattern::VoronoiPattern(CartQ24_8 cellSize, WorleyAliasing aliasingMode)
+    VoronoiPattern::VoronoiPattern(SQ24_8 cellSize, WorleyAliasing aliasingMode)
         : WorleyBasePattern(aliasingMode) {
         configureCellSize(cellSize);
     }
@@ -203,14 +203,14 @@ namespace PolarShader {
         return UVFunctor{this};
     }
 
-    PatternNormU16 VoronoiPattern::sampleIdFast(CartQ24_8 x, CartQ24_8 y) const {
+    PatternNormU16 VoronoiPattern::sampleIdFast(SQ24_8 x, SQ24_8 y) const {
         auto d = computeDistances(x, y);
         return PatternNormU16(static_cast<uint16_t>(d.id & 0xFFFFu));
     }
 
     PatternNormU16 VoronoiPattern::sampleFastestId(
-        CartQ24_8 x0, CartQ24_8 y0,
-        CartQ24_8 x1, CartQ24_8 y1
+        SQ24_8 x0, SQ24_8 y0,
+        SQ24_8 x1, SQ24_8 y1
     ) const {
         Distances best = computeDistances(x0, y0);
         Distances d1 = computeDistances(x1, y0);
@@ -223,11 +223,11 @@ namespace PolarShader {
         return PatternNormU16(static_cast<uint16_t>(best.id & 0xFFFFu));
     }
 
-    PatternNormU16 VoronoiPattern::samplePrecise(CartQ24_8 x, CartQ24_8 y) const {
-        CartQ24_8 offset = aliasingOffset();
+    PatternNormU16 VoronoiPattern::samplePrecise(SQ24_8 x, SQ24_8 y) const {
+        SQ24_8 offset = aliasingOffset();
         return sampleFastestId(
-            CartQ24_8(raw(x) - raw(offset)), CartQ24_8(raw(y) - raw(offset)),
-            CartQ24_8(raw(x) + raw(offset)), CartQ24_8(raw(y) + raw(offset))
+            SQ24_8(raw(x) - raw(offset)), SQ24_8(raw(y) - raw(offset)),
+            SQ24_8(raw(x) + raw(offset)), SQ24_8(raw(y) + raw(offset))
         );
     }
 }

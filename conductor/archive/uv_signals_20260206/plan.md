@@ -1,7 +1,7 @@
 # Implementation Plan: UV Signal Integration
 
 ## Phase 1: Type & Engine Updates
-- [x] Task: Add `SignalAccumulator<FracQ16_16>` and `SignalAccumulator<UV>` to `SignalTypes.h`.
+- [x] Task: Add `SignalAccumulator<SQ16_16>` and `SignalAccumulator<UV>` to `SignalTypes.h`.
 - [x] Task: Define `UVSignal` type alias in `SignalTypes.h`.
 - [x] Task: Write unit tests for `UV` signal accumulation.
 

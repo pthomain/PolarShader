@@ -69,9 +69,9 @@ namespace PolarShader {
                     // For the center pixel (segment 0), the angle is 0.
                     uint32_t angle_step_raw = currentSegmentSize > 1 ? (0x10000u / currentSegmentSize) : 0;
                     uint32_t angle_raw = static_cast<uint32_t>(pixelInSegment) * angle_step_raw;
-                    FracQ0_16 angle(angle_raw & 0xFFFFu);
+                    UQ0_16 angle(angle_raw & 0xFFFFu);
 
-                    FracQ0_16 radius = frac(
+                    UQ0_16 radius = uFrac(
                         segmentIndex,
                         NB_SEGMENTS > 1 ? NB_SEGMENTS - 1 : 1
                     );

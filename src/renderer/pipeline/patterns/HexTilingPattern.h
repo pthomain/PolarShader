@@ -52,9 +52,9 @@ namespace PolarShader {
         );
 
         explicit HexTilingPattern(
-            SFracQ0_16Signal hexRadius,
+            SQ0_16Signal hexRadius,
             uint8_t colorCount = 3,
-            SFracQ0_16Signal edgeSoftness = SFracQ0_16Signal()
+            SQ0_16Signal edgeSoftness = SQ0_16Signal()
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
@@ -64,9 +64,9 @@ namespace PolarShader {
 
         void initDerived();
 
-        static uint16_t sampleSignal(SFracQ0_16Signal signal);
+        static uint16_t sampleSignal(SQ0_16Signal signal);
 
-        static HexAxial computeAxial(CartQ24_8 q, CartQ24_8 r);
+        static HexAxial computeAxial(SQ24_8 q, SQ24_8 r);
 
         static uint16_t computeBlend(
             const HexAxial &hex,

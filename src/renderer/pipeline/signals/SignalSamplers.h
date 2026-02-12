@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
 #define POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H
 
-#include "renderer/pipeline/signals/Signals.h"
+#include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
     SampleSignal sampleNoise();

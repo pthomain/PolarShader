@@ -49,7 +49,7 @@ namespace PolarShader {
                     }
 
                     uint32_t scaled = local * facets;
-                    polar_uv.u = FracQ16_16(static_cast<int32_t>(scaled & 0xFFFFu));
+                    polar_uv.u = SQ16_16(static_cast<int32_t>(scaled & 0xFFFFu));
                 }
             }
 

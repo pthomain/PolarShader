@@ -31,11 +31,11 @@
 
 namespace PolarShader {
     struct RotationTransform::MappedInputs {
-        SFracQ0_16Signal angleSignal;
+        SQ0_16Signal angleSignal;
         PolarRange angleRange;
     };
 
-    RotationTransform::MappedInputs RotationTransform::makeInputs(SFracQ0_16Signal angle) {
+    RotationTransform::MappedInputs RotationTransform::makeInputs(SQ0_16Signal angle) {
         return MappedInputs{
             std::move(angle),
             PolarRange()
@@ -43,9 +43,9 @@ namespace PolarShader {
     }
 
     struct RotationTransform::State {
-        SFracQ0_16Signal angleSignal;
+        SQ0_16Signal angleSignal;
         PolarRange angleRange;
-        FracQ0_16 angleOffset = FracQ0_16(0);
+        UQ0_16 angleOffset = UQ0_16(0);
 
         explicit State(MappedInputs inputs)
             : angleSignal(std::move(inputs.angleSignal)),
@@ -53,12 +53,12 @@ namespace PolarShader {
         }
     };
 
-    RotationTransform::RotationTransform(SFracQ0_16Signal angle) {
+    RotationTransform::RotationTransform(SQ0_16Signal angle) {
         auto inputs = makeInputs(std::move(angle));
         state = std::make_shared<State>(std::move(inputs));
     }
 
-    void RotationTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
+    void RotationTransform::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("RotationTransform::advanceFrame context is null.");
         }
@@ -73,7 +73,7 @@ namespace PolarShader {
             // Apply rotation to U (angle)
             uint16_t angle_raw = static_cast<uint16_t>(raw(polar_uv.u));
             uint16_t offset_raw = raw(state->angleOffset);
-            polar_uv.u = FracQ16_16(static_cast<uint16_t>(angle_raw + offset_raw));
+            polar_uv.u = SQ16_16(static_cast<uint16_t>(angle_raw + offset_raw));
 
             // Convert back to Cartesian UV
             UV rotated_uv = polarToCartesianUV(polar_uv);

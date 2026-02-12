@@ -27,32 +27,32 @@
 
 namespace PolarShader {
     struct PaletteTransform::MappedInputs {
-        SFracQ0_16Signal offsetSignal;
+        SQ0_16Signal offsetSignal;
         LinearRange<uint8_t> offsetRange{0, 255};
-        SFracQ0_16Signal clipSignal;
-        LinearRange<FracQ0_16> clipRange{FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)};
-        FracQ0_16 feather = FracQ0_16(0);
+        SQ0_16Signal clipSignal;
+        LinearRange<UQ0_16> clipRange{UQ0_16(0), UQ0_16(SQ0_16_MAX)};
+        UQ0_16 feather = UQ0_16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
     };
 
-    PaletteTransform::MappedInputs PaletteTransform::makeInputs(SFracQ0_16Signal offset) {
+    PaletteTransform::MappedInputs PaletteTransform::makeInputs(SQ0_16Signal offset) {
         return MappedInputs{
             std::move(offset)
         };
     }
 
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(
-        SFracQ0_16Signal offset,
-        SFracQ0_16Signal clipSignal,
-        FracQ0_16 feather,
+        SQ0_16Signal offset,
+        SQ0_16Signal clipSignal,
+        UQ0_16 feather,
         PipelineContext::PaletteClipPower clipPower
     ) {
         return MappedInputs{
             std::move(offset),
             LinearRange<uint8_t>(0, 255),
             std::move(clipSignal),
-            LinearRange<FracQ0_16>(FracQ0_16(0), FracQ0_16(FRACT_Q0_16_MAX)),
+            LinearRange(UQ0_16(0), UQ0_16(SQ0_16_MAX)),
             feather,
             clipPower,
             true
@@ -60,14 +60,14 @@ namespace PolarShader {
     }
 
     struct PaletteTransform::State {
-        SFracQ0_16Signal offsetSignal;
+        SQ0_16Signal offsetSignal;
         LinearRange<uint8_t> offsetRange;
         uint8_t offsetValue = 0;
-        SFracQ0_16Signal clipSignal;
-        LinearRange<FracQ0_16> clipRange;
+        SQ0_16Signal clipSignal;
+        LinearRange<UQ0_16> clipRange;
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
-        FracQ0_16 feather = FracQ0_16(0);
+        UQ0_16 feather = UQ0_16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
 
@@ -82,14 +82,14 @@ namespace PolarShader {
         }
     };
 
-    PaletteTransform::PaletteTransform(SFracQ0_16Signal offset) {
+    PaletteTransform::PaletteTransform(SQ0_16Signal offset) {
         state = std::make_shared<State>(makeInputs(std::move(offset)));
     }
 
     PaletteTransform::PaletteTransform(
-        SFracQ0_16Signal offset,
-        SFracQ0_16Signal clipSignal,
-        FracQ0_16 feather,
+        SQ0_16Signal offset,
+        SQ0_16Signal clipSignal,
+        UQ0_16 feather,
         PipelineContext::PaletteClipPower clipPower
     ) {
         state = std::make_shared<State>(makeInputs(
@@ -100,12 +100,12 @@ namespace PolarShader {
         ));
     }
 
-    void PaletteTransform::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
+    void PaletteTransform::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
         state->offsetValue = state->offsetSignal.sample(state->offsetRange, elapsedMs);
         if (context) {
             context->paletteOffset = state->offsetValue;
             if (state->hasClip) {
-                FracQ0_16 clipRaw = state->clipSignal.sample(state->clipRange, elapsedMs);
+                UQ0_16 clipRaw = state->clipSignal.sample(state->clipRange, elapsedMs);
                 if (raw(clipRaw) == 0) {
                     context->paletteClipEnabled = false;
                     context->paletteClipInvert = false;

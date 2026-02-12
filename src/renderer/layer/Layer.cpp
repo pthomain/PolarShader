@@ -38,7 +38,7 @@ namespace PolarShader {
         const char *name,
         std::shared_ptr<PipelineContext> context,
         DepthSignal depthSignal,
-        FracQ0_16 alpha,
+        UQ0_16 alpha,
         BlendMode blendMode
     ) : pattern(std::move(pattern)),
         palette(palette),
@@ -62,7 +62,7 @@ namespace PolarShader {
 
     ColourMap Layer::blackLayer(const char *reason) {
         if (reason) Serial.println(reason);
-        return [](FracQ0_16, FracQ0_16) {
+        return [](UQ0_16, UQ0_16) {
             return CRGB::Black;
         };
     }
@@ -73,11 +73,11 @@ namespace PolarShader {
         const std::shared_ptr<PipelineContext> &context
     ) {
         uint16_t hue_value = raw(value);
-        uint16_t mask_value = FRACT_Q0_16_MAX;
+        uint16_t mask_value = USQ0_16_MAX;
         if (context && context->paletteClipEnabled) {
             uint16_t clip_input = hue_value;
             if (context->paletteClipInvert) {
-                clip_input = static_cast<uint16_t>(FRACT_Q0_16_MAX - clip_input);
+                clip_input = static_cast<uint16_t>(USQ0_16_MAX - clip_input);
             }
             switch (context->paletteClipPower) {
                 case PipelineContext::PaletteClipPower::Quartic: {
@@ -100,10 +100,10 @@ namespace PolarShader {
             uint16_t clip = raw(context->paletteClip);
             uint16_t feather = raw(context->paletteClipFeather);
             if (feather == 0) {
-                mask_value = (clip_input < clip) ? 0 : FRACT_Q0_16_MAX;
+                mask_value = (clip_input < clip) ? 0 : USQ0_16_MAX;
             } else {
                 uint32_t edge1 = static_cast<uint32_t>(clip) + feather;
-                if (edge1 > FRACT_Q0_16_MAX) edge1 = FRACT_Q0_16_MAX;
+                if (edge1 > USQ0_16_MAX) edge1 = USQ0_16_MAX;
                 mask_value = raw(patternSmoothstepU16(
                     clip,
                     static_cast<uint16_t>(edge1),
@@ -121,13 +121,13 @@ namespace PolarShader {
             brightness = 255;
         }
         CRGB color = ColorFromPalette(palette, index, brightness, LINEARBLEND);
-        if (context && context->paletteClipEnabled && mask_value != FRACT_Q0_16_MAX) {
+        if (context && context->paletteClipEnabled && mask_value != USQ0_16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
         }
         return color;
     }
 
-    void Layer::advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) {
+    void Layer::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("Layer::advanceFrame context is null.");
         } else {
@@ -160,14 +160,14 @@ namespace PolarShader {
         // Final stage: map UV back to Polar domain for the display, 
         // then map pattern value to a color from the palette.
         return [palette = palette, layer = std::move(currentUV), context = context](
-            FracQ0_16 angle,
-            FracQ0_16 radius
+            UQ0_16 angle,
+            UQ0_16 radius
         ) {
             // Display provides (Angle, Radius) in legacy Q0.16.
             // Convert to UV (Q16.16).
             UV input = polarToCartesianUV(UV(
-                FracQ16_16(raw(angle)),
-                FracQ16_16(raw(radius))
+                SQ16_16(raw(angle)),
+                SQ16_16(raw(radius))
             ));
 
             PatternNormU16 value = layer(input);

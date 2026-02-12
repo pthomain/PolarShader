@@ -35,7 +35,7 @@ This track introduces a higher-level "Scene" architecture to PolarShader, allowi
 
 ## Scene & Layering
 - **Layer Attributes:**
-    - Each `Layer` instance has an `alpha` value (FracQ0_16) and a `BlendMode`.
+    - Each `Layer` instance has an `alpha` value (SQ0_16) and a `BlendMode`.
     - Supported `BlendMode`s: `Normal`, `Add`, `Multiply`, `Screen`.
 - **Scene Class:**
     - Manages a collection of `Layer` objects.

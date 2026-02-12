@@ -5,21 +5,21 @@ palette mapping state (`PipelineContext`).
 
 ## Domains and units
 
-- Spatial transforms consume and emit `UV` (`FracQ16_16` x/y).
-- Internal transform math can use mapped units (`FracQ0_16`, `SFracQ0_16`, `CartQ24_8`), but
+- Spatial transforms consume and emit `UV` (`SQ16_16` x/y).
+- Internal transform math can use mapped units (`UQ0_16`, `SQ0_16`, `SQ24_8`), but
   public transform constructors must accept base signal types.
 
 ## Frame lifecycle
 
 `SceneManager` calls `advanceFrame(progress, elapsedMs)` each frame:
 
-- `progress` (`FracQ0_16`) is scene-normalized progress for scene/layer orchestration.
+- `progress` (`UQ0_16`) is scene-normalized progress for scene/layer orchestration.
 - `elapsedMs` (`TimeMillis`) is scene-relative elapsed time and is the canonical input for
-  scalar signal factories (`SFracQ0_16Signal`).
+  scalar signal factories (`SQ0_16Signal`).
 
 ## Signal model
 
-`SFracQ0_16Signal` is a scalar signal wrapper with two kinds:
+`SQ0_16Signal` is a scalar signal wrapper with two kinds:
 
 - `SignalKind::PERIODIC`
   - Waveform receives scene `elapsedMs` directly.
@@ -54,12 +54,12 @@ Periodic shaping:
 
 ## Mapping and accumulation
 
-- `SFracQ0_16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
+- `SQ0_16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
 - Signed ranges map directly from signed signal output.
 - Unsigned ranges first remap `[-1, 1] -> [0, 1]`, then interpolate to `[min, max]`.
 - `UVSignal` no longer carries an absolute/relative flag.
 - UV delta accumulation is handled explicitly by transforms that need it.
-- Scalar `SFracQ0_16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
+- Scalar `SQ0_16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
 - Shared mapping ranges in `Signals`:
   - `unitRange()` for unsigned normalized scalar use (`[0, 1]` domain).
   - `signedUnitRange()` for signed scalar use (`[-1, 1]` domain).

@@ -105,7 +105,7 @@ namespace PolarShader {
                 .addPaletteTransform(PaletteTransform(
                     noise(cPerMil(100)),
                     noise(cPerMil(100), cPerMil(300), cPerMil(50)),
-                    perMil(50)
+                    uPerMil(50)
                 ))
                 .addTransform(TranslationTransform(
                     noise(cPerMil(100)),

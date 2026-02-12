@@ -45,11 +45,11 @@ namespace PolarShader {
 
     NoiseRawU16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z);
 
-    inline NoiseRawU16 sampleNoiseBilinear(CartUQ24_8 x, CartUQ24_8 y) {
+    inline NoiseRawU16 sampleNoiseBilinear(UQ24_8 x, UQ24_8 y) {
         return sampleNoiseBilinear(raw(x), raw(y));
     }
 
-    inline NoiseRawU16 sampleNoiseTrilinear(CartUQ24_8 x, CartUQ24_8 y, CartUQ24_8 z) {
+    inline NoiseRawU16 sampleNoiseTrilinear(UQ24_8 x, UQ24_8 y, UQ24_8 z) {
         return sampleNoiseTrilinear(raw(x), raw(y), raw(z));
     }
 }

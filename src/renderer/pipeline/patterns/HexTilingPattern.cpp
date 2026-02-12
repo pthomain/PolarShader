@@ -33,9 +33,9 @@ namespace PolarShader {
         constexpr int32_t kHalfUnitRaw = 1 << (CARTESIAN_FRAC_BITS - 1);
         constexpr int32_t kToQ0_16Shift = 16 - CARTESIAN_FRAC_BITS;
 
-        const CartQ24_8 kSqrt3Over3 = CartQ24_8(kSqrt3Over3Q24_8);
-        const CartQ24_8 kOneThird = CartQ24_8(kOneThirdQ24_8);
-        const CartQ24_8 kTwoThirds = CartQ24_8(kTwoThirdsQ24_8);
+        const SQ24_8 kSqrt3Over3 = SQ24_8(kSqrt3Over3Q24_8);
+        const SQ24_8 kOneThird = SQ24_8(kOneThirdQ24_8);
+        const SQ24_8 kTwoThirds = SQ24_8(kTwoThirdsQ24_8);
 
         int32_t roundQ24_8_raw(int32_t raw_v) {
             if (raw_v >= 0) {
@@ -66,8 +66,8 @@ namespace PolarShader {
         }
 
         uint16_t mapColorValue(uint8_t index, uint8_t colors) {
-            if (colors <= 1) return FRACT_Q0_16_MAX;
-            uint32_t numerator = static_cast<uint32_t>(index + 1) * FRACT_Q0_16_MAX;
+            if (colors <= 1) return SQ0_16_MAX;
+            uint32_t numerator = static_cast<uint32_t>(index + 1) * SQ0_16_MAX;
             uint16_t value = static_cast<uint16_t>(numerator / colors);
             return value == 0 ? 1 : value;
         }
@@ -89,14 +89,14 @@ namespace PolarShader {
         int32_t softness_raw;
 
         PatternNormU16 operator()(UV uv) const {
-            CartQ24_8 cx = CartesianMaths::from_uv(uv.u);
-            CartQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            SQ24_8 cx = CartesianMaths::from_uv(uv.u);
+            SQ24_8 cy = CartesianMaths::from_uv(uv.v);
 
-            CartQ24_8 radius = CartQ24_8(hex_radius_raw);
-            CartQ24_8 x_term = CartesianMaths::mul(cx, kSqrt3Over3);
-            CartQ24_8 y_term = CartesianMaths::mul(cy, kOneThird);
-            CartQ24_8 q = CartesianMaths::div(CartQ24_8(raw(x_term) - raw(y_term)), radius);
-            CartQ24_8 r = CartesianMaths::div(CartesianMaths::mul(cy, kTwoThirds), radius);
+            SQ24_8 radius = SQ24_8(hex_radius_raw);
+            SQ24_8 x_term = CartesianMaths::mul(cx, kSqrt3Over3);
+            SQ24_8 y_term = CartesianMaths::mul(cy, kOneThird);
+            SQ24_8 q = CartesianMaths::div(SQ24_8(raw(x_term) - raw(y_term)), radius);
+            SQ24_8 r = CartesianMaths::div(CartesianMaths::mul(cy, kTwoThirds), radius);
             HexAxial hex = computeAxial(q, r);
 
             int32_t axial_q = hex.rx;
@@ -134,9 +134,9 @@ namespace PolarShader {
     }
 
     HexTilingPattern::HexTilingPattern(
-        SFracQ0_16Signal hexRadius,
+        SQ0_16Signal hexRadius,
         uint8_t colorCount,
-        SFracQ0_16Signal edgeSoftness
+        SQ0_16Signal edgeSoftness
     ) : hex_radius_u16(sampleSignal(std::move(hexRadius))),
         color_count(colorCount),
         softness_u16(sampleSignal(std::move(edgeSoftness))) {
@@ -160,23 +160,23 @@ namespace PolarShader {
         }
 
         int32_t softness_cart_raw = static_cast<int32_t>(softness_u16) << CARTESIAN_FRAC_BITS;
-        CartQ24_8 softness_axial = CartesianMaths::div(
-            CartQ24_8(softness_cart_raw),
-            CartQ24_8(hex_radius_raw)
+        SQ24_8 softness_axial = CartesianMaths::div(
+            SQ24_8(softness_cart_raw),
+            SQ24_8(hex_radius_raw)
         );
         softness_raw = raw(softness_axial);
         if (softness_raw < 0) softness_raw = 0;
         if (softness_raw > kMaxSoftnessQ24_8) softness_raw = kMaxSoftnessQ24_8;
     }
 
-    uint16_t HexTilingPattern::sampleSignal(SFracQ0_16Signal signal) {
+    uint16_t HexTilingPattern::sampleSignal(SQ0_16Signal signal) {
         if (!signal) return 0;
-        LinearRange range(PatternNormU16(0), PatternNormU16(FRACT_Q0_16_MAX));
+        LinearRange range(PatternNormU16(0), PatternNormU16(SQ0_16_MAX));
         PatternNormU16 value = signal.sample(range, 0);
         return raw(value);
     }
 
-    HexTilingPattern::HexAxial HexTilingPattern::computeAxial(CartQ24_8 q, CartQ24_8 r) {
+    HexTilingPattern::HexAxial HexTilingPattern::computeAxial(SQ24_8 q, SQ24_8 r) {
         HexAxial h{};
         h.q_raw = raw(q);
         h.r_raw = raw(r);
@@ -239,7 +239,7 @@ namespace PolarShader {
         int32_t d = max3(aq, ar, as);
         int32_t edge_dist = kHalfUnitRaw - d;
         if (edge_dist <= 0) {
-            return FRACT_Q0_16_MAX;
+            return SQ0_16_MAX;
         }
         if (edge_dist >= softnessRaw) {
             return 0;
@@ -248,6 +248,6 @@ namespace PolarShader {
         uint16_t x = static_cast<uint16_t>(edge_dist << kToQ0_16Shift);
         uint16_t edge1 = static_cast<uint16_t>(softnessRaw << kToQ0_16Shift);
         uint16_t mask = raw(patternSmoothstepU16(0, edge1, x));
-        return static_cast<uint16_t>(FRACT_Q0_16_MAX - mask);
+        return static_cast<uint16_t>(SQ0_16_MAX - mask);
     }
 }

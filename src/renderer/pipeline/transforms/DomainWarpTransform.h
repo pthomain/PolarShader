@@ -31,9 +31,9 @@ namespace PolarShader {
      * Cartesian domain warp driven by animated noise.
      *
      * - phaseSpeed: turns-per-second for the time axis (independent from scene duration).
-     * - amplitude: 0..1 signal that scales maxOffset.
-     * - warpScale: 0..1 signal mapped via LinearRange, applied before sampling warp noise.
-     * - maxOffset: 0..1 signal mapped via LinearRange, maximum warp displacement in Q24.8 units.
+     * - amplitude: signed signal mapped via unsigned range to scale maxOffset.
+     * - warpScale: signed signal mapped via unsigned range, applied before sampling warp noise.
+     * - maxOffset: signed signal mapped via unsigned range, maximum warp displacement in Q24.8 units.
      */
     class DomainWarpTransform : public UVTransform {
     public:
@@ -47,28 +47,28 @@ namespace PolarShader {
         };
 
         DomainWarpTransform(
-            SFracQ0_16Signal speed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange
+            SQ0_16Signal speed,
+            SQ0_16Signal amplitude,
+            SQ0_16Signal warpScale,
+            SQ0_16Signal maxOffset,
+            LinearRange<SQ24_8> warpScaleRange,
+            LinearRange<SQ24_8> maxOffsetRange
         );
 
         DomainWarpTransform(
             WarpType type,
-            SFracQ0_16Signal speed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange,
+            SQ0_16Signal speed,
+            SQ0_16Signal amplitude,
+            SQ0_16Signal warpScale,
+            SQ0_16Signal maxOffset,
+            LinearRange<SQ24_8> warpScaleRange,
+            LinearRange<SQ24_8> maxOffsetRange,
             uint8_t octaves,
-            SFracQ0_16Signal flowDirection = SFracQ0_16Signal(),
-            SFracQ0_16Signal flowStrength = SFracQ0_16Signal()
+            SQ0_16Signal flowDirection = SQ0_16Signal(),
+            SQ0_16Signal flowStrength = SQ0_16Signal()
         );
 
-        void advanceFrame(FracQ0_16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
 
@@ -78,14 +78,14 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
         static MappedInputs makeInputs(
-            SFracQ0_16Signal speed,
-            SFracQ0_16Signal amplitude,
-            SFracQ0_16Signal warpScale,
-            SFracQ0_16Signal maxOffset,
-            LinearRange<CartQ24_8> warpScaleRange,
-            LinearRange<CartQ24_8> maxOffsetRange,
-            SFracQ0_16Signal flowDirection = SFracQ0_16Signal(),
-            SFracQ0_16Signal flowStrength = SFracQ0_16Signal()
+            SQ0_16Signal speed,
+            SQ0_16Signal amplitude,
+            SQ0_16Signal warpScale,
+            SQ0_16Signal maxOffset,
+            LinearRange<SQ24_8> warpScaleRange,
+            LinearRange<SQ24_8> maxOffsetRange,
+            SQ0_16Signal flowDirection = SQ0_16Signal(),
+            SQ0_16Signal flowStrength = SQ0_16Signal()
         );
     };
 }
