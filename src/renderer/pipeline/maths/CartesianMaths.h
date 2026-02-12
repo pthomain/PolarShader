@@ -25,53 +25,53 @@
 
 namespace PolarShader {
     /**
-     * @brief Provides explicit, safe helpers for fixed-point (Q24.8) arithmetic.
+     * @brief Provides explicit, safe helpers for fixed-point `sr8` arithmetic.
      *
      * Using these helpers is crucial for avoiding common fixed-point errors, such as
      * incorrect scaling or precision loss, especially in grid-based patterns.
      */
     namespace CartesianMaths {
-        /** @brief Converts an integer into a Q24.8 fixed-point value. */
-        constexpr SQ24_8 from_int(int32_t i) {
-            return SQ24_8(i << CARTESIAN_FRAC_BITS);
+        /** @brief Converts an integer into an `sr8` fixed-point value. */
+        constexpr sr8 from_int(int32_t i) {
+            return sr8(i << R8_FRAC_BITS);
         }
 
-        /** @brief Converts UV to CartQ24.8, typically for sampling. */
-        constexpr SQ24_8 from_uv(SQ16_16 uv_coord) {
-            // UV is Q16.16, CartQ24.8 is Q24.8.
+        /** @brief Converts UV to `sr8` Cartesian, typically for sampling. */
+        constexpr sr8 from_uv(sr16 uv_coord) {
+            // UV is r16/sr16 (Q16.16), Cartesian intermediate is sr8 (Q24.8).
             // We shift right by 8 to convert from 16 fractional bits to 8.
-            return SQ24_8(raw(uv_coord) >> 8);
+            return sr8(raw(uv_coord) >> 8);
         }
 
-        /** @brief Converts CartQ24.8 back to UV. */
-        constexpr SQ16_16 to_uv(SQ24_8 cart) {
-            // CartQ24.8 is Q24.8, UV is Q16.16.
+        /** @brief Converts `sr8` Cartesian back to UV. */
+        constexpr sr16 to_uv(sr8 cart) {
+            // Cartesian intermediate is sr8 (Q24.8), UV is r16/sr16 (Q16.16).
             // We shift left by 8 to convert from 8 fractional bits to 16.
-            return SQ16_16(raw(cart) << 8);
+            return sr16(raw(cart) << 8);
         }
 
-        /** @brief Gets the integer part of a Q24.8 value, effectively flooring it. */
-        constexpr int32_t floor_to_int(SQ24_8 q) {
-            return raw(q) >> CARTESIAN_FRAC_BITS;
+        /** @brief Gets the integer part of an `sr8` value, effectively flooring it. */
+        constexpr int32_t floor_to_int(sr8 q) {
+            return raw(q) >> R8_FRAC_BITS;
         }
 
-        /** @brief Extracts the fractional part of a Q24.8 value. */
-        constexpr SQ24_8 fract(SQ24_8 q) {
-            constexpr int32_t frac_mask = (1 << CARTESIAN_FRAC_BITS) - 1;
-            return SQ24_8(raw(q) & frac_mask);
+        /** @brief Extracts the fractional part of an `sr8` value. */
+        constexpr sr8 fract(sr8 q) {
+            constexpr int32_t frac_mask = (1 << R8_FRAC_BITS) - 1;
+            return sr8(raw(q) & frac_mask);
         }
 
-        /** @brief Multiplies two Q24.8 values. */
-        constexpr SQ24_8 mul(SQ24_8 a, SQ24_8 b) {
+        /** @brief Multiplies two `sr8` values. */
+        constexpr sr8 mul(sr8 a, sr8 b) {
             int64_t temp = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
-            return SQ24_8(static_cast<int32_t>(temp >> CARTESIAN_FRAC_BITS));
+            return sr8(static_cast<int32_t>(temp >> R8_FRAC_BITS));
         }
 
-        /** @brief Divides two Q24.8 values. */
-        constexpr SQ24_8 div(SQ24_8 a, SQ24_8 b) {
-            if (raw(b) == 0) return SQ24_8(INT32_MAX); // Should be handled by caller
-            int64_t temp = static_cast<int64_t>(raw(a)) << CARTESIAN_FRAC_BITS;
-            return SQ24_8(static_cast<int32_t>(temp / raw(b)));
+        /** @brief Divides two `sr8` values. */
+        constexpr sr8 div(sr8 a, sr8 b) {
+            if (raw(b) == 0) return sr8(INT32_MAX); // Should be handled by caller
+            int64_t temp = static_cast<int64_t>(raw(a)) << R8_FRAC_BITS;
+            return sr8(static_cast<int32_t>(temp / raw(b)));
         }
     } // namespace CartesianMaths
 } // namespace PolarShader

@@ -5,21 +5,22 @@ palette mapping state (`PipelineContext`).
 
 ## Domains and units
 
-- Spatial transforms consume and emit `UV` (`SQ16_16` x/y).
-- Internal transform math can use mapped units (`UQ0_16`, `SQ0_16`, `SQ24_8`), but
+- Spatial transforms consume and emit `UV` (`sr16` x/y).
+- Internal transform math can use mapped units (`f16`, `sf16`, `sr8`), but
   public transform constructors must accept base signal types.
+- `sr16` is the high-precision transform space; `sr8` is for grid/noise-style Cartesian internals where lower fractional precision is acceptable.
 
 ## Frame lifecycle
 
 `SceneManager` calls `advanceFrame(progress, elapsedMs)` each frame:
 
-- `progress` (`UQ0_16`) is scene-normalized progress for scene/layer orchestration.
+- `progress` (`f16`) is scene-normalized progress for scene/layer orchestration.
 - `elapsedMs` (`TimeMillis`) is scene-relative elapsed time and is the canonical input for
-  scalar signal factories (`SQ0_16Signal`).
+  scalar signal factories (`Sf16Signal`).
 
 ## Signal model
 
-`SQ0_16Signal` is a scalar signal wrapper with two kinds:
+`Sf16Signal` is a scalar signal wrapper with two kinds:
 
 - `SignalKind::PERIODIC`
   - Waveform receives scene `elapsedMs` directly.
@@ -31,7 +32,7 @@ palette mapping state (`PipelineContext`).
 
 Sampling contract:
 
-- Scalar waveform output is saturated to signed Q0.16 `[-1, 1]`.
+- Scalar waveform output is saturated to signed sf16 (Q0.16) `[-1, 1]`.
 - Sampling always requires an explicit range: `signal.sample(range, elapsedMs)`.
 - There is no range-less scalar sampling path.
 
@@ -48,18 +49,24 @@ Factory signatures:
   - `quadraticOut(duration, loopMode)`
   - `quadraticInOut(duration, loopMode)`
 
+Per-mille helpers:
+- `csPerMil(value)` accepts signed value in range `[-1000, 1000]`, maps it to `sf16 [-1, 1]`, then return a signal that emits that constant.
+- `cPerMil(value)` accepts unsigned value in range `[0, 1000]`, maps to `[-1000, 1000]`, maps it to `sf16 [-1, 1]`, then return a signal that emits that constant.
+- `sPerMil(int16_t)` maps signed permille `[-1000, 1000]` to scalar `sf16 [-1, 1]`.
+- `perMil(uint16_t)` maps unsigned permille `[0, 1000]` to scalar `f16 [0, 1]`.
+
 Periodic shaping:
 
 - Sine/noise factories emit signed waveform values, then saturate to `[-1, 1]`.
 
 ## Mapping and accumulation
 
-- `SQ0_16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
+- `Sf16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
 - Signed ranges map directly from signed signal output.
 - Unsigned ranges first remap `[-1, 1] -> [0, 1]`, then interpolate to `[min, max]`.
 - `UVSignal` no longer carries an absolute/relative flag.
 - UV delta accumulation is handled explicitly by transforms that need it.
-- Scalar `SQ0_16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
+- Scalar `Sf16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
 - Shared mapping ranges in `Signals`:
   - `unitRange()` for unsigned normalized scalar use (`[0, 1]` domain).
   - `signedUnitRange()` for signed scalar use (`[-1, 1]` domain).
@@ -74,7 +81,7 @@ Periodic shaping:
 ### VortexTransform
 
 - Input: scalar strength signal.
-- Maps to signed angular strength (`[-1, 1]` in Q0.16 domain) and twists by radius.
+- Maps to signed angular strength (`[-1, 1]` in f16/sf16 domain) and twists by radius.
 
 ### KaleidoscopeTransform
 

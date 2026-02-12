@@ -27,12 +27,12 @@ namespace PolarShader {
     inline constexpr uint16_t MILLIS_PER_SECOND = 1000;
 
     /**
-     * @brief Converts milliseconds to a Q0.16 fixed-point representation of seconds.
+     * @brief Converts milliseconds to a f16/sf16 fixed-point representation of seconds.
      */
-    inline SQ0_16 timeMillisToScalar(TimeMillis millis) {
+    inline sf16 timeMillisToScalar(TimeMillis millis) {
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
-        return SQ0_16(static_cast<int32_t>(dt_raw));
+        return sf16(static_cast<int32_t>(dt_raw));
     }
 
     inline TimeMillis clampDeltaTime(TimeMillis deltaTime) {

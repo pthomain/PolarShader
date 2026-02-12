@@ -1,8 +1,8 @@
 # Implementation Plan: Unit Consolidation
 
 ## Phase 1: Unit Merging
-- [x] Task: Merge `TrigQ0_16` into `SQ0_16`. [925255c]
-- [x] Task: Update math functions and signals to use `SQ0_16`. [925255c]
+- [x] Task: Merge `TrigQ0_16` into `sf16`. [925255c]
+- [x] Task: Update math functions and signals to use `sf16`. [925255c]
 
 ## Phase 2: Cleanup
 - [x] Task: Remove `CartesianMotionAccumulator`. [925255c]

@@ -14,23 +14,30 @@
 
 | Type | Format | Definition | Usage |
 | :--- | :--- | :--- | :--- |
-| `SQ0_16` | Unsigned 0.16 | 16-bit integer [0, 1.0) | Angles (turns), alpha, scaling factors. |
-| `SQ0_16` | Signed 0.16 | 32-bit integer [-1.0, 1.0] | Signals, oscillators, trig results (sin/cos). |
-| `SQ16_16` | Signed 16.16 | 32-bit integer | Spatial UV coordinates (allows tiling/zoom). |
+| `f16` | Unsigned 0.16 | 16-bit integer [0, 1.0) | Angles (turns), alpha, scaling factors. |
+| `sf16` | Signed 0.16 | 32-bit integer [-1.0, 1.0] | Signals, oscillators, trig results (sin/cos). |
+| `r16` | Unsigned 16.16 | 32-bit integer | Unsigned 2D/coordinate intermediates when needed. |
+| `sr16` | Signed 16.16 | 32-bit integer | Spatial UV coordinates (allows tiling/zoom). |
 | `PatternNormU16`| Unsigned 16-bit | [0, 65535] | Universal currency for pattern intensities. |
-| `SQ24_8` | Signed 24.8 | 32-bit integer | Internal lattice-aligned pattern calculations. |
-| `UV` | 2x Q16.16 | Normalized 2D vector | Standard spatial type passed between pipeline steps. |
+| `sr8` | Signed 24.8 | 32-bit integer | Internal lattice-aligned pattern calculations. |
+| `r8` | Unsigned 24.8 | 32-bit integer | Unsigned noise-domain sampling coordinates. |
+| `UV` | 2x `sr16` | Normalized 2D vector | Standard spatial type passed between pipeline steps. |
+
+`r16` and `r8` are both ratio/range types and are not bounded to `[0, 1]`; choose by domain:
+- `r16/sr16`: transform and UV composition where 16 fractional bits are needed.
+- `r8/sr8`: noise/lattice internals where 8 fractional bits are sufficient and grid alignment is primary.
 
 ### Rules
 1. **No Implicit Casting:** Never cast between strong types or to raw integers without using the `raw()` helper.
-2. **Semantic Boundaries:** Use `SQ0_16` for any value that can go negative (signals), and `SQ0_16` for values that must wrap or stay positive (angles).
-3. **Internal vs External:** `SQ24_8` is an implementation detail for patterns; external APIs should only expose `UV`.
+2. **Semantic Boundaries:** Use `sf16` for any value that can go negative (signals), and `f16` for values that must wrap or stay positive (angles).
+3. **Internal vs External:** `sr8` is an implementation detail for patterns; external APIs should only expose `UV`.
+4. **`r*` Naming:** `r*`/`sr*` denote ratio/range fixed-point values and are not implicitly constrained to `[0, 1]`.
 
 ## Signal & Timing Rules
 
 ### Timing Terminology
 - **Elapsed Time (`TimeMillis elapsedMs`):** Canonical time source for scalar signal sampling.
-- **Progress (`SQ0_16 progress`):** Scene-normalized progress used where mapped signal APIs require it.
+- **Progress (`f16 progress`):** Scene-normalized progress used where mapped signal APIs require it.
 
 ### Signal Kinds
 - **Periodic (`SignalKind::PERIODIC`):**
@@ -45,12 +52,12 @@
   - `duration == 0` emits `0`.
 
 ### Value Constraints
-- **Normalization:** `SQ0_16Signal` public outputs are clamped to `[-1, 1]`.
+- **Normalization:** `Sf16Signal` public outputs are clamped to `[-1, 1]`.
 - **Range Coverage:** Periodic samplers (`sine`, `noise`) must span the full signed range by default.
 - **Directionality:** Internal phase accumulation must preserve signed speed for reverse motion.
 
 ### Signal Responsibilities
-- `SQ0_16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).
+- `Sf16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).
 - Accumulation logic is separated into `SignalAccumulators.h` and applied explicitly (not via mapped-signal mode flags).
 - Scalar signals are absolute by contract (no scalar `absolute`/relative mode).
 - **Signed Convention:** Signals always emit signed values. Unsigned parameter domains must be produced by range mapping, not by signal factories.

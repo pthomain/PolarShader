@@ -46,12 +46,12 @@ namespace PolarShader {
     }
 
     struct CartesianTilingTransform::MappedInputs {
-        SQ0_16Signal cellSizeSignal;
+        Sf16Signal cellSizeSignal;
         LinearRange<int32_t> cellSizeRange;
     };
 
     CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
-        SQ0_16Signal cellSize,
+        Sf16Signal cellSize,
         int32_t minCellSize,
         int32_t maxCellSize
     ) {
@@ -64,7 +64,7 @@ namespace PolarShader {
     struct CartesianTilingTransform::State {
         int32_t cellSizeRaw;
         bool mirrored;
-        SQ0_16Signal cellSizeSignal;
+        Sf16Signal cellSizeSignal;
         LinearRange<int32_t> cellSizeRange;
         bool hasSignal;
     };
@@ -73,14 +73,14 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{
             clampCellSize(static_cast<int64_t>(cellSizeQ24_8) * kCellSizeScale),
             mirrored,
-            SQ0_16Signal(),
+            Sf16Signal(),
             LinearRange<int32_t>(1, 1),
             false
         })) {
     }
 
     CartesianTilingTransform::CartesianTilingTransform(
-        SQ0_16Signal cellSize,
+        Sf16Signal cellSize,
         int32_t minCellSize,
         int32_t maxCellSize,
         bool mirrored
@@ -101,7 +101,7 @@ namespace PolarShader {
         }
     }
 
-    void CartesianTilingTransform::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
+    void CartesianTilingTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
         if (state->hasSignal && state->cellSizeSignal) {
             int32_t value = state->cellSizeSignal.sample(state->cellSizeRange, elapsedMs);
             value = clampCellSize(static_cast<int64_t>(value) * kCellSizeScale);
@@ -117,13 +117,13 @@ namespace PolarShader {
                 return layer(uv);
             }
 
-            // Convert UV to raw CartQ24.8 logic scale (which is what cellSizeRaw is in)
+            // Convert UV to raw sr8/r8 Cartesian logic scale (which is what cellSizeRaw is in)
             // Wait, cellSizeRaw in this class seems to becellSizeQ24_8 * 10000? 
             // That's unusual. Let's check from_uv.
-            // from_uv(uv) returns CartQ24.8 (Q24.8).
+            // from_uv(uv) returns sr8/r8 Cartesian (sr8/r8).
             
-            SQ24_8 cx = CartesianMaths::from_uv(uv.u);
-            SQ24_8 cy = CartesianMaths::from_uv(uv.v);
+            sr8 cx = CartesianMaths::from_uv(uv.u);
+            sr8 cy = CartesianMaths::from_uv(uv.v);
             
             // Tiling logic using existing CartesianLayer operator's math
             int32_t x_raw = raw(cx);
@@ -139,8 +139,8 @@ namespace PolarShader {
             }
             
             UV tiled_uv(
-                CartesianMaths::to_uv(SQ24_8(local_x)),
-                CartesianMaths::to_uv(SQ24_8(local_y))
+                CartesianMaths::to_uv(sr8(local_x)),
+                CartesianMaths::to_uv(sr8(local_y))
             );
 
             return layer(tiled_uv);

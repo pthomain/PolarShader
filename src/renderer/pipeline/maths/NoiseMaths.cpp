@@ -28,12 +28,12 @@
 namespace PolarShader {
     NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
         // FastLED's inoise16 samples integer lattice points; we interpolate between
-        // grid corners to support smooth Q24.8 coordinates without blocky stepping.
-        uint32_t x_int = x >> CARTESIAN_FRAC_BITS;
-        uint32_t y_int = y >> CARTESIAN_FRAC_BITS;
-        uint32_t frac_mask = (1u << CARTESIAN_FRAC_BITS) - 1u;
-        uint16_t x_frac = static_cast<uint16_t>((x & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
-        uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
+        // grid corners to support smooth sr8/r8 coordinates without blocky stepping.
+        uint32_t x_int = x >> R8_FRAC_BITS;
+        uint32_t y_int = y >> R8_FRAC_BITS;
+        uint32_t frac_mask = (1u << R8_FRAC_BITS) - 1u;
+        uint16_t x_frac = static_cast<uint16_t>((x & frac_mask) << (16 - R8_FRAC_BITS));
+        uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - R8_FRAC_BITS));
 
         uint16_t n00 = inoise16(x_int << 8, y_int << 8);
         uint16_t n10 = inoise16((x_int + 1u) << 8, y_int << 8);
@@ -53,13 +53,13 @@ namespace PolarShader {
     NoiseRawU16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z) {
         // 3D variant of the same idea: trilinear interpolation over 8 corners
         // so animated depth (z) and fractional x/y produce continuous noise.
-        uint32_t x_int = x >> CARTESIAN_FRAC_BITS;
-        uint32_t y_int = y >> CARTESIAN_FRAC_BITS;
-        uint32_t z_int = z >> CARTESIAN_FRAC_BITS;
-        uint32_t frac_mask = (1u << CARTESIAN_FRAC_BITS) - 1u;
-        uint16_t x_frac = static_cast<uint16_t>((x & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
-        uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
-        uint16_t z_frac = static_cast<uint16_t>((z & frac_mask) << (16 - CARTESIAN_FRAC_BITS));
+        uint32_t x_int = x >> R8_FRAC_BITS;
+        uint32_t y_int = y >> R8_FRAC_BITS;
+        uint32_t z_int = z >> R8_FRAC_BITS;
+        uint32_t frac_mask = (1u << R8_FRAC_BITS) - 1u;
+        uint16_t x_frac = static_cast<uint16_t>((x & frac_mask) << (16 - R8_FRAC_BITS));
+        uint16_t y_frac = static_cast<uint16_t>((y & frac_mask) << (16 - R8_FRAC_BITS));
+        uint16_t z_frac = static_cast<uint16_t>((z & frac_mask) << (16 - R8_FRAC_BITS));
 
         uint16_t n000 = inoise16(x_int << 8, y_int << 8, z_int << 8);
         uint16_t n100 = inoise16((x_int + 1u) << 8, y_int << 8, z_int << 8);

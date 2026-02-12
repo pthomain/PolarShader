@@ -26,13 +26,13 @@
 
 namespace PolarShader {
     /**
-     * @brief Maps signals to angular values (UQ0_16).
+     * @brief Maps signals to angular values (f16).
      *
      * Handles wrapping logic appropriate for angles (e.g., 0-360 degrees).
      */
-    class PolarRange : public Range<UQ0_16> {
+    class PolarRange : public Range<f16> {
     public:
-        inline PolarRange(UQ0_16 min = UQ0_16(0), UQ0_16 max = UQ0_16(USQ0_16_MAX))
+        inline PolarRange(f16 min = f16(0), f16 max = f16(F16_MAX))
             : min_frac(min), max_frac(max) {
         }
 
@@ -41,11 +41,11 @@ namespace PolarShader {
          * @param t The input signal value.
          * @return The resulting angle.
          */
-        inline UQ0_16 map(SQ0_16 t) const override {
+        inline f16 map(sf16 t) const override {
             uint16_t min_raw = raw(min_frac);
             uint16_t max_raw = raw(max_frac);
             if (min_raw == max_raw) return min_frac;
-            uint32_t full_turn = static_cast<uint32_t>(USQ0_16_MAX) + 1u;
+            uint32_t full_turn = static_cast<uint32_t>(F16_MAX) + 1u;
 
             uint32_t span = 0;
             if (max_raw > min_raw) {
@@ -54,17 +54,17 @@ namespace PolarShader {
                 span = (full_turn - static_cast<uint32_t>(min_raw)) + static_cast<uint32_t>(max_raw);
             }
 
-            uint32_t t_raw = Range<UQ0_16>::mapUnsigned(t);
+            uint32_t t_raw = Range<f16>::mapUnsigned(t);
             uint32_t scaled = (span * t_raw) >> 16;
             uint32_t result = static_cast<uint32_t>(min_raw) + scaled;
             if (result >= full_turn) result -= full_turn;
 
-            return UQ0_16(static_cast<uint16_t>(result));
+            return f16(static_cast<uint16_t>(result));
         }
 
     private:
-        UQ0_16 min_frac = UQ0_16(0);
-        UQ0_16 max_frac = UQ0_16(USQ0_16_MAX);
+        f16 min_frac = f16(0);
+        f16 max_frac = f16(F16_MAX);
     };
 }
 

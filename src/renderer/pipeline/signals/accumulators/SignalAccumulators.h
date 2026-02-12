@@ -59,22 +59,22 @@ namespace PolarShader {
         };
 
         template<>
-        struct SignalAccumulator<UQ0_16> {
-            static UQ0_16 zero() { return UQ0_16(0); }
+        struct SignalAccumulator<f16> {
+            static f16 zero() { return f16(0); }
 
-            static UQ0_16 add(UQ0_16 base, UQ0_16 delta) {
+            static f16 add(f16 base, f16 delta) {
                 uint32_t sum = static_cast<uint32_t>(raw(base)) + static_cast<uint32_t>(raw(delta));
-                return UQ0_16(static_cast<uint16_t>(sum));
+                return f16(static_cast<uint16_t>(sum));
             }
         };
 
         template<>
-        struct SignalAccumulator<SQ0_16> {
-            static SQ0_16 zero() { return SQ0_16(0); }
+        struct SignalAccumulator<sf16> {
+            static sf16 zero() { return sf16(0); }
 
-            static SQ0_16 add(SQ0_16 base, SQ0_16 delta) {
+            static sf16 add(sf16 base, sf16 delta) {
                 int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
-                return scalarClampQ0_16Raw(sum);
+                return clampSf16Sat(sum);
             }
         };
 
@@ -100,23 +100,23 @@ namespace PolarShader {
         };
 
         template<>
-        struct SignalAccumulator<SQ24_8> {
-            static SQ24_8 zero() { return SQ24_8(0); }
+        struct SignalAccumulator<sr8> {
+            static sr8 zero() { return sr8(0); }
 
-            static SQ24_8 add(SQ24_8 base, SQ24_8 delta) {
+            static sr8 add(sr8 base, sr8 delta) {
                 int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
                 if (sum > std::numeric_limits<int32_t>::max()) sum = std::numeric_limits<int32_t>::max();
                 if (sum < std::numeric_limits<int32_t>::min()) sum = std::numeric_limits<int32_t>::min();
-                return SQ24_8(static_cast<int32_t>(sum));
+                return sr8(static_cast<int32_t>(sum));
             }
         };
 
         template<>
-        struct SignalAccumulator<SQ16_16> {
-            static SQ16_16 zero() { return SQ16_16(0); }
+        struct SignalAccumulator<sr16> {
+            static sr16 zero() { return sr16(0); }
 
-            static SQ16_16 add(SQ16_16 base, SQ16_16 delta) {
-                return SQ16_16(raw(base) + raw(delta));
+            static sr16 add(sr16 base, sr16 delta) {
+                return sr16(raw(base) + raw(delta));
             }
         };
 

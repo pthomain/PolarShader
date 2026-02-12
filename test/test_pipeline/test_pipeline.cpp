@@ -50,19 +50,19 @@
 using namespace PolarShader;
 
 void test_range_wraps_across_zero() {
-    PolarRange range(UQ0_16(0xC000u), UQ0_16(0x4000u));
-    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(SQ0_16(SQ0_16_MIN))));
-    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(SQ0_16(0))));
-    TEST_ASSERT_EQUAL_UINT16(0x3FFFu, raw(range.map(SQ0_16(SQ0_16_MAX))));
+    PolarRange range(f16(0xC000u), f16(0x4000u));
+    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(sf16(SF16_MIN))));
+    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(sf16(0))));
+    TEST_ASSERT_EQUAL_UINT16(0x3FFFu, raw(range.map(sf16(SF16_MAX))));
 }
 
 // Global variable to capture progress
-static UQ0_16 captured_progress(0);
+static f16 captured_progress(0);
 
 void test_scene_progress_calculation() {
     // 1. Setup Layer that captures progress
     auto layer = std::make_shared<Layer>(LayerBuilder(noisePattern(), CloudColors_p, "TestLayer")
-        .withDepth([](UQ0_16 progress, TimeMillis) {
+        .withDepth([](f16 progress, TimeMillis) {
             captured_progress = progress;
             return 0u;
         })

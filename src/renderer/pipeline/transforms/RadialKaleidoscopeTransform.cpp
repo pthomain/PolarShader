@@ -37,7 +37,7 @@ namespace PolarShader {
             
             uint32_t divisions = state->divisions;
             if (divisions > 1u) {
-                uint32_t full_radius = static_cast<uint32_t>(SQ0_16_MAX) + 1u;
+                uint32_t full_radius = static_cast<uint32_t>(SF16_MAX) + 1u;
                 uint32_t segment = full_radius / divisions;
                 if (segment != 0u) {
                     uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
@@ -51,7 +51,7 @@ namespace PolarShader {
 
                     uint32_t scaled = (local * full_radius) / segment;
                     if (scaled >= full_radius) scaled = full_radius - 1u;
-                    polar_uv.v = SQ16_16(static_cast<int32_t>(scaled));
+                    polar_uv.v = sr16(static_cast<int32_t>(scaled));
                 }
             }
 

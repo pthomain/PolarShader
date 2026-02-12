@@ -24,14 +24,14 @@
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> worleyPattern(
-        SQ24_8 cellSize,
+        sr8 cellSize,
         WorleyAliasing aliasingMode
     ) {
         return std::make_unique<WorleyPattern>(cellSize, aliasingMode);
     }
 
     std::unique_ptr<UVPattern> voronoiPattern(
-        SQ24_8 cellSize,
+        sr8 cellSize,
         WorleyAliasing aliasingMode
     ) {
         return std::make_unique<VoronoiPattern>(cellSize, aliasingMode);

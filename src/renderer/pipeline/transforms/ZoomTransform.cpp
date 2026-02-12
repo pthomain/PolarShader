@@ -21,6 +21,8 @@
 #include "ZoomTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
 #include <cstdio>
+
+#include "renderer/pipeline/signals/ranges/LinearRange.h"
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -30,17 +32,17 @@
 namespace PolarShader {
     namespace {
         // Default Zoom scale boundaries
-        const int32_t MIN_SCALE_RAW = SQ0_16_ONE >> 4; // (1/16)x
-        const int32_t MAX_SCALE_RAW = SQ0_16_ONE << 4; // 16x (Zoomed Out)
+        const int32_t MIN_SCALE_RAW = SF16_ONE >> 4; // (1/16)x
+        const int32_t MAX_SCALE_RAW = SF16_ONE << 4; // 16x (Zoomed Out)
     }
 
     struct ZoomTransform::MappedInputs {
-        SQ0_16Signal scaleSignal;
-        LinearRange<SQ0_16> range;
+        Sf16Signal scaleSignal;
+        LinearRange<sf16> range;
     };
 
-    ZoomTransform::MappedInputs ZoomTransform::makeInputs(SQ0_16Signal scale) {
-        LinearRange range{SQ0_16(MIN_SCALE_RAW), SQ0_16(MAX_SCALE_RAW)};
+    ZoomTransform::MappedInputs ZoomTransform::makeInputs(Sf16Signal scale) {
+        LinearRange range{sf16(MIN_SCALE_RAW), sf16(MAX_SCALE_RAW)};
         return MappedInputs{
             std::move(scale),
             std::move(range)
@@ -48,9 +50,9 @@ namespace PolarShader {
     }
 
     struct ZoomTransform::State {
-        SQ0_16Signal scaleSignal;
-        LinearRange<SQ0_16> range;
-        SQ0_16 scaleValue;
+        Sf16Signal scaleSignal;
+        LinearRange<sf16> range;
+        sf16 scaleValue;
         int32_t minScaleRaw;
         int32_t maxScaleRaw;
         TimeMillis lastLogMs;
@@ -58,7 +60,7 @@ namespace PolarShader {
         explicit State(MappedInputs inputs)
             : scaleSignal(std::move(inputs.scaleSignal)),
               range(std::move(inputs.range)),
-              scaleValue(SQ0_16(0)),
+              scaleValue(sf16(0)),
               minScaleRaw(0),
               maxScaleRaw(0),
               lastLogMs(0) {
@@ -67,12 +69,12 @@ namespace PolarShader {
         }
     };
 
-    ZoomTransform::ZoomTransform(SQ0_16Signal scale) {
+    ZoomTransform::ZoomTransform(Sf16Signal scale) {
         auto inputs = makeInputs(std::move(scale));
         state = std::make_shared<State>(std::move(inputs));
     }
 
-    void ZoomTransform::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
+    void ZoomTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
         state->scaleValue = state->scaleSignal.sample(state->range, elapsedMs);
         if (context) {
             context->zoomScale = state->scaleValue;
@@ -88,7 +90,7 @@ namespace PolarShader {
             int64_t y = (static_cast<int64_t>(raw(uv.v)) << 1) - 0x00010000;
             int32_t scale = raw(state->scaleValue);
 
-            // Apply Q0.16 scale
+            // Apply f16/sf16 scale
             int64_t sx = x * static_cast<int64_t>(scale);
             int64_t sy = y * static_cast<int64_t>(scale);
 
@@ -98,8 +100,8 @@ namespace PolarShader {
 
             // Map from [-1, 1] to [0, 1]
             UV scaled_uv(
-                SQ16_16((fx + 0x00010000) >> 1),
-                SQ16_16((fy + 0x00010000) >> 1)
+                sr16((fx + 0x00010000) >> 1),
+                sr16((fy + 0x00010000) >> 1)
             );
 
             return layer(scaled_uv);

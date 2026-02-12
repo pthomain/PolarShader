@@ -4,7 +4,7 @@
 Simplify the range system by replacing redundant linear mapping classes with a generic `LinearRange<T>` and introducing specialized `UVRange` support.
 
 ## Context
-Currently, the codebase has many range types (`CartRange`, `ZoomRange`, `SFracRange`, etc.) that perform identical linear interpolation but return different units. With the unification of spatial operations under `SQ16_16` and `UV`, these can be simplified.
+Currently, the codebase has many range types (`CartRange`, `ZoomRange`, `SFracRange`, etc.) that perform identical linear interpolation but return different units. With the unification of spatial operations under `sr16` and `UV`, these can be simplified.
 
 ## Requirements
 - **Generic LinearRange:** Implement a `LinearRange<T>` template that can replace most existing range types.

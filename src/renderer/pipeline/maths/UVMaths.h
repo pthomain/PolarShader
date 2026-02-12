@@ -28,20 +28,20 @@ namespace PolarShader {
      * @brief Provides basic arithmetic for unified UV coordinates.
      * 
      * These helpers ensure that coordinate offsets and transformations 
-     * maintain precision across the Q16.16 domain.
+     * maintain precision across the r16/sr16 (Q16.16) domain.
      */
     namespace UVMaths {
         constexpr UV add(UV a, UV b) {
             return UV(
-                SQ16_16(raw(a.u) + raw(b.u)),
-                SQ16_16(raw(a.v) + raw(b.v))
+                sr16(raw(a.u) + raw(b.u)),
+                sr16(raw(a.v) + raw(b.v))
             );
         }
 
         constexpr UV sub(UV a, UV b) {
             return UV(
-                SQ16_16(raw(a.u) - raw(b.u)),
-                SQ16_16(raw(a.v) - raw(b.v))
+                sr16(raw(a.u) - raw(b.u)),
+                sr16(raw(a.v) - raw(b.v))
             );
         }
     }

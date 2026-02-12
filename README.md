@@ -27,7 +27,7 @@ It targets platforms such as:
 ### 1. Deterministic Fixed-Point Arithmetic
 
 - No `float`, no `double`
-- Explicit Q-formats (`Q0.16`, `Q16.16`, `Q1.15`)
+- Explicit Q-formats (`f16/sf16 (Q0.16)`, `r16/sr16 (Q16.16)`, `Q1.15`)
 - Fully deterministic across frames, compilers, and MCUs
 - Predictable overflow, wrap, and saturation behavior
 
@@ -41,9 +41,14 @@ This makes PolarShader suitable for:
 ### 2. Unified Coordinate System (UV)
 
 PolarShader uses a **unified spatial representation (UV)**:
-- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `SQ16_16`.
+- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `sr16`.
 - **Domain Agnostic:** Transforms like rotation or zoom apply seamlessly to any pattern.
-- **High Precision:** `Q16.16` provides sufficient geometric headroom for large-scale translations and zooms.
+- **High Precision:** `r16/sr16 (Q16.16)` provides sufficient geometric headroom for large-scale translations and zooms.
+- **Specialized Cartesian Domain:** `sr8/r8` is used for lattice/noise-style Cartesian internals where 8 fractional bits are enough and integer-grid behavior is the priority.
+
+`r16` and `r8` are both ratio/range formats, but they serve different purposes:
+- `r16/sr16`: high-precision transform space (UV, composition, smooth motion).
+- `r8/sr8`: lower-fractional precision Cartesian/noise space (grid cells, lattice sampling, fast domain math).
 
 ---
 
@@ -70,7 +75,7 @@ Each transform:
 
 ### Signals
 
-PolarShader uses `SQ0_16Signal` factories for time-varying scalar control values.
+PolarShader uses `Sf16Signal` factories for time-varying scalar control values.
 
 Signal kinds:
 
@@ -89,8 +94,8 @@ Factory families:
 
 Output contract:
 
-* `SQ0_16Signal` emits values in `[0, 1]`.
-* Periodic factories span `[0, 1]` by default.
+* `Sf16Signal` emits values in `[-1, 1]`.
+* Periodic factories span `[-1, 1]` by default.
 * Internal phase integration uses signed speed for direction reversal.
 
 ---
@@ -99,7 +104,7 @@ Output contract:
 
 PolarShader clearly distinguishes:
 
-* **`SQ0_16` angle samples**
+* **`f16` angle samples**
   A wrapped turn-domain angle (0..65535 -> 0..1 turn)
 
 * **`PhaseAccumulator` internal phase state**
@@ -127,6 +132,19 @@ This ensures:
 * Smooth motion under variable `dt`
 * Correct wrap semantics
 * Centralized timing logic
+
+---
+
+### Unit Naming Cheat Sheet
+
+| Type | Signed | Format | Typical Use |
+| :--- | :--- | :--- | :--- |
+| `f16` | No | Q0.16 | Unit fractions and wrapped angle-like values in `[0, 1)` domains |
+| `sf16` | Yes | Q0.16 | Signed scalar signals/modulation in `[-1, 1]` |
+| `r16` | No | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
+| `sr16` | Yes | Q16.16 | UV transform/composition space with high fractional precision |
+| `r8` | No | Q24.8 | Unsigned Cartesian/noise-domain coordinates and depth sampling |
+| `sr8` | Yes | Q24.8 | Signed lattice/grid Cartesian internals for pattern math |
 
 ---
 

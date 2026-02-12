@@ -2,7 +2,7 @@
 
 ## Phase 1: Analysis & Type Definition [checkpoint: c75bbbf]
 - [x] Task: Audit existing coordinate types in `src/renderer/pipeline/units/` and `src/renderer/pipeline/maths/`.
-- [x] Task: Define a unified `UV` coordinate structure using `SQ16_16`. [8194f1f]
+- [x] Task: Define a unified `UV` coordinate structure using `sr16`. [8194f1f]
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Analysis & Type Definition' (Protocol in workflow.md)
 
 ## Phase 2: Math & Conversion Refactoring [checkpoint: 3e393d5]

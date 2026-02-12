@@ -48,7 +48,7 @@ namespace PolarShader {
      *
      * Chains transforms across Cartesian and Polar domains and maps palette-ready pattern intensities
      * to CRGB. Expects the base pattern to output 16-bit intensities in [0..65535]; no normalization is done here.
-     * Angles are represented as 16-bit turns (Q0.16). Cartesian coords are Q24.8. Any domain conversion (polar<->cartesian)
+     * Angles are represented as 16-bit turns (f16/sf16). Cartesian coords are sr8/r8. Any domain conversion (polar<->cartesian)
      * happens at explicit PipelineStep boundaries.
      */
     class Layer {
@@ -59,7 +59,7 @@ namespace PolarShader {
         std::shared_ptr<PipelineContext> context;
         DepthSignal depthSignal;
         
-        UQ0_16 alpha{0xFFFFu};
+        f16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
 
         static ColourMap blackLayer(const char *reason);
@@ -77,20 +77,20 @@ namespace PolarShader {
             const char *name,
             std::shared_ptr<PipelineContext> context,
             DepthSignal depthSignal,
-            UQ0_16 alpha = UQ0_16(0xFFFFu),
+            f16 alpha = f16(0xFFFFu),
             BlendMode blendMode = BlendMode::Normal
         );
 
         friend class LayerBuilder;
 
     public:
-        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs);
+        void advanceFrame(f16 progress, TimeMillis elapsedMs);
 
         ColourMap build() const;
 
         const char *getName() const { return name; }
 
-        UQ0_16 getAlpha() const { return alpha; }
+        f16 getAlpha() const { return alpha; }
         BlendMode getBlendMode() const { return blendMode; }
     };
 }

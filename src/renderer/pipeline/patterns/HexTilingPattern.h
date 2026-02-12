@@ -52,21 +52,21 @@ namespace PolarShader {
         );
 
         explicit HexTilingPattern(
-            SQ0_16Signal hexRadius,
+            Sf16Signal hexRadius,
             uint8_t colorCount = 3,
-            SQ0_16Signal edgeSoftness = SQ0_16Signal()
+            Sf16Signal edgeSoftness = Sf16Signal()
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (8 - 1); // 8 is CARTESIAN_FRAC_BITS
+        static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (8 - 1); // 8 is R8_FRAC_BITS
 
         void initDerived();
 
-        static uint16_t sampleSignal(SQ0_16Signal signal);
+        static uint16_t sampleSignal(Sf16Signal signal);
 
-        static HexAxial computeAxial(SQ24_8 q, SQ24_8 r);
+        static HexAxial computeAxial(sr8 q, sr8 r);
 
         static uint16_t computeBlend(
             const HexAxial &hex,

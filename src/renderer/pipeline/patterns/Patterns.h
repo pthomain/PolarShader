@@ -30,13 +30,13 @@ namespace PolarShader {
 
     // Nearest-distance Worley field (F1).
     std::unique_ptr<UVPattern> worleyPattern(
-        SQ24_8 cellSize = SQ24_8(WorleyCellUnit),
+        sr8 cellSize = sr8(WorleyCellUnit),
         WorleyAliasing aliasingMode = WorleyAliasing::Fast
     );
 
     // Hash-based Voronoi cell ID mapped to 0..65535.
     std::unique_ptr<UVPattern> voronoiPattern(
-        SQ24_8 cellSize = SQ24_8(WorleyCellUnit),
+        sr8 cellSize = sr8(WorleyCellUnit),
         WorleyAliasing aliasingMode = WorleyAliasing::Fast
     );
 

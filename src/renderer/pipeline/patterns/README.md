@@ -53,20 +53,20 @@ A pattern's final output **must** be a `PatternNormU16` value that spans the ful
 
 ### 5. Use Explicit Coordinate Contracts (Cartesian)
 
-Fixed-point arithmetic with `SQ24_8` is powerful but requires care. For patterns involving grids, cells, or integer-based steps, you **must** use the explicit helpers to avoid scaling errors and precision loss.
+Fixed-point arithmetic with `sr8` is powerful but requires care. For patterns involving grids, cells, or integer-based steps, you **must** use the explicit helpers to avoid scaling errors and precision loss.
 
 - **Use the Central Utility:** The `CartesianMaths.h` header provides safe, explicit functions for fixed-point operations.
   ```cpp
   #include "renderer/pipeline/maths/CartesianMaths.h"
 
-  // Convert an integer to the Q24.8 format
-  SQ24_8 cell_size = CartesianMaths::from_int(32);
+  // Convert an integer to the sr8/r8 format
+  sr8 cell_size = CartesianMaths::from_int(32);
 
   // Get the integer part of a coordinate
   int32_t cell_x = CartesianMaths::floor_to_int(x);
 
   // Perform safe multiplication/division
-  SQ24_8 scaled_x = CartesianMaths::mul(x, scale_factor);
+  sr8 scaled_x = CartesianMaths::mul(x, scale_factor);
   ```
 
 ---
@@ -80,5 +80,5 @@ Polar patterns must treat the `angle` coordinate as a wraparound domain to preve
   #include "renderer/pipeline/maths/PolarMaths.h"
 
   // Calculate the shortest distance between the current angle and a target spoke angle
-  UQ0_16 dist_to_spoke = PolarMaths::shortest_angle_dist(current_angle, spoke_angle);
+  f16 dist_to_spoke = PolarMaths::shortest_angle_dist(current_angle, spoke_angle);
   ```

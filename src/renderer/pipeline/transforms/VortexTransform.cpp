@@ -31,21 +31,21 @@
 
 namespace PolarShader {
     struct VortexTransform::MappedInputs {
-        SQ0_16Signal strengthSignal;
-        LinearRange<SQ0_16> strengthRange;
+        Sf16Signal strengthSignal;
+        LinearRange<sf16> strengthRange;
     };
 
-    VortexTransform::MappedInputs VortexTransform::makeInputs(SQ0_16Signal strength) {
+    VortexTransform::MappedInputs VortexTransform::makeInputs(Sf16Signal strength) {
         return MappedInputs{
             std::move(strength),
-            LinearRange(SQ0_16(SQ0_16_MIN), SQ0_16(SQ0_16_MAX))
+            LinearRange(sf16(SF16_MIN), sf16(SF16_MAX))
         };
     }
 
     struct VortexTransform::State {
-        SQ0_16Signal strengthSignal;
-        LinearRange<SQ0_16> strengthRange;
-        SQ0_16 strengthValue = SQ0_16(0);
+        Sf16Signal strengthSignal;
+        LinearRange<sf16> strengthRange;
+        sf16 strengthValue = sf16(0);
 
         explicit State(MappedInputs inputs)
             : strengthSignal(std::move(inputs.strengthSignal)),
@@ -53,12 +53,12 @@ namespace PolarShader {
         }
     };
 
-    VortexTransform::VortexTransform(SQ0_16Signal strength) {
+    VortexTransform::VortexTransform(Sf16Signal strength) {
         auto inputs = makeInputs(std::move(strength));
         state = std::make_shared<State>(std::move(inputs));
     }
 
-    void VortexTransform::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
+    void VortexTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("VortexTransform::advanceFrame context is null.");
         }
@@ -73,7 +73,7 @@ namespace PolarShader {
             uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
             int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
             int32_t new_angle = raw(polar_uv.u) + scaled;
-            polar_uv.u = SQ16_16(static_cast<uint16_t>(new_angle));
+            polar_uv.u = sr16(static_cast<uint16_t>(new_angle));
 
             return layer(polarToCartesianUV(polar_uv));
         };

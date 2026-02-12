@@ -25,16 +25,16 @@
 
 namespace PolarShader {
     struct PipelineContext {
-        // Current zoom scale in Q0.16.
-        SQ0_16 zoomScale = SQ0_16(SQ0_16_ONE);
-        // Current depth value in unsigned Q24.8 domain.
+        // Current zoom scale in f16/sf16.
+        sf16 zoomScale = sf16(SF16_ONE);
+        // Current depth value in unsigned r8 domain.
         uint32_t depth = 0u;
         // Palette index offset applied during final palette lookup.
         uint8_t paletteOffset = 0u;
         // Optional low-end clipping for palette lookup.
         PatternNormU16 paletteClip = PatternNormU16(0);
-        // Feather width for palette clipping (Q0.16).
-        UQ0_16 paletteClipFeather = UQ0_16(0);
+        // Feather width for palette clipping (f16/sf16).
+        f16 paletteClipFeather = f16(0);
 
         // Power curve applied to the clip input.
         enum class PaletteClipPower : uint8_t {

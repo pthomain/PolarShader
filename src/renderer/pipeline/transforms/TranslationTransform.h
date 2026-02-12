@@ -29,19 +29,19 @@ namespace PolarShader {
     /**
      * Cartesian translation using direction and speed signals.
      *
-     * Direction is a full-turn phase in Q0.16.
-     * Velocity is a 0..1 scalar in Q0.16 mapped to a max speed (Q24.8 units).
+     * Direction is a full-turn phase in f16/sf16.
+     * Velocity is a 0..1 scalar in f16/sf16 mapped to a max speed (sr8/r8 units).
      */
     class TranslationTransform : public UVTransform {
     public:
         explicit TranslationTransform(UVSignal offsetSignal);
 
         TranslationTransform(
-            SQ0_16Signal direction,
-            SQ0_16Signal speed
+            Sf16Signal direction,
+            Sf16Signal speed
         );
 
-        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
 

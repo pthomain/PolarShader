@@ -27,7 +27,7 @@ namespace PolarShader {
           durationMs(durationMs) {
     }
 
-    void Scene::advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) {
+    void Scene::advanceFrame(f16 progress, TimeMillis elapsedMs) {
         for (auto &layer: layers) {
             layer->advanceFrame(progress, elapsedMs);
         }
@@ -41,11 +41,11 @@ namespace PolarShader {
     namespace {
         struct CompositedLayer {
             ColourMap map;
-            UQ0_16 alpha;
+            f16 alpha;
             BlendMode blendMode;
         };
 
-        CRGB blend(CRGB base, CRGB top, UQ0_16 alpha, BlendMode mode) {
+        CRGB blend(CRGB base, CRGB top, f16 alpha, BlendMode mode) {
             if (raw(alpha) == 0) return base;
 
             switch (mode) {
@@ -86,7 +86,7 @@ namespace PolarShader {
 
     ColourMap Scene::build() const {
         if (layers.empty()) {
-            return [](UQ0_16, UQ0_16) { return CRGB::Black; };
+            return [](f16, f16) { return CRGB::Black; };
         }
 
         fl::vector<CompositedLayer> composedLayers;
@@ -99,7 +99,7 @@ namespace PolarShader {
             });
         }
 
-        return [composedLayers = std::move(composedLayers)](UQ0_16 angle, UQ0_16 radius) {
+        return [composedLayers = std::move(composedLayers)](f16 angle, f16 radius) {
             CRGB result = CRGB::Black;
             for (const auto &entry: composedLayers) {
                 CRGB layerColor = entry.map(angle, radius);

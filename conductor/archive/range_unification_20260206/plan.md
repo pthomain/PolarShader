@@ -6,7 +6,7 @@
 - [x] Task: Update `Range.h` to support these new types if necessary. [b1b21cb]
 
 ## Phase 2: Component Refactoring [checkpoint: d97f186]
-- [x] Task: Refactor `ZoomTransform` to use `LinearRange<SQ0_16>`. [e3db100]
+- [x] Task: Refactor `ZoomTransform` to use `LinearRange<sf16>`. [e3db100]
 - [x] Task: Refactor `DomainWarpTransform` to use generic linear ranges for its many parameters. [e3db100]
 - [x] Task: Refactor `TranslationTransform` to use `LinearRange<int32_t>` internally if needed. [e3db100]
 

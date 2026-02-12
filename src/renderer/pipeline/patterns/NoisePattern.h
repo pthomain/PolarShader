@@ -45,13 +45,13 @@ namespace PolarShader {
         NoiseType type;
         fl::u8 octaves;
 
-        static PatternNormU16 noiseLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z);
+        static PatternNormU16 noiseLayerImpl(r8 x, r8 y, r8 z);
 
-        static PatternNormU16 fBmLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z, fl::u8 octaveCount);
+        static PatternNormU16 fBmLayerImpl(r8 x, r8 y, r8 z, fl::u8 octaveCount);
 
-        static PatternNormU16 turbulenceLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z);
+        static PatternNormU16 turbulenceLayerImpl(r8 x, r8 y, r8 z);
 
-        static PatternNormU16 ridgedLayerImpl(UQ24_8 x, UQ24_8 y, UQ24_8 z);
+        static PatternNormU16 ridgedLayerImpl(r8 x, r8 y, r8 z);
 
     public:
         explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4);

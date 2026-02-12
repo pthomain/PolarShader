@@ -9,7 +9,7 @@ The project recently introduced `UVPattern` and `UVTransform` to unify spatial o
 ## Requirements
 - **Single Pipeline Domain:** The `PolarPipeline` must operate exclusively on `UVLayer` and `UVTransform`.
 - **Removal of Legacy Bases:** `CartesianPattern`, `PolarPattern`, `CartesianTransform`, and `PolarTransform` must be deleted.
-- **Internal Units Only:** Specialized units like `SQ24_8` must be encapsulated as implementation details within specific patterns and not exposed in the pipeline interfaces.
+- **Internal Units Only:** Specialized units like `sr8` must be encapsulated as implementation details within specific patterns and not exposed in the pipeline interfaces.
 - **Pipeline Simplification:** Remove explicit `ToCartesian` and `ToPolar` steps from the pipeline builder and processing loop.
 
 ## Success Criteria

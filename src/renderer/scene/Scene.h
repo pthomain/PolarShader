@@ -39,7 +39,7 @@ namespace PolarShader {
     public:
         Scene(fl::vector<std::shared_ptr<Layer>> layers, TimeMillis durationMs = UINT32_MAX);
 
-        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs);
+        void advanceFrame(f16 progress, TimeMillis elapsedMs);
 
         ColourMap build() const;
 

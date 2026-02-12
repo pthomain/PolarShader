@@ -27,7 +27,7 @@ This track introduces a higher-level "Scene" architecture to PolarShader, allowi
     - **Range:** `sine` and `noise` samplers span full `[0, 1]`.
     - **Output Contract:** Public scalar signal outputs clamp to `[0, 1]`.
 - **API Constraints:**
-    - `cPerMil` creates constant signed scalar values in Q0.16.
+    - `cPerMil` creates constant signed scalar values in f16/sf16.
     - `cPerMil16_16` (unsigned helper) is removed.
     - Scalar signals are absolute by contract (no scalar relative/absolute flag).
     - Relative accumulation behavior is isolated in mapped/UV signal accumulators.
@@ -35,7 +35,7 @@ This track introduces a higher-level "Scene" architecture to PolarShader, allowi
 
 ## Scene & Layering
 - **Layer Attributes:**
-    - Each `Layer` instance has an `alpha` value (SQ0_16) and a `BlendMode`.
+    - Each `Layer` instance has an `alpha` value (sf16) and a `BlendMode`.
     - Supported `BlendMode`s: `Normal`, `Add`, `Multiply`, `Screen`.
 - **Scene Class:**
     - Manages a collection of `Layer` objects.

@@ -29,7 +29,6 @@
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
-#include "renderer/pipeline/transforms/CartesianTilingTransform.h"
 
 namespace PolarShader {
     namespace {
@@ -50,17 +49,20 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                .addPaletteTransform(
-                    PaletteTransform(sine())
-                )
-                .addTransform(
-                    ZoomTransform(
-                        noise(
-                            midPoint(),
-                            ceiling()
-                        )
-                    )
-                );
+                // .addPaletteTransform(
+                    // PaletteTransform(sine())
+                // )
+                .addTransform(TranslationTransform(
+                    cPerMil(100),
+                    cPerMil(100)
+                ));
+                // .addTransform(
+                    // ZoomTransform(csPerMil(-500))
+                // );
+        // .addTransform(KaleidoscopeTransform(
+        //     4,
+        //     true
+        // ));
     }
 
     LayerBuilder hexKaleidoscopePreset(
@@ -105,7 +107,7 @@ namespace PolarShader {
                 .addPaletteTransform(PaletteTransform(
                     noise(cPerMil(100)),
                     noise(cPerMil(100), cPerMil(300), cPerMil(50)),
-                    uPerMil(50)
+                    perMil(50)
                 ))
                 .addTransform(TranslationTransform(
                     noise(cPerMil(100)),

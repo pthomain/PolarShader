@@ -24,19 +24,19 @@
 
 namespace PolarShader {
     SampleSignal sampleNoise() {
-        return [](UQ0_16 phase) -> SQ0_16 {
+        return [](f16 phase) -> sf16 {
             NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(phase)));
             PatternNormU16 normNoise = noiseNormaliseU16(rawNoise);
-            return SQ0_16(unit_to_signed_raw(raw(normNoise)));
+            return toSigned(f16(raw(normNoise)));
         };
     }
 
     SampleSignal sampleSine() {
-        return [](UQ0_16 phase) -> SQ0_16 {
+        return [](f16 phase) -> sf16 {
             // sin16 expects 0-65535 for a full circle.
             // Result is signed 16-bit [-32768, 32767].
             int32_t s = sin16(raw(phase));
-            return SQ0_16(s * 2);
+            return sf16(s * 2);
         };
     }
 }

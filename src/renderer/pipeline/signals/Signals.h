@@ -32,85 +32,99 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
-    using Waveform = SQ0_16Signal::WaveformFn;
-    const LinearRange<SQ0_16> &unitRange();
-    const LinearRange<SQ0_16> &signedUnitRange();
+    using Waveform = Sf16Signal::WaveformFn;
 
-    using PeriodicSignalFactory = SQ0_16Signal (*)(
-        SQ0_16Signal speed,
-        SQ0_16Signal amplitude,
-        SQ0_16Signal offset,
-        SQ0_16Signal phaseOffset
+    const LinearRange<sf16> &unitRange();
+
+    const LinearRange<sf16> &signedUnitRange();
+
+    using PeriodicSignalFactory = Sf16Signal (*)(
+        Sf16Signal speed,
+        Sf16Signal amplitude,
+        Sf16Signal offset,
+        Sf16Signal phaseOffset
     );
-    using AperiodicSignalFactory = SQ0_16Signal (*)(TimeMillis duration, LoopMode loopMode);
+    using AperiodicSignalFactory = Sf16Signal (*)(TimeMillis duration, LoopMode loopMode);
 
-    SQ0_16Signal floor();
+    Sf16Signal floor();
 
-    SQ0_16Signal midPoint();
+    Sf16Signal midPoint();
 
-    SQ0_16Signal ceiling();
+    Sf16Signal ceiling();
 
-    SQ0_16Signal constant(SQ0_16 value);
+    Sf16Signal constant(sf16 value);
 
-    SQ0_16Signal constant(UQ0_16 value);
+    Sf16Signal constant(f16 value);
 
-    SQ0_16Signal cFrac(int32_t value);
+    /**
+     * @brief Creates a constant signed sf16 from per-mille input.
+     *
+     * Accepts signed input in [-1000, 1000]. Magnitude is clamped to 1000,
+     * preserving sign.
+     */
+    Sf16Signal csPerMil(int16_t value);
 
-    SQ0_16Signal cPerMil(int32_t value);
+    /**
+     * @brief Creates a constant signed sf16 from unsigned per-mille input.
+     *
+     * Accepts [0, 1000], maps linearly to [-1000, 1000] (0 -> -1000, 500 -> 0,
+     * 1000 -> 1000), then emits the equivalent constant sf16 signal.
+     */
+    Sf16Signal cPerMil(uint16_t value);
 
-    SQ0_16Signal cRandom();
+    Sf16Signal cRandom();
 
     /**
      * @brief Animated noise signal driven by a speed signal.
      * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
      */
-    SQ0_16Signal noise(
-        SQ0_16Signal speed = cPerMil(100),
-        SQ0_16Signal amplitude = ceiling(),
-        SQ0_16Signal offset = floor(),
-        SQ0_16Signal phaseOffset = cRandom()
+    Sf16Signal noise(
+        Sf16Signal speed = cPerMil(100),
+        Sf16Signal amplitude = ceiling(),
+        Sf16Signal offset = floor(),
+        Sf16Signal phaseOffset = cRandom()
     );
 
     /**
      * @brief Periodic sine wave signal driven by a speed signal.
      * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
      */
-    SQ0_16Signal sine(
-        SQ0_16Signal speed = cPerMil(100),
-        SQ0_16Signal amplitude = ceiling(),
-        SQ0_16Signal offset = floor(),
-        SQ0_16Signal phaseOffset = cRandom()
+    Sf16Signal sine(
+        Sf16Signal speed = cPerMil(100),
+        Sf16Signal amplitude = ceiling(),
+        Sf16Signal offset = floor(),
+        Sf16Signal phaseOffset = cRandom()
     );
 
-    SQ0_16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    Sf16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    SQ0_16Signal quadraticIn(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    Sf16Signal quadraticIn(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    SQ0_16Signal quadraticOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    Sf16Signal quadraticOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    SQ0_16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    Sf16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    // Scale a signed signal in the [-1..1] domain by a Q0.16 fraction.
-    SQ0_16Signal scale(SQ0_16Signal signal, UQ0_16 factor);
+    // Scale a signed signal in the [-1..1] domain by a f16/sf16 fraction.
+    Sf16Signal scale(Sf16Signal signal, f16 factor);
 
     /** @brief Emits a constant UV coordinate. */
     UVSignal constantUV(UV value);
 
     /** @brief Combines two scalar signals into a 2D UV signal. */
-    UVSignal uvSignal(SQ0_16Signal u, SQ0_16Signal v);
+    UVSignal uvSignal(Sf16Signal u, Sf16Signal v);
 
     /** @brief Maps a signed signal into a UV area via unsigned range mapping. */
-    UVSignal uv(SQ0_16Signal signal, UV min, UV max);
+    UVSignal uv(Sf16Signal signal, UV min, UV max);
 
     /** @brief Maps a signed signal into a UV area via unsigned range mapping. */
-    UVSignal uvInRange(SQ0_16Signal signal, UV min, UV max);
+    UVSignal uvInRange(Sf16Signal signal, UV min, UV max);
 
-    // Depth signals for animating noise domains (unsigned Q24.8).
+    // Depth signals for animating noise domains (unsigned r8).
     DepthSignal constantDepth(uint32_t value);
 
-    // Map a signed signal into the unsigned Q24.8 depth domain.
+    // Map a signed signal into the unsigned r8 depth domain.
     DepthSignal depth(
-        SQ0_16Signal signal = cPerMil(100),
+        Sf16Signal signal = cPerMil(100),
         LinearRange<uint32_t> range = LinearRange<uint32_t>(0, 1000)
     );
 }

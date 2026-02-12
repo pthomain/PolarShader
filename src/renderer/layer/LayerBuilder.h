@@ -45,8 +45,8 @@ namespace PolarShader {
         // Must point to a string with static storage duration (presets use literals).
         const char *name;
         std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
-        DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << CARTESIAN_FRAC_BITS);
-        UQ0_16 alpha{0xFFFFu};
+        DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << R8_FRAC_BITS);
+        f16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
 
     public:
@@ -70,12 +70,12 @@ namespace PolarShader {
          *   minimizing memory allocations and copies on microcontrollers.
          */
 
-        LayerBuilder &setAlpha(UQ0_16 a) & {
+        LayerBuilder &setAlpha(f16 a) & {
             alpha = a;
             return *this;
         }
 
-        LayerBuilder &&setAlpha(UQ0_16 a) && {
+        LayerBuilder &&setAlpha(f16 a) && {
             alpha = a;
             return std::move(*this);
         }
@@ -107,7 +107,7 @@ namespace PolarShader {
             return std::move(*this);
         }
 
-        LayerBuilder &setDepthSignal(SQ0_16Signal signal) & {
+        LayerBuilder &setDepthSignal(Sf16Signal signal) & {
             if (built) return *this;
             if (!signal) {
                 return *this;
@@ -116,7 +116,7 @@ namespace PolarShader {
             return *this;
         }
 
-        LayerBuilder &&setDepthSignal(SQ0_16Signal signal) && {
+        LayerBuilder &&setDepthSignal(Sf16Signal signal) && {
             if (built) return std::move(*this);
             if (!signal) return std::move(*this);
 

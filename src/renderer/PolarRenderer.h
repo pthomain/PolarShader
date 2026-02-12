@@ -29,7 +29,7 @@
 struct CRGB;
 
 namespace PolarShader {
-    using PolarCoords = fl::pair<UQ0_16, UQ0_16>;
+    using PolarCoords = fl::pair<f16, f16>;
     using PolarCoordsMapper = fl::function<PolarCoords(uint16_t pixelIndex)>;
 
     /**

@@ -36,26 +36,28 @@ namespace PolarShader {
      */
     class PaletteTransform : public FrameTransform {
     public:
-        explicit PaletteTransform(SQ0_16Signal offset);
+        explicit PaletteTransform(Sf16Signal offset);
 
         PaletteTransform(
-            SQ0_16Signal offset,
-            SQ0_16Signal clipSignal,
-            UQ0_16 feather = uPerMil(100),
+            Sf16Signal offset,
+            Sf16Signal clipSignal,
+            f16 feather = perMil(100),
             PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square
         );
 
-        void advanceFrame(UQ0_16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
         void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
 
     private:
         struct MappedInputs;
-        static MappedInputs makeInputs(SQ0_16Signal offset);
+
+        static MappedInputs makeInputs(Sf16Signal offset);
+
         static MappedInputs makeInputs(
-            SQ0_16Signal offset,
-            SQ0_16Signal clipSignal,
-            UQ0_16 feather,
+            Sf16Signal offset,
+            Sf16Signal clipSignal,
+            f16 feather,
             PipelineContext::PaletteClipPower clipPower
         );
 

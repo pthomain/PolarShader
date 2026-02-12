@@ -29,16 +29,16 @@
 
 namespace PolarShader {
     UV polarToCartesianUV(UV polar_uv) {
-        UQ0_16 angle_turns = UQ0_16(static_cast<uint16_t>(raw(polar_uv.u)));
-        UQ0_16 radius = UQ0_16(static_cast<uint16_t>(raw(polar_uv.v)));
+        f16 angle_turns = f16(static_cast<uint16_t>(raw(polar_uv.u)));
+        f16 radius = f16(static_cast<uint16_t>(raw(polar_uv.v)));
 
-        SQ0_16 cos_val = angleCosQ0_16(angle_turns);
-        SQ0_16 sin_val = angleSinQ0_16(angle_turns);
+        sf16 cos_val = angleCosF16(angle_turns);
+        sf16 sin_val = angleSinF16(angle_turns);
 
         // x = cos(angle) * radius, y = sin(angle) * radius
         // Result is in range [-1, 1] relative to center
-        int32_t x_raw = scale32(raw(cos_val), radius);
-        int32_t y_raw = scale32(raw(sin_val), radius);
+        int32_t x_raw = mulI32F16Sat(raw(cos_val), radius);
+        int32_t y_raw = mulI32F16Sat(raw(sin_val), radius);
 
         // Map from [-1, 1] to [0, 1]
         // x_normalized = (x + 1) / 2
@@ -46,7 +46,7 @@ namespace PolarShader {
         int32_t x_norm = (x_raw + 0x00010000) >> 1;
         int32_t y_norm = (y_raw + 0x00010000) >> 1;
 
-        return UV(SQ16_16(x_norm), SQ16_16(y_norm));
+        return UV(sr16(x_norm), sr16(y_norm));
     }
 
     UV cartesianToPolarUV(UV cart_uv) {
@@ -55,22 +55,22 @@ namespace PolarShader {
         int32_t x = (raw(cart_uv.u) << 1) - 0x00010000;
         int32_t y = (raw(cart_uv.v) << 1) - 0x00010000;
 
-        int32_t clamped_x = constrain(x, SQ0_16_MIN, SQ0_16_MAX);
-        int32_t clamped_y = constrain(y, SQ0_16_MIN, SQ0_16_MAX);
+        int32_t clamped_x = constrain(x, SF16_MIN, SF16_MAX);
+        int32_t clamped_y = constrain(y, SF16_MIN, SF16_MAX);
         int16_t x16 = static_cast<int16_t>(clamped_x >> 1);
         int16_t y16 = static_cast<int16_t>(clamped_y >> 1);
 
-        UQ0_16 angle_units = angleAtan2TurnsApprox(y16, x16);
+        f16 angle_units = angleAtan2TurnsApprox(y16, x16);
         int64_t dx = clamped_x;
         int64_t dy = clamped_y;
 
         uint64_t radius_squared = static_cast<uint64_t>(dx * dx) + static_cast<uint64_t>(dy * dy);
-        uint64_t magnitude_raw = sqrtU64(radius_squared);
+        uint64_t magnitude_raw = sqrtU64Raw(radius_squared);
 
-        if (magnitude_raw > static_cast<uint64_t>(SQ0_16_MAX)) {
-            magnitude_raw = SQ0_16_MAX;
+        if (magnitude_raw > static_cast<uint64_t>(SF16_MAX)) {
+            magnitude_raw = SF16_MAX;
         }
 
-        return UV(SQ16_16(raw(angle_units)), SQ16_16(static_cast<int32_t>(magnitude_raw)));
+        return UV(sr16(raw(angle_units)), sr16(static_cast<int32_t>(magnitude_raw)));
     }
 }

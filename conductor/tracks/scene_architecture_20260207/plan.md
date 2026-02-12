@@ -30,7 +30,7 @@ Rename existing pipeline components to reflect the new "Layer" terminology and u
 Introduce the `Interpolator` base class and its various easing implementations.
 
 - [x] Task: Create `src/renderer/pipeline/signals/interpolators/Interpolator.h`.
-    - Define the base `Interpolator` interface with a `calculate(SQ0_16 progress)` method.
+    - Define the base `Interpolator` interface with a `calculate(sf16 progress)` method.
 - [x] Task: Implement `LinearInterpolator` and `QuadraticInterpolator` (In/Out/InOut).
 - [x] Task: Implement `SinusoidalInterpolator` (In/Out/InOut).
 - [x] Task: Implement `ElasticInterpolator` and `BounceInterpolator` (In/Out/InOut).
@@ -62,10 +62,10 @@ Enhance `Layer` with composition properties and implement the `Scene` and `Scene
 ## Phase 5: Unified Signal & Progress-based Timing
 Refactor the signal system to use normalized progress (0..1) instead of absolute time, aligning with the new Scene-based architecture.
 
-- [x] Task: Refactor `SignalTypes.h` and `Signals.h` to use `SQ0_16 progress` instead of `TimeMillis`. [3651167]
+- [x] Task: Refactor `SignalTypes.h` and `Signals.h` to use `sf16 progress` instead of `TimeMillis`. [3651167]
 - [x] Task: Update `SceneManager` to calculate progress and pass it to `Scene`. [b2f91a5]
 - [x] Task: Update `Scene` and `Layer` to use progress for sampling signals. [573a4b9]
-- [x] Task: Remove `Interpolator` hierarchy and replace with unified `SQ0_16Signal` functions (easing functions). [919d7a2]
+- [x] Task: Remove `Interpolator` hierarchy and replace with unified `Sf16Signal` functions (easing functions). [919d7a2]
 - [x] Task: Remove `animate()` function from `Signals.h/cpp`. [cecceae]
 - [x] Task: Update all existing signals, transforms, and patterns to the new progress-based API. [f8e4b3c]
 - [x] Task: Conductor - User Manual Verification 'Unified Signal & Progress-based Timing' (Protocol in workflow.md)
@@ -74,7 +74,7 @@ Refactor the signal system to use normalized progress (0..1) instead of absolute
 Address API regressions and enforce strict timing/phase logic.
 
 - [x] Task: Restore Signed Phase Speed for Periodic Signals.
-    - Update `sine` and `noise` to accept `SQ0_16Signal speed`.
+    - Update `sine` and `noise` to accept `Sf16Signal speed`.
     - Restore `PhaseAccumulator` usage in periodic signals to support varying speed and direction.
     - Ensure easing functions retain `Period` (TimeMillis) for looping.
 - [x] Task: Update Transforms and Presets for Speed Signals.

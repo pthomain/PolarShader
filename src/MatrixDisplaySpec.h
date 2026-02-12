@@ -35,8 +35,8 @@ namespace PolarShader {
         static constexpr uint16_t NB_LEDS = NB_SEGMENTS * SEGMENT_SIZE;
 
         // Scale so the unit circle has a diameter equal to the matrix diagonal.
-        // 1 / sqrt(2) in Q0.16 (~0.7071).
-        static constexpr uint16_t DIAGONAL_SCALE_Q0_16 = 46341u;
+        // 1 / sqrt(2) in f16/sf16 (~0.7071).
+        static constexpr uint16_t DIAGONAL_SCALE_F16 = 46341u;
 
         uint16_t numSegments() const override {
             return NB_SEGMENTS;
@@ -65,22 +65,22 @@ namespace PolarShader {
             const int32_t denom_x = MATRIX_WIDTH > 1 ? (MATRIX_WIDTH - 1) : 1;
             const int32_t denom_y = MATRIX_HEIGHT > 1 ? (MATRIX_HEIGHT - 1) : 1;
 
-            const int32_t x_q0_16 = (centered_x * SQ0_16_ONE) / denom_x;
-            const int32_t y_q0_16 = (centered_y * SQ0_16_ONE) / denom_y;
+            const int32_t x_q0_16 = (centered_x * SF16_ONE) / denom_x;
+            const int32_t y_q0_16 = (centered_y * SF16_ONE) / denom_y;
 
-            const UQ0_16 diagonal_scale(DIAGONAL_SCALE_Q0_16);
-            const int32_t scaled_x = scale32(x_q0_16, diagonal_scale);
-            const int32_t scaled_y = scale32(y_q0_16, diagonal_scale);
+            const f16 diagonal_scale(DIAGONAL_SCALE_F16);
+            const int32_t scaled_x = mulI32F16Sat(x_q0_16, diagonal_scale);
+            const int32_t scaled_y = mulI32F16Sat(y_q0_16, diagonal_scale);
 
             // Convert to UV space [0, 1] then to Polar UV.
             UV cart_uv(
-                SQ16_16((scaled_x + SQ0_16_ONE) >> 1),
-                SQ16_16((scaled_y + SQ0_16_ONE) >> 1)
+                sr16((scaled_x + SF16_ONE) >> 1),
+                sr16((scaled_y + SF16_ONE) >> 1)
             );
             UV polar = cartesianToPolarUV(cart_uv);
             return {
-                UQ0_16(static_cast<uint16_t>(raw(polar.u))),
-                UQ0_16(static_cast<uint16_t>(raw(polar.v)))
+                f16(static_cast<uint16_t>(raw(polar.u))),
+                f16(static_cast<uint16_t>(raw(polar.v)))
             };
         }
     };

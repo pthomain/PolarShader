@@ -33,7 +33,7 @@ namespace PolarShader {
         UVRange(UV min, UV max) : min_uv(min), max_uv(max) {
         }
 
-        UV map(SQ0_16 t) const override {
+        UV map(sf16 t) const override {
             uint32_t t_raw = Range<UV>::mapUnsigned(t);
 
             int64_t u_min = raw(min_uv.u);
@@ -47,8 +47,8 @@ namespace PolarShader {
             int64_t v_scaled = (v_span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
 
             return UV(
-                SQ16_16(static_cast<int32_t>(u_min + u_scaled)),
-                SQ16_16(static_cast<int32_t>(v_min + v_scaled))
+                sr16(static_cast<int32_t>(u_min + u_scaled)),
+                sr16(static_cast<int32_t>(v_min + v_scaled))
             );
         }
 

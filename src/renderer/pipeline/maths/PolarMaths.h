@@ -48,17 +48,17 @@ namespace PolarShader {
          * For example, the shortest distance between 350 degrees and 10 degrees is 20 degrees,
          * not 340. This is essential for creating seamless polar patterns.
          *
-         * @param a The first angle (UQ0_16, 0-65535 representing 0-360 deg).
-         * @param b The second angle (UQ0_16).
-         * @return The shortest distance between the angles (UQ0_16, 0-32767).
+         * @param a The first angle (f16, 0-65535 representing 0-360 deg).
+         * @param b The second angle (f16).
+         * @return The shortest distance between the angles (f16, 0-32767).
          */
-        inline UQ0_16 shortest_angle_dist(UQ0_16 a, UQ0_16 b) {
+        inline f16 shortest_angle_dist(f16 a, f16 b) {
             uint16_t dist = raw(a) > raw(b) ? raw(a) - raw(b) : raw(b) - raw(a);
             if (dist > U16_HALF) {
                 uint32_t wrap = ANGLE_FULL_TURN_U32 - dist;
                 dist = static_cast<uint16_t>(wrap);
             }
-            return UQ0_16(dist);
+            return f16(dist);
         }
 
     } // namespace PolarMaths

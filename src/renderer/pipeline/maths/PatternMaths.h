@@ -26,31 +26,31 @@
 namespace PolarShader {
     inline PatternNormU16 patternNormalize(uint16_t value, uint16_t min_value, uint16_t max_value) {
         if (value <= min_value) return PatternNormU16(0);
-        if (value >= max_value) return PatternNormU16(USQ0_16_MAX);
+        if (value >= max_value) return PatternNormU16(F16_MAX);
 
         uint16_t range = static_cast<uint16_t>(max_value - min_value);
         if (range == 0) return PatternNormU16(0);
 
-        uint32_t scaled = static_cast<uint32_t>(value - min_value) * USQ0_16_MAX;
+        uint32_t scaled = static_cast<uint32_t>(value - min_value) * F16_MAX;
         return PatternNormU16(static_cast<uint16_t>(scaled / range));
     }
 
     inline PatternNormU16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x) {
         if (edge0 >= edge1) {
-            return x <= edge0 ? PatternNormU16(0) : PatternNormU16(USQ0_16_MAX);
+            return x <= edge0 ? PatternNormU16(0) : PatternNormU16(F16_MAX);
         }
         if (x <= edge0) return PatternNormU16(0);
-        if (x >= edge1) return PatternNormU16(USQ0_16_MAX);
+        if (x >= edge1) return PatternNormU16(F16_MAX);
 
-        uint32_t t_norm = (static_cast<uint32_t>(x - edge0) * USQ0_16_MAX) / (edge1 - edge0);
+        uint32_t t_norm = (static_cast<uint32_t>(x - edge0) * F16_MAX) / (edge1 - edge0);
         uint16_t t = static_cast<uint16_t>(t_norm);
 
         uint32_t t_sq = (static_cast<uint32_t>(t) * t) >> 16;
-        uint32_t three_minus_2t = USQ0_16_MAX * 3 - (2 * t);
-        if (three_minus_2t > USQ0_16_MAX * 3) three_minus_2t = 0;
+        uint32_t three_minus_2t = F16_MAX * 3 - (2 * t);
+        if (three_minus_2t > F16_MAX * 3) three_minus_2t = 0;
 
         uint32_t result = (t_sq * three_minus_2t) >> 16;
-        if (result > USQ0_16_MAX) result = USQ0_16_MAX;
+        if (result > F16_MAX) result = F16_MAX;
 
         return PatternNormU16(static_cast<uint16_t>(result));
     }

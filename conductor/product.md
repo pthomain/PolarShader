@@ -10,7 +10,7 @@ PolarShader is designed for hobbyists who want to create complex, procedural ani
 The primary goal of PolarShader is to enable smooth, deterministic animations on hardware that typically struggles with floating-point math. By providing a robust fixed-point infrastructure, it ensures that visual effects remain consistent and fluid across various MCU architectures.
 
 ## Key Features
-- **Unified UV Pipeline:** A normalized spatial domain ([0, 1] in Q16.16) that unifies all spatial operations into a single, stackable transform chain.
+- **Unified UV Pipeline:** A normalized spatial domain ([0, 1] in r16/sr16 (Q16.16)) that unifies all spatial operations into a single, stackable transform chain.
 - **Multi-Layer Composition:** Support for stacking multiple layers with per-layer alpha and standard blend modes (Normal, Add, Multiply, Screen).
 - **Deterministic Fixed-Point Math:** Utilizes explicit Q-formats for float-free, predictable performance.
 - **Procedural Pattern Samplers:** Built-in support for Noise (Perlin/Worley), Tiling, and Gradients, optimized for MCU performance.

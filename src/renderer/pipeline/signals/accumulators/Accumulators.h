@@ -25,23 +25,23 @@
 
 namespace PolarShader {
     /**
-     * @brief Progress-indexed depth signal in unsigned Q24.8 domain.
+     * @brief Progress-indexed depth signal in unsigned r8 domain.
      *
      * Typically used for animated noise depth/phase offsets.
      */
-    using DepthSignal = fl::function<uint32_t(UQ0_16, TimeMillis)>;
+    using DepthSignal = fl::function<uint32_t(f16, TimeMillis)>;
 
     // PhaseAccumulator wraps in 16-bit turn space and is only valid for angular/phase domains.
     class PhaseAccumulator {
     public:
-        using SpeedSampleFn = SQ0_16Signal::WaveformFn;
+        using SpeedSampleFn = Sf16Signal::WaveformFn;
 
         explicit PhaseAccumulator(
             SpeedSampleFn speed,
-            UQ0_16 initialPhase = UQ0_16(0)
+            f16 initialPhase = f16(0)
         );
 
-        UQ0_16 advance(TimeMillis elapsedMs);
+        f16 advance(TimeMillis elapsedMs);
 
     private:
         uint32_t phaseRaw32{0};

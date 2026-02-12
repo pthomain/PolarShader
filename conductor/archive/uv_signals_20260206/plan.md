@@ -1,14 +1,14 @@
 # Implementation Plan: UV Signal Integration
 
 ## Phase 1: Type & Engine Updates
-- [x] Task: Add `SignalAccumulator<SQ16_16>` and `SignalAccumulator<UV>` to `SignalTypes.h`.
+- [x] Task: Add `SignalAccumulator<sr16>` and `SignalAccumulator<UV>` to `SignalTypes.h`.
 - [x] Task: Define `UVSignal` type alias in `SignalTypes.h`.
 - [x] Task: Write unit tests for `UV` signal accumulation.
 
 ## Phase 2: Factory Methods & Helpers
 - [x] Task: Add `constantUV` factory to `Signals.h`.
 - [x] Task: Implement `uvSignal` helper to combine two scalar signals into a `UVSignal`.
-- [x] Task: Port `TranslationTransform` to use `UVSignal` instead of internal `SPoint32` integration.
+- [x] Task: Port `TranslationTransform` to use `UVSignal` instead of internal `v32` integration.
 
 ## Phase 3: Verification [checkpoint: 22238ee]
 - [x] Task: Run all tests to ensure spatial modulation is working as expected. [86e7b81]

@@ -97,20 +97,20 @@ namespace PolarShader {
     // Represents the midpoint of a 16-bit unsigned integer range, often used for remapping.
     inline constexpr uint16_t U16_HALF = 0x8000;
 
-    // The maximum positive value for a Q0.16 signed integer stored in a 32-bit raw format.
-    inline constexpr int32_t SQ0_16_MIN = -(1 << 16);
-    inline constexpr int32_t SQ0_16_MAX = (1 << 16) - 1;
-    inline constexpr int32_t SQ0_16_ONE = 1 << 16;
+    // The maximum positive value for an sf16 signed integer stored in a 32-bit raw format.
+    inline constexpr int32_t SF16_MIN = -(1 << 16);
+    inline constexpr int32_t SF16_MAX = (1 << 16) - 1;
+    inline constexpr int32_t SF16_ONE = 1 << 16;
 
-    // The maximum value for a Q0.16 unsigned fraction, representing the value closest to 1.0.
-    inline constexpr uint16_t USQ0_16_MAX = 0xFFFF;
+    // The maximum value for an f16 unsigned fraction, representing the value closest to 1.0.
+    inline constexpr uint16_t F16_MAX = 0xFFFF;
 
     // Full turn in the 16-bit angle domain.
     inline constexpr uint32_t ANGLE_FULL_TURN_U32 = 1u << 16;
 
-    // Cartesian coordinate fixed-point fractional bits (Q24.8).
-    // These coordinates represent Q0.16 lattice units with extra fractional precision.
-    inline constexpr uint8_t CARTESIAN_FRAC_BITS = 8;
+    // Cartesian coordinate fixed-point fractional bits (sr8/r8).
+    // These coordinates represent f16 lattice units with extra fractional precision.
+    inline constexpr uint8_t R8_FRAC_BITS = 8;
 
     // --- Angle domain constants (uint16_t) ---
     // The domain for 16-bit angle samples is [0..65535], where 65536 represents a full circle (the modulus).
@@ -120,46 +120,58 @@ namespace PolarShader {
 
     // --- Scalar Units ---
 
-    struct UQ0_16_Tag {
+    struct f16Tag {
     };
 
-    struct SQ0_16_Tag {
+    struct sf16Tag {
     };
 
-    struct SQ16_16_Tag {
+    struct r16Tag {
+    };
+
+    struct sr16Tag {
     };
 
     /**
-     * @brief Unsigned fixed-point fraction in Q0.16 format.
+     * @brief Unsigned fixed-point fraction in f16 (Q0.16) format.
      * 
      * Definition: 16-bit integer where 0 represents 0.0 and 65535 represents ~1.0.
      * Usage: Used for angles (mod 2^16), alpha blending, and unsigned scaling factors.
      * Analysis: Strictly required for circular math and operations where negative values are semantically invalid.
      */
-    using UQ0_16 = Typed<uint16_t, UQ0_16_Tag>;
+    using f16 = Typed<uint16_t, f16Tag>;
 
     /**
-     * @brief Signed fixed-point scalar in Q0.16 format stored in a 32-bit container.
+     * @brief Signed fixed-point scalar in sf16 (Q0.16) format stored in a 32-bit container.
      * 
      * Definition: Signed integer where 65536 represents 1.0 and -65536 represents -1.0.
      * Usage: The primary currency for signals, oscillators, and trigonometric outputs (sine/cosine).
      * Analysis: Strictly required for the signal engine to support bidirectional modulation (e.g. oscillating around zero).
      */
-    using SQ0_16 = Typed<int32_t, SQ0_16_Tag>;
+    using sf16 = Typed<int32_t, sf16Tag>;
 
     /**
-     * @brief Signed fixed-point scalar in Q16.16 format.
+     * @brief Unsigned fixed-point scalar in r16 (Q16.16) format.
+     *
+     * Definition: 16 integer bits and 16 fractional bits. 65536 represents 1.0.
+     * Usage: Higher-precision ratio/range values where transform composition needs sub-pixel stability.
+     */
+    using r16 = Typed<uint32_t, r16Tag>;
+
+    /**
+     * @brief Signed fixed-point scalar in sr16 (Q16.16) format.
      * 
      * Definition: 16 integer bits and 16 fractional bits. 65536 represents 1.0.
      * Usage: Used exclusively for UV spatial coordinates.
      * Analysis: Strictly required to provide enough dynamic range for tiling/zoom (values > 1.0) while maintaining sub-pixel precision.
      */
-    using SQ16_16 = Typed<int32_t, SQ16_16_Tag>;
+    using sr16 = Typed<int32_t, sr16Tag>;
 
     // --- Raw extractors ---
-    constexpr uint16_t raw(UQ0_16 f) { return f.raw(); }
-    constexpr int32_t raw(SQ0_16 v) { return v.raw(); }
-    constexpr int32_t raw(SQ16_16 v) { return v.raw(); }
+    constexpr uint16_t raw(f16 f) { return f.raw(); }
+    constexpr int32_t raw(sf16 v) { return v.raw(); }
+    constexpr uint32_t raw(r16 v) { return v.raw(); }
+    constexpr int32_t raw(sr16 v) { return v.raw(); }
 
     // --- Cartesian Units ---
 
@@ -169,36 +181,36 @@ namespace PolarShader {
      * Usage: Lightweight tuple for raw coordinate pairs or intermediate displacements.
      * Analysis: Useful internal utility, distinct from the unified UV coordinate system.
      */
-    struct SPoint32 {
+    struct v32 {
         int32_t x;
         int32_t y;
     };
 
-    struct SQ24_8_Tag {
+    struct sr8Tag {
     };
 
-    struct UQ24_8_Tag {
+    struct r8Tag {
     };
 
     /**
-     * @brief Signed fixed-point coordinate in Q24.8 format.
+     * @brief Signed fixed-point coordinate in sr8/r8 format.
      * 
      * Definition: 24 integer bits, 8 fractional bits. 256 represents 1.0.
      * Usage: Implementation detail for lattice-aligned patterns (Worley, HexTiling).
-     * Analysis: Strictly required for algorithms that align with integer grid indices while needing some sub-unit precision.
+     * Analysis: Chosen over sr16 when grid/index logic dominates and 8 fractional bits are sufficient.
      */
-    using SQ24_8 = Typed<int32_t, SQ24_8_Tag>;
+    using sr8 = Typed<int32_t, sr8Tag>;
 
     /**
-     * @brief Unsigned fixed-point coordinate in Q24.8 format.
+     * @brief Unsigned fixed-point coordinate in sr8/r8 format.
      * 
      * Usage: Exclusively for noise domain sampling (inoise16).
-     * Analysis: Required to match the unsigned interface of the hardware-optimized noise generators.
+     * Analysis: Required to match the unsigned interface of hardware-optimized noise generators and keep noise-domain math lightweight.
      */
-    using UQ24_8 = Typed<uint32_t, UQ24_8_Tag>;
+    using r8 = Typed<uint32_t, r8Tag>;
 
-    constexpr int32_t raw(SQ24_8 v) { return v.raw(); }
-    constexpr uint32_t raw(UQ24_8 v) { return v.raw(); }
+    constexpr int32_t raw(sr8 v) { return v.raw(); }
+    constexpr uint32_t raw(r8 v) { return v.raw(); }
 
     // --- Pattern Units ---
 
@@ -235,7 +247,7 @@ namespace PolarShader {
      * @brief Represents a normalized spatial coordinate in UV space.
      * 
      * Definition: A 2D vector where U and V are normalized values in the range [0.0, 1.0], 
-     * mapped to the signed Q16.16 fixed-point type (SQ16_16).
+     * mapped to the signed sr16 (Q16.16) fixed-point type.
      * 
      * Usage: The unified standard for all spatial transformations and pattern sampling.
      * 
@@ -243,13 +255,13 @@ namespace PolarShader {
      * and Polar transforms without explicit domain switching logic.
      */
     struct UV {
-        SQ16_16 u;
-        SQ16_16 v;
+        sr16 u;
+        sr16 v;
 
         constexpr UV() : u(0), v(0) {
         }
 
-        constexpr UV(SQ16_16 u, SQ16_16 v) : u(u), v(v) {
+        constexpr UV(sr16 u, sr16 v) : u(u), v(v) {
         }
     };
 }
