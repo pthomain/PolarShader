@@ -21,7 +21,7 @@
 #include "HexTilingPattern.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include <utility>
 
 namespace PolarShader {
@@ -171,7 +171,7 @@ namespace PolarShader {
 
     uint16_t HexTilingPattern::sampleSignal(Sf16Signal signal) {
         if (!signal) return 0;
-        LinearRange range(PatternNormU16(0), PatternNormU16(SF16_MAX));
+        MagnitudeRange range(PatternNormU16(0), PatternNormU16(SF16_MAX));
         PatternNormU16 value = signal.sample(range, 0);
         return raw(value);
     }

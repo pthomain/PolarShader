@@ -28,7 +28,7 @@ namespace PolarShader {
     /**
      * Polar vortex: angle += (radius * strength).
      *
-     * Strength uses signed range mapping via LinearRange<sf16>.
+     * Strength uses signed range mapping via BipolarRange<sf16>.
      */
     class VortexTransform : public UVTransform {
     public:

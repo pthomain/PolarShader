@@ -1,8 +1,9 @@
-# PolarShader
+# PolarShader, a shader-like rendering library for Arduino.
 
-**PolarShader** is a fixed-point, shader-like rendering library for Arduino.
-
-It provides a **polar-centric transform pipeline**, **deterministic fixed-point math**, and a **composable API** inspired by GPU shaders—designed specifically for **resource-constrained MCUs** driving LED displays and spatial light sculptures.
+PolarShader is a deterministic, fixed-point LED rendering engine for microcontrollers (Seeeduino XIAO SAMD21, Teensy
+4.1).
+It renders animated patterns onto LED arrays (like circular/ring displays) using a composable pipeline — all without
+floating-point math.
 
 ---
 
@@ -16,6 +17,7 @@ PolarShader is a **domain-specific rendering engine** for LED effects where:
 - Motion and modulation are **explicit, typed, and deterministic**
 
 It targets platforms such as:
+
 - RP2040
 - SAMD21 / SAMD51
 - ESP32 (when deterministic timing matters)
@@ -23,6 +25,13 @@ It targets platforms such as:
 ---
 
 ## Core Design Goals
+
+- All fixed-point — custom Q-format types (f16, sf16, sr16, sr8, r8) with strong typing to prevent unit mixing
+- Unified UV space — all spatial transforms operate on normalized sr16 (Q16.16 signed) coordinates, agnostic to polar vs
+  cartesian
+- Composable pipeline — transforms are small, single-responsibility, and stackable in any order via PipelineStep variant
+- Explicit motion — all animation driven by Sf16Signal + PhaseAccumulator, no hidden state
+- Zero heap allocation in hot paths — everything pre-allocated for MCU performance
 
 ### 1. Deterministic Fixed-Point Arithmetic
 
@@ -32,6 +41,7 @@ It targets platforms such as:
 - Predictable overflow, wrap, and saturation behavior
 
 This makes PolarShader suitable for:
+
 - Tight real-time loops
 - Long-running installations
 - Visual continuity under variable frame timing
@@ -41,12 +51,15 @@ This makes PolarShader suitable for:
 ### 2. Unified Coordinate System (UV)
 
 PolarShader uses a **unified spatial representation (UV)**:
+
 - **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `sr16`.
 - **Domain Agnostic:** Transforms like rotation or zoom apply seamlessly to any pattern.
 - **High Precision:** `r16/sr16 (Q16.16)` provides sufficient geometric headroom for large-scale translations and zooms.
-- **Specialized Cartesian Domain:** `sr8/r8` is used for lattice/noise-style Cartesian internals where 8 fractional bits are enough and integer-grid behavior is the priority.
+- **Specialized Cartesian Domain:** `sr8/r8` is used for lattice/noise-style Cartesian internals where 8 fractional bits
+  are enough and integer-grid behavior is the priority.
 
 `r16` and `r8` are both ratio/range formats, but they serve different purposes:
+
 - `r16/sr16`: high-precision transform space (UV, composition, smooth motion).
 - `r8/sr8`: lower-fractional precision Cartesian/noise space (grid cells, lattice sampling, fast domain math).
 
@@ -69,7 +82,26 @@ Each transform:
 * Is stateless (or uses an explicit integrator)
 * Can be reordered, removed, or reused
 
+## Architecture at a Glance
+
+```
+PolarRenderer → SceneManager → Scene → Layer(s)
+                                          ↓
+                          Pattern → UV Transforms → Palette → CRGB
+```
 ---
+
+## Key Modules
+
+| Directory                         | Purpose                                                                                | 
+|:----------------------------------|:---------------------------------------------------------------------------------------|
+| src/renderer/pipeline/patterns/   | UV-based patterns (Noise, Worley, Hex tiling, FBm)                                     |
+| src/renderer/pipeline/transforms/ | Composable transforms (Rotation, Zoom, Translation, Kaleidoscope, Vortex, Domain Warp) |
+| src/renderer/pipeline/signals/    | Time-varying signals (sine, noise, linear easing) driving animation                    |                    
+| src/renderer/scene/               | Scene/layer lifecycle, blending, alpha                                                 |                                                            
+| src/renderer/layer/               | Layer composition with fluent LayerBuilder API                                         |                                                    
+| src/renderer/maths/               | Fixed-point math (polar/cartesian, UV ops, angle, noise)                               |                                           
+| src/display/                      | Display abstraction (FastLED, SmartMatrix)                                             |                                                                 
 
 ## Key Concepts
 
@@ -81,16 +113,16 @@ Signal kinds:
 
 * `PERIODIC`: waveform receives scene `elapsedMs` directly.
 * `APERIODIC`: waveform receives a relative time derived from `duration` and `LoopMode`.
-  - `LoopMode::RESET` wraps by `elapsedMs % duration`.
-  - `duration == 0` emits 0.
+    - `LoopMode::RESET` wraps by `elapsedMs % duration`.
+    - `duration == 0` emits 0.
 
 Factory families:
 
 * Periodic factories (`sine`, `noise`) share one signature:
-  - `(speed, amplitude, offset, phaseOffset)`.
-  - `speed` is signed turns/second and independent of scene duration.
+    - `(speed, amplitude, offset, phaseOffset)`.
+    - `speed` is signed turns/second and independent of scene duration.
 * Aperiodic factories (`linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`) share:
-  - `(duration, loopMode)`.
+    - `(duration, loopMode)`.
 
 Output contract:
 
@@ -137,14 +169,14 @@ This ensures:
 
 ### Unit Naming Cheat Sheet
 
-| Type | Signed | Format | Typical Use |
-| :--- | :--- | :--- | :--- |
-| `f16` | No | Q0.16 | Unit fractions and wrapped angle-like values in `[0, 1)` domains |
-| `sf16` | Yes | Q0.16 | Signed scalar signals/modulation in `[-1, 1]` |
-| `r16` | No | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
-| `sr16` | Yes | Q16.16 | UV transform/composition space with high fractional precision |
-| `r8` | No | Q24.8 | Unsigned Cartesian/noise-domain coordinates and depth sampling |
-| `sr8` | Yes | Q24.8 | Signed lattice/grid Cartesian internals for pattern math |
+| Type   | Signed | Format | Typical Use                                                          |
+|:-------|:-------|:-------|:---------------------------------------------------------------------|
+| `f16`  | No     | Q0.16  | Unit fractions and wrapped angle-like values in `[0, 1)` domains     |
+| `sf16` | Yes    | Q0.16  | Signed scalar signals/modulation in `[-1, 1]`                        |
+| `r16`  | No     | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
+| `sr16` | Yes    | Q16.16 | UV transform/composition space with high fractional precision        |
+| `r8`   | No     | Q24.8  | Unsigned Cartesian/noise-domain coordinates and depth sampling       |
+| `sr8`  | Yes    | Q24.8  | Signed lattice/grid Cartesian internals for pattern math             |
 
 ---
 

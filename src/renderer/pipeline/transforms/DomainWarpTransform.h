@@ -23,7 +23,7 @@
 
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include <memory>
 
 namespace PolarShader {
@@ -31,9 +31,9 @@ namespace PolarShader {
      * Cartesian domain warp driven by animated noise.
      *
      * - phaseSpeed: turns-per-second for the time axis (independent from scene duration).
-     * - amplitude: signed signal mapped via unsigned range to scale maxOffset.
-     * - warpScale: signed signal mapped via unsigned range, applied before sampling warp noise.
-     * - maxOffset: signed signal mapped via unsigned range, maximum warp displacement in sr8/r8 units.
+     * - amplitude: signed signal mapped via MagnitudeRange to scale maxOffset.
+     * - warpScale: signed signal mapped via MagnitudeRange, applied before sampling warp noise.
+     * - maxOffset: signed signal mapped via MagnitudeRange, maximum warp displacement in sr8/r8 units.
      */
     class DomainWarpTransform : public UVTransform {
     public:
@@ -51,8 +51,8 @@ namespace PolarShader {
             Sf16Signal amplitude,
             Sf16Signal warpScale,
             Sf16Signal maxOffset,
-            LinearRange<sr8> warpScaleRange,
-            LinearRange<sr8> maxOffsetRange
+            MagnitudeRange<sr8> warpScaleRange,
+            MagnitudeRange<sr8> maxOffsetRange
         );
 
         DomainWarpTransform(
@@ -61,8 +61,8 @@ namespace PolarShader {
             Sf16Signal amplitude,
             Sf16Signal warpScale,
             Sf16Signal maxOffset,
-            LinearRange<sr8> warpScaleRange,
-            LinearRange<sr8> maxOffsetRange,
+            MagnitudeRange<sr8> warpScaleRange,
+            MagnitudeRange<sr8> maxOffsetRange,
             uint8_t octaves,
             Sf16Signal flowDirection = Sf16Signal(),
             Sf16Signal flowStrength = Sf16Signal()
@@ -82,8 +82,8 @@ namespace PolarShader {
             Sf16Signal amplitude,
             Sf16Signal warpScale,
             Sf16Signal maxOffset,
-            LinearRange<sr8> warpScaleRange,
-            LinearRange<sr8> maxOffsetRange,
+            MagnitudeRange<sr8> warpScaleRange,
+            MagnitudeRange<sr8> maxOffsetRange,
             Sf16Signal flowDirection = Sf16Signal(),
             Sf16Signal flowStrength = Sf16Signal()
         );

@@ -25,12 +25,6 @@
 #include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
-    enum class RangeMappingMode : uint8_t {
-        Auto,
-        SignedDirect,
-        UnsignedFromSigned
-    };
-
     template<typename T>
     class Range {
     public:

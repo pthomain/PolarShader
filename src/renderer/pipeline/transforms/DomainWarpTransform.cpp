@@ -23,12 +23,10 @@
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
-#include "renderer/pipeline/signals/ranges/PolarRange.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
-#include "renderer/pipeline/maths/ScalarMaths.h"
+#include "renderer/pipeline/signals/ranges/AngleRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/signals/Signals.h"
-#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include <utility>
 #ifdef ARDUINO
@@ -44,8 +42,8 @@ namespace PolarShader {
         constexpr uint32_t WARP_SEED_Z = 0xB5297A4Du;
         constexpr uint32_t WARP_SEED_W = 0x68E31DA4u;
 
-        int32_t sampleSignedSpeedRaw(Sf16Signal &signal, TimeMillis elapsedMs) {
-            return raw(signal.sample(signedUnitRange(), elapsedMs));
+        int32_t sampleSpeedRaw(Sf16Signal &signal, TimeMillis elapsedMs) {
+            return raw(signal.sample(magnitudeRange(), elapsedMs));
         }
 
         v32 sampleNoisePair(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw) {
@@ -102,11 +100,11 @@ namespace PolarShader {
         Sf16Signal phaseSpeedSignal;
         Sf16Signal amplitudeSignal;
         Sf16Signal warpScaleSignal;
-        LinearRange<sr8> warpScaleRange;
+        MagnitudeRange<sr8> warpScaleRange;
         Sf16Signal maxOffsetSignal;
-        LinearRange<sr8> maxOffsetRange;
+        MagnitudeRange<sr8> maxOffsetRange;
         Sf16Signal flowDirectionSignal;
-        PolarRange flowDirectionRange;
+        AngleRange flowDirectionRange;
         Sf16Signal flowStrengthSignal;
         bool hasFlow{false};
     };
@@ -116,8 +114,8 @@ namespace PolarShader {
         Sf16Signal amplitude,
         Sf16Signal warpScale,
         Sf16Signal maxOffset,
-        LinearRange<sr8> warpScaleRange,
-        LinearRange<sr8> maxOffsetRange,
+        MagnitudeRange<sr8> warpScaleRange,
+        MagnitudeRange<sr8> maxOffsetRange,
         Sf16Signal flowDirection,
         Sf16Signal flowStrength
     ) {
@@ -131,7 +129,7 @@ namespace PolarShader {
             std::move(maxOffset),
             std::move(maxOffsetRange),
             std::move(flowDirection),
-            PolarRange(),
+            AngleRange(),
             std::move(flowStrength),
             hasFlow
         };
@@ -142,14 +140,14 @@ namespace PolarShader {
         PhaseAccumulator phase;
         Sf16Signal amplitudeSignal;
         Sf16Signal warpScaleSignal;
-        LinearRange<sr8> warpScaleRange;
+        MagnitudeRange<sr8> warpScaleRange;
         Sf16Signal maxOffsetSignal;
-        LinearRange<sr8> maxOffsetRange;
+        MagnitudeRange<sr8> maxOffsetRange;
         sr8 warpScale = sr8(0);
         sr8 maxOffset = sr8(0);
         uint8_t octaves;
         Sf16Signal flowDirectionSignal;
-        PolarRange flowDirectionRange;
+        AngleRange flowDirectionRange;
         Sf16Signal flowStrengthSignal;
         bool hasFlow{false};
         v32 flowOffset{0, 0};
@@ -161,18 +159,18 @@ namespace PolarShader {
             Sf16Signal phaseSpeedSignal,
             Sf16Signal amplitudeSignal,
             Sf16Signal warpScaleSignal,
-            LinearRange<sr8> warpScaleRange,
+            MagnitudeRange<sr8> warpScaleRange,
             Sf16Signal maxOffsetSignal,
-            LinearRange<sr8> maxOffsetRange,
+            MagnitudeRange<sr8> maxOffsetRange,
             uint8_t octaves,
             Sf16Signal flowDirectionSignal,
-            PolarRange flowDirectionRange,
+            AngleRange flowDirectionRange,
             Sf16Signal flowStrengthSignal,
             bool hasFlow
         ) : type(type),
             phase(
                 [speed = std::move(phaseSpeedSignal)](TimeMillis elapsedMs) mutable {
-                    return sf16(sampleSignedSpeedRaw(speed, elapsedMs));
+                    return sf16(sampleSpeedRaw(speed, elapsedMs));
                 }
             ),
             amplitudeSignal(std::move(amplitudeSignal)),
@@ -193,8 +191,8 @@ namespace PolarShader {
         Sf16Signal amplitude,
         Sf16Signal warpScale,
         Sf16Signal maxOffset,
-        LinearRange<sr8> warpScaleRange,
-        LinearRange<sr8> maxOffsetRange
+        MagnitudeRange<sr8> warpScaleRange,
+        MagnitudeRange<sr8> maxOffsetRange
     ) : DomainWarpTransform(WarpType::Basic, std::move(speed), amplitude, warpScale, maxOffset, warpScaleRange, maxOffsetRange, 3) {
     }
 
@@ -204,8 +202,8 @@ namespace PolarShader {
         Sf16Signal amplitude,
         Sf16Signal warpScale,
         Sf16Signal maxOffset,
-        LinearRange<sr8> warpScaleRange,
-        LinearRange<sr8> maxOffsetRange,
+        MagnitudeRange<sr8> warpScaleRange,
+        MagnitudeRange<sr8> maxOffsetRange,
         uint8_t octaves,
         Sf16Signal flowDirection,
         Sf16Signal flowStrength
@@ -239,13 +237,13 @@ namespace PolarShader {
         state->maxOffset = state->maxOffsetSignal.sample(state->maxOffsetRange, elapsedMs);
 
         int32_t maxOffsetRaw = raw(state->maxOffset);
-        uint32_t ampT = static_cast<uint32_t>(raw(state->amplitudeSignal.sample(unitRange(), elapsedMs)));
+        uint32_t ampT = static_cast<uint32_t>(raw(state->amplitudeSignal.sample(magnitudeRange(), elapsedMs)));
         int64_t ampScaled = (static_cast<int64_t>(maxOffsetRaw) * static_cast<int64_t>(ampT)) >> 16;
         state->amplitudeRaw = static_cast<int32_t>(ampScaled);
 
         if (state->type == WarpType::Directional && state->hasFlow && state->flowDirectionSignal && state->flowStrengthSignal) {
             f16 dir = state->flowDirectionSignal.sample(state->flowDirectionRange, elapsedMs);
-            uint32_t flowT = static_cast<uint32_t>(raw(state->flowStrengthSignal.sample(unitRange(), elapsedMs)));
+            uint32_t flowT = static_cast<uint32_t>(raw(state->flowStrengthSignal.sample(magnitudeRange(), elapsedMs)));
             int32_t strength = static_cast<int32_t>(
                 (static_cast<int64_t>(maxOffsetRaw) * static_cast<int64_t>(flowT)) >> 16
             );

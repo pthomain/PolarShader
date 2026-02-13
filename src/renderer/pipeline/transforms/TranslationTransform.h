@@ -30,7 +30,7 @@ namespace PolarShader {
      * Cartesian translation using direction and speed signals.
      *
      * Direction is a full-turn phase in f16/sf16.
-     * Velocity is a 0..1 scalar in f16/sf16 mapped to a max speed (sr8/r8 units).
+     * Velocity is a 0..1 scalar in f16/sf16 mapped to a max speed in sr16 UV units.
      */
     class TranslationTransform : public UVTransform {
     public:

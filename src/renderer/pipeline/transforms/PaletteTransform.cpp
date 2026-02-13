@@ -19,18 +19,16 @@
  */
 
 #include "PaletteTransform.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
-#include "renderer/pipeline/maths/ScalarMaths.h"
 #include <Arduino.h>
 
 namespace PolarShader {
     struct PaletteTransform::MappedInputs {
         Sf16Signal offsetSignal;
-        LinearRange<uint8_t> offsetRange{0, 255};
+        MagnitudeRange<uint8_t> offsetRange{0, 255};
         Sf16Signal clipSignal;
-        LinearRange<f16> clipRange{f16(0), f16(SF16_MAX)};
+        MagnitudeRange<f16> clipRange{f16(0), f16(SF16_MAX)};
         f16 feather = f16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
@@ -50,9 +48,9 @@ namespace PolarShader {
     ) {
         return MappedInputs{
             std::move(offset),
-            LinearRange<uint8_t>(0, 255),
+            MagnitudeRange<uint8_t>(0, 255),
             std::move(clipSignal),
-            LinearRange(f16(0), f16(SF16_MAX)),
+            MagnitudeRange(f16(0), f16(SF16_MAX)),
             feather,
             clipPower,
             true
@@ -61,10 +59,10 @@ namespace PolarShader {
 
     struct PaletteTransform::State {
         Sf16Signal offsetSignal;
-        LinearRange<uint8_t> offsetRange;
+        MagnitudeRange<uint8_t> offsetRange;
         uint8_t offsetValue = 0;
         Sf16Signal clipSignal;
-        LinearRange<f16> clipRange;
+        MagnitudeRange<f16> clipRange;
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
         f16 feather = f16(0);

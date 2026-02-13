@@ -25,8 +25,7 @@
 #include "native/FastLED.h"
 #endif
 #include <unity.h>
-#include "renderer/pipeline/signals/ranges/PolarRange.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/AngleRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/patterns/Patterns.h"
 
@@ -50,7 +49,7 @@
 using namespace PolarShader;
 
 void test_range_wraps_across_zero() {
-    PolarRange range(f16(0xC000u), f16(0x4000u));
+    AngleRange range(f16(0xC000u), f16(0x4000u));
     TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(sf16(SF16_MIN))));
     TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(sf16(0))));
     TEST_ASSERT_EQUAL_UINT16(0x3FFFu, raw(range.map(sf16(SF16_MAX))));

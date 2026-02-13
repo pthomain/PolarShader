@@ -22,39 +22,25 @@
 #include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/ranges/UVRange.h"
 #include <cstdint>
-#include <limits>
 #include <utility>
 
 namespace PolarShader {
-    const LinearRange<sf16> &unitRange() {
-        // Normalized scalar signal domain [0..1] in raw f16/sf16 units.
-        // Used when a caller needs the clamped scalar sample itself before custom math.
-        static const LinearRange range(
-            sf16(0),
-            sf16(SF16_MAX),
-            RangeMappingMode::UnsignedFromSigned
-        );
+    const MagnitudeRange<sf16> &magnitudeRange() {
+        static const MagnitudeRange range{sf16(0), sf16(SF16_MAX)};
         return range;
     }
 
-    const LinearRange<sf16> &signedUnitRange() {
-        // Signed scalar signal domain [-1..1] in raw f16/sf16 units.
-        static const LinearRange range{
-            sf16(SF16_MIN),
-            sf16(SF16_MAX),
-            RangeMappingMode::SignedDirect
-        };
+    const BipolarRange<sf16> &bipolarRange() {
+        static const BipolarRange range{sf16(SF16_MIN), sf16(SF16_MAX)};
         return range;
     }
 
     namespace {
-        constexpr int32_t SIGNAL_SPEED_SCALE = 1;
-
-        int32_t sampleSignedSpeedRaw(Sf16Signal &signal, TimeMillis elapsedMs) {
-            return raw(signal.sample(signedUnitRange(), elapsedMs));
+        int32_t sampleSpeedRaw(Sf16Signal &signal, TimeMillis elapsedMs) {
+            return raw(signal.sample(magnitudeRange(), elapsedMs));
         }
 
         f16 timeToProgress(TimeMillis t, TimeMillis duration) {
@@ -82,42 +68,41 @@ namespace PolarShader {
         ) {
             PhaseAccumulator acc(
                 [speed = std::move(speed)](TimeMillis elapsedMs) mutable -> sf16 {
-                    int64_t speedRaw = static_cast<int64_t>(sampleSignedSpeedRaw(speed, elapsedMs)) *
-                                       SIGNAL_SPEED_SCALE;
-                    if (speedRaw > std::numeric_limits<int32_t>::max()) speedRaw = std::numeric_limits<int32_t>::max();
-                    if (speedRaw < std::numeric_limits<int32_t>::min()) speedRaw = std::numeric_limits<int32_t>::min();
-                    return sf16(static_cast<int32_t>(speedRaw));
+                    return sf16(sampleSpeedRaw(speed, elapsedMs));
                 }
             );
 
             return Sf16Signal(
                 SignalKind::PERIODIC,
-                [acc = std::move(acc),
+                [
+                    acc = std::move(acc),
                     amplitude = std::move(amplitude),
                     offset = std::move(offset),
                     phaseOffset = std::move(phaseOffset),
-                    sample = std::move(sample)](TimeMillis elapsedMs) mutable -> sf16 {
+                    sample = std::move(sample)
+                ](TimeMillis elapsedMs) mutable -> sf16 {
                     f16 phase = acc.advance(elapsedMs);
                     uint32_t basePhase = raw(phase);
-                    uint32_t phaseOffsetRaw = static_cast<uint32_t>(raw(phaseOffset.sample(unitRange(), elapsedMs)));
+
+                    uint32_t phaseOffsetRaw = raw(phaseOffset.sample(magnitudeRange(), elapsedMs));
                     f16 finalPhase(static_cast<uint16_t>(basePhase + phaseOffsetRaw));
 
                     int32_t waveSignedRaw = raw(sample(finalPhase));
                     uint32_t waveUnitRaw = raw(toUnsigned(sf16(waveSignedRaw)));
 
-                    uint32_t ampRaw = static_cast<uint32_t>(raw(amplitude.sample(unitRange(), elapsedMs)));
+                    uint32_t ampRaw = static_cast<uint32_t>(raw(amplitude.sample(magnitudeRange(), elapsedMs)));
                     int32_t waveCentered = (static_cast<int32_t>(waveUnitRaw) - static_cast<int32_t>(U16_HALF)) << 1;
                     int32_t scaledWave = static_cast<int32_t>(
                         (static_cast<int64_t>(waveCentered) * static_cast<int64_t>(ampRaw)) >> 16
                     );
 
                     int32_t halfWave = scaledWave >> 1;
-                    int32_t halfOffset = raw(offset.sample(unitRange(), elapsedMs)) >> 1;
+                    int32_t halfOffset = raw(offset.sample(magnitudeRange(), elapsedMs)) >> 1;
                     int32_t outUnitRaw = static_cast<int32_t>(U16_HALF) + halfWave + halfOffset;
                     if (outUnitRaw < 0) outUnitRaw = 0;
                     if (outUnitRaw > SF16_MAX) outUnitRaw = SF16_MAX;
 
-                    return toSigned(f16(static_cast<uint32_t>(outUnitRaw)));
+                    return toSigned(f16(static_cast<uint16_t>(outUnitRaw)));
                 }
             );
         }
@@ -155,8 +140,8 @@ namespace PolarShader {
         if (clamped > 1000) clamped = 1000;
         if (clamped < -1000) clamped = -1000;
 
-        int64_t raw_value = (static_cast<int64_t>(clamped) * SF16_ONE) / 1000;
-        return constantRaw(static_cast<int32_t>(raw_value));
+        int32_t raw_value = (clamped * SF16_ONE) / 1000;
+        return constantRaw(raw_value);
     }
 
     Sf16Signal cPerMil(uint16_t value) {
@@ -240,7 +225,7 @@ namespace PolarShader {
         if (!signal) return signal;
 
         auto waveform = [signal = std::move(signal), factor](TimeMillis elapsedMs) mutable {
-            return mulSf16Sat(signal.sample(signedUnitRange(), elapsedMs), sf16(raw(factor)));
+            return mulSf16Sat(signal.sample(bipolarRange(), elapsedMs), sf16(raw(factor)));
         };
 
         if (signal.kind() == SignalKind::APERIODIC) {
@@ -261,8 +246,8 @@ namespace PolarShader {
     UVSignal uvSignal(Sf16Signal u, Sf16Signal v) {
         return UVSignal([u = std::move(u), v = std::move(v)](f16, TimeMillis elapsedMs) mutable {
             return UV(
-                sr16(raw(u.sample(unitRange(), elapsedMs))),
-                sr16(raw(v.sample(unitRange(), elapsedMs)))
+                sr16(raw(u.sample(magnitudeRange(), elapsedMs))),
+                sr16(raw(v.sample(magnitudeRange(), elapsedMs)))
             );
         });
     }
@@ -284,7 +269,7 @@ namespace PolarShader {
 
     DepthSignal depth(
         Sf16Signal signal,
-        LinearRange<uint32_t> range
+        MagnitudeRange<uint32_t> range
     ) {
         return [signal = std::move(signal), range](f16, TimeMillis elapsedMs) mutable -> uint32_t {
             return signal.sample(range, elapsedMs);
@@ -298,6 +283,6 @@ namespace PolarShader {
     ) {
         uint64_t max = static_cast<uint64_t>(offset) + static_cast<uint64_t>(scale);
         uint32_t maxDepth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
-        return depth(std::move(signal), LinearRange(offset, maxDepth));
+        return depth(std::move(signal), MagnitudeRange(offset, maxDepth));
     }
 }

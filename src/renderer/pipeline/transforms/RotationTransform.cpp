@@ -19,9 +19,8 @@
  */
 
 #include "RotationTransform.h"
-#include "renderer/pipeline/signals/ranges/PolarRange.h"
+#include "renderer/pipeline/signals/ranges/AngleRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -32,19 +31,19 @@
 namespace PolarShader {
     struct RotationTransform::MappedInputs {
         Sf16Signal angleSignal;
-        PolarRange angleRange;
+        AngleRange angleRange;
     };
 
     RotationTransform::MappedInputs RotationTransform::makeInputs(Sf16Signal angle) {
         return MappedInputs{
             std::move(angle),
-            PolarRange()
+            AngleRange()
         };
     }
 
     struct RotationTransform::State {
         Sf16Signal angleSignal;
-        PolarRange angleRange;
+        AngleRange angleRange;
         f16 angleOffset = f16(0);
 
         explicit State(MappedInputs inputs)

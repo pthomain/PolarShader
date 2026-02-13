@@ -19,7 +19,7 @@
  */
 
 #include "DomainWarpPresets.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 
 namespace PolarShader {
     namespace {
@@ -37,8 +37,8 @@ namespace PolarShader {
             ceiling(),
             ceiling(),
             ceiling(),
-            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED)
+            MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED)
         );
     }
 
@@ -49,8 +49,8 @@ namespace PolarShader {
             ceiling(),
             ceiling(),
             ceiling(),
-            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
+            MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            MagnitudeRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             octaves
         );
     }
@@ -62,8 +62,8 @@ namespace PolarShader {
             ceiling(),
             ceiling(),
             ceiling(),
-            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
+            MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            MagnitudeRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             2
         );
     }
@@ -75,8 +75,8 @@ namespace PolarShader {
             ceiling(),
             ceiling(),
             ceiling(),
-            LinearRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
-            LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
+            MagnitudeRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
+            MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1
         );
     }
@@ -88,8 +88,8 @@ namespace PolarShader {
             cPerMil(220),
             ceiling(),
             ceiling(),
-            LinearRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
-            LinearRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
+            MagnitudeRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
+            MagnitudeRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
             1
         );
     }
@@ -101,8 +101,8 @@ namespace PolarShader {
             cPerMil(240),
             ceiling(),
             ceiling(),
-            LinearRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
-            LinearRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
+            MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
+            MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
             noise(cPerMil(40)),
             cPerMil(180)

@@ -28,15 +28,16 @@
 #endif
 
 #include "renderer/pipeline/signals/accumulators/Accumulators.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
+#include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
     using Waveform = Sf16Signal::WaveformFn;
 
-    const LinearRange<sf16> &unitRange();
+    const MagnitudeRange<sf16> &magnitudeRange();
 
-    const LinearRange<sf16> &signedUnitRange();
+    const BipolarRange<sf16> &bipolarRange();
 
     using PeriodicSignalFactory = Sf16Signal (*)(
         Sf16Signal speed,
@@ -125,7 +126,7 @@ namespace PolarShader {
     // Map a signed signal into the unsigned r8 depth domain.
     DepthSignal depth(
         Sf16Signal signal = cPerMil(100),
-        LinearRange<uint32_t> range = LinearRange<uint32_t>(0, 1000)
+        MagnitudeRange<uint32_t> range = MagnitudeRange<uint32_t>(0, 1000)
     );
 }
 

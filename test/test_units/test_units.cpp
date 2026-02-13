@@ -14,6 +14,11 @@
 #include "renderer/pipeline/maths/UVMaths.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
+#include "renderer/pipeline/signals/ranges/BipolarRange.h"
+#include "renderer/pipeline/signals/ranges/UVRange.h"
+#include "renderer/pipeline/transforms/RotationTransform.h"
+#include "renderer/pipeline/transforms/ZoomTransform.h"
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/PolarMaths.cpp"
@@ -37,8 +42,8 @@
 using namespace PolarShader;
 
 namespace {
-    const LinearRange<sf16> TEST_UNIT_RANGE{sf16(0), sf16(SF16_MAX)};
-    const LinearRange<sf16> TEST_SIGNED_RANGE{sf16(SF16_MIN), sf16(SF16_MAX)};
+    const MagnitudeRange TEST_UNIT_RANGE{sf16(0), sf16(SF16_MAX)};
+    const BipolarRange TEST_SIGNED_RANGE{sf16(SF16_MIN), sf16(SF16_MAX)};
 }
 
 /** @brief Verify that sr16 correctly stores 32-bit fixed-point values. */
@@ -101,9 +106,6 @@ void test_uv_round_trip() {
     TEST_ASSERT_INT32_WITHIN(100, original.u.raw(), back.u.raw());
     TEST_ASSERT_INT32_WITHIN(100, original.v.raw(), back.v.raw());
 }
-
-#include "renderer/pipeline/transforms/RotationTransform.h"
-#include "renderer/pipeline/transforms/ZoomTransform.h"
 
 /** @brief Verify that RotationTransform correctly rotates Cartesian UV coordinates. */
 void test_rotation_transform_uv() {
@@ -325,16 +327,13 @@ void test_signal_range_mapping() {
             return sf16(0x8000); // ~0.5
         }
     );
-    LinearRange<int32_t> range(0, 1000);
+    MagnitudeRange<int32_t> range(0, 1000);
     TEST_ASSERT_EQUAL_INT32(750, signal.sample(range, 0));
 }
 
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
-#include "renderer/pipeline/signals/ranges/UVRange.h"
-
-/** @brief Verify that LinearRange correctly interpolates values. */
-void test_linear_range() {
-    LinearRange<sf16> range(sf16(0), sf16(1000));
+/** @brief Verify that MagnitudeRange correctly interpolates values. */
+void test_magnitude_range() {
+    MagnitudeRange range(sf16(0), sf16(1000));
     
     // 0.0 -> midpoint
     TEST_ASSERT_EQUAL_INT32(500, raw(range.map(sf16(0))));
@@ -347,12 +346,8 @@ void test_linear_range() {
 }
 
 /** @brief Verify signed-direct mapping preserves signed identity range exactly. */
-void test_linear_range_signed_direct_identity() {
-    LinearRange<sf16> range(
-        sf16(SF16_MIN),
-        sf16(SF16_MAX),
-        RangeMappingMode::SignedDirect
-    );
+void test_bipolar_range_signed_direct_identity() {
+    BipolarRange range{sf16(SF16_MIN), sf16(SF16_MAX)};
 
     TEST_ASSERT_EQUAL_INT32(SF16_MIN, raw(range.map(sf16(SF16_MIN))));
     TEST_ASSERT_EQUAL_INT32(0, raw(range.map(sf16(0))));
@@ -433,8 +428,8 @@ void setup() {
     RUN_TEST(test_signal_sample_clamped);
     RUN_TEST(test_sine_negative_speed_reverses_direction);
     RUN_TEST(test_signal_range_mapping);
-    RUN_TEST(test_linear_range);
-    RUN_TEST(test_linear_range_signed_direct_identity);
+    RUN_TEST(test_magnitude_range);
+    RUN_TEST(test_bipolar_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
     RUN_TEST(test_sf16_mul_div_helpers);
     RUN_TEST(test_f16_mul_div_helpers);
@@ -466,8 +461,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_signal_sample_clamped);
     RUN_TEST(test_sine_negative_speed_reverses_direction);
     RUN_TEST(test_signal_range_mapping);
-    RUN_TEST(test_linear_range);
-    RUN_TEST(test_linear_range_signed_direct_identity);
+    RUN_TEST(test_magnitude_range);
+    RUN_TEST(test_bipolar_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
     RUN_TEST(test_sf16_mul_div_helpers);
     RUN_TEST(test_f16_mul_div_helpers);

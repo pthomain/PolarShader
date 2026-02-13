@@ -19,9 +19,8 @@
  */
 
 #include "CartesianTilingTransform.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include <algorithm>
 
@@ -47,7 +46,7 @@ namespace PolarShader {
 
     struct CartesianTilingTransform::MappedInputs {
         Sf16Signal cellSizeSignal;
-        LinearRange<int32_t> cellSizeRange;
+        MagnitudeRange<int32_t> cellSizeRange;
     };
 
     CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
@@ -57,7 +56,7 @@ namespace PolarShader {
     ) {
         return MappedInputs{
             std::move(cellSize),
-            LinearRange<int32_t>(minCellSize, maxCellSize)
+            MagnitudeRange(minCellSize, maxCellSize)
         };
     }
 
@@ -65,7 +64,7 @@ namespace PolarShader {
         int32_t cellSizeRaw;
         bool mirrored;
         Sf16Signal cellSizeSignal;
-        LinearRange<int32_t> cellSizeRange;
+        MagnitudeRange<int32_t> cellSizeRange;
         bool hasSignal;
     };
 
@@ -74,7 +73,7 @@ namespace PolarShader {
             clampCellSize(static_cast<int64_t>(cellSizeQ24_8) * kCellSizeScale),
             mirrored,
             Sf16Signal(),
-            LinearRange<int32_t>(1, 1),
+            MagnitudeRange<int32_t>(1, 1),
             false
         })) {
     }
@@ -85,7 +84,7 @@ namespace PolarShader {
         int32_t maxCellSize,
         bool mirrored
     ) {
-        auto inputs = CartesianTilingTransform::makeInputs(std::move(cellSize), minCellSize, maxCellSize);
+        auto inputs = makeInputs(std::move(cellSize), minCellSize, maxCellSize);
         state = std::make_shared<State>(State{
             INT32_MAX,
             mirrored,

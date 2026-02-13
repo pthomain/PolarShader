@@ -19,9 +19,8 @@
  */
 
 #include "VortexTransform.h"
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include "renderer/pipeline/signals/accumulators/SignalAccumulators.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -32,19 +31,19 @@
 namespace PolarShader {
     struct VortexTransform::MappedInputs {
         Sf16Signal strengthSignal;
-        LinearRange<sf16> strengthRange;
+        BipolarRange<sf16> strengthRange;
     };
 
     VortexTransform::MappedInputs VortexTransform::makeInputs(Sf16Signal strength) {
         return MappedInputs{
             std::move(strength),
-            LinearRange(sf16(SF16_MIN), sf16(SF16_MAX))
+            BipolarRange(sf16(SF16_MIN), sf16(SF16_MAX))
         };
     }
 
     struct VortexTransform::State {
         Sf16Signal strengthSignal;
-        LinearRange<sf16> strengthRange;
+        BipolarRange<sf16> strengthRange;
         sf16 strengthValue = sf16(0);
 
         explicit State(MappedInputs inputs)

@@ -49,20 +49,25 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                // .addPaletteTransform(
-                    // PaletteTransform(sine())
-                // )
+                .addPaletteTransform(
+                    PaletteTransform(sine())
+                )
                 .addTransform(TranslationTransform(
-                    cPerMil(100),
+                    cPerMil(500),
                     cPerMil(100)
+                ))
+                .addTransform(
+                    ZoomTransform(
+                        sine(
+                            cPerMil(100),
+                            cPerMil(200),
+                            cPerMil(100)
+                        )
+                    ))
+                .addTransform(KaleidoscopeTransform(
+                    2,
+                    true
                 ));
-                // .addTransform(
-                    // ZoomTransform(csPerMil(-500))
-                // );
-        // .addTransform(KaleidoscopeTransform(
-        //     4,
-        //     true
-        // ));
     }
 
     LayerBuilder hexKaleidoscopePreset(

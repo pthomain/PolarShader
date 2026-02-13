@@ -62,21 +62,22 @@ Periodic shaping:
 ## Mapping and accumulation
 
 - `Sf16Signal::sample(range, elapsedMs)` maps signed scalar signals into typed domains.
-- Signed ranges map directly from signed signal output.
-- Unsigned ranges first remap `[-1, 1] -> [0, 1]`, then interpolate to `[min, max]`.
+- `BipolarRange<T>` maps signed signal output directly to `[min, max]`.
+- `MagnitudeRange<T>` first remaps `[-1, 1] -> [0, 1]`, then interpolates to `[min, max]`.
+- `AngleRange` maps via unsigned remapping with wrapping for angular values.
 - `UVSignal` no longer carries an absolute/relative flag.
 - UV delta accumulation is handled explicitly by transforms that need it.
 - Scalar `Sf16Signal` values are treated as absolute by contract (no scalar `absolute` flag).
 - Shared mapping ranges in `Signals`:
-  - `unitRange()` for unsigned normalized scalar use (`[0, 1]` domain).
-  - `signedUnitRange()` for signed scalar use (`[-1, 1]` domain).
+  - `magnitudeRange()` for unsigned normalized scalar use (`[0, 1]` domain).
+  - `bipolarRange()` for signed scalar use (`[-1, 1]` domain).
 
 ## Transform details
 
 ### RotationTransform
 
 - Input: scalar angle signal.
-- Internally maps with `PolarRange` to turn offsets.
+- Internally maps with `AngleRange` to turn offsets.
 
 ### VortexTransform
 
@@ -110,7 +111,7 @@ Periodic shaping:
   - `maxOffset`: mapped displacement cap.
   - Optional directional flow controls.
 - Uses `PhaseAccumulator` for time evolution.
-- Samples signed speed directly with `signedUnitRange()`.
+- Samples signed speed directly with `magnitudeRange()`.
 
 ### PaletteTransform
 

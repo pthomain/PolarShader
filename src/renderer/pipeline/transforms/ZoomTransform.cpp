@@ -22,7 +22,7 @@
 #include "renderer/pipeline/maths/Maths.h"
 #include <cstdio>
 
-#include "renderer/pipeline/signals/ranges/LinearRange.h"
+#include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -32,17 +32,17 @@
 namespace PolarShader {
     namespace {
         // Default Zoom scale boundaries
-        const int32_t MIN_SCALE_RAW = SF16_ONE >> 4; // (1/16)x
-        const int32_t MAX_SCALE_RAW = SF16_ONE << 4; // 16x (Zoomed Out)
+        const int32_t MIN_SCALE_RAW = SF16_ONE >> 2; // (1/4)x
+        const int32_t MAX_SCALE_RAW = SF16_ONE << 3; // 8x (Zoomed Out)
     }
 
     struct ZoomTransform::MappedInputs {
         Sf16Signal scaleSignal;
-        LinearRange<sf16> range;
+        MagnitudeRange<sf16> range;
     };
 
     ZoomTransform::MappedInputs ZoomTransform::makeInputs(Sf16Signal scale) {
-        LinearRange range{sf16(MIN_SCALE_RAW), sf16(MAX_SCALE_RAW)};
+        MagnitudeRange range{sf16(MIN_SCALE_RAW), sf16(MAX_SCALE_RAW)};
         return MappedInputs{
             std::move(scale),
             std::move(range)
@@ -51,7 +51,7 @@ namespace PolarShader {
 
     struct ZoomTransform::State {
         Sf16Signal scaleSignal;
-        LinearRange<sf16> range;
+        MagnitudeRange<sf16> range;
         sf16 scaleValue;
         int32_t minScaleRaw;
         int32_t maxScaleRaw;
