@@ -1,0 +1,59 @@
+//  SPDX-License-Identifier: GPL-3.0-or-later
+//  Copyright (C) 2025 Pierre Thomain
+
+/*
+ * This file is part of PolarShader.
+ *
+ * PolarShader is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * PolarShader is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "renderer/scene/SceneManager.h"
+
+namespace PolarShader {
+    SceneManager::SceneManager(std::unique_ptr<SceneProvider> provider)
+        : provider(std::move(provider)),
+          currentMap([](f16, f16) { return CRGB::Black; }) {
+    }
+
+    void SceneManager::advanceFrame(TimeMillis currentTimeMs) {
+        if (!currentScene || currentScene->isExpired(currentTimeMs - currentSceneStartTimeMs)) {
+            currentScene = provider->nextScene();
+            if (currentScene) {
+                currentSceneStartTimeMs = currentTimeMs;
+                currentMap = currentScene->build();
+            } else {
+                currentMap = [](f16, f16) { return CRGB::Black; };
+            }
+        }
+
+        if (currentScene) {
+            TimeMillis elapsed = currentTimeMs - currentSceneStartTimeMs;
+            TimeMillis duration = currentScene->getDuration();
+            f16 progress;
+
+            if (duration == 0) {
+                progress = f16(0xFFFFu);
+            } else {
+                uint64_t p = (static_cast<uint64_t>(elapsed) * 0xFFFFu) / duration;
+                if (p > 0xFFFFu) p = 0xFFFFu;
+                progress = f16(static_cast<uint16_t>(p));
+            }
+            currentScene->advanceFrame(progress, elapsed);
+        }
+    }
+
+    const ColourMap &SceneManager::build() const {
+        return currentMap;
+    }
+}

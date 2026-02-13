@@ -74,6 +74,7 @@
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.
 - **Documentation:** Focus on high-quality `README.md` files for each major module that explain the architecture, math, and usage examples. Inline comments should be used sparingly and only to explain "why" complex logic is necessary.
 - **Performance:** While clarity is key, ensure that inner loops are free of virtual dispatch and heap churn. Keep the memory footprint predictable.
+- **Code Organization:** Every module should expose its public headers from `module/` (e.g., `renderer/pipeline/patterns/NoisePattern.h`) while moving implementation `.cpp` files into a sibling `module/src/` package (e.g., `renderer/pipeline/patterns/src/NoisePattern.cpp`). Platform-specific translation units and tests should continue to include the `.cpp` files in their new `src/` location, and PlatformIO filters must be updated to ignore the implementation package when a build target targets a different entry point. This layout keeps headers and implementation logically separated without disturbing the existing include paths.
 
 ## Verification and Safety
 - **Build Verification:** Before finishing any track or committing significant changes, **YOU MUST** verify that the firmware builds and uploads successfully to the `teensy41_matrix` environment.
