@@ -95,7 +95,7 @@ namespace PolarShader {
             sr8 radius = sr8(hex_radius_raw);
             sr8 x_term = CartesianMaths::mul(cx, kSqrt3Over3);
             sr8 y_term = CartesianMaths::mul(cy, kOneThird);
-            sr8 q = CartesianMaths::div(sr8(raw(x_term) - raw(y_term)), radius);
+            sr8 q = CartesianMaths::div(x_term - y_term, radius);
             sr8 r = CartesianMaths::div(CartesianMaths::mul(cy, kTwoThirds), radius);
             HexAxial hex = computeAxial(q, r);
 

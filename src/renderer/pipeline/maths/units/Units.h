@@ -23,8 +23,10 @@
 
 #ifdef ARDUINO
 #include <stdint.h>
+#include <type_traits>
 #else
 #include <cstdint>
+#include <type_traits>
 #endif
 
 /**
@@ -82,6 +84,15 @@ namespace PolarShader {
         friend constexpr bool operator>(Typed a, Typed b) { return a.v_ > b.v_; }
         friend constexpr bool operator<=(Typed a, Typed b) { return a.v_ <= b.v_; }
         friend constexpr bool operator>=(Typed a, Typed b) { return a.v_ >= b.v_; }
+
+        friend constexpr Typed operator+(Typed a, Typed b) { return Typed(a.v_ + b.v_); }
+        friend constexpr Typed operator-(Typed a, Typed b) { return Typed(a.v_ - b.v_); }
+        template<
+            typename R = Rep,
+            typename std::enable_if<std::is_signed<R>::value, int>::type = 0>
+        friend constexpr Typed operator-(Typed a) { return Typed(-a.v_); }
+        constexpr Typed &operator+=(Typed b) { v_ += b.v_; return *this; }
+        constexpr Typed &operator-=(Typed b) { v_ -= b.v_; return *this; }
 
     private:
         Rep v_;

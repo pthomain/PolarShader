@@ -173,10 +173,10 @@ namespace PolarShader {
     PatternNormU16 WorleyPattern::samplePrecise(sr8 x, sr8 y) const {
         sr8 offset = aliasingOffset();
         uint32_t sum = 0;
-        sum += raw(sampleFast(sr8(raw(x) - raw(offset)), sr8(raw(y) - raw(offset))));
-        sum += raw(sampleFast(sr8(raw(x) + raw(offset)), sr8(raw(y) - raw(offset))));
-        sum += raw(sampleFast(sr8(raw(x) - raw(offset)), sr8(raw(y) + raw(offset))));
-        sum += raw(sampleFast(sr8(raw(x) + raw(offset)), sr8(raw(y) + raw(offset))));
+        sum += raw(sampleFast(x - offset, y - offset));
+        sum += raw(sampleFast(x + offset, y - offset));
+        sum += raw(sampleFast(x - offset, y + offset));
+        sum += raw(sampleFast(x + offset, y + offset));
         return PatternNormU16(static_cast<uint16_t>(sum >> 2));
     }
 
@@ -226,8 +226,8 @@ namespace PolarShader {
     PatternNormU16 VoronoiPattern::samplePrecise(sr8 x, sr8 y) const {
         sr8 offset = aliasingOffset();
         return sampleFastestId(
-            sr8(raw(x) - raw(offset)), sr8(raw(y) - raw(offset)),
-            sr8(raw(x) + raw(offset)), sr8(raw(y) + raw(offset))
+            x - offset, y - offset,
+            x + offset, y + offset
         );
     }
 }

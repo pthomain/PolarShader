@@ -139,10 +139,10 @@ void test_zoom_transform_uv() {
     UV input(sr16(0x0000C000), sr16(0x00008000));
     PatternNormU16 result = zoom(testLayer)(input);
     
-    // With direct-mapped zoom and MIN_SCALE=1/16x (4096):
-    // centered x at input.u=0.75 is +0.5 -> fx ~= 0x0800.
-    // scaled_uv.u = (0x10000 + 0x0800) >> 1 = 0x8400 (33792).
-    TEST_ASSERT_UINT16_WITHIN(200, 33792, raw(result));
+    // With direct-mapped zoom and MIN_SCALE=1/4x (16384):
+    // centered x at input.u=0.75 is +0.5 -> fx ~= 0x2000.
+    // scaled_uv.u = (0x10000 + 0x2000) >> 1 = 0x9000 (36864).
+    TEST_ASSERT_UINT16_WITHIN(200, 36864, raw(result));
 }
 
 /** @brief Verify that relative UV signals correctly accumulate over time. */
@@ -158,8 +158,8 @@ void test_uv_signal_accumulation() {
     UVSignal resolved(
         [rawSignal, accumulated = UV(sr16(0), sr16(0))](f16 progress, TimeMillis elapsedMs) mutable {
             UV value = rawSignal(progress, elapsedMs);
-            accumulated.u = sr16(raw(accumulated.u) + raw(value.u));
-            accumulated.v = sr16(raw(accumulated.v) + raw(value.v));
+            accumulated.u += value.u;
+            accumulated.v += value.v;
             return accumulated;
         }
     );
@@ -302,21 +302,20 @@ void test_signal_sample_clamped() {
     TEST_ASSERT_EQUAL_INT32(-1000, raw(s.sample(TEST_SIGNED_RANGE, 123)));
 }
 
-/** @brief Verify signed negative speed reverses sine direction. */
-void test_sine_negative_speed_reverses_direction() {
-    Sf16Signal forward = sine(cPerMil(1000), ceiling(), floor(), floor());
-    Sf16Signal reverse = sine(csPerMil(-1000), ceiling(), floor(), floor());
+/** @brief Verify negative speed input maps to zero speed in magnitude domain. */
+void test_sine_negative_speed_is_clamped_to_zero() {
+    Sf16Signal negative = sine(csPerMil(-1000), ceiling(), floor(), floor());
 
-    // Prime accumulators (first sample only initializes elapsed baseline).
-    (void) forward.sample(TEST_SIGNED_RANGE, 0);
-    (void) reverse.sample(TEST_SIGNED_RANGE, 0);
-    // Respect MAX_DELTA_TIME_MS clamping.
-    (void) forward.sample(TEST_SIGNED_RANGE, 200);
-    (void) reverse.sample(TEST_SIGNED_RANGE, 200);
+    // Prime accumulator (first sample initializes elapsed baseline), then advance.
+    (void) negative.sample(TEST_SIGNED_RANGE, 0);
+    int32_t a = raw(negative.sample(TEST_SIGNED_RANGE, 200));
+    int32_t b = raw(negative.sample(TEST_SIGNED_RANGE, 250));
+    int32_t c = raw(negative.sample(TEST_SIGNED_RANGE, 400));
 
-    // +0.25 turns -> max, -0.25 turns (==0.75) -> min
-    TEST_ASSERT_INT32_WITHIN(200, SF16_MAX, raw(forward.sample(TEST_SIGNED_RANGE, 250)));
-    TEST_ASSERT_INT32_WITHIN(200, SF16_MIN, raw(reverse.sample(TEST_SIGNED_RANGE, 250)));
+    // In magnitude mapping, -1 speed maps to 0 speed, so phase does not advance.
+    TEST_ASSERT_INT32_WITHIN(50, 0, a);
+    TEST_ASSERT_EQUAL_INT32(a, b);
+    TEST_ASSERT_EQUAL_INT32(a, c);
 }
 
 /** @brief Verify scalar signal range mapping is done directly via sample(range, elapsedMs). */
@@ -426,7 +425,7 @@ void setup() {
     RUN_TEST(test_aperiodic_reset_wraps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
-    RUN_TEST(test_sine_negative_speed_reverses_direction);
+    RUN_TEST(test_sine_negative_speed_is_clamped_to_zero);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);
@@ -459,7 +458,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_aperiodic_reset_wraps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
-    RUN_TEST(test_sine_negative_speed_reverses_direction);
+    RUN_TEST(test_sine_negative_speed_is_clamped_to_zero);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);

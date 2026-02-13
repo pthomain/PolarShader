@@ -46,8 +46,8 @@ namespace PolarShader {
             TimeMillis elapsedMs
         ) mutable {
                     UV value = signal(progress, elapsedMs);
-                    accumulated.u = sr16(raw(accumulated.u) + raw(value.u));
-                    accumulated.v = sr16(raw(accumulated.v) + raw(value.v));
+                    accumulated.u = accumulated.u + value.u;
+                    accumulated.v = accumulated.v + value.v;
                     return accumulated;
                 }
             );
@@ -126,8 +126,8 @@ namespace PolarShader {
     UVMap TranslationTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             UV translated_uv(
-                sr16(raw(uv.u) + raw(state->offset.u)),
-                sr16(raw(uv.v) + raw(state->offset.v))
+                uv.u + state->offset.u,
+                uv.v + state->offset.v
             );
             return layer(translated_uv);
         };

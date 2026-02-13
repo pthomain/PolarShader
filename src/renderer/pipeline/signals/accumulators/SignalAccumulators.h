@@ -22,7 +22,6 @@
 #define POLAR_SHADER_PIPELINE_SIGNALS_SIGNAL_ACCUMULATORS_H
 
 #include "renderer/pipeline/signals/SignalTypes.h"
-#include <cstdint>
 #include <limits>
 #include <type_traits>
 
@@ -116,7 +115,7 @@ namespace PolarShader {
             static sr16 zero() { return sr16(0); }
 
             static sr16 add(sr16 base, sr16 delta) {
-                return sr16(raw(base) + raw(delta));
+                return base + delta;
             }
         };
 

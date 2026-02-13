@@ -33,15 +33,15 @@ namespace PolarShader {
     namespace UVMaths {
         constexpr UV add(UV a, UV b) {
             return UV(
-                sr16(raw(a.u) + raw(b.u)),
-                sr16(raw(a.v) + raw(b.v))
+                a.u + b.u,
+                a.v + b.v
             );
         }
 
         constexpr UV sub(UV a, UV b) {
             return UV(
-                sr16(raw(a.u) - raw(b.u)),
-                sr16(raw(a.v) - raw(b.v))
+                a.u - b.u,
+                a.v - b.v
             );
         }
     }
