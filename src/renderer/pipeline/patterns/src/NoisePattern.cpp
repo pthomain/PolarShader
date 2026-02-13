@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "NoisePattern.h"
+#include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #ifdef ARDUINO
 #include <Arduino.h>

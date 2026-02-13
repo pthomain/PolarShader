@@ -98,6 +98,8 @@ namespace PolarShader {
         Rep v_;
     };
 
+    // Identity overloads for primitive reps so generic code can uniformly call
+    // raw(x) on both strong Typed wrappers and already-raw integer values.
     constexpr int32_t raw(int32_t v) { return v; }
     constexpr uint32_t raw(uint32_t v) { return v; }
     constexpr uint16_t raw(uint16_t v) { return v; }

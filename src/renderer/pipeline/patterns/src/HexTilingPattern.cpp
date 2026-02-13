@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "HexTilingPattern.h"
+#include "renderer/pipeline/patterns/HexTilingPattern.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"

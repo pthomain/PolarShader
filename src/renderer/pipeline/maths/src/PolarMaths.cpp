@@ -28,6 +28,46 @@
 #include "renderer/pipeline/maths/ScalarMaths.h"
 
 namespace PolarShader {
+
+    namespace PolarMaths {
+        f16 shortest_angle_dist(f16 a, f16 b) {
+            uint16_t dist = raw(a) > raw(b) ? raw(a) - raw(b) : raw(b) - raw(a);
+            if (dist > U16_HALF) {
+                uint32_t wrap = ANGLE_FULL_TURN_U32 - dist;
+                dist = static_cast<uint16_t>(wrap);
+            }
+            return f16(dist);
+        }
+    }
+
+    namespace {
+        constexpr f16 angleAtan2TurnsApprox(int16_t y, int16_t x) {
+            if (x == 0 && y == 0) return f16(0);
+
+            uint16_t abs_x = (x < 0) ? static_cast<uint16_t>(-x) : static_cast<uint16_t>(x);
+            uint16_t abs_y = (y < 0) ? static_cast<uint16_t>(-y) : static_cast<uint16_t>(y);
+
+            uint16_t max_val = (abs_x > abs_y) ? abs_x : abs_y;
+            uint16_t min_val = (abs_x > abs_y) ? abs_y : abs_x;
+
+            uint32_t z = (static_cast<uint32_t>(min_val) << 16) / max_val; // f16/sf16
+            uint32_t one_minus_z = ANGLE_FULL_TURN_U32 - z;
+
+            constexpr uint32_t A_Q16 = ANGLE_FULL_TURN_U32 / 8; // 0.125 turns in f16/sf16
+            constexpr uint32_t B_Q16 = 2847u; // 0.04345 turns in f16/sf16
+
+            uint32_t inner = A_Q16 + ((B_Q16 * one_minus_z) >> 16);
+            uint32_t base = (z * inner) >> 16; // 0..0.125 turns
+
+            uint32_t angle = (abs_x >= abs_y) ? base : (QUARTER_TURN_U16 - base);
+
+            if (x < 0) angle = HALF_TURN_U16 - angle;
+            if (y < 0) angle = ANGLE_FULL_TURN_U32 - angle;
+
+            return f16(static_cast<uint16_t>(angle & ANGLE_U16_MAX));
+        }
+    }
+
     UV polarToCartesianUV(UV polar_uv) {
         f16 angle_turns = f16(static_cast<uint16_t>(raw(polar_uv.u)));
         f16 radius = f16(static_cast<uint16_t>(raw(polar_uv.v)));

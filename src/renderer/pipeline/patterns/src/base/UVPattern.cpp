@@ -18,15 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H
-#define POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H
-
-#include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/pipeline/patterns/base/UVPattern.h"
 
 namespace PolarShader {
-    PatternNormU16 patternNormalize(uint16_t value, uint16_t min_value, uint16_t max_value);
+    void UVPattern::setContext(std::shared_ptr<PipelineContext> context) {
+        this->context = std::move(context);
+    }
 
-    PatternNormU16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x);
+    UVPattern::UVPattern()
+        : layerValue([](UV) { return PatternNormU16(0); }) {
+    }
+
+    UVPattern::UVPattern(UVMap layer)
+        : layerValue(std::move(layer)) {
+        if (!layerValue) {
+            layerValue = [](UV) { return PatternNormU16(0); };
+        }
+    }
+
+    UVMap UVPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+        return layerValue;
+    }
 }
-
-#endif // POLAR_SHADER_PIPELINE_MATHS_PATTERNMATHS_H

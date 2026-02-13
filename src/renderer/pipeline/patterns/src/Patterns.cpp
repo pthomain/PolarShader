@@ -18,9 +18,9 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "Patterns.h"
-#include "NoisePattern.h"
-#include "HexTilingPattern.h"
+#include "renderer/pipeline/patterns/Patterns.h"
+#include "renderer/pipeline/patterns/NoisePattern.h"
+#include "renderer/pipeline/patterns/HexTilingPattern.h"
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> worleyPattern(

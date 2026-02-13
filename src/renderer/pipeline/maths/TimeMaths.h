@@ -29,16 +29,9 @@ namespace PolarShader {
     /**
      * @brief Converts milliseconds to a f16/sf16 fixed-point representation of seconds.
      */
-    inline sf16 timeMillisToScalar(TimeMillis millis) {
-        int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
-        dt_raw /= MILLIS_PER_SECOND;
-        return sf16(static_cast<int32_t>(dt_raw));
-    }
+    sf16 timeMillisToScalar(TimeMillis millis);
 
-    inline TimeMillis clampDeltaTime(TimeMillis deltaTime) {
-        if (MAX_DELTA_TIME_MS == 0) return deltaTime;
-        return (deltaTime > MAX_DELTA_TIME_MS) ? MAX_DELTA_TIME_MS : deltaTime;
-    }
+    TimeMillis clampDeltaTime(TimeMillis deltaTime);
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_TIMEMATHS_H

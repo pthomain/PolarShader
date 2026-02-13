@@ -18,25 +18,17 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "UVPattern.h"
+#include "renderer/pipeline/maths/TimeMaths.h"
 
 namespace PolarShader {
-    void UVPattern::setContext(std::shared_ptr<PipelineContext> context) {
-        this->context = std::move(context);
+    sf16 timeMillisToScalar(TimeMillis millis) {
+        int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
+        dt_raw /= MILLIS_PER_SECOND;
+        return sf16(static_cast<int32_t>(dt_raw));
     }
 
-    UVPattern::UVPattern()
-        : layerValue([](UV) { return PatternNormU16(0); }) {
-    }
-
-    UVPattern::UVPattern(UVMap layer)
-        : layerValue(std::move(layer)) {
-        if (!layerValue) {
-            layerValue = [](UV) { return PatternNormU16(0); };
-        }
-    }
-
-    UVMap UVPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return layerValue;
+    TimeMillis clampDeltaTime(TimeMillis deltaTime) {
+        if (MAX_DELTA_TIME_MS == 0) return deltaTime;
+        return (deltaTime > MAX_DELTA_TIME_MS) ? MAX_DELTA_TIME_MS : deltaTime;
     }
 }

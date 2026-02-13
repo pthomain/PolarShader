@@ -21,10 +21,6 @@
 #ifndef POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 #define POLAR_SHADER_PIPELINE_MATHS_POLARMATHS_H
 
-#ifdef ARDUINO
-#else
-#include "native/FastLED.h"
-#endif
 #include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
@@ -52,14 +48,7 @@ namespace PolarShader {
          * @param b The second angle (f16).
          * @return The shortest distance between the angles (f16, 0-32767).
          */
-        inline f16 shortest_angle_dist(f16 a, f16 b) {
-            uint16_t dist = raw(a) > raw(b) ? raw(a) - raw(b) : raw(b) - raw(a);
-            if (dist > U16_HALF) {
-                uint32_t wrap = ANGLE_FULL_TURN_U32 - dist;
-                dist = static_cast<uint16_t>(wrap);
-            }
-            return f16(dist);
-        }
+        f16 shortest_angle_dist(f16 a, f16 b);
 
     } // namespace PolarMaths
 }

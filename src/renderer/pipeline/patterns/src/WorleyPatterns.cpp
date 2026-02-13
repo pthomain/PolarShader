@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "WorleyPatterns.h"
+#include "renderer/pipeline/patterns/WorleyPatterns.h"
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 
