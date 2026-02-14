@@ -22,20 +22,26 @@
 #undef assert
 #include "MatrixHardware_Teensy4_ShieldV5.h"
 #include <SmartMatrix.h>
+#include "Matrix128x128DisplaySpec.h"
+#include "Matrix64x64DisplaySpec.h"
 
 namespace PolarShader {
-    constexpr uint16_t kMatrixWidth = MatrixDisplaySpec::MATRIX_WIDTH;
-    constexpr uint16_t kMatrixHeight = MatrixDisplaySpec::MATRIX_HEIGHT;
+    // For now, we allocate buffers for the largest possible display (128x128).
+    // The SmartMatrix library requires constants for buffer allocation.
+    using DefaultAllocationSpec = Matrix128x128DisplaySpec;
+
+    constexpr uint16_t kMatrixWidth = DefaultAllocationSpec::DISPLAY_WIDTH;
+    constexpr uint16_t kScreenHeight = DefaultAllocationSpec::DISPLAY_HEIGHT;
     constexpr uint8_t kColorDepth = 24;
-    constexpr uint8_t kDmaBufferRows = 4;
+    constexpr uint8_t kDmaBufferRows = 8;
     constexpr uint8_t kPanelType = SM_PANELTYPE_HUB75_64ROW_MOD32SCAN;
-    constexpr uint32_t kMatrixOptions = SM_HUB75_OPTIONS_NONE;
+    constexpr uint32_t kMatrixOptions = SM_HUB75_OPTIONS_C_SHAPE_STACKING;
     constexpr uint32_t kBackgroundOptions = SM_BACKGROUND_OPTIONS_NONE;
 
     SMARTMATRIX_ALLOCATE_BUFFERS(
         matrix,
         kMatrixWidth,
-        kMatrixHeight,
+        kScreenHeight,
         kColorDepth,
         kDmaBufferRows,
         kPanelType,
@@ -45,7 +51,7 @@ namespace PolarShader {
     SMARTMATRIX_ALLOCATE_BACKGROUND_LAYER(
         backgroundLayer,
         kMatrixWidth,
-        kMatrixHeight,
+        kScreenHeight,
         24,
         kBackgroundOptions
     );
@@ -54,10 +60,12 @@ namespace PolarShader {
         MatrixDisplaySpec &spec,
         uint8_t brightness,
         uint8_t refreshRateInMillis
-    ) : renderer(spec.nbLeds(), [&spec](uint16_t pixelIndex) { return spec.toPolarCoords(pixelIndex); }),
+    ) : spec(spec),
+        renderer(spec.nbLeds(), [&spec](uint16_t pixelIndex) { return spec.toPolarCoords(pixelIndex); }),
         outputArray(new CRGB[spec.nbLeds()]),
         refreshRateInMillis(refreshRateInMillis) {
         matrix.addLayer(&backgroundLayer);
+        matrix.setRefreshRate(120);
         matrix.begin();
         backgroundLayer.setBrightness(brightness);
         backgroundLayer.enableColorCorrection(false);
@@ -70,12 +78,22 @@ namespace PolarShader {
             renderer.render(outputArray, millis());
 
             auto *buffer = backgroundLayer.backBuffer();
+            const uint16_t nbLeds = spec.nbLeds();
+            const uint16_t mWidth = spec.matrixWidth();
+            const uint16_t subsample = spec.subsample();
 
-            for (uint16_t pixelIndex = 0; pixelIndex < MatrixDisplaySpec::NB_LEDS; ++pixelIndex) {
-                uint16_t x = pixelIndex % MatrixDisplaySpec::MATRIX_WIDTH;
-                uint16_t y = pixelIndex / MatrixDisplaySpec::MATRIX_WIDTH;
-                const CRGB &color = outputArray[pixelIndex];
-                buffer[(y * MatrixDisplaySpec::MATRIX_WIDTH) + x] = rgb24(color.r, color.g, color.b);
+            for (uint16_t pixelIndex = 0; pixelIndex < nbLeds; ++pixelIndex) {
+                const uint16_t sx = pixelIndex % mWidth;
+                const uint16_t sy = pixelIndex / mWidth;
+                const uint16_t dx = sx * subsample;
+                const uint16_t dy = sy * subsample;
+                const rgb24 c = rgb24(outputArray[pixelIndex].r, outputArray[pixelIndex].g, outputArray[pixelIndex].b);
+
+                for (uint16_t oy = 0; oy < subsample; ++oy) {
+                    for (uint16_t ox = 0; ox < subsample; ++ox) {
+                        buffer[(dy + oy) * kMatrixWidth + dx + ox] = c;
+                    }
+                }
             }
 
             backgroundLayer.swapBuffers(false);

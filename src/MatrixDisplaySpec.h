@@ -18,8 +18,8 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLARSHADER_DEFAULTPOLARDISPLAYSPEC_H
-#define POLARSHADER_DEFAULTPOLARDISPLAYSPEC_H
+#ifndef POLARSHADER_MATRIXDISPLAYSPEC_H
+#define POLARSHADER_MATRIXDISPLAYSPEC_H
 
 #include "display/PolarDisplaySpec.h"
 #include "renderer/pipeline/maths/Maths.h"
@@ -27,43 +27,46 @@
 namespace PolarShader {
     class MatrixDisplaySpec : public PolarDisplaySpec {
     public:
-        static constexpr uint16_t MATRIX_WIDTH = 64;
-        static constexpr uint16_t MATRIX_HEIGHT = 64;
-        static constexpr uint16_t ROTATION_DEG = 0;
-        static constexpr uint16_t NB_SEGMENTS = MATRIX_HEIGHT;
-        static constexpr uint16_t SEGMENT_SIZE = MATRIX_WIDTH;
-        static constexpr uint16_t NB_LEDS = NB_SEGMENTS * SEGMENT_SIZE;
+        virtual uint16_t displayWidth() const = 0;
+        virtual uint16_t displayHeight() const = 0;
+        virtual uint16_t subsample() const = 0;
+
+        uint16_t matrixWidth() const { return displayWidth() / subsample(); }
+        uint16_t matrixHeight() const { return displayHeight() / subsample(); }
 
         // Scale so the unit circle has a diameter equal to the matrix diagonal.
         // 1 / sqrt(2) in f16/sf16 (~0.7071).
         static constexpr uint16_t DIAGONAL_SCALE_F16 = 46341u;
 
         uint16_t numSegments() const override {
-            return NB_SEGMENTS;
+            return matrixHeight();
         }
 
         uint16_t nbLeds() const override {
-            return NB_LEDS;
+            return matrixWidth() * matrixHeight();
         }
 
         uint16_t segmentSize(uint16_t segmentIndex) const override {
-            return SEGMENT_SIZE;
+            return matrixWidth();
         }
 
         PolarCoords toPolarCoords(uint16_t pixelIndex) const override {
-            if (pixelIndex >= NB_LEDS) {
+            uint16_t mWidth = matrixWidth();
+            uint16_t mHeight = matrixHeight();
+
+            if (pixelIndex >= nbLeds()) {
                 return {0, 0};
             }
 
-            uint16_t x = pixelIndex % MATRIX_WIDTH;
-            uint16_t y = pixelIndex / MATRIX_WIDTH;
+            uint16_t x = pixelIndex % mWidth;
+            uint16_t y = pixelIndex / mWidth;
 
-            const int32_t centered_x = (static_cast<int32_t>(x) * 2) - (MATRIX_WIDTH - 1);
+            const int32_t centered_x = (static_cast<int32_t>(x) * 2) - (mWidth - 1);
             const int32_t centered_y =
-                    (static_cast<int32_t>(MATRIX_HEIGHT - 1 - y) * 2) - (MATRIX_HEIGHT - 1);
+                    (static_cast<int32_t>(mHeight - 1 - y) * 2) - (mHeight - 1);
 
-            const int32_t denom_x = MATRIX_WIDTH > 1 ? (MATRIX_WIDTH - 1) : 1;
-            const int32_t denom_y = MATRIX_HEIGHT > 1 ? (MATRIX_HEIGHT - 1) : 1;
+            const int32_t denom_x = mWidth > 1 ? (mWidth - 1) : 1;
+            const int32_t denom_y = mHeight > 1 ? (mHeight - 1) : 1;
 
             const int32_t x_q0_16 = (centered_x * SF16_ONE) / denom_x;
             const int32_t y_q0_16 = (centered_y * SF16_ONE) / denom_y;
@@ -85,4 +88,4 @@ namespace PolarShader {
         }
     };
 }
-#endif //POLARSHADER_DEFAULTPOLARDISPLAYSPEC_H
+#endif //POLARSHADER_MATRIXDISPLAYSPEC_H

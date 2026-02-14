@@ -18,31 +18,23 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLARSHADER_SMARTMATRIXDISPLAY_H
-#define POLARSHADER_SMARTMATRIXDISPLAY_H
+#ifndef POLARSHADER_MATRIX128X128DISPLAYSPEC_H
+#define POLARSHADER_MATRIX128X128DISPLAYSPEC_H
 
-#include "FastLED.h"
 #include "MatrixDisplaySpec.h"
-#include "renderer/PolarRenderer.h"
 
 namespace PolarShader {
-    class SmartMatrixDisplay {
-        MatrixDisplaySpec &spec;
-        PolarRenderer renderer;
-        CRGB *outputArray;
-        uint8_t refreshRateInMillis;
-
+    class Matrix128x128DisplaySpec : public MatrixDisplaySpec {
     public:
-        explicit SmartMatrixDisplay(
-            MatrixDisplaySpec &spec,
-            uint8_t brightness = 255,
-            uint8_t refreshRateInMillis = 30
-        );
+        static constexpr uint16_t PANEL_WIDTH = 64;
+        static constexpr uint16_t PANEL_HEIGHT = 64;
+        static constexpr uint16_t DISPLAY_WIDTH = PANEL_WIDTH * 2;
+        static constexpr uint16_t DISPLAY_HEIGHT = PANEL_HEIGHT * 2;
+        static constexpr uint16_t SUBSAMPLE = 2;
 
-        void loop();
-
-        ~SmartMatrixDisplay();
+        uint16_t displayWidth() const override { return DISPLAY_WIDTH; }
+        uint16_t displayHeight() const override { return DISPLAY_HEIGHT; }
+        uint16_t subsample() const override { return SUBSAMPLE; }
     };
 }
-
-#endif // POLARSHADER_SMARTMATRIXDISPLAY_H
+#endif //POLARSHADER_MATRIX128X128DISPLAYSPEC_H

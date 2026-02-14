@@ -44,6 +44,8 @@ namespace PolarShader {
     LayerBuilder defaultPreset(
         const CRGBPalette16 &palette
     ) {
+        return noiseKaleidoscopePattern(palette);
+
         return makeBuilder(
                     noisePattern(),
                     palette,
@@ -63,11 +65,11 @@ namespace PolarShader {
                             cPerMil(200),
                             cPerMil(100)
                         )
-                    ))
-                .addTransform(KaleidoscopeTransform(
-                    2,
-                    true
-                ));
+                    ));
+        // .addTransform(KaleidoscopeTransform(
+        // 4,
+        // true
+        // ));
     }
 
     LayerBuilder hexKaleidoscopePreset(
@@ -110,24 +112,23 @@ namespace PolarShader {
                     noise(cPerMil(20))
                 )
                 .addPaletteTransform(PaletteTransform(
-                    noise(cPerMil(100)),
-                    noise(cPerMil(100), cPerMil(300), cPerMil(50)),
-                    perMil(50)
+                    noise(csPerMil(100)),
+                    sine(csPerMil(100), floor()),
+                    perMil(10)
                 ))
                 .addTransform(TranslationTransform(
                     noise(cPerMil(100)),
                     noise(cPerMil(30), cPerMil(200))
                 ))
                 .addTransform(ZoomTransform(
-                    // noise(cPerMil(100))
-                    noise(cPerMil(100), cPerMil(100), cPerMil(100))
+                    noise(cPerMil(100))
                 ))
                 .addTransform(VortexTransform(
-                    noise(cPerMil(10), cPerMil(200))
+                    noise(cPerMil(10), cPerMil(500))
                 ))
-                .addTransform(RadialKaleidoscopeTransform(4, true))
+                .addTransform(KaleidoscopeTransform(4, true))
                 .addTransform(RotationTransform(
-                    noise(cPerMil(100))
+                    noise(cPerMil(10))
                 ));
     }
 }

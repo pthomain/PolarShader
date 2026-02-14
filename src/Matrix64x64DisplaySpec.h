@@ -18,19 +18,23 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include "Matrix128x128DisplaySpec.h"
-#include "display/SmartMatrixDisplay.h"
+#ifndef POLARSHADER_MATRIX64X64DISPLAYSPEC_H
+#define POLARSHADER_MATRIX64X64DISPLAYSPEC_H
 
-using namespace PolarShader;
-static SmartMatrixDisplay *display = nullptr;
+#include "MatrixDisplaySpec.h"
 
-void setup() {
-    static Matrix128x128DisplaySpec specInstance;
-    Serial.begin(115200);
-    display = new SmartMatrixDisplay(specInstance, 255, 30);
+namespace PolarShader {
+    class Matrix64x64DisplaySpec : public MatrixDisplaySpec {
+    public:
+        static constexpr uint16_t PANEL_WIDTH = 64;
+        static constexpr uint16_t PANEL_HEIGHT = 64;
+        static constexpr uint16_t DISPLAY_WIDTH = PANEL_WIDTH;
+        static constexpr uint16_t DISPLAY_HEIGHT = PANEL_HEIGHT;
+        static constexpr uint16_t SUBSAMPLE = 1;
+
+        uint16_t displayWidth() const override { return DISPLAY_WIDTH; }
+        uint16_t displayHeight() const override { return DISPLAY_HEIGHT; }
+        uint16_t subsample() const override { return SUBSAMPLE; }
+    };
 }
-
-void loop() {
-    display->loop();
-}
+#endif //POLARSHADER_MATRIX64X64DISPLAYSPEC_H
