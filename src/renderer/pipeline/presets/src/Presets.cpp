@@ -28,6 +28,8 @@
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
+#include "renderer/pipeline/transforms/CartesianTilingTransform.h"
+#include "renderer/pipeline/transforms/RadialKaleidoscopeTransform.h"
 
 namespace PolarShader {
     namespace {
@@ -44,52 +46,50 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
+                    // hexTilingPattern(
+                    // 100,
+                    // 16
+                    // ),
                     noisePattern(),
                     palette,
                     "kaleidoscope"
                 )
-                // .addPaletteTransform(
-                //     PaletteTransform(
-                //         sine(),
-                //         noise(
-                //             constant(100),
-                //             noise(constant(10), constant(100), constant(100)),
-                //             noise(constant(10), constant(50), constant(10), noise())
-                //         ),
-                //         perMil(200)
-                //     ))
-                // .addTransform(TranslationTransform(
-                //     noise(),
-                //     constant(50)
-                // ))
-                // .addTransform(
-                // ZoomTransform(
-                // noise(constant(10))
-                // ));
+                .addPaletteTransform(
+                    PaletteTransform(
+                        sine(),
+                        noise(
+                            constant(100),
+                            noise(constant(150), constant(100), constant(100)),
+                            noise(constant(150), constant(100), constant(100), noise())
+                        ),
+                        perMil(200)
+                    ))
+                .addTransform(TranslationTransform(
+                    noise(constant(300)),
+                    constant(750)
+                ))
                 .addTransform(
                     ZoomTransform(
                         noise(
                             constant(500)
                         )
-                    ));
-                // .addTransform(
-                    // RotationTransform(
-                        // noise(
-                            // constant(1000)
-                        // ),
-                        // true
-                    // ));
-        // .addTransform(KaleidoscopeTransform(
-        //     1,
-        //     true
-        // ))
+                    ))
+                .addTransform(KaleidoscopeTransform(
+                    3,
+                    true
+                ))
+                .addTransform(CartesianTilingTransform(
+                    noise(constant(200)),
+                    50,
+                    100,
+                    true
+                ));
         // .addTransform(
         //     RotationTransform(
-        //         sine(
-        //             constant(550),
-        //             constant(200),
-        //             constant(550)
-        //         )
+        //         noise(
+        //             constant(1000)
+        //         ),
+        //         true
         //     ));
     }
 

@@ -36,8 +36,6 @@ namespace {
 }
 
 namespace PolarShader {
-    static constexpr int32_t kCellSizeScale = 10000;
-
     static int32_t clampCellSize(int64_t value) {
         if (value <= INT32_MIN) return INT32_MIN;
         if (value >= INT32_MAX) return INT32_MAX;
@@ -70,7 +68,7 @@ namespace PolarShader {
 
     CartesianTilingTransform::CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored)
         : state(std::make_shared<State>(State{
-            clampCellSize(static_cast<int64_t>(cellSizeQ24_8) * kCellSizeScale),
+            clampCellSize(cellSizeQ24_8),
             mirrored,
             Sf16Signal(),
             MagnitudeRange<int32_t>(1, 1),
@@ -94,7 +92,7 @@ namespace PolarShader {
         });
         if (state->cellSizeSignal) {
             int32_t starting = state->cellSizeSignal.sample(state->cellSizeRange, 0);
-            starting = clampCellSize(static_cast<int64_t>(starting) * kCellSizeScale);
+            starting = clampCellSize(starting);
             if (starting <= 0) starting = 1;
             state->cellSizeRaw = starting;
         }
@@ -103,7 +101,7 @@ namespace PolarShader {
     void CartesianTilingTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
         if (state->hasSignal && state->cellSizeSignal) {
             int32_t value = state->cellSizeSignal.sample(state->cellSizeRange, elapsedMs);
-            value = clampCellSize(static_cast<int64_t>(value) * kCellSizeScale);
+            value = clampCellSize(value);
             if (value <= 0) value = 1;
             state->cellSizeRaw = value;
         }
@@ -120,10 +118,10 @@ namespace PolarShader {
             // Wait, cellSizeRaw in this class seems to becellSizeQ24_8 * 10000? 
             // That's unusual. Let's check from_uv.
             // from_uv(uv) returns sr8/r8 Cartesian (sr8/r8).
-            
+
             sr8 cx = CartesianMaths::from_uv(uv.u);
             sr8 cy = CartesianMaths::from_uv(uv.v);
-            
+
             // Tiling logic using existing CartesianLayer operator's math
             int32_t x_raw = raw(cx);
             int32_t y_raw = raw(cy);
@@ -136,7 +134,7 @@ namespace PolarShader {
                 local_x = (cellSizeRaw - 1) - local_x;
                 local_y = (cellSizeRaw - 1) - local_y;
             }
-            
+
             UV tiled_uv(
                 CartesianMaths::to_uv(sr8(local_x)),
                 CartesianMaths::to_uv(sr8(local_y))

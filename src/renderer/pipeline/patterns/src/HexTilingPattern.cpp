@@ -169,7 +169,6 @@ namespace PolarShader {
             radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
         }
 
-        radius_raw /= 10;
         if (radius_raw < (1 << R8_FRAC_BITS)) radius_raw = (1 << R8_FRAC_BITS);
         
         return UVHexTilingFunctor{radius_raw, color_count, softness_raw};
