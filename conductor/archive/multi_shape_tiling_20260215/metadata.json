@@ -1,0 +1,8 @@
+{
+  "track_id": "multi_shape_tiling_20260215",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-15T12:00:00Z",
+  "updated_at": "2026-02-15T12:00:00Z",
+  "description": "Update CartesianTilingTransform to support triangle and hexagon tile shapes in addition to squares."
+}
