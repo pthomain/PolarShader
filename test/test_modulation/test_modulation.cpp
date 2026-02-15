@@ -131,6 +131,43 @@ void test_offset_modulation() {
     TEST_ASSERT_INT32_WITHIN(1000, 0, raw(s.sample(SIGNED_RANGE, 750)));
 }
 
+/** @brief Verify that zero speed signal results in no phase advance. */
+void test_zero_speed_signal() {
+    Sf16Signal s = sine(constant(sf16(0)), ceiling(), midPoint(), floor());
+    
+    (void) s.sample(SIGNED_RANGE, 0);
+    int32_t a = raw(s.sample(SIGNED_RANGE, 500));
+    int32_t b = raw(s.sample(SIGNED_RANGE, 1000));
+    
+    TEST_ASSERT_EQUAL_INT32(a, b);
+}
+
+/** @brief Verify handling of negative time (e.g. scene loop/reset). */
+void test_negative_time_reset() {
+    Sf16Signal s = sine(csPerMil(1000), ceiling(), midPoint(), floor());
+    
+    (void) s.sample(SIGNED_RANGE, 500);
+    // t=200 is "negative" relative to last sample.
+    // PhaseAccumulator should handle it gracefully (clamping delta or resetting).
+    (void) s.sample(SIGNED_RANGE, 200);
+    
+    // It shouldn't crash.
+    TEST_ASSERT_TRUE(true);
+}
+
+/** @brief Verify extreme amplitude and offset. */
+void test_extreme_modulation_clamping() {
+    // Amplitude = 2.0 (out of bounds), Offset = 1.0
+    // Result should be clamped to SF16_MAX.
+    Sf16Signal s = sine(csPerMil(1000), csPerMil(2000), csPerMil(1000), floor());
+    
+    (void) s.sample(SIGNED_RANGE, 0);
+    (void) s.sample(SIGNED_RANGE, 250);
+    int32_t a = raw(s.sample(SIGNED_RANGE, 250));
+    
+    TEST_ASSERT_EQUAL_INT32(SF16_MAX, a);
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000);
@@ -141,6 +178,9 @@ void setup() {
     RUN_TEST(test_sawtooth_waveform);
     RUN_TEST(test_amplitude_modulation);
     RUN_TEST(test_offset_modulation);
+    RUN_TEST(test_zero_speed_signal);
+    RUN_TEST(test_negative_time_reset);
+    RUN_TEST(test_extreme_modulation_clamping);
     UNITY_END();
 }
 void loop() {}
@@ -153,6 +193,9 @@ int main() {
     RUN_TEST(test_sawtooth_waveform);
     RUN_TEST(test_amplitude_modulation);
     RUN_TEST(test_offset_modulation);
+    RUN_TEST(test_zero_speed_signal);
+    RUN_TEST(test_negative_time_reset);
+    RUN_TEST(test_extreme_modulation_clamping);
     return UNITY_END();
 }
 #endif

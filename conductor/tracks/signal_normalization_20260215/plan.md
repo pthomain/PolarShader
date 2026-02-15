@@ -33,8 +33,8 @@ Standardize the modulation API across periodic, noise, and aperiodic signals.
 ## Phase 3: Precision Audit & Comprehensive Testing
 Final sweep to ensure no precision loss and maximum test coverage.
 
-- [ ] Task: Q16.16 Precision Audit
-    - [ ] Task: Review all intermediate calculations in `Signals.cpp` and `SignalSamplers.cpp` for overflow risk.
+- [~] Task: Q16.16 Precision Audit
+    - [~] Task: Review all intermediate calculations in `Signals.cpp` and `SignalSamplers.cpp` for overflow risk.
     - [ ] Task: Replace any remaining implicit casts with explicit Q-format math.
 - [ ] Task: Final Coverage Push
     - [ ] Task: Ensure `signals/` and `ranges/` directories have >80% code coverage.

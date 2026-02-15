@@ -149,7 +149,7 @@ namespace PolarShader {
     Sf16Signal quadraticIn(TimeMillis duration, LoopMode loopMode) {
         return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
             uint32_t p = raw(timeToProgress(t, duration));
-            uint32_t result = (p * p) >> 16;
+            uint32_t result = (static_cast<uint64_t>(p) * p + (1u << 15)) >> 16;
             return toSigned(f16(result));
         });
     }
@@ -158,7 +158,7 @@ namespace PolarShader {
         return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
             uint32_t p = raw(timeToProgress(t, duration));
             uint32_t inv = 0xFFFFu - p;
-            uint32_t result = 0xFFFFu - ((inv * inv) >> 16);
+            uint32_t result = 0xFFFFu - ((static_cast<uint64_t>(inv) * inv + (1u << 15)) >> 16);
             return toSigned(f16(result));
         });
     }
@@ -167,11 +167,11 @@ namespace PolarShader {
         return createAperiodicSignal(duration, loopMode, [duration](TimeMillis t) {
             uint32_t p = raw(timeToProgress(t, duration));
             if (p < 0x8000u) {
-                uint32_t result = (p * p) >> 15;
+                uint32_t result = (static_cast<uint64_t>(p) * p + (1u << 14)) >> 15;
                 return toSigned(f16(result));
             }
             uint32_t inv = 0xFFFFu - p;
-            uint32_t tail = (inv * inv) >> 15;
+            uint32_t tail = (static_cast<uint64_t>(inv) * inv + (1u << 14)) >> 15;
             return toSigned(f16(0xFFFFu - tail));
         });
     }
