@@ -1,10 +1,10 @@
 # Implementation Plan: Multi-Shape Cartesian Tiling
 
-## Phase 1: Infrastructure & Setup
+## Phase 1: Infrastructure & Setup [checkpoint: e02cdbf]
 - [x] Task: Define `TileShape` enum in `CartesianTilingTransform.h`. 3ce32fa
 - [x] Task: Update `CartesianTilingTransform` constructor and member variables to support `TileShape`. 3ce32fa
 - [x] Task: Create a base test suite in `test/test_tiling/test_tiling.cpp` verifying existing square tiling functionality. 3ce32fa
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Setup' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Setup' (Protocol in workflow.md)
 
 ## Phase 2: Triangle Tiling Implementation
 - [ ] Task: Write failing tests for triangle grid UV mapping and cell ID generation.
