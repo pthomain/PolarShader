@@ -31,13 +31,20 @@ namespace PolarShader {
      */
     class CartesianTilingTransform : public UVTransform {
     public:
-        explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false);
+        enum class TileShape {
+            SQUARE,
+            TRIANGLE,
+            HEXAGON
+        };
+
+        explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false, TileShape shape = TileShape::SQUARE);
 
         CartesianTilingTransform(
             Sf16Signal cellSize,
             int32_t minCellSize = 4096,
             int32_t maxCellSize = 65536,
-            bool mirrored = false
+            bool mirrored = false,
+            TileShape shape = TileShape::SQUARE
         );
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;

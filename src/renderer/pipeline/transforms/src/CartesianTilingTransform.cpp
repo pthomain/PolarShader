@@ -61,15 +61,17 @@ namespace PolarShader {
     struct CartesianTilingTransform::State {
         int32_t cellSizeRaw;
         bool mirrored;
+        TileShape shape;
         Sf16Signal cellSizeSignal;
         MagnitudeRange<int32_t> cellSizeRange;
         bool hasSignal;
     };
 
-    CartesianTilingTransform::CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored)
+    CartesianTilingTransform::CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored, TileShape shape)
         : state(std::make_shared<State>(State{
             clampCellSize(cellSizeQ24_8),
             mirrored,
+            shape,
             Sf16Signal(),
             MagnitudeRange<int32_t>(1, 1),
             false
@@ -80,12 +82,14 @@ namespace PolarShader {
         Sf16Signal cellSize,
         int32_t minCellSize,
         int32_t maxCellSize,
-        bool mirrored
+        bool mirrored,
+        TileShape shape
     ) {
         auto inputs = makeInputs(std::move(cellSize), minCellSize, maxCellSize);
         state = std::make_shared<State>(State{
             INT32_MAX,
             mirrored,
+            shape,
             std::move(inputs.cellSizeSignal),
             std::move(inputs.cellSizeRange),
             true
