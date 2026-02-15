@@ -15,20 +15,20 @@ Focus on standardizing how `AngleRange`, `BipolarRange`, and `MagnitudeRange` ha
     - [x] Task: Test `MagnitudeRange` and `BipolarRange` with extreme Q16.16 values (verify clamping).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Range Normalization' (Protocol in workflow.md) 3dd1f9a
 
-## Phase 2: Signal Modulation Standardization
+## Phase 2: Signal Modulation Standardization [checkpoint: e7d0e7d]
 Standardize the modulation API across periodic, noise, and aperiodic signals.
 
-- [ ] Task: Standardize Signal Sampler Interface
-    - [ ] Task: Update `SignalSamplers.h` to ensure consistent modulation scaling.
-    - [ ] Task: Refactor `sine`, `triangle`, `square`, `sawtooth` to use unified modulation logic.
-- [ ] Task: Normalize Noise and Aperiodic Modulation
-    - [ ] Task: Update `NoiseMaths` and `NoisePattern` to adhere to standardized modulation scaling.
-    - [ ] Task: Ensure `linear`, `quadratic`, and `exponential` ramps handle modulation parameters consistently.
-- [ ] Task: Write Tests for Modulation Behavior
-    - [ ] Task: Create `test/test_signals/test_modulation.cpp`.
-    - [ ] Task: Test frequency modulation (FM) consistency across different carrier/modulator pairs.
-    - [ ] Task: Verify modulation depth scales correctly in Q16.16.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Signal Modulation' (Protocol in workflow.md)
+- [x] Task: Standardize Signal Sampler Interface e7d0e7d
+    - [x] Task: Update `SignalSamplers.h` to ensure consistent modulation scaling.
+    - [x] Task: Refactor `sine`, `triangle`, `square`, `sawtooth` to use unified modulation logic.
+- [x] Task: Normalize Noise and Aperiodic Modulation e7d0e7d
+    - [x] Task: Update `NoiseMaths` and `NoisePattern` to adhere to standardized modulation scaling.
+    - [x] Task: Ensure `linear`, `quadratic`, and `exponential` ramps handle modulation parameters consistently.
+- [x] Task: Write Tests for Modulation Behavior e7d0e7d
+    - [x] Task: Create `test/test_signals/test_modulation.cpp`.
+    - [x] Task: Test frequency modulation (FM) consistency across different carrier/modulator pairs.
+    - [x] Task: Verify modulation depth scales correctly in Q16.16.
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Signal Modulation' (Protocol in workflow.md) e7d0e7d
 
 ## Phase 3: Precision Audit & Comprehensive Testing
 Final sweep to ensure no precision loss and maximum test coverage.
