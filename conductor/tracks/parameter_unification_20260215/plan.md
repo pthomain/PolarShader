@@ -26,12 +26,12 @@ Update all call sites in the repository to use the new names while preserving ex
     - [x] Task: Run `pio run -e seeed_xiao` and `pio run -e teensy41_matrix` to ensure no broken signatures.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Migration' (Protocol in workflow.md) e354438
 
-## Phase 3: Documentation & Finalization
+## Phase 3: Documentation & Finalization [checkpoint: f6fb728]
 Ensure all documentation reflects the new helper sets.
 
-- [~] Task: Update Documentation
-    - [~] Task: Update `README.md` examples.
-    - [ ] Task: Update `src/renderer/pipeline/transforms/README.md` signal model section.
-- [ ] Task: Final Quality Pass
-    - [ ] Task: Run full `pio test -e native` suite and ensure 100% pass rate.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Documentation' (Protocol in workflow.md)
+- [x] Task: Update Documentation f6fb728
+    - [x] Task: Update `README.md` examples.
+    - [x] Task: Update `src/renderer/pipeline/transforms/README.md` signal model section.
+- [x] Task: Final Quality Pass f6fb728
+    - [x] Task: Run full `pio test -e native` suite and ensure 100% pass rate.
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Documentation' (Protocol in workflow.md) f6fb728
