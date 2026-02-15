@@ -118,25 +118,87 @@ namespace PolarShader {
                 return layer(uv);
             }
 
-            // Convert UV to raw sr8/r8 Cartesian logic scale (which is what cellSizeRaw is in)
-            // Wait, cellSizeRaw in this class seems to becellSizeQ24_8 * 10000? 
-            // That's unusual. Let's check from_uv.
-            // from_uv(uv) returns sr8/r8 Cartesian (sr8/r8).
-
             sr8 cx = CartesianMaths::from_uv(uv.u);
             sr8 cy = CartesianMaths::from_uv(uv.v);
-
-            // Tiling logic using existing CartesianLayer operator's math
             int32_t x_raw = raw(cx);
             int32_t y_raw = raw(cy);
-            int32_t col = floorDivide(x_raw, cellSizeRaw);
-            int32_t row = floorDivide(y_raw, cellSizeRaw);
-            int32_t local_x = x_raw - (col * cellSizeRaw);
-            int32_t local_y = y_raw - (row * cellSizeRaw);
 
-            if (state->mirrored && ((col + row) & 1)) {
-                local_x = (cellSizeRaw - 1) - local_x;
-                local_y = (cellSizeRaw - 1) - local_y;
+            int32_t local_x, local_y;
+
+            if (state->shape == TileShape::SQUARE) {
+                int32_t col = floorDivide(x_raw, cellSizeRaw);
+                int32_t row = floorDivide(y_raw, cellSizeRaw);
+                local_x = x_raw - (col * cellSizeRaw);
+                local_y = y_raw - (row * cellSizeRaw);
+
+                if (state->mirrored && ((col + row) & 1)) {
+                    local_x = (cellSizeRaw - 1) - local_x;
+                    local_y = (cellSizeRaw - 1) - local_y;
+                }
+            } else if (state->shape == TileShape::TRIANGLE) {
+                // Equilateral triangle tiling.
+                // side = cellSizeRaw.
+                // height = side * sqrt(3)/2.
+                // sqrt(3)/2 is approx 0.866. In sr8 (Q24.8) it is 221.7 -> 221 or 222.
+                // Let's use 222 for better precision.
+                int32_t h = (static_cast<int64_t>(cellSizeRaw) * 222) >> 8;
+                if (h <= 0) h = 1;
+
+                // We use a grid of (cellSizeRaw / 2) by h.
+                int32_t halfSide = cellSizeRaw / 2;
+                int32_t col = floorDivide(x_raw, halfSide);
+                int32_t row = floorDivide(y_raw, h);
+
+                int32_t rem_x = x_raw - (col * halfSide);
+                int32_t rem_y = y_raw - (row * h);
+
+                // In each (halfSide x h) rectangle, we are either in an "up" or "down" triangle.
+                // The diagonal separates them.
+                // Whether the diagonal is / or \ depends on (col + row) parity.
+                bool is_even = ((col + row) & 1) == 0;
+                
+                // rem_y / h vs rem_x / halfSide
+                // rem_y * halfSide vs rem_x * h
+                bool above_diagonal;
+                if (is_even) {
+                    // Diagonal is \. Above if rem_y / h < (halfSide - rem_x) / halfSide
+                    // rem_y * halfSide < (halfSide - rem_x) * h
+                    above_diagonal = (static_cast<int64_t>(rem_y) * halfSide) < (static_cast<int64_t>(halfSide - rem_x) * h);
+                } else {
+                    // Diagonal is /. Above if rem_y / h < rem_x / halfSide
+                    // rem_y * halfSide < rem_x * h
+                    above_diagonal = (static_cast<int64_t>(rem_y) * halfSide) < (static_cast<int64_t>(rem_x) * h);
+                }
+
+                // Determine if this is an "Up" or "Down" triangle.
+                // Parity logic for triangle grids can be complex, but for this grid:
+                bool is_up = is_even ? above_diagonal : !above_diagonal;
+
+                if (is_up) {
+                    // Center the local UV around the triangle center for better pattern alignment?
+                    // Spec says: "Consistent coordinate mapping... A pattern (like a circle) will maintain its aspect ratio"
+                    // So we just provide coordinates relative to some origin.
+                    // Let's use the triangle's bounding box center.
+                    local_x = rem_x - (halfSide / 2);
+                    local_y = rem_y - (h / 2);
+                } else {
+                    // Down triangle is inverted.
+                    local_x = (halfSide / 2) - rem_x;
+                    local_y = (h / 2) - rem_y;
+                }
+                
+                if (state->mirrored) {
+                    // Use col/row/is_up to derive a stable cell ID for mirroring
+                    int32_t cell_id = (col ^ row ^ (is_up ? 0x55555555 : 0xAAAAAAAA));
+                    if (cell_id & 1) {
+                        local_x = -local_x;
+                        local_y = -local_y;
+                    }
+                }
+            } else {
+                // Hexagon (to be implemented)
+                local_x = x_raw;
+                local_y = y_raw;
             }
 
             UV tiled_uv(
