@@ -30,10 +30,14 @@ namespace PolarShader {
     }
 
     f16 PhaseAccumulator::advance(TimeMillis elapsedMs) {
+        return f16(static_cast<uint16_t>(advanceRaw(elapsedMs) >> 16));
+    }
+
+    uint32_t PhaseAccumulator::advanceRaw(TimeMillis elapsedMs) {
         if (!hasLastElapsed) {
             lastElapsedMs = elapsedMs;
             hasLastElapsed = true;
-            return f16(static_cast<uint16_t>(phaseRaw32 >> 16));
+            return phaseRaw32;
         }
 
         int64_t deltaMs = static_cast<int64_t>(elapsedMs) - static_cast<int64_t>(lastElapsedMs);
@@ -45,9 +49,7 @@ namespace PolarShader {
             if (deltaMs < -maxDelta) deltaMs = -maxDelta;
         }
 
-        // We allow negative deltaMs if elapsedMs resets (e.g. scene loop), 
-        // but typically it should be positive or zero.
-        if (deltaMs == 0) return f16(static_cast<uint16_t>(phaseRaw32 >> 16));
+        if (deltaMs == 0) return phaseRaw32;
 
         int64_t speedRaw = raw(phaseSpeed ? phaseSpeed(elapsedMs) : sf16(0));
         
@@ -58,6 +60,6 @@ namespace PolarShader {
         int64_t increment = (speedRaw * deltaMs * 65536LL + 500LL) / 1000LL;
         phaseRaw32 = static_cast<uint32_t>(static_cast<int64_t>(phaseRaw32) + increment);
 
-        return f16(static_cast<uint16_t>(phaseRaw32 >> 16));
+        return phaseRaw32;
     }
 }

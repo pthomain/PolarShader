@@ -24,7 +24,10 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
+    using SampleSignal32 = fl::function<sf16(uint32_t)>;
+
     SampleSignal sampleNoise();
+    SampleSignal32 sampleNoise32();
     SampleSignal sampleSine();
     SampleSignal sampleTriangle();
     SampleSignal sampleSquare();

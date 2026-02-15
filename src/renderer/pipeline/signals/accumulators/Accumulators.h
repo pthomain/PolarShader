@@ -43,6 +43,8 @@ namespace PolarShader {
 
         f16 advance(TimeMillis elapsedMs);
 
+        uint32_t advanceRaw(TimeMillis elapsedMs);
+
     private:
         uint32_t phaseRaw32{0};
         TimeMillis lastElapsedMs{0};

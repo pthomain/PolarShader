@@ -48,45 +48,49 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                .setDepthSignal(noise())
+                // .addPaletteTransform(
+                //     PaletteTransform(
+                //         sine(),
+                //         noise(
+                //             constant(100),
+                //             noise(constant(10), constant(100), constant(100)),
+                //             noise(constant(10), constant(50), constant(10), noise())
+                //         ),
+                //         perMil(200)
+                //     ))
+                // .addTransform(TranslationTransform(
+                //     noise(),
+                //     constant(50)
+                // ))
+                // .addTransform(
+                // ZoomTransform(
+                // noise(constant(10))
+                // ));
                 .addTransform(
                     ZoomTransform(
-                        constant(550)
-                    ))
-                .addPaletteTransform(
-                    PaletteTransform(
-                        sine(),
                         noise(
-                            constant(100),
-                            noise(constant(10), constant(100), constant(100)),
-                            noise(constant(10), constant(50), constant(10), noise())
-                        ),
-                        perMil(200)
-                    ))
-                .addTransform(TranslationTransform(
-                    noise(),
-                    constant(50)
-                ))
-                .addTransform(
-                    ZoomTransform(
-                        noise(
-                            constant(200),
-                            constant(400),
-                            constant(100)
-                        )
-                    ))
-                .addTransform(KaleidoscopeTransform(
-                    1,
-                    true
-                ))
-                .addTransform(
-                    RotationTransform(
-                        sine(
-                            constant(550),
-                            constant(200),
-                            constant(550)
+                            constant(500)
                         )
                     ));
+                // .addTransform(
+                    // RotationTransform(
+                        // noise(
+                            // constant(1000)
+                        // ),
+                        // true
+                    // ));
+        // .addTransform(KaleidoscopeTransform(
+        //     1,
+        //     true
+        // ))
+        // .addTransform(
+        //     RotationTransform(
+        //         sine(
+        //             constant(550),
+        //             constant(200),
+        //             constant(550)
+        //         )
+        //     ));
     }
 
     LayerBuilder hexKaleidoscopePreset(

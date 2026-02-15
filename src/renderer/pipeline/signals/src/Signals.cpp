@@ -63,14 +63,15 @@ namespace PolarShader {
 
         Sf16Signal createPeriodicSignal(
             Sf16Signal speed,
+            const Range<sf16> &speedRange,
             Sf16Signal amplitude,
             Sf16Signal threshold,
             Sf16Signal phaseOffset,
             SampleSignal sample
         ) {
             PhaseAccumulator acc(
-                [speed = std::move(speed)](TimeMillis elapsedMs) mutable -> sf16 {
-                    return speed.sample(bipolarRange(), elapsedMs);
+                [speed = std::move(speed), &speedRange](TimeMillis elapsedMs) mutable -> sf16 {
+                    return speed.sample(speedRange, elapsedMs);
                 }
             );
 
@@ -169,12 +170,34 @@ namespace PolarShader {
         Sf16Signal threshold,
         Sf16Signal phaseOffset
     ) {
-        return createPeriodicSignal(
-            std::move(speed),
-            std::move(amplitude),
-            std::move(threshold),
-            std::move(phaseOffset),
-            sampleNoise()
+        return Sf16Signal(
+            SignalKind::PERIODIC,
+            [
+                speed = std::move(speed),
+                amplitude = std::move(amplitude),
+                threshold = std::move(threshold),
+                phaseOffset = std::move(phaseOffset),
+                sampler = sampleNoise32()
+            ](TimeMillis elapsedMs) mutable -> sf16 {
+                sf16 s = speed.sample(magnitudeRange(), elapsedMs);
+                
+                // Noise coordinate is driven by time, modulated by speed.
+                // At speed 1.0 (65536), coord increments by 1 per millisecond.
+                uint64_t coord64 = (static_cast<uint64_t>(elapsedMs) * static_cast<uint32_t>(raw(s))) >> 16;
+                uint32_t coord = static_cast<uint32_t>(coord64);
+
+                f16 pOff = phaseOffset.sample(phaseRange(), elapsedMs);
+                uint32_t finalCoord = coord + (static_cast<uint32_t>(raw(pOff)) << 16);
+
+                sf16 wave = sampler(finalCoord);
+                sf16 amp = amplitude.sample(magnitudeRange(), elapsedMs);
+                sf16 off = threshold.sample(bipolarRange(), elapsedMs);
+
+                int64_t res = (static_cast<int64_t>(raw(wave)) * static_cast<int64_t>(raw(amp)) + (1u << 15)) >> 16;
+                res += raw(off);
+
+                return clampSf16Sat(res);
+            }
         );
     }
 
@@ -186,6 +209,7 @@ namespace PolarShader {
     ) {
         return createPeriodicSignal(
             std::move(speed),
+            bipolarRange(),
             std::move(amplitude),
             std::move(threshold),
             std::move(phaseOffset),
@@ -201,6 +225,7 @@ namespace PolarShader {
     ) {
         return createPeriodicSignal(
             std::move(speed),
+            bipolarRange(),
             std::move(amplitude),
             std::move(threshold),
             std::move(phaseOffset),
@@ -216,6 +241,7 @@ namespace PolarShader {
     ) {
         return createPeriodicSignal(
             std::move(speed),
+            bipolarRange(),
             std::move(amplitude),
             std::move(threshold),
             std::move(phaseOffset),
@@ -231,6 +257,7 @@ namespace PolarShader {
     ) {
         return createPeriodicSignal(
             std::move(speed),
+            bipolarRange(),
             std::move(amplitude),
             std::move(threshold),
             std::move(phaseOffset),

@@ -57,7 +57,7 @@ namespace PolarShader {
 
     /**
      * @brief Animated noise signal driven by a speed signal.
-     * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
+     * @param speed Unsigned speed in turns-per-second (1.0 = 1 cycle/sec).
      */
     Sf16Signal noise(
         Sf16Signal speed = constant(550),

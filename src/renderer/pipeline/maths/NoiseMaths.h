@@ -26,8 +26,8 @@
 
 namespace PolarShader {
     inline constexpr uint32_t NOISE_DOMAIN_OFFSET = 0x4000;
-    inline constexpr uint16_t NOISE_MIN = 12000;
-    inline constexpr uint16_t NOISE_MAX = 54000;
+    inline constexpr uint16_t NOISE_MIN = 17000;
+    inline constexpr uint16_t NOISE_MAX = 48000;
 
     /**
      * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
