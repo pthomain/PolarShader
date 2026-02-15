@@ -47,7 +47,7 @@ namespace PolarShader {
             int64_t span = max_raw - min_raw;
             if (span == 0) return T(static_cast<Rep>(min_raw));
 
-            uint32_t t_raw = Range<T>::mapUnsigned(t);
+            uint32_t t_raw = Range<T>::mapUnsignedClamped(t);
             int64_t scaled = (span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
             return T(static_cast<Rep>(min_raw + scaled));
         }

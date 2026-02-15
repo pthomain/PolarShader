@@ -34,7 +34,15 @@ namespace PolarShader {
 
     protected:
         static constexpr uint32_t mapUnsigned(sf16 t) {
-            return raw(toUnsigned(t));
+            return mapUnsignedClamped(t);
+        }
+
+        static constexpr uint32_t mapUnsignedClamped(sf16 t) {
+            return raw(toUnsignedClamped(t));
+        }
+
+        static constexpr uint32_t mapUnsignedWrapped(sf16 t) {
+            return raw(toUnsignedWrapped(t));
         }
 
         static constexpr int32_t mapSigned(sf16 t) {

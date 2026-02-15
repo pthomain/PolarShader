@@ -48,8 +48,8 @@ namespace PolarShader {
                 span = (full_turn - static_cast<uint32_t>(min_raw)) + static_cast<uint32_t>(max_raw);
             }
 
-            uint32_t t_raw = mapUnsigned(t);
-            uint32_t scaled = (span * t_raw) >> 16;
+            uint32_t t_raw = mapUnsignedWrapped(t);
+            uint32_t scaled = (span * t_raw + (1u << 15)) >> 16;
             uint32_t result = static_cast<uint32_t>(min_raw) + scaled;
             if (result >= full_turn) result -= full_turn;
 

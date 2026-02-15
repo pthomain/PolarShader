@@ -156,12 +156,29 @@ namespace PolarShader {
     }
 
     // Map signed sf16 [-1..1] raw values to unsigned f16 [0..1] with 0 at midpoint.
+    // Clamps values outside [-1, 1].
     // -1 -> 0, 0 -> ~0.5, +1 -> 1.
-    constexpr f16 toUnsigned(sf16 value) {
+    constexpr f16 toUnsignedClamped(sf16 value) {
         int32_t raw_value = raw(value);
         if (raw_value <= SF16_MIN) return f16(0);
         if (raw_value >= SF16_MAX) return f16(F16_MAX);
         return f16(static_cast<uint16_t>(static_cast<uint32_t>(raw_value + SF16_ONE) >> 1));
+    }
+
+    // Map signed sf16 [-1..1] raw values to unsigned f16 [0..1] with 0 at midpoint.
+    // Wraps values outside [-1, 1].
+    // -1 -> 0, 0 -> ~0.5, +1 -> 1.
+    constexpr f16 toUnsignedWrapped(sf16 value) {
+        // SF16_ONE is 65536. We want (raw + 65536) / 2 mod 65536.
+        // static_cast<uint32_t> handles wrapping correctly for our purposes.
+        uint32_t shifted = static_cast<uint32_t>(raw(value) + SF16_ONE);
+        return f16(static_cast<uint16_t>(shifted >> 1));
+    }
+
+    // Map signed sf16 [-1..1] raw values to unsigned f16 [0..1] with 0 at midpoint.
+    // -1 -> 0, 0 -> ~0.5, +1 -> 1.
+    constexpr f16 toUnsigned(sf16 value) {
+        return toUnsignedClamped(value);
     }
 
     // Map unsigned f16 [0..1] raw values to signed sf16 [-1..1] with 0 at midpoint.
