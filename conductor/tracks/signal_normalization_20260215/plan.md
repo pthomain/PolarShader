@@ -2,7 +2,7 @@
 
 This plan outlines the steps to normalize signal modulation and range handling, ensuring consistency and precision across the PolarShader library.
 
-## Phase 1: Range Normalization & Boundary Enforcement [checkpoint: 52c9289]
+## Phase 1: Range Normalization & Boundary Enforcement [checkpoint: 3dd1f9a]
 Focus on standardizing how `AngleRange`, `BipolarRange`, and `MagnitudeRange` handle inputs and overflows.
 
 - [x] Task: Audit and Refactor Range Classes 52c9289
@@ -13,7 +13,7 @@ Focus on standardizing how `AngleRange`, `BipolarRange`, and `MagnitudeRange` ha
     - [x] Task: Create `test/test_units/test_ranges.cpp`.
     - [x] Task: Test `AngleRange` with values < 0 and > 1 (verify wrapping).
     - [x] Task: Test `MagnitudeRange` and `BipolarRange` with extreme Q16.16 values (verify clamping).
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Range Normalization' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Range Normalization' (Protocol in workflow.md) 3dd1f9a
 
 ## Phase 2: Signal Modulation Standardization
 Standardize the modulation API across periodic, noise, and aperiodic signals.
