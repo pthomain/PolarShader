@@ -40,3 +40,6 @@ Final sweep to ensure no precision loss and maximum test coverage.
     - [x] Task: Ensure `signals/` and `ranges/` directories have >80% code coverage.
     - [x] Task: Run full suite of "Edge Case" tests (0 frequency, negative time).
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Precision & Coverage' (Protocol in workflow.md) 7ffa7b8
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 0c7047c
