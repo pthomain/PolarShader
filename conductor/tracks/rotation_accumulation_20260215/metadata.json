@@ -1,0 +1,8 @@
+{
+  "track_id": "rotation_accumulation_20260215",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-15T11:00:00Z",
+  "updated_at": "2026-02-15T11:00:00Z",
+  "description": "I want to update rotation transform so that it takes another param: isAngleTurn. When it is true, the transform should treat the signal as an angle turn (current behaviour). Otherwise it should accumulate the angle signal"
+}
