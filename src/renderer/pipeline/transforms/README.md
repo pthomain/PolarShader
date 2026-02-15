@@ -75,8 +75,9 @@ Periodic shaping:
 
 ### RotationTransform
 
-- Input: scalar angle signal.
-- Internally maps with `AngleRange` to turn offsets.
+- Input: scalar angle or speed signal, optional `isAngleTurn` flag.
+- `isAngleTurn = true` (Absolute): Internally maps with `AngleRange` to absolute turn offsets.
+- `isAngleTurn = false` (Accumulation - default): Treats input as angular velocity (speed), maps with `bipolarRange` and integrates over time.
 
 ### VortexTransform
 
