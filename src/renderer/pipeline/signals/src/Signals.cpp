@@ -23,6 +23,7 @@
 #include "renderer/pipeline/signals/SignalSamplers.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
+#include "renderer/pipeline/signals/ranges/AngleRange.h"
 #include "renderer/pipeline/signals/ranges/UVRange.h"
 #include <cstdint>
 #include <utility>
@@ -107,24 +108,48 @@ namespace PolarShader {
         }
     }
 
-    Sf16Signal floor(uint16_t offsetPerMil) {
+    Sf16Signal biFloor(uint16_t offsetPerMil) {
         if (offsetPerMil > 1000) offsetPerMil = 1000;
         int32_t offsetRaw = (static_cast<int32_t>(offsetPerMil) * SF16_ONE) / 1000;
         return constantRaw(SF16_MIN + offsetRaw);
     }
 
-    Sf16Signal midPoint(int16_t offsetPerMil) {
+    Sf16Signal biMid(int16_t offsetPerMil) {
         if (offsetPerMil > 500) offsetPerMil = 500;
         if (offsetPerMil < -500) offsetPerMil = -500;
         int32_t offsetRaw = (static_cast<int32_t>(offsetPerMil) * SF16_ONE) / 1000;
         return constantRaw(offsetRaw);
     }
 
-    Sf16Signal ceiling(int16_t offsetPerMil) {
+    Sf16Signal biCeil(int16_t offsetPerMil) {
         if (offsetPerMil > 0) offsetPerMil = 0;
         if (offsetPerMil < -1000) offsetPerMil = -1000;
         int32_t offsetRaw = (static_cast<int32_t>(offsetPerMil) * SF16_ONE) / 1000;
         return constantRaw(SF16_ONE + offsetRaw);
+    }
+
+    Sf16Signal magFloor(uint16_t offsetPerMil) {
+        if (offsetPerMil > 1000) offsetPerMil = 1000;
+        uint32_t uRaw = (static_cast<uint32_t>(offsetPerMil) * 0xFFFFu) / 1000u;
+        return constant(f16(static_cast<uint16_t>(uRaw)));
+    }
+
+    Sf16Signal magMid(int16_t offsetPerMil) {
+        if (offsetPerMil > 500) offsetPerMil = 500;
+        if (offsetPerMil < -500) offsetPerMil = -500;
+        int32_t uRaw = 32768 + (static_cast<int32_t>(offsetPerMil) * 65536) / 1000;
+        if (uRaw < 0) uRaw = 0;
+        if (uRaw > 65535) uRaw = 65535;
+        return constant(f16(static_cast<uint16_t>(uRaw)));
+    }
+
+    Sf16Signal magCeil(int16_t offsetPerMil) {
+        if (offsetPerMil > 0) offsetPerMil = 0;
+        if (offsetPerMil < -1000) offsetPerMil = -1000;
+        int32_t uRaw = 65535 + (static_cast<int32_t>(offsetPerMil) * 65536) / 1000;
+        if (uRaw < 0) uRaw = 0;
+        if (uRaw > 65535) uRaw = 65535;
+        return constant(f16(static_cast<uint16_t>(uRaw)));
     }
 
     Sf16Signal constant(sf16 value) {

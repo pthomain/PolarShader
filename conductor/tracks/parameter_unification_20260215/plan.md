@@ -5,8 +5,8 @@ This plan outlines the steps to introduce `bi*` and `mag*` signal helpers and mi
 ## Phase 1: Core Implementation & Renaming
 Rename existing helpers and implement the new Magnitude-based helpers.
 
-- [ ] Task: Update `Signals.h` and `Signals.cpp`
-    - [ ] Task: Rename `floor`, `midPoint`, `ceiling` to `biFloor`, `biMid`, `biCeil`.
+- [~] Task: Update `Signals.h` and `Signals.cpp`
+    - [~] Task: Rename `floor`, `midPoint`, `ceiling` to `biFloor`, `biMid`, `biCeil`.
     - [ ] Task: Implement `magFloor`, `magMid`, `magCeil` with unipolar-to-signed remapping.
     - [ ] Task: Update `Sf16Signal` factory defaults to use `bi*` equivalents.
 - [ ] Task: Update Signal Terminology

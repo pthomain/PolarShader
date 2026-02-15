@@ -206,8 +206,8 @@ void test_phase_accumulator_signed() {
 /** @brief Verify sine uses speed signal and is centered in signed space. */
 void test_sine_speed() {
     // Speed: 1.0 turn per second
-    // Use midPoint() for offset to keep it centered at 0.
-    Sf16Signal s = sine(ceiling(), ceiling(), midPoint(), floor());
+    // Use biMid() for threshold to keep it centered at 0.
+    Sf16Signal s = sine(biCeil(), biCeil(), biMid(), biFloor());
     
     // t=0 -> centered
     TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
@@ -219,7 +219,7 @@ void test_sine_speed() {
 
 /** @brief Verify zoom driven by sine changes over elapsed time (not treated as constant). */
 void test_zoom_transform_sine_varies_over_time() {
-    ZoomTransform zoom(sine(ceiling()));
+    ZoomTransform zoom(sine(biCeil()));
     UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     UV input(sr16(0x0000C000), sr16(0x00008000));
 
@@ -308,7 +308,7 @@ void test_signal_sample_clamped() {
 /** @brief Verify negative speed results in reverse phase accumulation. */
 void test_sine_negative_speed_works() {
     // Speed: -1.0 turn per second
-    Sf16Signal negative = sine(floor(), ceiling(), midPoint(), floor());
+    Sf16Signal negative = sine(biFloor(), biCeil(), biMid(), biFloor());
 
     // t=0 -> 0
     (void) negative.sample(TEST_SIGNED_RANGE, 0);
@@ -319,6 +319,24 @@ void test_sine_negative_speed_works() {
     
     // sin(0.75 * 2pi) = -1.0
     TEST_ASSERT_INT32_WITHIN(500, SF16_MIN, a);
+}
+
+/** @brief Verify magnitude constant helpers (unipolar mapping). */
+void test_magnitude_constant_helpers() {
+    // magFloor(0) -> unipolar 0.0 -> signed -1.0
+    TEST_ASSERT_EQUAL_INT32(SF16_MIN, raw(magFloor(0).sample(TEST_SIGNED_RANGE, 0)));
+    // magFloor(1000) -> unipolar 1.0 -> signed 1.0 (approx)
+    TEST_ASSERT_INT32_WITHIN(10, SF16_MAX, raw(magFloor(1000).sample(TEST_SIGNED_RANGE, 0)));
+    
+    // magMid(0) -> unipolar 0.5 -> signed 0.0
+    TEST_ASSERT_INT32_WITHIN(10, 0, raw(magMid(0).sample(TEST_SIGNED_RANGE, 0)));
+    // magMid(500) -> unipolar 1.0 -> signed 1.0
+    TEST_ASSERT_INT32_WITHIN(10, SF16_MAX, raw(magMid(500).sample(TEST_SIGNED_RANGE, 0)));
+    
+    // magCeil(0) -> unipolar 1.0 -> signed 1.0
+    TEST_ASSERT_INT32_WITHIN(10, SF16_MAX, raw(magCeil(0).sample(TEST_SIGNED_RANGE, 0)));
+    // magCeil(-500) -> unipolar 0.5 -> signed 0.0
+    TEST_ASSERT_INT32_WITHIN(10, 0, raw(magCeil(-500).sample(TEST_SIGNED_RANGE, 0)));
 }
 
 /** @brief Verify scalar signal range mapping is done directly via sample(range, elapsedMs). */
@@ -429,6 +447,7 @@ void setup() {
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
     RUN_TEST(test_sine_negative_speed_works);
+    RUN_TEST(test_magnitude_constant_helpers);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);
@@ -462,6 +481,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
     RUN_TEST(test_sine_negative_speed_works);
+    RUN_TEST(test_magnitude_constant_helpers);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);

@@ -33,7 +33,7 @@ namespace {
 
 /** @brief Verify that sine wave oscillates between -1 and 1. */
 void test_sine_waveform() {
-    Sf16Signal s = sine(ceiling(), ceiling(), midPoint(), floor());
+    Sf16Signal s = sine(biCeil(), biCeil(), biMid(), biFloor());
     
     // t=0 -> Initialize accumulator, returns initialPhase=0.
     TEST_ASSERT_INT32_WITHIN(200, 0, raw(s.sample(SIGNED_RANGE, 0)));
@@ -52,7 +52,7 @@ void test_sine_waveform() {
 
 /** @brief Verify triangle waveform. */
 void test_triangle_waveform() {
-    Sf16Signal s = triangle(ceiling(), ceiling(), midPoint(), floor());
+    Sf16Signal s = triangle(biCeil(), biCeil(), biMid(), biFloor());
     
     // t=0 -> Initialize, returns -1
     TEST_ASSERT_INT32_WITHIN(100, SF16_MIN, raw(s.sample(SIGNED_RANGE, 0)));
@@ -68,7 +68,7 @@ void test_triangle_waveform() {
 
 /** @brief Verify square waveform. */
 void test_square_waveform() {
-    Sf16Signal s = square(ceiling(), ceiling(), midPoint(), floor());
+    Sf16Signal s = square(biCeil(), biCeil(), biMid(), biFloor());
     
     // t=0 -> Initialize
     (void) s.sample(SIGNED_RANGE, 0);
@@ -84,7 +84,7 @@ void test_square_waveform() {
 
 /** @brief Verify sawtooth waveform. */
 void test_sawtooth_waveform() {
-    Sf16Signal s = sawtooth(ceiling(), ceiling(), midPoint(), floor());
+    Sf16Signal s = sawtooth(biCeil(), biCeil(), biMid(), biFloor());
     
     // t=0 -> Initialize, returns -1
     TEST_ASSERT_INT32_WITHIN(100, SF16_MIN, raw(s.sample(SIGNED_RANGE, 0)));
@@ -103,8 +103,8 @@ void test_sawtooth_waveform() {
 /** @brief Verify amplitude modulation. */
 void test_amplitude_modulation() {
     // Constant signal with 0.5 amplitude
-    // Using midPoint(0) which maps to 0.5 in MagnitudeRange
-    Sf16Signal s = sine(ceiling(), midPoint(0), midPoint(), floor());
+    // Using biMid(0) which maps to 0.5 in MagnitudeRange
+    Sf16Signal s = sine(biCeil(), biMid(0), biMid(), biFloor());
     
     // t=0 -> Initialize
     (void) s.sample(SIGNED_RANGE, 0);
@@ -114,13 +114,13 @@ void test_amplitude_modulation() {
     TEST_ASSERT_INT32_WITHIN(1000, 32768, raw(s.sample(SIGNED_RANGE, 250)));
 }
 
-/** @brief Verify offset modulation. */
-void test_offset_modulation() {
-    // Sine with 0.5 amplitude and 0.5 offset -> oscillating between 0 and 1
-    // Offset is signed, so use midPoint(500) for 0.5
-    Sf16Signal s = sine(ceiling(), midPoint(0), midPoint(500), floor());
+/** @brief Verify threshold modulation. */
+void test_threshold_modulation() {
+    // Sine with 0.5 amplitude and 0.5 threshold -> oscillating between 0 and 1
+    // Threshold is signed, so use biMid(500) for 0.5
+    Sf16Signal s = sine(biCeil(), biMid(0), biMid(500), biFloor());
     
-    // t=0 -> Initialize, result is offset = 0.5 (32768)
+    // t=0 -> Initialize, result is threshold = 0.5 (32768)
     TEST_ASSERT_INT32_WITHIN(500, 32768, raw(s.sample(SIGNED_RANGE, 0)));
     
     (void) s.sample(SIGNED_RANGE, 150);
@@ -135,7 +135,7 @@ void test_offset_modulation() {
 
 /** @brief Verify that zero speed signal results in no phase advance. */
 void test_zero_speed_signal() {
-    Sf16Signal s = sine(midPoint(0), ceiling(), midPoint(), floor());
+    Sf16Signal s = sine(biMid(0), biCeil(), biMid(), biFloor());
     
     (void) s.sample(SIGNED_RANGE, 0);
     int32_t a = raw(s.sample(SIGNED_RANGE, 500));
@@ -146,7 +146,7 @@ void test_zero_speed_signal() {
 
 /** @brief Verify handling of negative time (e.g. scene loop/reset). */
 void test_negative_time_reset() {
-    Sf16Signal s = sine(ceiling(), ceiling(), midPoint(), floor());
+    Sf16Signal s = sine(biCeil(), biCeil(), biMid(), biFloor());
     
     (void) s.sample(SIGNED_RANGE, 500);
     // t=200 is "negative" relative to last sample.
@@ -157,11 +157,12 @@ void test_negative_time_reset() {
     TEST_ASSERT_TRUE(true);
 }
 
-/** @brief Verify extreme amplitude and offset. */
+/** @brief Verify extreme amplitude and threshold. */
 void test_extreme_modulation_clamping() {
-    // Amplitude = 2.0 (out of bounds), Offset = 1.0
+    // Amplitude = 2.0 (out of bounds), Threshold = 1.0
     // Result should be clamped to SF16_MAX.
-    Sf16Signal s = sine(ceiling(), ceiling(1000), ceiling(0), floor());
+    // biCeil(0) is 1.0. 
+    Sf16Signal s = sine(biCeil(), biCeil(1000), biCeil(0), biFloor());
     
     (void) s.sample(SIGNED_RANGE, 0);
     (void) s.sample(SIGNED_RANGE, 250);
@@ -179,7 +180,7 @@ void setup() {
     RUN_TEST(test_square_waveform);
     RUN_TEST(test_sawtooth_waveform);
     RUN_TEST(test_amplitude_modulation);
-    RUN_TEST(test_offset_modulation);
+    RUN_TEST(test_threshold_modulation);
     RUN_TEST(test_zero_speed_signal);
     RUN_TEST(test_negative_time_reset);
     RUN_TEST(test_extreme_modulation_clamping);
@@ -194,7 +195,7 @@ int main() {
     RUN_TEST(test_square_waveform);
     RUN_TEST(test_sawtooth_waveform);
     RUN_TEST(test_amplitude_modulation);
-    RUN_TEST(test_offset_modulation);
+    RUN_TEST(test_threshold_modulation);
     RUN_TEST(test_zero_speed_signal);
     RUN_TEST(test_negative_time_reset);
     RUN_TEST(test_extreme_modulation_clamping);
