@@ -26,6 +26,9 @@
 namespace PolarShader {
     SampleSignal sampleNoise();
     SampleSignal sampleSine();
+    SampleSignal sampleTriangle();
+    SampleSignal sampleSquare();
+    SampleSignal sampleSawtooth();
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNAL_SAMPLERS_H

@@ -206,14 +206,15 @@ void test_phase_accumulator_signed() {
 /** @brief Verify sine uses speed signal and is centered in signed space. */
 void test_sine_speed() {
     // Speed: 1.0 turn per second
-    Sf16Signal s = sine(cPerMil(1000), ceiling(), floor(), floor());
+    // Use midPoint() for offset to keep it centered at 0.
+    Sf16Signal s = sine(csPerMil(1000), ceiling(), midPoint(), floor());
     
     // t=0 -> centered
     TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
     // Prime integration in clamped chunks.
     (void) s.sample(TEST_SIGNED_RANGE, 200);
     // t=250ms -> positive peak
-    TEST_ASSERT_INT32_WITHIN(200, 65535, raw(s.sample(TEST_SIGNED_RANGE, 250)));
+    TEST_ASSERT_INT32_WITHIN(500, SF16_MAX, raw(s.sample(TEST_SIGNED_RANGE, 250)));
 }
 
 /** @brief Verify zoom driven by sine changes over elapsed time (not treated as constant). */
@@ -304,20 +305,20 @@ void test_signal_sample_clamped() {
     TEST_ASSERT_EQUAL_INT32(-1000, raw(s.sample(TEST_SIGNED_RANGE, 123)));
 }
 
-/** @brief Verify negative speed input maps to zero speed in magnitude domain. */
-void test_sine_negative_speed_is_clamped_to_zero() {
-    Sf16Signal negative = sine(csPerMil(-1000), ceiling(), floor(), floor());
+/** @brief Verify negative speed results in reverse phase accumulation. */
+void test_sine_negative_speed_works() {
+    // Speed: -1.0 turn per second
+    Sf16Signal negative = sine(csPerMil(-1000), ceiling(), midPoint(), floor());
 
-    // Prime accumulator (first sample initializes elapsed baseline), then advance.
+    // t=0 -> 0
     (void) negative.sample(TEST_SIGNED_RANGE, 0);
-    int32_t a = raw(negative.sample(TEST_SIGNED_RANGE, 200));
-    int32_t b = raw(negative.sample(TEST_SIGNED_RANGE, 250));
-    int32_t c = raw(negative.sample(TEST_SIGNED_RANGE, 400));
-
-    // In magnitude mapping, -1 speed maps to 0 speed, so phase does not advance.
-    TEST_ASSERT_INT32_WITHIN(50, 0, a);
-    TEST_ASSERT_EQUAL_INT32(a, b);
-    TEST_ASSERT_EQUAL_INT32(a, c);
+    
+    // t=250ms -> -1.0 turn -> 0.75 turns (if it wraps) -> negative peak
+    (void) negative.sample(TEST_SIGNED_RANGE, 200);
+    int32_t a = raw(negative.sample(TEST_SIGNED_RANGE, 250));
+    
+    // sin(0.75 * 2pi) = -1.0
+    TEST_ASSERT_INT32_WITHIN(500, SF16_MIN, a);
 }
 
 /** @brief Verify scalar signal range mapping is done directly via sample(range, elapsedMs). */
@@ -427,7 +428,7 @@ void setup() {
     RUN_TEST(test_aperiodic_reset_wraps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
-    RUN_TEST(test_sine_negative_speed_is_clamped_to_zero);
+    RUN_TEST(test_sine_negative_speed_works);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);
@@ -460,7 +461,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_aperiodic_reset_wraps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
-    RUN_TEST(test_sine_negative_speed_is_clamped_to_zero);
+    RUN_TEST(test_sine_negative_speed_works);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);

@@ -39,8 +39,9 @@ namespace PolarShader {
     }
 
     namespace {
-        int32_t sampleSpeedRaw(Sf16Signal &signal, TimeMillis elapsedMs) {
-            return raw(signal.sample(magnitudeRange(), elapsedMs));
+        const AngleRange &phaseRange() {
+            static const AngleRange range{f16(0), f16(F16_MAX)};
+            return range;
         }
 
         f16 timeToProgress(TimeMillis t, TimeMillis duration) {
@@ -68,7 +69,7 @@ namespace PolarShader {
         ) {
             PhaseAccumulator acc(
                 [speed = std::move(speed)](TimeMillis elapsedMs) mutable -> sf16 {
-                    return sf16(sampleSpeedRaw(speed, elapsedMs));
+                    return speed.sample(bipolarRange(), elapsedMs);
                 }
             );
 
@@ -82,27 +83,18 @@ namespace PolarShader {
                     sample = std::move(sample)
                 ](TimeMillis elapsedMs) mutable -> sf16 {
                     f16 phase = acc.advance(elapsedMs);
-                    uint32_t basePhase = raw(phase);
+                    
+                    f16 pOff = phaseOffset.sample(phaseRange(), elapsedMs);
+                    f16 finalPhase(raw(phase) + raw(pOff));
 
-                    uint32_t phaseOffsetRaw = raw(phaseOffset.sample(magnitudeRange(), elapsedMs));
-                    f16 finalPhase(static_cast<uint16_t>(basePhase + phaseOffsetRaw));
+                    sf16 wave = sample(finalPhase);
+                    sf16 amp = amplitude.sample(magnitudeRange(), elapsedMs);
+                    sf16 off = offset.sample(bipolarRange(), elapsedMs);
 
-                    int32_t waveSignedRaw = raw(sample(finalPhase));
-                    uint32_t waveUnitRaw = raw(toUnsigned(sf16(waveSignedRaw)));
-
-                    uint32_t ampRaw = static_cast<uint32_t>(raw(amplitude.sample(magnitudeRange(), elapsedMs)));
-                    int32_t waveCentered = (static_cast<int32_t>(waveUnitRaw) - static_cast<int32_t>(U16_HALF)) << 1;
-                    int32_t scaledWave = static_cast<int32_t>(
-                        (static_cast<int64_t>(waveCentered) * static_cast<int64_t>(ampRaw)) >> 16
-                    );
-
-                    int32_t halfWave = scaledWave >> 1;
-                    int32_t halfOffset = raw(offset.sample(magnitudeRange(), elapsedMs)) >> 1;
-                    int32_t outUnitRaw = static_cast<int32_t>(U16_HALF) + halfWave + halfOffset;
-                    if (outUnitRaw < 0) outUnitRaw = 0;
-                    if (outUnitRaw > SF16_MAX) outUnitRaw = SF16_MAX;
-
-                    return toSigned(f16(static_cast<uint16_t>(outUnitRaw)));
+                    int64_t res = (static_cast<int64_t>(raw(wave)) * static_cast<int64_t>(raw(amp)) + (1u << 15)) >> 16;
+                    res += raw(off);
+                    
+                    return clampSf16Sat(res);
                 }
             );
         }
@@ -136,18 +128,11 @@ namespace PolarShader {
     }
 
     Sf16Signal csPerMil(int16_t value) {
-        int32_t clamped = value;
-        if (clamped > 1000) clamped = 1000;
-        if (clamped < -1000) clamped = -1000;
-
-        int32_t raw_value = (clamped * SF16_ONE) / 1000;
-        return constantRaw(raw_value);
+        return constant(sPerMil(value));
     }
 
     Sf16Signal cPerMil(uint16_t value) {
-        if (value > 1000u) value = 1000u;
-        int32_t mapped = static_cast<int32_t>(value) * 2 - 1000;
-        return csPerMil(static_cast<int16_t>(mapped));
+        return constant(perMil(value));
     }
 
     Sf16Signal cRandom() {
@@ -218,6 +203,51 @@ namespace PolarShader {
             std::move(offset),
             std::move(phaseOffset),
             sampleSine()
+        );
+    }
+
+    Sf16Signal triangle(
+        Sf16Signal speed,
+        Sf16Signal amplitude,
+        Sf16Signal offset,
+        Sf16Signal phaseOffset
+    ) {
+        return createPeriodicSignal(
+            std::move(speed),
+            std::move(amplitude),
+            std::move(offset),
+            std::move(phaseOffset),
+            sampleTriangle()
+        );
+    }
+
+    Sf16Signal square(
+        Sf16Signal speed,
+        Sf16Signal amplitude,
+        Sf16Signal offset,
+        Sf16Signal phaseOffset
+    ) {
+        return createPeriodicSignal(
+            std::move(speed),
+            std::move(amplitude),
+            std::move(offset),
+            std::move(phaseOffset),
+            sampleSquare()
+        );
+    }
+
+    Sf16Signal sawtooth(
+        Sf16Signal speed,
+        Sf16Signal amplitude,
+        Sf16Signal offset,
+        Sf16Signal phaseOffset
+    ) {
+        return createPeriodicSignal(
+            std::move(speed),
+            std::move(amplitude),
+            std::move(offset),
+            std::move(phaseOffset),
+            sampleSawtooth()
         );
     }
 

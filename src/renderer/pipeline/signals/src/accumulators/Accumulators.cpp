@@ -55,7 +55,7 @@ namespace PolarShader {
         // integer phase (turns) and the bottom 16 bits provide fractional precision.
         // speedRaw is in sf16 (1.0 = 65536 turns/sec).
         // increment = (speed * deltaMs / 1000) * 65536
-        int64_t increment = (speedRaw * deltaMs * 65536LL) / 1000LL;
+        int64_t increment = (speedRaw * deltaMs * 65536LL + 500LL) / 1000LL;
         phaseRaw32 = static_cast<uint32_t>(static_cast<int64_t>(phaseRaw32) + increment);
 
         return f16(static_cast<uint16_t>(phaseRaw32 >> 16));

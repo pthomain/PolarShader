@@ -80,9 +80,9 @@ namespace PolarShader {
      * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
      */
     Sf16Signal noise(
-        Sf16Signal speed = cPerMil(100),
+        Sf16Signal speed = csPerMil(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = floor(),
+        Sf16Signal offset = midPoint(),
         Sf16Signal phaseOffset = cRandom()
     );
 
@@ -91,10 +91,31 @@ namespace PolarShader {
      * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
      */
     Sf16Signal sine(
-        Sf16Signal speed = cPerMil(100),
+        Sf16Signal speed = csPerMil(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = floor(),
-        Sf16Signal phaseOffset = cRandom()
+        Sf16Signal offset = midPoint(),
+        Sf16Signal phaseOffset = floor()
+    );
+
+    Sf16Signal triangle(
+        Sf16Signal speed = csPerMil(100),
+        Sf16Signal amplitude = ceiling(),
+        Sf16Signal offset = midPoint(),
+        Sf16Signal phaseOffset = floor()
+    );
+
+    Sf16Signal square(
+        Sf16Signal speed = csPerMil(100),
+        Sf16Signal amplitude = ceiling(),
+        Sf16Signal offset = midPoint(),
+        Sf16Signal phaseOffset = floor()
+    );
+
+    Sf16Signal sawtooth(
+        Sf16Signal speed = csPerMil(100),
+        Sf16Signal amplitude = ceiling(),
+        Sf16Signal offset = midPoint(),
+        Sf16Signal phaseOffset = floor()
     );
 
     Sf16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);

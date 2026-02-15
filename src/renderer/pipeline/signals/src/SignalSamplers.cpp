@@ -36,7 +36,32 @@ namespace PolarShader {
             // sin16 expects 0-65535 for a full circle.
             // Result is signed 16-bit [-32768, 32767].
             int32_t s = sin16(raw(phase));
-            return sf16(s * 2);
+            return sf16(s << 1);
+        };
+    }
+
+    SampleSignal sampleTriangle() {
+        return [](f16 phase) -> sf16 {
+            uint32_t p = raw(phase);
+            if (p < 0x8000) {
+                // 0 -> -1, 0.25 -> 0, 0.5 -> 1
+                return sf16(static_cast<int32_t>(p << 2) - 65536);
+            } else {
+                // 0.5 -> 1, 0.75 -> 0, 1.0 -> -1
+                return sf16(196608 - static_cast<int32_t>(p << 2));
+            }
+        };
+    }
+
+    SampleSignal sampleSquare() {
+        return [](f16 phase) -> sf16 {
+            return (raw(phase) < 0x8000) ? sf16(SF16_MAX) : sf16(SF16_MIN);
+        };
+    }
+
+    SampleSignal sampleSawtooth() {
+        return [](f16 phase) -> sf16 {
+            return toSigned(phase);
         };
     }
 }
