@@ -30,7 +30,7 @@ namespace PolarShader {
         static constexpr uint16_t PANEL_HEIGHT = 64;
         static constexpr uint16_t DISPLAY_WIDTH = PANEL_WIDTH * 2;
         static constexpr uint16_t DISPLAY_HEIGHT = PANEL_HEIGHT * 2;
-        static constexpr uint16_t SUBSAMPLE = 2;
+        static constexpr uint16_t SUBSAMPLE = 1;
 
         uint16_t displayWidth() const override { return DISPLAY_WIDTH; }
         uint16_t displayHeight() const override { return DISPLAY_HEIGHT; }

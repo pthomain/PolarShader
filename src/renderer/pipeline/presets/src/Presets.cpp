@@ -44,17 +44,23 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    noisePattern(),
+                    hexTilingPattern(
+                        1,
+                        16,
+                        50
+                    ),
                     palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(
                     PaletteTransform(
                         sine(),
-                        sine(constant(100), constant(200), constant(400)),
-                        perMil(10)
-                    )
-                )
+                        noise(
+                            constant(100),
+                            noise(constant(10), constant(100), constant(100)),
+                            constant(100)
+                        )
+                    ))
                 .addTransform(TranslationTransform(
                     constant(500),
                     constant(100)
@@ -66,11 +72,19 @@ namespace PolarShader {
                             constant(200),
                             constant(550)
                         )
+                    ))
+                // .addTransform(KaleidoscopeTransform(
+                // 2,
+                // true
+                // ))
+                .addTransform(
+                    RotationTransform(
+                        sine(
+                            constant(550),
+                            constant(200),
+                            constant(550)
+                        )
                     ));
-        // .addTransform(KaleidoscopeTransform(
-        //     4,
-        //     true
-        // ));
     }
 
     LayerBuilder hexKaleidoscopePreset(
