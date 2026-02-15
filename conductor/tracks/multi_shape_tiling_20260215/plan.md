@@ -7,8 +7,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Setup' (Protocol in workflow.md)
 
 ## Phase 2: Triangle Tiling Implementation
-- [ ] Task: Write failing tests for triangle grid UV mapping and cell ID generation.
-- [ ] Task: Implement triangle tiling logic in `CartesianTilingTransform.cpp`.
+- [x] Task: Write failing tests for triangle grid UV mapping and cell ID generation.
+- [~] Task: Implement triangle tiling logic in `CartesianTilingTransform.cpp`.
     - [ ] Calculate triangle grid cell IDs based on UV input.
     - [ ] Calculate local UV coordinates within the equilateral triangle.
     - [ ] Ensure seamless "Up/Down" alternating orientation.
