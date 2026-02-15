@@ -12,14 +12,14 @@ Update the transform logic to support the new `isAngleTurn` parameter and accumu
     - [x] Task: Implement accumulation logic in `advanceFrame` using `PhaseAccumulator` when `isAngleTurn` is false.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Implementation' (Protocol in workflow.md) b395f30
 
-## Phase 2: Migration & Testing
+## Phase 2: Migration & Testing [checkpoint: e384c7d]
 Ensure all call sites are updated and the new functionality is verified with tests.
 
-- [ ] Task: Update Existing Call Sites
-    - [ ] Task: Audit and update all `RotationTransform` usages in `Presets.cpp` and examples.
-- [ ] Task: Write Tests for Rotation Modes
-    - [ ] Task: Create a new unit test in `test_units.cpp` verifying both absolute and accumulation modes.
-    - [ ] Task: Verify bi-directional rotation in accumulation mode.
-- [ ] Task: Final Build Pass
-    - [ ] Task: Ensure firmware builds for all hardware targets.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Migration & Testing' (Protocol in workflow.md)
+- [x] Task: Update Existing Call Sites e384c7d
+    - [x] Task: Audit and update all `RotationTransform` usages in `Presets.cpp` and examples.
+- [x] Task: Write Tests for Rotation Modes e384c7d
+    - [x] Task: Create a new unit test in `test_units.cpp` verifying both absolute and accumulation modes.
+    - [x] Task: Verify bi-directional rotation in accumulation mode.
+- [x] Task: Final Build Pass e384c7d
+    - [x] Task: Ensure firmware builds for all hardware targets.
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Migration & Testing' (Protocol in workflow.md) e384c7d
