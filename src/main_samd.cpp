@@ -20,7 +20,7 @@
 
 #include <Arduino.h>
 
-#ifdef SAMD_EXAMPLE_ENABLED
+#ifdef XIAO_ENABLED
 
 #include "RoundDisplaySpec.h"
 #include "display/FastLedDisplay.h"
