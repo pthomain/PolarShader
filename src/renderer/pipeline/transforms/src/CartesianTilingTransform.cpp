@@ -36,6 +36,12 @@ namespace {
 }
 
 namespace PolarShader {
+    namespace {
+        // Default Tiling boundaries in sr8 (Q24.8)
+        const int32_t MIN_CELL_SIZE_RAW = 16; // ~0.06x of full sr8 range
+        const int32_t MAX_CELL_SIZE_RAW = 256; // 1.0x of full sr8 range
+    }
+
     static int32_t clampCellSize(int64_t value) {
         if (value <= INT32_MIN) return INT32_MIN;
         if (value >= INT32_MAX) return INT32_MAX;
@@ -48,13 +54,11 @@ namespace PolarShader {
     };
 
     CartesianTilingTransform::MappedInputs CartesianTilingTransform::makeInputs(
-        Sf16Signal cellSize,
-        int32_t minCellSize,
-        int32_t maxCellSize
+        Sf16Signal cellSize
     ) {
         return MappedInputs{
             std::move(cellSize),
-            MagnitudeRange(minCellSize, maxCellSize)
+            MagnitudeRange(MIN_CELL_SIZE_RAW, MAX_CELL_SIZE_RAW)
         };
     }
 
@@ -80,14 +84,12 @@ namespace PolarShader {
 
     CartesianTilingTransform::CartesianTilingTransform(
         Sf16Signal cellSize,
-        int32_t minCellSize,
-        int32_t maxCellSize,
         bool mirrored,
         TileShape shape
     ) {
-        auto inputs = makeInputs(std::move(cellSize), minCellSize, maxCellSize);
+        auto inputs = makeInputs(std::move(cellSize));
         state = std::make_shared<State>(State{
-            INT32_MAX,
+            MAX_CELL_SIZE_RAW,
             mirrored,
             shape,
             std::move(inputs.cellSizeSignal),
@@ -109,6 +111,10 @@ namespace PolarShader {
             if (value <= 0) value = 1;
             state->cellSizeRaw = value;
         }
+    }
+
+    int32_t CartesianTilingTransform::getCellSizeRaw() const {
+        return state->cellSizeRaw;
     }
 
     UVMap CartesianTilingTransform::operator()(const UVMap &layer) const {
@@ -136,60 +142,70 @@ namespace PolarShader {
                     local_y = (cellSizeRaw - 1) - local_y;
                 }
             } else if (state->shape == TileShape::TRIANGLE) {
-                // Equilateral triangle tiling.
+                // Correct equilateral triangle tiling.
                 // side = cellSizeRaw.
-                // height = side * sqrt(3)/2.
-                // sqrt(3)/2 is approx 0.866. In sr8 (Q24.8) it is 221.7 -> 221 or 222.
-                // Let's use 222 for better precision.
+                // Height h = side * sqrt(3)/2. 
+                // sqrt(3)/2 approx 0.866. In Q8.8 it is 222.
                 int32_t h = (static_cast<int64_t>(cellSizeRaw) * 222) >> 8;
                 if (h <= 0) h = 1;
 
-                // We use a grid of (cellSizeRaw / 2) by h.
-                int32_t halfSide = cellSizeRaw / 2;
-                int32_t col = floorDivide(x_raw, halfSide);
+                // We use a rectangular grid of width 'side' and height 'h'.
+                // Each rectangle contains two triangles (one 'up', one 'down' or split).
+                // A better approach for equilateral triangles:
+                // Shift every other row by side/2.
                 int32_t row = floorDivide(y_raw, h);
+                int32_t x_offset = (row & 1) ? (cellSizeRaw / 2) : 0;
+                int32_t col = floorDivide(x_raw - x_offset, cellSizeRaw);
 
-                int32_t rem_x = x_raw - (col * halfSide);
-                int32_t rem_y = y_raw - (row * h);
+                int32_t rel_x = x_raw - (col * cellSizeRaw + x_offset);
+                int32_t rel_y = y_raw - (row * h);
 
-                // In each (halfSide x h) rectangle, we are either in an "up" or "down" triangle.
-                // The diagonal separates them.
-                // Whether the diagonal is / or \ depends on (col + row) parity.
-                bool is_even = ((col + row) & 1) == 0;
-                
-                // rem_y / h vs rem_x / halfSide
-                // rem_y * halfSide vs rem_x * h
-                bool above_diagonal;
-                if (is_even) {
-                    // Diagonal is \. Above if rem_y / h < (halfSide - rem_x) / halfSide
-                    // rem_y * halfSide < (halfSide - rem_x) * h
-                    above_diagonal = (static_cast<int64_t>(rem_y) * halfSide) < (static_cast<int64_t>(halfSide - rem_x) * h);
+                // Now we are in a rectangle of (cellSizeRaw x h).
+                // The rectangle contains one "Up" triangle in the middle and two halves of "Down" triangles on the sides.
+                // Boundary: y < h - (2*h/side) * |x - side/2|
+                // h / (side/2) = 2h / side = sqrt(3).
+                // sqrt(3) approx 1.732. In Q8.8 it is 443.
+
+                int32_t dx = rel_x - (cellSizeRaw / 2);
+                if (dx < 0) dx = -dx;
+
+                int32_t boundary_y = h - ((static_cast<int64_t>(dx) * 443) >> 8);
+                bool is_up = rel_y > (h - boundary_y);
+                // Wait, if rel_y is small (top of rect), it's the peak of the triangle.
+                // Actually:
+                // Up triangle: (0, h), (side, h), (side/2, 0)
+                // Boundary is: rel_y > (2*h/side) * |rel_x - side/2|
+                bool inside_up = rel_y > ((static_cast<int64_t>(dx) * 443) >> 8);
+
+                int32_t center_x, center_y;
+                int32_t cell_id;
+
+                if (inside_up) {
+                    center_x = col * cellSizeRaw + x_offset + (cellSizeRaw / 2);
+                    center_y = row * h + (h * 2 / 3); // Centroid
+                    cell_id = col ^ row ^ 0x55555555;
+                    local_x = x_raw - center_x;
+                    local_y = y_raw - center_y;
                 } else {
-                    // Diagonal is /. Above if rem_y / h < rem_x / halfSide
-                    // rem_y * halfSide < rem_x * h
-                    above_diagonal = (static_cast<int64_t>(rem_y) * halfSide) < (static_cast<int64_t>(rem_x) * h);
-                }
-
-                // Determine if this is an "Up" or "Down" triangle.
-                // Parity logic for triangle grids can be complex, but for this grid:
-                bool is_up = is_even ? above_diagonal : !above_diagonal;
-
-                if (is_up) {
-                    local_x = rem_x - (halfSide / 2);
-                    local_y = rem_y - (h / 2);
-                } else {
-                    // Down triangle is inverted.
-                    local_x = (halfSide / 2) - rem_x;
-                    local_y = (h / 2) - rem_y;
-                }
-                
-                if (state->mirrored) {
-                    // Use col/row/is_up to derive a stable cell ID for mirroring
-                    int32_t cell_id = (col ^ row ^ (is_up ? 0x55555555 : 0xAAAAAAAA));
-                    if (cell_id & 1) {
-                        local_x = -local_x;
-                        local_y = -local_y;
+                    // It's in one of the "down" triangles.
+                    // If rel_x < side/2, it's the down triangle to the left.
+                    // If rel_x > side/2, it's the down triangle to the right.
+                    if (rel_x < cellSizeRaw / 2) {
+                        center_x = col * cellSizeRaw + x_offset;
+                        center_y = row * h + (h / 3);
+                        cell_id = col ^ row ^ 0xAAAAAAAA;
+                    } else {
+                        center_x = (col + 1) * cellSizeRaw + x_offset;
+                        center_y = row * h + (h / 3);
+                        cell_id = (col + 1) ^ row ^ 0xAAAAAAAA;
                     }
+                    local_x = center_x - x_raw; // Invert for down triangles
+                    local_y = center_y - y_raw;
+                }
+
+                if (state->mirrored && (cell_id & 1)) {
+                    local_x = -local_x;
+                    local_y = -local_y;
                 }
             } else if (state->shape == TileShape::HEXAGON) {
                 // Pointy-top hexagon tiling.
@@ -222,8 +238,8 @@ namespace PolarShader {
                     // Corner check.
                     // The hex boundary is a diagonal from (0, s2) to (w/2, 0) and (w/2, 0) to (w, s2).
                     // side / w = 1 / sqrt(3).
-                    // sqrt(3) is 443 in Q8.8. 1/sqrt(3) is approx 0.577. In Q8.8 it is 147.7 -> 148.
-                    
+                    // sqrt(3) is 443 in Q8.8. 1/sqrt(3) is approx 0.577. In Q8.8 it is 148.
+
                     int32_t left_boundary = s2 - ((static_cast<int64_t>(rel_x) * 148) >> 8);
                     int32_t right_boundary = s2 - ((static_cast<int64_t>(w - rel_x) * 148) >> 8);
 
@@ -231,7 +247,7 @@ namespace PolarShader {
                         if (rel_y < left_boundary) {
                             // Upper-left hex
                             row--;
-                            if (!offset_row) col--; 
+                            if (!offset_row) col--;
                         }
                     } else {
                         if (rel_y < right_boundary) {
@@ -243,7 +259,6 @@ namespace PolarShader {
                 }
 
                 // Recalculate cell center for local UV
-                // Center of hex(col, row):
                 int32_t center_y = row * h + cellSizeRaw;
                 int32_t center_x = col * w + ((row & 1) ? w : w / 2);
 

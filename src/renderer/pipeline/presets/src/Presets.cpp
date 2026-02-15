@@ -28,8 +28,6 @@
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
-#include "renderer/pipeline/transforms/CartesianTilingTransform.h"
-#include "renderer/pipeline/transforms/RadialKaleidoscopeTransform.h"
 
 namespace PolarShader {
     namespace {
@@ -46,62 +44,69 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    // hexTilingPattern(
-                    // 100,
-                    // 16
-                    // ),
-                    noisePattern(),
+                    hexTilingPattern(
+                    100,
+                    16
+                    ),
                     palette,
                     "kaleidoscope"
                 )
+                .setDepthSignal(noise()) //depth signal should always accumulate
                 .addPaletteTransform(
                     PaletteTransform(
                         sine(),
                         noise(
                             constant(100),
-                            noise(constant(150), constant(100), constant(100)),
-                            noise(constant(150), constant(100), constant(100), noise())
+                            noise(constant(150), constant(70), constant(30)),
+                            noise(constant(150), constant(100), constant(100))
                         ),
                         perMil(200)
                     ))
-                .addTransform(TranslationTransform(
-                    noise(constant(300)),
-                    constant(750)
-                ))
                 .addTransform(
                     ZoomTransform(
+                        noise(constant(10), constant(500), constant(500))
+                    ))
+
+                //Translation drifts into solid colour when placed after kaleidoscope
+                .addTransform(TranslationTransform(
+                    noise(constant(30)),
+                    noise(constant(100), constant(50), constant(50))
+                ))
+                .addTransform(KaleidoscopeTransform(
+                    4,
+                    false
+                ))
+
+                .addTransform(VortexTransform(
+                    noise(
+                        constant(100),
                         noise(
+                            noise(constant(150)),
                             constant(500)
                         )
-                    ))
-                .addTransform(KaleidoscopeTransform(
-                    3,
-                    true
+                    )
                 ))
-                .addTransform(CartesianTilingTransform(
-                    noise(constant(200)),
-                    50,
-                    100,
-                    true
-                ));
-        // .addTransform(
-        //     RotationTransform(
-        //         noise(
-        //             constant(1000)
-        //         ),
-        //         true
-        //     ));
+                .addTransform(
+                    RotationTransform(
+                        noise(
+                            constant(200)
+                        ),
+                        true
+                    )
+                );
     }
 
     LayerBuilder hexKaleidoscopePreset(
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    hexTilingPattern(
-                        10000,
-                        32,
-                        50
-                    ), palette,
+                    // hexTilingPattern(
+                    // 10000,
+                    // 32,
+                    // 50
+                    // ),
+                    noisePattern(),
+                    palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(PaletteTransform(noise(constant(600))))
@@ -115,7 +120,7 @@ namespace PolarShader {
                 .addTransform(VortexTransform(
                     noise(constant(505), constant(200))
                 ))
-                .addTransform(KaleidoscopeTransform(4, true))
+                .addTransform(KaleidoscopeTransform(6, true))
                 .addTransform(RotationTransform(
                     noise(constant(550))
                 ));
@@ -125,31 +130,56 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    noisePattern(),
-                    palette,
-                    "kaleidoscope"
-                )
-                .setDepthSignal(
-                    noise(constant(510))
-                )
-                .addPaletteTransform(PaletteTransform(
-                    noise(constant(550)),
-                    sine(constant(550)),
-                    perMil(10)
-                ))
-                .addTransform(TranslationTransform(
-                    noise(constant(550)),
-                    noise(constant(515), constant(200))
-                ))
-                .addTransform(ZoomTransform(
-                    noise(constant(550))
-                ))
-                .addTransform(VortexTransform(
-                    noise(constant(505), constant(500))
-                ))
-                .addTransform(KaleidoscopeTransform(4, true))
-                .addTransform(RotationTransform(
-                    noise(constant(505))
-                ));
+                           // hexTilingPattern(
+                           // 100,
+                           // 16
+                           // ),
+                           noisePattern(),
+                           palette,
+                           "kaleidoscope"
+                       )
+                       .setDepthSignal(noise()) //depth signal should always accumulate
+                       .addPaletteTransform(
+                           PaletteTransform(
+                               sine(),
+                               noise(
+                                   constant(100),
+                                   noise(constant(150), constant(70), constant(30)),
+                                   noise(constant(150), constant(100), constant(100))
+                               ),
+                               perMil(200)
+                           ))
+                       .addTransform(
+                           ZoomTransform(
+                               noise(constant(10), constant(500), constant(500))
+                           ))
+
+                       //Translation drifts into solid colour when placed after kaleidoscope
+                       .addTransform(TranslationTransform(
+                           noise(constant(30)),
+                           noise(constant(100), constant(50), constant(50))
+                       ))
+                       .addTransform(KaleidoscopeTransform(
+                           4,
+                           false
+                       ))
+
+                       .addTransform(VortexTransform(
+                           noise(
+                               constant(100),
+                               noise(
+                                   noise(constant(150)),
+                                   constant(500)
+                               )
+                           )
+                       ))
+                       .addTransform(
+                           RotationTransform(
+                               noise(
+                                   constant(200)
+                               ),
+                               true
+                           )
+                       );
     }
 }

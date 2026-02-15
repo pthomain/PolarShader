@@ -39,24 +39,22 @@ namespace PolarShader {
 
         explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false, TileShape shape = TileShape::SQUARE);
 
-        CartesianTilingTransform(
+        explicit CartesianTilingTransform(
             Sf16Signal cellSize,
-            int32_t minCellSize = 4096,
-            int32_t maxCellSize = 65536,
             bool mirrored = false,
             TileShape shape = TileShape::SQUARE
         );
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
+        int32_t getCellSizeRaw() const;
+
         UVMap operator()(const UVMap &layer) const override;
 
     private:
         struct MappedInputs;
         static MappedInputs makeInputs(
-            Sf16Signal cellSize,
-            int32_t minCellSize,
-            int32_t maxCellSize
+            Sf16Signal cellSize
         );
 
         struct State;
