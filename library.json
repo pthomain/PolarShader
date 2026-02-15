@@ -25,11 +25,18 @@
   "platforms": [
     "atmelsam",
     "atmelavr",
-    "espressif32"
+    "espressif32",
+    "teensy"
   ],
   "build": {
     "flags": [
       "-std=c++17"
+    ],
+    "srcFilter": [
+      "+<*>",
+      "-<main_teensy.cpp>",
+      "-<main_samd.cpp>",
+      "-<display/src/SmartMatrixDisplay.cpp>"
     ]
   },
   "dependencies": [

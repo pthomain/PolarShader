@@ -19,6 +19,9 @@
  */
 
 #include <Arduino.h>
+
+#ifdef SMARTMATRIX_ENABLED
+
 #include "Matrix128x128DisplaySpec.h"
 #include "display/SmartMatrixDisplay.h"
 
@@ -34,3 +37,5 @@ void setup() {
 void loop() {
     display->loop();
 }
+
+#endif

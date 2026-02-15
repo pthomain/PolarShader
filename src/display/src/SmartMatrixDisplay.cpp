@@ -19,6 +19,9 @@
  */
 
 #include "display/SmartMatrixDisplay.h"
+
+#ifdef SMARTMATRIX_ENABLED
+
 #undef assert
 #include "MatrixHardware_Teensy4_ShieldV5.h"
 #include <SmartMatrix.h>
@@ -104,3 +107,5 @@ namespace PolarShader {
         delete[] outputArray;
     }
 }
+
+#endif

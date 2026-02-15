@@ -19,6 +19,9 @@
  */
 
 #include <Arduino.h>
+
+#ifdef SAMD_EXAMPLE_ENABLED
+
 #include "RoundDisplaySpec.h"
 #include "display/FastLedDisplay.h"
 
@@ -36,3 +39,5 @@ void setup() {
 void loop() {
     display->loop();
 }
+
+#endif
