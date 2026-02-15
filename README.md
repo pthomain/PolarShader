@@ -71,9 +71,9 @@ Effects are built by stacking **small, pure transforms**, similar to GPU shaders
 
 ```cpp
 pipeline
-  .addTransform(RotationTransform(noise(midPoint(120))))
+  .addTransform(RotationTransform(noise(biMid(120))))
   .addTransform(KaleidoscopeTransform(6, true))
-  .addTransform(ZoomTransform(sine(midPoint(100))))
+  .addTransform(ZoomTransform(sine(biMid(100))))
 ```
 
 Each transform:
@@ -118,8 +118,8 @@ Signal kinds:
 
 Factory families:
 
-* Periodic factories (`sine`, `noise`) share one signature:
-    - `(speed, amplitude, offset, phaseOffset)`.
+* Periodic factories (`sine`, `noise`, `triangle`, `square`, `sawtooth`) share one signature:
+    - `(speed, amplitude, threshold, phaseOffset)`.
     - `speed` is signed turns/second and independent of scene duration.
 * Aperiodic factories (`linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`) share:
     - `(duration, loopMode)`.

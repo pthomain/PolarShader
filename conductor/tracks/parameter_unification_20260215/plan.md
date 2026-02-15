@@ -29,8 +29,8 @@ Update all call sites in the repository to use the new names while preserving ex
 ## Phase 3: Documentation & Finalization
 Ensure all documentation reflects the new helper sets.
 
-- [ ] Task: Update Documentation
-    - [ ] Task: Update `README.md` examples.
+- [~] Task: Update Documentation
+    - [~] Task: Update `README.md` examples.
     - [ ] Task: Update `src/renderer/pipeline/transforms/README.md` signal model section.
 - [ ] Task: Final Quality Pass
     - [ ] Task: Run full `pio test -e native` suite and ensure 100% pass rate.
