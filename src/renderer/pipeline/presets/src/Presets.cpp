@@ -44,32 +44,34 @@ namespace PolarShader {
     LayerBuilder defaultPreset(
         const CRGBPalette16 &palette
     ) {
-        return noiseKaleidoscopePattern(palette);
-
         return makeBuilder(
                     noisePattern(),
                     palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(
-                    PaletteTransform(sine())
+                    PaletteTransform(
+                        sine(),
+                        sine(midPoint(), floor(), floor()),
+                        midPoint(10)
+                    )
                 )
                 .addTransform(TranslationTransform(
-                    cPerMil(500),
-                    cPerMil(100)
+                    midPoint(0),
+                    floor(200)
                 ))
                 .addTransform(
                     ZoomTransform(
                         sine(
-                            cPerMil(100),
-                            cPerMil(200),
-                            cPerMil(100)
+                            midPoint(100),
+                            floor(400),
+                            midPoint(100)
                         )
-                    ));
-        // .addTransform(KaleidoscopeTransform(
-        // 4,
-        // true
-        // ));
+                    ))
+                .addTransform(KaleidoscopeTransform(
+                    4,
+                    true
+                ));
     }
 
     LayerBuilder hexKaleidoscopePreset(
@@ -83,20 +85,20 @@ namespace PolarShader {
                     ), palette,
                     "kaleidoscope"
                 )
-                .addPaletteTransform(PaletteTransform(noise(cPerMil(200))))
+                .addPaletteTransform(PaletteTransform(noise(midPoint(200))))
                 .addTransform(TranslationTransform(
-                    noise(cPerMil(100)),
-                    noise(cPerMil(100), cPerMil(300))
+                    noise(midPoint(100)),
+                    noise(midPoint(100), floor(600))
                 ))
                 .addTransform(ZoomTransform(
                     quadraticInOut(10000)
                 ))
                 .addTransform(VortexTransform(
-                    noise(cPerMil(10), cPerMil(200))
+                    noise(midPoint(10), floor(400))
                 ))
                 .addTransform(KaleidoscopeTransform(4, true))
                 .addTransform(RotationTransform(
-                    noise(cPerMil(100))
+                    noise(midPoint(100))
                 ));
     }
 
@@ -109,26 +111,26 @@ namespace PolarShader {
                     "kaleidoscope"
                 )
                 .setDepthSignal(
-                    noise(cPerMil(20))
+                    noise(midPoint(20))
                 )
                 .addPaletteTransform(PaletteTransform(
-                    noise(csPerMil(100)),
-                    sine(csPerMil(100), floor()),
-                    perMil(10)
+                    noise(midPoint(100)),
+                    sine(midPoint(100), floor()),
+                    midPoint(10)
                 ))
                 .addTransform(TranslationTransform(
-                    noise(cPerMil(100)),
-                    noise(cPerMil(30), cPerMil(200))
+                    noise(midPoint(100)),
+                    noise(midPoint(30), floor(400))
                 ))
                 .addTransform(ZoomTransform(
-                    noise(cPerMil(100))
+                    noise(midPoint(100))
                 ))
                 .addTransform(VortexTransform(
-                    noise(cPerMil(10), cPerMil(500))
+                    noise(midPoint(10), floor(1000))
                 ))
                 .addTransform(KaleidoscopeTransform(4, true))
                 .addTransform(RotationTransform(
-                    noise(cPerMil(10))
+                    noise(midPoint(10))
                 ));
     }
 }

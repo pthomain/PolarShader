@@ -63,7 +63,7 @@ namespace PolarShader {
         Sf16Signal createPeriodicSignal(
             Sf16Signal speed,
             Sf16Signal amplitude,
-            Sf16Signal offset,
+            Sf16Signal threshold,
             Sf16Signal phaseOffset,
             SampleSignal sample
         ) {
@@ -78,22 +78,22 @@ namespace PolarShader {
                 [
                     acc = std::move(acc),
                     amplitude = std::move(amplitude),
-                    offset = std::move(offset),
+                    threshold = std::move(threshold),
                     phaseOffset = std::move(phaseOffset),
                     sample = std::move(sample)
                 ](TimeMillis elapsedMs) mutable -> sf16 {
                     f16 phase = acc.advance(elapsedMs);
-                    
+
                     f16 pOff = phaseOffset.sample(phaseRange(), elapsedMs);
                     f16 finalPhase(raw(phase) + raw(pOff));
 
                     sf16 wave = sample(finalPhase);
                     sf16 amp = amplitude.sample(magnitudeRange(), elapsedMs);
-                    sf16 off = offset.sample(bipolarRange(), elapsedMs);
+                    sf16 off = threshold.sample(bipolarRange(), elapsedMs);
 
                     int64_t res = (static_cast<int64_t>(raw(wave)) * static_cast<int64_t>(raw(amp)) + (1u << 15)) >> 16;
                     res += raw(off);
-                    
+
                     return clampSf16Sat(res);
                 }
             );
@@ -107,16 +107,24 @@ namespace PolarShader {
         }
     }
 
-    Sf16Signal floor() {
-        return constantRaw(SF16_MIN);
+    Sf16Signal floor(uint16_t offsetPerMil) {
+        if (offsetPerMil > 1000) offsetPerMil = 1000;
+        int32_t offsetRaw = (static_cast<int32_t>(offsetPerMil) * SF16_ONE) / 1000;
+        return constantRaw(SF16_MIN + offsetRaw);
     }
 
-    Sf16Signal midPoint() {
-        return constantRaw(0);
+    Sf16Signal midPoint(int16_t offsetPerMil) {
+        if (offsetPerMil > 500) offsetPerMil = 500;
+        if (offsetPerMil < -500) offsetPerMil = -500;
+        int32_t offsetRaw = (static_cast<int32_t>(offsetPerMil) * SF16_ONE) / 1000;
+        return constantRaw(offsetRaw);
     }
 
-    Sf16Signal ceiling() {
-        return constantRaw(SF16_MAX);
+    Sf16Signal ceiling(int16_t offsetPerMil) {
+        if (offsetPerMil > 0) offsetPerMil = 0;
+        if (offsetPerMil < -1000) offsetPerMil = -1000;
+        int32_t offsetRaw = (static_cast<int32_t>(offsetPerMil) * SF16_ONE) / 1000;
+        return constantRaw(SF16_ONE + offsetRaw);
     }
 
     Sf16Signal constant(sf16 value) {
@@ -124,19 +132,11 @@ namespace PolarShader {
     }
 
     Sf16Signal constant(f16 value) {
-        return constantRaw(raw(toSigned(value)));
-    }
-
-    Sf16Signal csPerMil(int16_t value) {
-        return constant(sPerMil(value));
-    }
-
-    Sf16Signal cPerMil(uint16_t value) {
-        return constant(perMil(value));
+        return constant(toSigned(value));
     }
 
     Sf16Signal cRandom() {
-        return constantRaw(raw(toSigned(f16(random16()))));
+        return constant(f16(random16()));
     }
 
     Sf16Signal linear(TimeMillis duration, LoopMode loopMode) {
@@ -179,13 +179,13 @@ namespace PolarShader {
     Sf16Signal noise(
         Sf16Signal speed,
         Sf16Signal amplitude,
-        Sf16Signal offset,
+        Sf16Signal threshold,
         Sf16Signal phaseOffset
     ) {
         return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
-            std::move(offset),
+            std::move(threshold),
             std::move(phaseOffset),
             sampleNoise()
         );
@@ -194,13 +194,13 @@ namespace PolarShader {
     Sf16Signal sine(
         Sf16Signal speed,
         Sf16Signal amplitude,
-        Sf16Signal offset,
+        Sf16Signal threshold,
         Sf16Signal phaseOffset
     ) {
         return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
-            std::move(offset),
+            std::move(threshold),
             std::move(phaseOffset),
             sampleSine()
         );
@@ -209,13 +209,13 @@ namespace PolarShader {
     Sf16Signal triangle(
         Sf16Signal speed,
         Sf16Signal amplitude,
-        Sf16Signal offset,
+        Sf16Signal threshold,
         Sf16Signal phaseOffset
     ) {
         return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
-            std::move(offset),
+            std::move(threshold),
             std::move(phaseOffset),
             sampleTriangle()
         );
@@ -224,13 +224,13 @@ namespace PolarShader {
     Sf16Signal square(
         Sf16Signal speed,
         Sf16Signal amplitude,
-        Sf16Signal offset,
+        Sf16Signal threshold,
         Sf16Signal phaseOffset
     ) {
         return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
-            std::move(offset),
+            std::move(threshold),
             std::move(phaseOffset),
             sampleSquare()
         );
@@ -239,13 +239,13 @@ namespace PolarShader {
     Sf16Signal sawtooth(
         Sf16Signal speed,
         Sf16Signal amplitude,
-        Sf16Signal offset,
+        Sf16Signal threshold,
         Sf16Signal phaseOffset
     ) {
         return createPeriodicSignal(
             std::move(speed),
             std::move(amplitude),
-            std::move(offset),
+            std::move(threshold),
             std::move(phaseOffset),
             sampleSawtooth()
         );

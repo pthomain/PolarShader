@@ -49,9 +49,10 @@ Factory signatures:
   - `quadraticOut(duration, loopMode)`
   - `quadraticInOut(duration, loopMode)`
 
-Per-mille helpers:
-- `csPerMil(value)` accepts signed value in range `[-1000, 1000]`, maps it to `sf16 [-1, 1]`, then return a signal that emits that constant.
-- `cPerMil(value)` accepts unsigned value in range `[0, 1000]`, maps to `[-1000, 1000]`, maps it to `sf16 [-1, 1]`, then return a signal that emits that constant.
+Constant signal helpers:
+- `floor(offsetPerMil)`: returns a constant signal at `SF16_MIN + offset/1000`. `offsetPerMil` is `uint16_t` in `[0, 1000]`.
+- `midPoint(offsetPerMil)`: returns a constant signal at `0 + offset/1000`. `offsetPerMil` is `int16_t` in `[-500, 500]`.
+- `ceiling(offsetPerMil)`: returns a constant signal at `SF16_ONE + offset/1000`. `offsetPerMil` is `int16_t` in `[-1000, 0]`.
 - `sPerMil(int16_t)` maps signed permille `[-1000, 1000]` to scalar `sf16 [-1, 1]`.
 - `perMil(uint16_t)` maps unsigned permille `[0, 1000]` to scalar `f16 [0, 1]`.
 
@@ -111,7 +112,7 @@ Periodic shaping:
   - `maxOffset`: mapped displacement cap.
   - Optional directional flow controls.
 - Uses `PhaseAccumulator` for time evolution.
-- Samples signed speed directly with `magnitudeRange()`.
+- Samples signed speed directly with `bipolarRange()`.
 
 ### PaletteTransform
 
@@ -120,5 +121,5 @@ Periodic shaping:
 
 ## Usage note
 
-- `defaultPreset` currently applies `ZoomTransform(sine(cPerMil(100)))`, so zoom should oscillate
+- `defaultPreset` currently applies `ZoomTransform(sine(floor(400)))`, so zoom should oscillate
   periodically by default.

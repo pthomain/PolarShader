@@ -207,7 +207,7 @@ void test_phase_accumulator_signed() {
 void test_sine_speed() {
     // Speed: 1.0 turn per second
     // Use midPoint() for offset to keep it centered at 0.
-    Sf16Signal s = sine(csPerMil(1000), ceiling(), midPoint(), floor());
+    Sf16Signal s = sine(ceiling(), ceiling(), midPoint(), floor());
     
     // t=0 -> centered
     TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
@@ -219,7 +219,7 @@ void test_sine_speed() {
 
 /** @brief Verify zoom driven by sine changes over elapsed time (not treated as constant). */
 void test_zoom_transform_sine_varies_over_time() {
-    ZoomTransform zoom(sine(cPerMil(1000)));
+    ZoomTransform zoom(sine(ceiling()));
     UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     UV input(sr16(0x0000C000), sr16(0x00008000));
 
@@ -308,7 +308,7 @@ void test_signal_sample_clamped() {
 /** @brief Verify negative speed results in reverse phase accumulation. */
 void test_sine_negative_speed_works() {
     // Speed: -1.0 turn per second
-    Sf16Signal negative = sine(csPerMil(-1000), ceiling(), midPoint(), floor());
+    Sf16Signal negative = sine(floor(), ceiling(), midPoint(), floor());
 
     // t=0 -> 0
     (void) negative.sample(TEST_SIGNED_RANGE, 0);

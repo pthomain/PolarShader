@@ -33,7 +33,7 @@ namespace PolarShader {
 
     DomainWarpTransform domainWarpBasic() {
         return DomainWarpTransform(
-            cPerMil(200),
+            midPoint(200),
             ceiling(),
             ceiling(),
             ceiling(),
@@ -45,7 +45,7 @@ namespace PolarShader {
     DomainWarpTransform domainWarpFbm(uint8_t octaves) {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::FBM,
-            cPerMil(140),
+            midPoint(140),
             ceiling(),
             ceiling(),
             ceiling(),
@@ -58,7 +58,7 @@ namespace PolarShader {
     DomainWarpTransform domainWarpNested() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Nested,
-            cPerMil(100),
+            midPoint(100),
             ceiling(),
             ceiling(),
             ceiling(),
@@ -71,7 +71,7 @@ namespace PolarShader {
     DomainWarpTransform domainWarpCurl() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Curl,
-            cPerMil(260),
+            midPoint(260),
             ceiling(),
             ceiling(),
             ceiling(),
@@ -84,8 +84,8 @@ namespace PolarShader {
     DomainWarpTransform domainWarpPolar() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Polar,
-            cPerMil(110),
-            cPerMil(220),
+            midPoint(110),
+            midPoint(220),
             ceiling(),
             ceiling(),
             MagnitudeRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
@@ -97,15 +97,15 @@ namespace PolarShader {
     DomainWarpTransform domainWarpDirectional() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Directional,
-            cPerMil(130),
-            cPerMil(240),
+            midPoint(130),
+            midPoint(240),
             ceiling(),
             ceiling(),
             MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
-            noise(cPerMil(40)),
-            cPerMil(180)
+            noise(midPoint(40)),
+            midPoint(180)
         );
     }
 }

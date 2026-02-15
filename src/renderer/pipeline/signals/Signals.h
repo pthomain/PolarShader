@@ -42,36 +42,20 @@ namespace PolarShader {
     using PeriodicSignalFactory = Sf16Signal (*)(
         Sf16Signal speed,
         Sf16Signal amplitude,
-        Sf16Signal offset,
+        Sf16Signal threshold,
         Sf16Signal phaseOffset
     );
     using AperiodicSignalFactory = Sf16Signal (*)(TimeMillis duration, LoopMode loopMode);
 
-    Sf16Signal floor();
+    Sf16Signal floor(uint16_t offsetPerMil = 0);
 
-    Sf16Signal midPoint();
+    Sf16Signal midPoint(int16_t offsetPerMil = 0);
 
-    Sf16Signal ceiling();
+    Sf16Signal ceiling(int16_t offsetPerMil = 0);
 
     Sf16Signal constant(sf16 value);
 
     Sf16Signal constant(f16 value);
-
-    /**
-     * @brief Creates a constant signed sf16 from per-mille input.
-     *
-     * Accepts signed input in [-1000, 1000]. Magnitude is clamped to 1000,
-     * preserving sign.
-     */
-    Sf16Signal csPerMil(int16_t value);
-
-    /**
-     * @brief Creates a constant signed sf16 from unsigned per-mille input.
-     *
-     * Accepts [0, 1000], maps linearly to [-1000, 1000] (0 -> -1000, 500 -> 0,
-     * 1000 -> 1000), then emits the equivalent constant sf16 signal.
-     */
-    Sf16Signal cPerMil(uint16_t value);
 
     Sf16Signal cRandom();
 
@@ -80,9 +64,9 @@ namespace PolarShader {
      * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
      */
     Sf16Signal noise(
-        Sf16Signal speed = csPerMil(100),
+        Sf16Signal speed = midPoint(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = midPoint(),
+        Sf16Signal threshold = midPoint(),
         Sf16Signal phaseOffset = cRandom()
     );
 
@@ -91,30 +75,30 @@ namespace PolarShader {
      * @param speed Signed speed in turns-per-second (1.0 = 1 cycle/sec).
      */
     Sf16Signal sine(
-        Sf16Signal speed = csPerMil(100),
+        Sf16Signal speed = midPoint(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = midPoint(),
+        Sf16Signal threshold = midPoint(),
         Sf16Signal phaseOffset = floor()
     );
 
     Sf16Signal triangle(
-        Sf16Signal speed = csPerMil(100),
+        Sf16Signal speed = midPoint(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = midPoint(),
+        Sf16Signal threshold = midPoint(),
         Sf16Signal phaseOffset = floor()
     );
 
     Sf16Signal square(
-        Sf16Signal speed = csPerMil(100),
+        Sf16Signal speed = midPoint(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = midPoint(),
+        Sf16Signal threshold = midPoint(),
         Sf16Signal phaseOffset = floor()
     );
 
     Sf16Signal sawtooth(
-        Sf16Signal speed = csPerMil(100),
+        Sf16Signal speed = midPoint(100),
         Sf16Signal amplitude = ceiling(),
-        Sf16Signal offset = midPoint(),
+        Sf16Signal threshold = midPoint(),
         Sf16Signal phaseOffset = floor()
     );
 
@@ -146,7 +130,7 @@ namespace PolarShader {
 
     // Map a signed signal into the unsigned r8 depth domain.
     DepthSignal depth(
-        Sf16Signal signal = cPerMil(100),
+        Sf16Signal signal = floor(200),
         MagnitudeRange<uint32_t> range = MagnitudeRange<uint32_t>(0, 1000)
     );
 }

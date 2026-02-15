@@ -71,9 +71,9 @@ Effects are built by stacking **small, pure transforms**, similar to GPU shaders
 
 ```cpp
 pipeline
-  .addTransform(RotationTransform(noise(cPerMil(120))))
+  .addTransform(RotationTransform(noise(midPoint(120))))
   .addTransform(KaleidoscopeTransform(6, true))
-  .addTransform(ZoomTransform(sine(cPerMil(100))))
+  .addTransform(ZoomTransform(sine(midPoint(100))))
 ```
 
 Each transform:
