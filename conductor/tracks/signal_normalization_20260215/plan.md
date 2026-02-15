@@ -30,13 +30,13 @@ Standardize the modulation API across periodic, noise, and aperiodic signals.
     - [x] Task: Verify modulation depth scales correctly in Q16.16.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Signal Modulation' (Protocol in workflow.md) e7d0e7d
 
-## Phase 3: Precision Audit & Comprehensive Testing
+## Phase 3: Precision Audit & Comprehensive Testing [checkpoint: 7ffa7b8]
 Final sweep to ensure no precision loss and maximum test coverage.
 
-- [~] Task: Q16.16 Precision Audit
-    - [~] Task: Review all intermediate calculations in `Signals.cpp` and `SignalSamplers.cpp` for overflow risk.
-    - [ ] Task: Replace any remaining implicit casts with explicit Q-format math.
-- [ ] Task: Final Coverage Push
-    - [ ] Task: Ensure `signals/` and `ranges/` directories have >80% code coverage.
-    - [ ] Task: Run full suite of "Edge Case" tests (0 frequency, negative time).
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Precision & Coverage' (Protocol in workflow.md)
+- [x] Task: Q16.16 Precision Audit 7ffa7b8
+    - [x] Task: Review all intermediate calculations in `Signals.cpp` and `SignalSamplers.cpp` for overflow risk.
+    - [x] Task: Replace any remaining implicit casts with explicit Q-format math.
+- [x] Task: Final Coverage Push 7ffa7b8
+    - [x] Task: Ensure `signals/` and `ranges/` directories have >80% code coverage.
+    - [x] Task: Run full suite of "Edge Case" tests (0 frequency, negative time).
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Precision & Coverage' (Protocol in workflow.md) 7ffa7b8
