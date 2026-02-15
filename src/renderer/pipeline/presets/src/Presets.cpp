@@ -24,7 +24,6 @@
 #include "renderer/pipeline/transforms/TranslationTransform.h"
 #include "renderer/pipeline/transforms/ZoomTransform.h"
 #include "renderer/pipeline/transforms/KaleidoscopeTransform.h"
-#include "renderer/pipeline/transforms/RadialKaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/VortexTransform.h"
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include <utility>
@@ -52,26 +51,26 @@ namespace PolarShader {
                 .addPaletteTransform(
                     PaletteTransform(
                         sine(),
-                        sine(biMid(100), biMid(), biFloor()),
+                        sine(constant(100), constant(200), constant(400)),
                         perMil(10)
                     )
                 )
                 .addTransform(TranslationTransform(
-                    biMid(0),
-                    biFloor(200)
+                    constant(500),
+                    constant(100)
                 ))
                 .addTransform(
                     ZoomTransform(
                         sine(
-                            biMid(100),
-                            biFloor(400),
-                            biMid(100)
+                            constant(550),
+                            constant(200),
+                            constant(550)
                         )
                     ));
-                // .addTransform(KaleidoscopeTransform(
-                //     4,
-                //     true
-                // ));
+        // .addTransform(KaleidoscopeTransform(
+        //     4,
+        //     true
+        // ));
     }
 
     LayerBuilder hexKaleidoscopePreset(
@@ -85,20 +84,20 @@ namespace PolarShader {
                     ), palette,
                     "kaleidoscope"
                 )
-                .addPaletteTransform(PaletteTransform(noise(biMid(200))))
+                .addPaletteTransform(PaletteTransform(noise(constant(600))))
                 .addTransform(TranslationTransform(
-                    noise(biMid(100)),
-                    noise(biMid(100), biFloor(600))
+                    noise(constant(550)),
+                    noise(constant(550), constant(300))
                 ))
                 .addTransform(ZoomTransform(
                     quadraticInOut(10000)
                 ))
                 .addTransform(VortexTransform(
-                    noise(biMid(10), biFloor(400))
+                    noise(constant(505), constant(200))
                 ))
                 .addTransform(KaleidoscopeTransform(4, true))
                 .addTransform(RotationTransform(
-                    noise(biMid(100))
+                    noise(constant(550))
                 ));
     }
 
@@ -111,26 +110,26 @@ namespace PolarShader {
                     "kaleidoscope"
                 )
                 .setDepthSignal(
-                    noise(biMid(20))
+                    noise(constant(510))
                 )
                 .addPaletteTransform(PaletteTransform(
-                    noise(biMid(100)),
-                    sine(biMid(100)),
+                    noise(constant(550)),
+                    sine(constant(550)),
                     perMil(10)
                 ))
                 .addTransform(TranslationTransform(
-                    noise(biMid(100)),
-                    noise(biMid(30), biFloor(400))
+                    noise(constant(550)),
+                    noise(constant(515), constant(200))
                 ))
                 .addTransform(ZoomTransform(
-                    noise(biMid(100))
+                    noise(constant(550))
                 ))
                 .addTransform(VortexTransform(
-                    noise(biMid(10), biFloor(1000))
+                    noise(constant(505), constant(500))
                 ))
                 .addTransform(KaleidoscopeTransform(4, true))
                 .addTransform(RotationTransform(
-                    noise(biMid(10))
+                    noise(constant(505))
                 ));
     }
 }

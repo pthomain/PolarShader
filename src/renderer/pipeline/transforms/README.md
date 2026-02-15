@@ -49,17 +49,8 @@ Factory signatures:
   - `quadraticOut(duration, loopMode)`
   - `quadraticInOut(duration, loopMode)`
 
-Constant signal helpers (Bipolar):
-- `biFloor(offsetPerMil)`: returns a constant signal at `SF16_MIN + offset/1000`. `offsetPerMil` is `uint16_t` in `[0, 1000]`.
-- `biMid(offsetPerMil)`: returns a constant signal at `0 + offset/1000`. `offsetPerMil` is `int16_t` in `[-500, 500]`.
-- `biCeil(offsetPerMil)`: returns a constant signal at `SF16_ONE + offset/1000`. `offsetPerMil` is `int16_t` in `[-1000, 0]`.
-
-Constant signal helpers (Magnitude):
-- `magFloor(offsetPerMil)`: absolute unipolar `0..1` remapped to signed `[-1, 1]`.
-- `magMid(offsetPerMil)`: absolute unipolar `0.5 + offset` remapped to signed `[-1, 1]`.
-- `magCeil(offsetPerMil)`: absolute unipolar `1.0 + offset` remapped to signed `[-1, 1]`.
-
-Generic per-mille helpers:
+Constant signal helpers:
+- `constant(permille)`: returns a constant signal remapping unipolar `[0, 1000]` to signed `[-1, 1]`.
 - `sPerMil(int16_t)` maps signed permille `[-1000, 1000]` to scalar `sf16 [-1, 1]`.
 - `perMil(uint16_t)` maps unsigned permille `[0, 1000]` to scalar `f16 [0, 1]`.
 
@@ -128,5 +119,5 @@ Periodic shaping:
 
 ## Usage note
 
-- `defaultPreset` currently applies `ZoomTransform(sine(biMid(100), biCeil(), biFloor(400)))`, so zoom should oscillate
+- `defaultPreset` currently applies `ZoomTransform(sine(constant(550), constant(1000), constant(200)))`, so zoom should oscillate
   periodically by default.

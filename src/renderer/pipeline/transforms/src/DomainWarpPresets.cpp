@@ -33,10 +33,10 @@ namespace PolarShader {
 
     DomainWarpTransform domainWarpBasic() {
         return DomainWarpTransform(
-            biMid(200),
-            biCeil(),
-            biCeil(),
-            biCeil(),
+            constant(600),
+            constant(1000),
+            constant(1000),
+            constant(1000),
             MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED)
         );
@@ -45,10 +45,10 @@ namespace PolarShader {
     DomainWarpTransform domainWarpFbm(uint8_t octaves) {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::FBM,
-            biMid(140),
-            biCeil(),
-            biCeil(),
-            biCeil(),
+            constant(570),
+            constant(1000),
+            constant(1000),
+            constant(1000),
             MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             octaves
@@ -58,10 +58,10 @@ namespace PolarShader {
     DomainWarpTransform domainWarpNested() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Nested,
-            biMid(100),
-            biCeil(),
-            biCeil(),
-            biCeil(),
+            constant(550),
+            constant(1000),
+            constant(1000),
+            constant(1000),
             MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_STRONG, MAX_OFFSET_STRONG),
             2
@@ -71,10 +71,10 @@ namespace PolarShader {
     DomainWarpTransform domainWarpCurl() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Curl,
-            biMid(260),
-            biCeil(),
-            biCeil(),
-            biCeil(),
+            constant(630),
+            constant(1000),
+            constant(1000),
+            constant(1000),
             MagnitudeRange(BASE_WARP_SCALE, STRONG_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1
@@ -84,10 +84,10 @@ namespace PolarShader {
     DomainWarpTransform domainWarpPolar() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Polar,
-            biMid(110),
-            biMid(220),
-            biCeil(),
-            biCeil(),
+            constant(555),
+            constant(610),
+            constant(1000),
+            constant(1000),
             MagnitudeRange(STRONG_WARP_SCALE, STRONG_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_SOFT, MAX_OFFSET_SOFT),
             1
@@ -97,15 +97,15 @@ namespace PolarShader {
     DomainWarpTransform domainWarpDirectional() {
         return DomainWarpTransform(
             DomainWarpTransform::WarpType::Directional,
-            biMid(130),
-            biMid(240),
-            biCeil(),
-            biCeil(),
+            constant(565),
+            constant(620),
+            constant(1000),
+            constant(1000),
             MagnitudeRange(BASE_WARP_SCALE, BASE_WARP_SCALE),
             MagnitudeRange(MAX_OFFSET_MED, MAX_OFFSET_MED),
             1,
-            noise(biMid(40)),
-            biMid(180)
+            noise(constant(520)),
+            constant(590)
         );
     }
 }
