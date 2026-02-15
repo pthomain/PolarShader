@@ -25,6 +25,8 @@
 
 namespace PolarShader {
     struct PipelineContext {
+        // Current elapsed time in milliseconds.
+        TimeMillis timeMs = 0u;
         // Current zoom scale in f16/sf16.
         sf16 zoomScale = sf16(SF16_ONE);
         // Current depth value in unsigned r8 domain.

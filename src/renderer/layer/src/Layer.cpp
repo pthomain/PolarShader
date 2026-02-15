@@ -131,6 +131,7 @@ namespace PolarShader {
         if (!context) {
             Serial.println("Layer::advanceFrame context is null.");
         } else {
+            context->timeMs = elapsedMs;
             context->depth = depthSignal(progress, elapsedMs);
         }
 

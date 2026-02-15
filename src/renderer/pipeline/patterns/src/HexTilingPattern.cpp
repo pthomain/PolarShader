@@ -26,43 +26,10 @@
 
 namespace PolarShader {
     namespace {
-        constexpr int32_t kOneThirdQ24_8 = 85; // 0.3333 * 256
-        constexpr int32_t kTwoThirdsQ24_8 = 171; // 0.6666 * 256
-        constexpr int32_t kSqrt3Over3Q24_8 = 148; // 0.5773 * 256
-        constexpr int32_t kFracBits = R8_FRAC_BITS;
-        constexpr int32_t kHalfUnitRaw = 1 << (R8_FRAC_BITS - 1);
-        constexpr int32_t kToQ0_16Shift = 16 - R8_FRAC_BITS;
-
-        const sr8 kSqrt3Over3 = sr8(kSqrt3Over3Q24_8);
-        const sr8 kOneThird = sr8(kOneThirdQ24_8);
-        const sr8 kTwoThirds = sr8(kTwoThirdsQ24_8);
-
-        int32_t roundQ24_8_raw(int32_t raw_v) {
-            if (raw_v >= 0) {
-                return (raw_v + (1 << (kFracBits - 1))) >> kFracBits;
-            }
-            int32_t abs_v = -raw_v;
-            int32_t rounded = (abs_v + ((1 << (kFracBits - 1)) - 1)) >> kFracBits;
-            return -rounded;
-        }
-
         uint8_t modPositive(int32_t value, uint8_t mod) {
             int32_t r = value % mod;
             if (r < 0) r += mod;
             return static_cast<uint8_t>(r);
-        }
-
-        int32_t abs32(int32_t value) {
-            return (value < 0) ? -value : value;
-        }
-
-        int32_t max3(int32_t a, int32_t b, int32_t c) {
-            int32_t m = (a > b) ? a : b;
-            return (m > c) ? m : c;
-        }
-
-        int8_t sign(int32_t value) {
-            return (value < 0) ? -1 : 1;
         }
 
         uint16_t mapColorValue(uint8_t index, uint8_t colors) {
@@ -71,183 +38,140 @@ namespace PolarShader {
             uint16_t value = static_cast<uint16_t>(numerator / colors);
             return value == 0 ? 1 : value;
         }
-    }
 
-    // Fixed-point axial/cube coords and their rounded lattice indices.
-    struct HexTilingPattern::HexAxial {
-        int32_t q_raw;
-        int32_t r_raw;
-        int32_t s_raw;
-        int32_t rx;
-        int32_t ry;
-        int32_t rz;
-    };
+        int32_t hexRoundF16(int32_t v_f16) {
+            return (v_f16 >= 0) ? (v_f16 + 32768) >> 16 : -(((-v_f16) + 32767) >> 16);
+        }
+
+        int32_t abs32(int32_t value) {
+            return (value < 0) ? -value : value;
+        }
+
+        // L2 distance squared in axial coordinates (60-degree basis)
+        // dist^2 = dq^2 + dr^2 + dq*dr
+        uint64_t distSqAxial(int32_t dq_f16, int32_t dr_f16) {
+            int64_t q = dq_f16;
+            int64_t r = dr_f16;
+            return static_cast<uint64_t>((q * q + r * r + q * r) >> 16);
+        }
+    }
 
     struct HexTilingPattern::UVHexTilingFunctor {
         int32_t hex_radius_raw;
         uint8_t color_count;
-        int32_t softness_raw;
+        int32_t softness_raw_f16;
 
         PatternNormU16 operator()(UV uv) const {
-            sr8 cx = CartesianMaths::from_uv(uv.u);
-            sr8 cy = CartesianMaths::from_uv(uv.v);
+            if (hex_radius_raw <= 0) return PatternNormU16(0);
 
-            sr8 radius = sr8(hex_radius_raw);
-            sr8 x_term = CartesianMaths::mul(cx, kSqrt3Over3);
-            sr8 y_term = CartesianMaths::mul(cy, kOneThird);
-            sr8 q = CartesianMaths::div(x_term - y_term, radius);
-            sr8 r = CartesianMaths::div(CartesianMaths::mul(cy, kTwoThirds), radius);
-            HexAxial hex = computeAxial(q, r);
+            int32_t x_raw = raw(uv.u);
+            int32_t y_raw = raw(uv.v);
 
-            int32_t axial_q = hex.rx;
-            int32_t axial_r = hex.rz;
-            uint8_t colors = (color_count < 3) ? 3 : color_count;
-            uint8_t color_index = modPositive(axial_q - axial_r, colors);
+            // Flat-top axial conversion (Q16.16)
+            int64_t q_num = static_cast<int64_t>(x_raw) * 43691;
+            int64_t r_num = static_cast<int64_t>(y_raw) * 37837 - static_cast<int64_t>(x_raw) * 21845;
+            
+            int32_t q_f16 = static_cast<int32_t>(q_num / hex_radius_raw);
+            int32_t r_f16 = static_cast<int32_t>(r_num / hex_radius_raw);
+            int32_t s_f16 = -q_f16 - r_f16;
 
-            uint8_t neighbor_index = color_index;
-            uint16_t blend = computeBlend(
-                hex,
-                softness_raw,
-                colors,
-                color_index,
-                neighbor_index
-            );
+            // Find primary center
+            int32_t rx = hexRoundF16(q_f16);
+            int32_t rz = hexRoundF16(r_f16);
+            int32_t ry = hexRoundF16(s_f16);
 
-            uint16_t current_value = mapColorValue(color_index, colors);
-            uint16_t neighbor_value = mapColorValue(neighbor_index, colors);
-            if (blend == 0) {
-                return PatternNormU16(current_value);
+            int32_t dq0 = q_f16 - (rx << 16);
+            int32_t dr0 = r_f16 - (rz << 16);
+            int32_t ds0 = s_f16 - (ry << 16);
+
+            if (abs32(dq0) > abs32(dr0) && abs32(dq0) > abs32(ds0)) {
+                rx = -ry - rz;
+            } else if (abs32(dr0) > abs32(ds0)) {
+                rz = -rx - ry;
             }
-            int32_t delta = static_cast<int32_t>(neighbor_value) - static_cast<int32_t>(current_value);
-            uint16_t blended = static_cast<uint16_t>(
-                static_cast<int32_t>(current_value) + ((delta * blend) >> 16)
+            
+            dq0 = q_f16 - (rx << 16);
+            dr0 = r_f16 - (rz << 16);
+            uint64_t d0 = distSqAxial(dq0, dr0);
+
+            // Find second closest center among neighbors
+            static constexpr int32_t nq_off[6] = {1, 0, -1, -1, 0, 1};
+            static constexpr int32_t nr_off[6] = {0, 1, 1, 0, -1, -1};
+            
+            uint64_t d1 = 0xFFFFFFFFFFFFFFFFULL;
+            int32_t r1x = rx, r1z = rz;
+
+            for (int i = 0; i < 6; ++i) {
+                int32_t nx = rx + nq_off[i];
+                int32_t nz = rz + nr_off[i];
+                uint64_t d = distSqAxial(q_f16 - (nx << 16), r_f16 - (nz << 16));
+                if (d < d1) {
+                    d1 = d;
+                    r1x = nx;
+                    r1z = nz;
+                }
+            }
+
+            uint8_t colors = (color_count < 3) ? 3 : color_count;
+            uint16_t c0 = mapColorValue(modPositive(rx - rz, colors), colors);
+            uint16_t c1 = mapColorValue(modPositive(r1x - r1z, colors), colors);
+
+            // Edge distance metric (normalized difference of squared distances)
+            // Near the edge, (d1 - d0) is linear to the actual distance.
+            int32_t diff = static_cast<int32_t>(d1 - d0);
+            
+            // Antialiasing width (Q16.16 axial squared units)
+            // Minimum softness scaled to radius to ensure sub-pixel smoothness.
+            int32_t soft = softness_raw_f16 < 1200 ? 1200 : softness_raw_f16;
+
+            if (diff >= soft) return PatternNormU16(c0);
+            if (diff <= -soft) return PatternNormU16(c1);
+
+            // Map diff [-soft, soft] to [1.0, 0.0] for high-precision blend
+            uint32_t t = ((static_cast<int64_t>(soft) - diff) << 16) / (soft * 2);
+            uint16_t mix = raw(patternSmoothstepU16(0, 65535, static_cast<uint16_t>(t)));
+            
+            int32_t delta = static_cast<int32_t>(c1) - static_cast<int32_t>(c0);
+            uint16_t final_val = static_cast<uint16_t>(
+                static_cast<int32_t>(c0) + ((static_cast<int64_t>(delta) * mix) >> 16)
             );
-            return PatternNormU16(blended);
+            
+            return PatternNormU16(final_val);
         }
     };
 
     HexTilingPattern::HexTilingPattern(uint16_t hexRadius, uint8_t colorCount, uint16_t edgeSoftness)
-        : hex_radius_u16(hexRadius),
-          color_count(colorCount),
-          softness_u16(edgeSoftness) {
-        initDerived();
+        : hex_radius_u16(hexRadius == 0 ? 32 : hexRadius),
+          color_count(colorCount < 3 ? 3 : colorCount),
+          softness_u16(edgeSoftness),
+          softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16) { 
     }
 
     HexTilingPattern::HexTilingPattern(
         Sf16Signal hexRadius,
         uint8_t colorCount,
-        Sf16Signal edgeSoftness
-    ) : hex_radius_u16(sampleSignal(std::move(hexRadius))),
-        color_count(colorCount),
-        softness_u16(sampleSignal(std::move(edgeSoftness))) {
-        initDerived();
+        uint16_t edgeSoftness
+    ) : hex_radius_signal(std::move(hexRadius)),
+        hex_radius_u16(0),
+        color_count(colorCount < 3 ? 3 : colorCount),
+        softness_u16(edgeSoftness),
+        softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16) {
     }
 
     UVMap HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return UVHexTilingFunctor{hex_radius_raw, color_count, softness_raw};
-    }
-
-    void HexTilingPattern::initDerived() {
-        if (hex_radius_u16 == 0) {
-            hex_radius_u16 = 1;
-        }
-        hex_radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
-        if (hex_radius_raw < (1 << R8_FRAC_BITS)) {
-            hex_radius_raw = (1 << R8_FRAC_BITS);
-        }
-        if (color_count < 3) {
-            color_count = 3;
-        }
-
-        int32_t softness_cart_raw = static_cast<int32_t>(softness_u16) << R8_FRAC_BITS;
-        sr8 softness_axial = CartesianMaths::div(
-            sr8(softness_cart_raw),
-            sr8(hex_radius_raw)
-        );
-        softness_raw = raw(softness_axial);
-        if (softness_raw < 0) softness_raw = 0;
-        if (softness_raw > kMaxSoftnessQ24_8) softness_raw = kMaxSoftnessQ24_8;
-    }
-
-    uint16_t HexTilingPattern::sampleSignal(Sf16Signal signal) {
-        if (!signal) return 0;
-        MagnitudeRange range(PatternNormU16(0), PatternNormU16(SF16_MAX));
-        PatternNormU16 value = signal.sample(range, 0);
-        return raw(value);
-    }
-
-    HexTilingPattern::HexAxial HexTilingPattern::computeAxial(sr8 q, sr8 r) {
-        HexAxial h{};
-        h.q_raw = raw(q);
-        h.r_raw = raw(r);
-        h.s_raw = -h.q_raw - h.r_raw;
-        h.rx = roundQ24_8_raw(h.q_raw);
-        h.rz = roundQ24_8_raw(h.r_raw);
-        h.ry = roundQ24_8_raw(h.s_raw);
-
-        int32_t dx = abs32((h.rx << kFracBits) - h.q_raw);
-        int32_t dy = abs32((h.ry << kFracBits) - h.s_raw);
-        int32_t dz = abs32((h.rz << kFracBits) - h.r_raw);
-
-        if (dx > dy && dx > dz) {
-            h.rx = -h.ry - h.rz;
-        } else if (dy > dz) {
-            h.ry = -h.rx - h.rz;
+        int32_t radius_raw;
+        if (hex_radius_signal) {
+            TimeMillis time = context ? context->timeMs : 0;
+            MagnitudeRange range(PatternNormU16(0), PatternNormU16(64 << R8_FRAC_BITS));
+            PatternNormU16 sampled = hex_radius_signal.sample(range, time);
+            radius_raw = raw(sampled);
         } else {
-            h.rz = -h.rx - h.ry;
-        }
-        return h;
-    }
-
-    uint16_t HexTilingPattern::computeBlend(
-        const HexAxial &hex,
-        int32_t softnessRaw,
-        uint8_t colors,
-        uint8_t colorIndex,
-        uint8_t &neighborIndex
-    ) {
-        if (softnessRaw <= 0) {
-            neighborIndex = colorIndex;
-            return 0;
+            radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
         }
 
-        int32_t qf_raw = hex.q_raw - (hex.rx << kFracBits);
-        int32_t rf_raw = hex.r_raw - (hex.rz << kFracBits);
-        int32_t sf_raw = hex.s_raw - (hex.ry << kFracBits);
-
-        int32_t aq = abs32(qf_raw);
-        int32_t ar = abs32(rf_raw);
-        int32_t as = abs32(sf_raw);
-
-        int32_t nq = hex.rx;
-        int32_t nr = hex.rz;
-        int8_t dir = 0;
-        if (aq >= ar && aq >= as) {
-            dir = sign(qf_raw);
-            nq = hex.rx + dir;
-        } else if (ar >= as) {
-            dir = sign(rf_raw);
-            nr = hex.rz + dir;
-        } else {
-            dir = sign(sf_raw);
-            nq = hex.rx - dir;
-            nr = hex.rz + dir;
-        }
-
-        neighborIndex = modPositive(nq - nr, colors);
-
-        int32_t d = max3(aq, ar, as);
-        int32_t edge_dist = kHalfUnitRaw - d;
-        if (edge_dist <= 0) {
-            return SF16_MAX;
-        }
-        if (edge_dist >= softnessRaw) {
-            return 0;
-        }
-
-        uint16_t x = static_cast<uint16_t>(edge_dist << kToQ0_16Shift);
-        uint16_t edge1 = static_cast<uint16_t>(softnessRaw << kToQ0_16Shift);
-        uint16_t mask = raw(patternSmoothstepU16(0, edge1, x));
-        return static_cast<uint16_t>(SF16_MAX - mask);
+        radius_raw /= 10;
+        if (radius_raw < (1 << R8_FRAC_BITS)) radius_raw = (1 << R8_FRAC_BITS);
+        
+        return UVHexTilingFunctor{radius_raw, color_count, softness_raw};
     }
 }

@@ -35,18 +35,26 @@ namespace PolarShader {
     class HexTilingPattern : public UVPattern {
         // Stateless sampler used by the pipeline.
         struct UVHexTilingFunctor;
-        // Fixed-point axial/cube rounding result for a single sample.
-        struct HexAxial;
 
+        // Fixed-point axial/cube rounding result for a single sample.
+        struct HexAxial {
+            int32_t q_raw;
+            int32_t r_raw;
+            int32_t s_raw;
+            int32_t rx;
+            int32_t ry;
+            int32_t rz;
+        };
+
+        Sf16Signal hex_radius_signal;
         uint16_t hex_radius_u16;
         uint8_t color_count;
         uint16_t softness_u16;
-        int32_t hex_radius_raw;
         int32_t softness_raw;
 
     public:
         explicit HexTilingPattern(
-            uint16_t hexRadius = 10000,
+            uint16_t hexRadius = 32,
             uint8_t colorCount = 3,
             uint16_t edgeSoftness = 0
         );
@@ -54,27 +62,10 @@ namespace PolarShader {
         explicit HexTilingPattern(
             Sf16Signal hexRadius,
             uint8_t colorCount = 3,
-            Sf16Signal edgeSoftness = Sf16Signal()
+            uint16_t edgeSoftness = 0
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
-
-    private:
-        static constexpr int32_t kMaxSoftnessQ24_8 = 1 << (8 - 1); // 8 is R8_FRAC_BITS
-
-        void initDerived();
-
-        static uint16_t sampleSignal(Sf16Signal signal);
-
-        static HexAxial computeAxial(sr8 q, sr8 r);
-
-        static uint16_t computeBlend(
-            const HexAxial &hex,
-            int32_t softnessRaw,
-            uint8_t colors,
-            uint8_t colorIndex,
-            uint8_t &neighborIndex
-        );
     };
 }
 
