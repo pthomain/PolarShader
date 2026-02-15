@@ -175,10 +175,6 @@ namespace PolarShader {
                 bool is_up = is_even ? above_diagonal : !above_diagonal;
 
                 if (is_up) {
-                    // Center the local UV around the triangle center for better pattern alignment?
-                    // Spec says: "Consistent coordinate mapping... A pattern (like a circle) will maintain its aspect ratio"
-                    // So we just provide coordinates relative to some origin.
-                    // Let's use the triangle's bounding box center.
                     local_x = rem_x - (halfSide / 2);
                     local_y = rem_y - (h / 2);
                 } else {
@@ -195,8 +191,74 @@ namespace PolarShader {
                         local_y = -local_y;
                     }
                 }
+            } else if (state->shape == TileShape::HEXAGON) {
+                // Pointy-top hexagon tiling.
+                // side = cellSizeRaw.
+                // Width w = side * sqrt(3).
+                // Height h = side * 3/2.
+                // sqrt(3) is approx 1.732. In Q8.8 it's 443.
+                int32_t w = (static_cast<int64_t>(cellSizeRaw) * 443) >> 8;
+                int32_t h = (static_cast<int64_t>(cellSizeRaw) * 3) >> 1;
+                if (w <= 0) w = 1;
+                if (h <= 0) h = 1;
+
+                // Spacing:
+                // Horizontal spacing = w
+                // Vertical spacing = h (which is 1.5 * side)
+                // Every other row is offset by w/2.
+
+                int32_t row = floorDivide(y_raw, h);
+                bool offset_row = (row & 1) != 0;
+                int32_t x_offset = offset_row ? (w / 2) : 0;
+                int32_t col = floorDivide(x_raw - x_offset, w);
+
+                int32_t rel_x = x_raw - (col * w + x_offset);
+                int32_t rel_y = y_raw - (row * h);
+
+                // We are in a rectangle of size w by h.
+                // The top part of the rectangle (y < side/2) might belong to the hexes above.
+                int32_t s2 = cellSizeRaw / 2;
+                if (rel_y < s2) {
+                    // Corner check.
+                    // The hex boundary is a diagonal from (0, s2) to (w/2, 0) and (w/2, 0) to (w, s2).
+                    // side / w = 1 / sqrt(3).
+                    // sqrt(3) is 443 in Q8.8. 1/sqrt(3) is approx 0.577. In Q8.8 it is 147.7 -> 148.
+                    
+                    int32_t left_boundary = s2 - ((static_cast<int64_t>(rel_x) * 148) >> 8);
+                    int32_t right_boundary = s2 - ((static_cast<int64_t>(w - rel_x) * 148) >> 8);
+
+                    if (rel_x < w / 2) {
+                        if (rel_y < left_boundary) {
+                            // Upper-left hex
+                            row--;
+                            if (!offset_row) col--; 
+                        }
+                    } else {
+                        if (rel_y < right_boundary) {
+                            // Upper-right hex
+                            row--;
+                            if (offset_row) col++;
+                        }
+                    }
+                }
+
+                // Recalculate cell center for local UV
+                // Center of hex(col, row):
+                int32_t center_y = row * h + cellSizeRaw;
+                int32_t center_x = col * w + ((row & 1) ? w : w / 2);
+
+                local_x = x_raw - center_x;
+                local_y = y_raw - center_y;
+
+                if (state->mirrored) {
+                    // Stable cell ID for mirroring
+                    int32_t cell_id = (col ^ row);
+                    if (cell_id & 1) {
+                        local_x = -local_x;
+                        local_y = -local_y;
+                    }
+                }
             } else {
-                // Hexagon (to be implemented)
                 local_x = x_raw;
                 local_y = y_raw;
             }

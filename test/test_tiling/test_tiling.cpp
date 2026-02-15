@@ -150,6 +150,39 @@ void test_triangle_tiling_symmetry() {
     TEST_ASSERT_EQUAL_INT32(raw(uv1.v), raw(uv2.v));
 }
 
+void test_hexagon_tiling_basic() {
+    // Side length 64.
+    CartesianTilingTransform transform(64, false, CartesianTilingTransform::TileShape::HEXAGON);
+    
+    UV captured_uv;
+    auto mock_layer = [&](UV uv) { 
+        captured_uv = uv;
+        return PatternNormU16(0); 
+    };
+    
+    UVMap map(mock_layer);
+    auto tiled = transform(map);
+    
+    // For pointy-top hexagon with side s=64:
+    // Width = s * sqrt(3) = 64 * 1.732 = 110.8 -> 111 in sr8.
+    // Horizontal spacing between hex centers = Width = 111.
+    
+    tiled(UV(sr16(0), sr16(0))); 
+    UV uv1 = captured_uv;
+
+    // Shift by Width in sr8: Width << 8 = 111 << 8 = 28416.
+    // We use the exact calculation our implementation will use: (64 * 443) >> 8 = 110.75 -> 110 or 111.
+    // sqrt(3) in Q8.8 is 443.
+    int32_t w = (64 * 443) >> 8;
+    
+    tiled(UV(sr16(w << 8), sr16(0))); 
+    UV uv2 = captured_uv;
+    
+    // They should be in the same relative position in different hexes.
+    TEST_ASSERT_EQUAL_INT32(raw(uv1.u), raw(uv2.u));
+    TEST_ASSERT_EQUAL_INT32(raw(uv1.v), raw(uv2.v));
+}
+
 #ifdef ARDUINO
 void setup() {
     UNITY_BEGIN();
@@ -157,6 +190,7 @@ void setup() {
     RUN_TEST(test_square_tiling_mirrored);
     RUN_TEST(test_triangle_tiling_basic);
     RUN_TEST(test_triangle_tiling_symmetry);
+    RUN_TEST(test_hexagon_tiling_basic);
     UNITY_END();
 }
 void loop() {}
@@ -167,6 +201,7 @@ int main() {
     RUN_TEST(test_square_tiling_mirrored);
     RUN_TEST(test_triangle_tiling_basic);
     RUN_TEST(test_triangle_tiling_symmetry);
+    RUN_TEST(test_hexagon_tiling_basic);
     return UNITY_END();
 }
 #endif
