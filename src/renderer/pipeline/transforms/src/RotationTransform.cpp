@@ -20,6 +20,8 @@
 
 #include "renderer/pipeline/transforms/RotationTransform.h"
 #include "renderer/pipeline/signals/ranges/AngleRange.h"
+#include "renderer/pipeline/signals/ranges/BipolarRange.h"
+#include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #ifdef ARDUINO
@@ -31,37 +33,47 @@
 namespace PolarShader {
     struct RotationTransform::MappedInputs {
         Sf16Signal angleSignal;
-        AngleRange angleRange;
+        bool isAngleTurn;
     };
 
-    RotationTransform::MappedInputs RotationTransform::makeInputs(Sf16Signal angle) {
+    RotationTransform::MappedInputs RotationTransform::makeInputs(Sf16Signal angle, bool isAngleTurn) {
         return MappedInputs{
             std::move(angle),
-            AngleRange()
+            isAngleTurn
         };
     }
 
     struct RotationTransform::State {
         Sf16Signal angleSignal;
-        AngleRange angleRange;
+        bool isAngleTurn;
         f16 angleOffset = f16(0);
+        std::unique_ptr<PhaseAccumulator> accumulator;
 
         explicit State(MappedInputs inputs)
             : angleSignal(std::move(inputs.angleSignal)),
-              angleRange(std::move(inputs.angleRange)) {
+              isAngleTurn(inputs.isAngleTurn) {
+            if (!isAngleTurn) {
+                accumulator = std::make_unique<PhaseAccumulator>(
+                    [this](TimeMillis elapsedMs) {
+                        return angleSignal.sample(bipolarRange(), elapsedMs);
+                    }
+                );
+            }
         }
     };
 
-    RotationTransform::RotationTransform(Sf16Signal angle) {
-        auto inputs = makeInputs(std::move(angle));
+    RotationTransform::RotationTransform(Sf16Signal angle, bool isAngleTurn) {
+        auto inputs = makeInputs(std::move(angle), isAngleTurn);
         state = std::make_shared<State>(std::move(inputs));
     }
 
     void RotationTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
-        if (!context) {
-            Serial.println("RotationTransform::advanceFrame context is null.");
+        if (state->isAngleTurn) {
+            static AngleRange angleRange;
+            state->angleOffset = state->angleSignal.sample(angleRange, elapsedMs);
+        } else {
+            state->angleOffset = state->accumulator->advance(elapsedMs);
         }
-        state->angleOffset = state->angleSignal.sample(state->angleRange, elapsedMs);
     }
 
     UVMap RotationTransform::operator()(const UVMap &layer) const {

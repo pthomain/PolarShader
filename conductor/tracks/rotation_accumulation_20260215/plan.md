@@ -5,11 +5,11 @@ This plan outlines the steps to update `RotationTransform` to support integrated
 ## Phase 1: Core Implementation
 Update the transform logic to support the new `isAngleTurn` parameter and accumulation mode.
 
-- [ ] Task: Update `RotationTransform.h`
-    - [ ] Task: Add `bool isAngleTurn` to constructor.
-- [ ] Task: Update `RotationTransform.cpp`
-    - [ ] Task: Update `MappedInputs` and `State` structs to include `isAngleTurn` and optional `PhaseAccumulator`.
-    - [ ] Task: Implement accumulation logic in `advanceFrame` using `PhaseAccumulator` when `isAngleTurn` is false.
+- [x] Task: Update `RotationTransform.h`
+    - [x] Task: Add `bool isAngleTurn` to constructor.
+- [x] Task: Update `RotationTransform.cpp`
+    - [x] Task: Update `MappedInputs` and `State` structs to include `isAngleTurn` and optional `PhaseAccumulator`.
+    - [x] Task: Implement accumulation logic in `advanceFrame` using `PhaseAccumulator` when `isAngleTurn` is false.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Implementation' (Protocol in workflow.md)
 
 ## Phase 2: Migration & Testing

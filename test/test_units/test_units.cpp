@@ -111,8 +111,8 @@ void test_uv_round_trip() {
 
 /** @brief Verify that RotationTransform correctly rotates Cartesian UV coordinates. */
 void test_rotation_transform_uv() {
-    // Signed range mapping: -0.5 maps to 0.25 turns (90 degrees).
-    RotationTransform rotation(constant(sf16(-0x8000)));
+    // Explicitly use absolute mode (isAngleTurn = true).
+    RotationTransform rotation(constant(sf16(-0x8000)), true);
     rotation.advanceFrame(f16(0), 0);
 
     UVMap testLayer = [](UV uv) {
@@ -120,7 +120,7 @@ void test_rotation_transform_uv() {
     };
 
     // Input Cartesian UV: (1.0, 0.5) -> Centered (1.0, 0.0)
-    // Rotated 90 deg -> Centered (0.0, 1.0)
+    // Rotated 90 deg (0.25 turns) -> Centered (0.0, 1.0)
     // Back to Cartesian UV -> (0.5, 1.0)
     // Expected U: 0.5 (0x8000)
     UV input(sr16(0x00010000), sr16(0x00008000));
@@ -419,6 +419,37 @@ void test_sf16_f16_mapping_helpers() {
     TEST_ASSERT_EQUAL_INT32(SF16_MAX, raw(toSigned(f16(F16_MAX))));
 }
 
+/** @brief Verify that RotationTransform supports both absolute and accumulation modes. */
+void test_rotation_accumulation() {
+    // 1. Absolute Mode (isAngleTurn = true)
+    // Signal constant(250) remapped to -0.5 signed.
+    // AngleRange maps -0.5 signed to 0.25 turns (0x4000).
+    Sf16Signal absSignal = constant(uint16_t(250));
+    
+    RotationTransform rotAbs(absSignal, true);
+    rotAbs.advanceFrame(f16(0), 0);
+    
+    UVMap probe = [](UV uv) { return PatternNormU16(raw(uv.u)); };
+    UV input(sr16(0x00010000), sr16(0x00008000)); // (1.0, 0.5) -> Polar Angle 0
+    
+    PatternNormU16 resAbs = rotAbs(probe)(input);
+    TEST_ASSERT_UINT16_WITHIN(100, 0x8000, raw(resAbs));
+
+    // 2. Accumulation Mode (isAngleTurn = false)
+    // Speed: 1.0 turn per second (constant(1000) -> 1.0 signed)
+    Sf16Signal speedSignal = constant(uint16_t(1000));
+    RotationTransform rotAcc(speedSignal, false);
+    
+    // t=0 -> init
+    rotAcc.advanceFrame(f16(0), 0);
+    // t=200ms -> 0.2 turns -> 13107 units
+    rotAcc.advanceFrame(f16(0), 200);
+    
+    PatternNormU16 resAcc = rotAcc(probe)(input);
+    // Angle 0.2 turns (72 deg) -> x_norm ~= 42893
+    TEST_ASSERT_UINT16_WITHIN(100, 42893, raw(resAcc));
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000); 
@@ -450,6 +481,7 @@ void setup() {
     RUN_TEST(test_sf16_mul_div_helpers);
     RUN_TEST(test_f16_mul_div_helpers);
     RUN_TEST(test_sf16_f16_mapping_helpers);
+    RUN_TEST(test_rotation_accumulation);
     UNITY_END();
 }
 
@@ -484,6 +516,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_sf16_mul_div_helpers);
     RUN_TEST(test_f16_mul_div_helpers);
     RUN_TEST(test_sf16_f16_mapping_helpers);
+    RUN_TEST(test_rotation_accumulation);
     return UNITY_END();
 }
 #endif

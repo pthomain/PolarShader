@@ -33,7 +33,7 @@ namespace PolarShader {
      */
     class RotationTransform : public UVTransform {
     public:
-        explicit RotationTransform(Sf16Signal angle);
+        explicit RotationTransform(Sf16Signal angle, bool isAngleTurn = false);
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
@@ -41,7 +41,7 @@ namespace PolarShader {
 
     private:
         struct MappedInputs;
-        static MappedInputs makeInputs(Sf16Signal angle);
+        static MappedInputs makeInputs(Sf16Signal angle, bool isAngleTurn);
 
         struct State;
         std::shared_ptr<State> state;
