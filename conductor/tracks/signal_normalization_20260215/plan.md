@@ -2,17 +2,17 @@
 
 This plan outlines the steps to normalize signal modulation and range handling, ensuring consistency and precision across the PolarShader library.
 
-## Phase 1: Range Normalization & Boundary Enforcement
+## Phase 1: Range Normalization & Boundary Enforcement [checkpoint: 52c9289]
 Focus on standardizing how `AngleRange`, `BipolarRange`, and `MagnitudeRange` handle inputs and overflows.
 
-- [ ] Task: Audit and Refactor Range Classes
-    - [ ] Task: Standardize `Range.h` base interface for Q16.16 mapping.
-    - [ ] Task: Implement explicit wrapping in `AngleRange.h`.
-    - [ ] Task: Implement strict clamping/scaling in `BipolarRange.h` and `MagnitudeRange.h`.
-- [ ] Task: Write Tests for Range Boundaries
-    - [ ] Task: Create `test/test_signals/test_ranges.cpp`.
-    - [ ] Task: Test `AngleRange` with values < 0 and > 1 (verify wrapping).
-    - [ ] Task: Test `MagnitudeRange` and `BipolarRange` with extreme Q16.16 values (verify clamping).
+- [x] Task: Audit and Refactor Range Classes 52c9289
+    - [x] Task: Standardize `Range.h` base interface for Q16.16 mapping.
+    - [x] Task: Implement explicit wrapping in `AngleRange.h`.
+    - [x] Task: Implement strict clamping/scaling in `BipolarRange.h` and `MagnitudeRange.h`.
+- [x] Task: Write Tests for Range Boundaries 52c9289
+    - [x] Task: Create `test/test_units/test_ranges.cpp`.
+    - [x] Task: Test `AngleRange` with values < 0 and > 1 (verify wrapping).
+    - [x] Task: Test `MagnitudeRange` and `BipolarRange` with extreme Q16.16 values (verify clamping).
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Range Normalization' (Protocol in workflow.md)
 
 ## Phase 2: Signal Modulation Standardization
