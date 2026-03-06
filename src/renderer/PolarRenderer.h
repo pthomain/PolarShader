@@ -51,6 +51,15 @@ namespace PolarShader {
             CRGB *outputArray,
             TimeMillis timeInMillis
         );
+
+        const ColourMap &prepareFrame(TimeMillis timeInMillis);
+
+        void renderSlice(
+            CRGB *outputArray,
+            const ColourMap &colourMap,
+            uint16_t start,
+            uint16_t stride
+        ) const;
     };
 } // namespace PolarShader
 

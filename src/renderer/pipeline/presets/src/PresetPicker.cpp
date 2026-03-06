@@ -24,6 +24,7 @@
 #else
 #include "native/FastLED.h"
 #endif
+#include <iterator>
 #include "renderer/pipeline/patterns/Patterns.h"
 
 namespace PolarShader {

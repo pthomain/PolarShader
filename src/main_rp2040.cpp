@@ -18,24 +18,32 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
-#define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+#include <Arduino.h>
 
-#ifdef ARDUINO
-#include "FastLED.h"
-#else
-#include "native/FastLED.h"
-#endif
+#ifdef RP2040_ENABLED
 
-#include "renderer/pipeline/maths/units/Units.h"
+#include "FabricDisplaySpec.h"
+#include "display/FastLedDisplay.h"
 
-namespace PolarShader {
-    /** @brief The new unified sampling interface using normalized UV coordinates. */
-    using UVMap = fl::function<PatternNormU16(UV)>;
+using namespace PolarShader;
+using PolarDisplay = FastLedDisplay<FabricDisplaySpec>;
 
-    // THREAD-SAFETY: ColourMap is called concurrently from multiple cores.
-    // All functions in its call chain must be pure (no mutable static locals, no global writes).
-    using ColourMap = fl::function<CRGB(f16, f16)>;
+static PolarDisplay * volatile display = nullptr;
+
+void setup() {
+    static FabricDisplaySpec specInstance;
+    Serial.begin(115200);
+    display = new PolarDisplay(specInstance, 30);
 }
 
-#endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
+void setup1() { /* required for arduino-pico to launch Core 1 */ }
+
+void loop() {
+    display->loop();
+}
+
+void loop1() {
+    if (display) display->core1Loop();
+}
+
+#endif

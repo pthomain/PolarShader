@@ -20,20 +20,23 @@
 
 #include <Arduino.h>
 
+#include "RoundDisplaySpec.h"
+
 #ifdef XIAO_ENABLED
 
 #include "RoundDisplaySpec.h"
+#include "FabricDisplaySpec.h"
 #include "display/FastLedDisplay.h"
 
 using namespace PolarShader;
-using PolarDisplay = FastLedDisplay<RoundDisplaySpec>;
+using PolarDisplay = FastLedDisplay<FabricDisplaySpec>;
 
 static PolarDisplay *display = nullptr;
 
 void setup() {
-    static RoundDisplaySpec specInstance;
+    static FabricDisplaySpec specInstance;
     Serial.begin(115200);
-    display = new PolarDisplay(specInstance, 50);
+    display = new PolarDisplay(specInstance, 255);
 }
 
 void loop() {

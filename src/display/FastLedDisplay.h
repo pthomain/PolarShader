@@ -26,6 +26,10 @@
 #include <type_traits>
 #include "PolarDisplaySpec.h"
 
+#ifdef RP2040_ENABLED
+#include <pico/sync.h>
+#endif
+
 namespace PolarShader {
     template<typename SPEC>
     class FastLedDisplay {
@@ -34,12 +38,18 @@ namespace PolarShader {
         CRGB *outputArray;
         uint8_t refreshRateInMillis;
 
+#ifdef RP2040_ENABLED
+        const ColourMap *currentColourMap = nullptr;
+        semaphore_t startSem; // Core 0 releases to start Core 1's render
+        semaphore_t doneSem;  // Core 1 releases when its render is done
+#endif
+
     public:
         explicit FastLedDisplay(
             PolarDisplaySpec &spec,
             uint8_t brightness = 20,
             uint8_t refreshRateInMillis = 30
-        ) : renderer(spec.nbLeds(), [&spec](uint16_t pixelIndex) { return spec.toPolarCoords(pixelIndex); }),
+        ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toPolarCoords(pixelIndex); }),
             outputArray(new CRGB[spec.nbLeds()]),
             refreshRateInMillis(refreshRateInMillis) {
             CFastLED::addLeds<WS2812, SPEC::LED_PIN, SPEC::RGB_ORDER>(outputArray, spec.nbLeds())
@@ -48,19 +58,42 @@ namespace PolarShader {
             FastLED.setBrightness(brightness);
             FastLED.clear(true);
             FastLED.show();
+
+#ifdef RP2040_ENABLED
+            sem_init(&startSem, 0, 1); // 0 initial permits: Core 1 starts blocked
+            sem_init(&doneSem,  0, 1); // 0 initial permits: Core 0 starts blocked
+#endif
         }
 
         void loop() {
             EVERY_N_MILLISECONDS(refreshRateInMillis) {
+#ifdef RP2040_ENABLED
+                currentColourMap = &renderer.prepareFrame(millis());
+                sem_release(&startSem);                                      // wake Core 1
+                renderer.renderSlice(outputArray, *currentColourMap, 0, 2); // even pixels
+                sem_acquire_blocking(&doneSem);                              // wait for Core 1
+#else
                 renderer.render(outputArray, millis());
+#endif
                 FastLED.show();
             }
         }
+
+#ifdef RP2040_ENABLED
+        // Called from loop1() on Core 1. Blocks until Core 0 signals a new frame,
+        // renders odd pixels, then signals completion.
+        void core1Loop() {
+            sem_acquire_blocking(&startSem);                             // wait for Core 0
+            renderer.renderSlice(outputArray, *currentColourMap, 1, 2); // odd pixels
+            sem_release(&doneSem);                                       // signal Core 0 done
+        }
+#endif
 
         ~FastLedDisplay() {
             delete[] outputArray;
         }
     };
+
 } // namespace PolarShader
 
 #endif //POLARSHADER_POLARDISPLAY_H

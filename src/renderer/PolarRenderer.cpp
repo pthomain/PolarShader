@@ -38,15 +38,27 @@ namespace PolarShader {
         nbLeds(nbLeds) {
     }
 
+    const ColourMap &PolarRenderer::prepareFrame(TimeMillis timeInMillis) {
+        sceneManager.advanceFrame(timeInMillis);
+        return sceneManager.build();
+    }
+
     void PolarRenderer::render(
         CRGB *outputArray,
         TimeMillis timeInMillis
     ) {
-        sceneManager.advanceFrame(timeInMillis);
-        const ColourMap &colourMap = sceneManager.build();
-        for (uint16_t pixelIndex = 0; pixelIndex < nbLeds; ++pixelIndex) {
-            auto [angle, radius] = coordsMapper(pixelIndex);
-            outputArray[pixelIndex] = colourMap(angle, radius);
+        renderSlice(outputArray, prepareFrame(timeInMillis), 0, 1);
+    }
+
+    void PolarRenderer::renderSlice(
+        CRGB *outputArray,
+        const ColourMap &colourMap,
+        uint16_t start,
+        uint16_t stride
+    ) const {
+        for (uint16_t i = start; i < nbLeds; i += stride) {
+            auto [angle, radius] = coordsMapper(i);
+            outputArray[i] = colourMap(angle, radius);
         }
     }
 }
