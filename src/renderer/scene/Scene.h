@@ -21,6 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_SCENE_H
 #define POLAR_SHADER_PIPELINE_SCENE_H
 
+#include <array>
 #include <renderer/layer/Layer.h>
 
 namespace PolarShader {
@@ -33,7 +34,14 @@ namespace PolarShader {
      * contained layers for signal sampling.
      */
     class Scene {
+        struct CompositedLayer {
+            std::unique_ptr<ColourMap> map;
+            f16 alpha;
+            BlendMode blendMode;
+        };
+
         fl::vector<std::shared_ptr<Layer>> layers;
+        std::array<fl::vector<CompositedLayer>, 2> compiledLayers;
         TimeMillis durationMs;
 
     public:
@@ -41,7 +49,9 @@ namespace PolarShader {
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs);
 
-        ColourMap build() const;
+        void compile();
+
+        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const;
 
         TimeMillis getDuration() const { return durationMs; }
         

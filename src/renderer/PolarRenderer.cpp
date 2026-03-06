@@ -28,37 +28,40 @@
 namespace PolarShader {
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
-        PolarCoordsMapper coordsMapper
-    ) : coordsMapper(std::move(coordsMapper)),
-        sceneManager(std::make_unique<DefaultSceneProvider>([]() {
+        const PolarCoordsMapper& coordsMapper
+    ) : sceneManager(std::make_unique<DefaultSceneProvider>([]() {
             fl::vector<std::shared_ptr<Layer> > layers;
             layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
             return std::make_unique<Scene>(std::move(layers));
         })),
         nbLeds(nbLeds) {
+        precomputedCoords.reserve(nbLeds);
+        for (uint16_t i = 0; i < nbLeds; ++i) {
+            precomputedCoords.push_back(coordsMapper(i));
+        }
     }
 
-    const ColourMap &PolarRenderer::prepareFrame(TimeMillis timeInMillis) {
+    void PolarRenderer::prepareFrame(TimeMillis timeInMillis) {
         sceneManager.advanceFrame(timeInMillis);
-        return sceneManager.build();
     }
 
     void PolarRenderer::render(
         CRGB *outputArray,
         TimeMillis timeInMillis
     ) {
-        renderSlice(outputArray, prepareFrame(timeInMillis), 0, 1);
+        prepareFrame(timeInMillis);
+        renderSlice(outputArray, 0, 1, 0);
     }
 
     void PolarRenderer::renderSlice(
         CRGB *outputArray,
-        const ColourMap &colourMap,
         uint16_t start,
-        uint16_t stride
+        uint16_t stride,
+        uint8_t coreIndex
     ) const {
         for (uint16_t i = start; i < nbLeds; i += stride) {
-            auto [angle, radius] = coordsMapper(i);
-            outputArray[i] = colourMap(angle, radius);
+            auto [angle, radius] = precomputedCoords[i];
+            outputArray[i] = sceneManager.sample(coreIndex, angle, radius);
         }
     }
 }

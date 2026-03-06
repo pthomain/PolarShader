@@ -12,11 +12,19 @@ palette mapping state (`PipelineContext`).
 
 ## Frame lifecycle
 
-`SceneManager` calls `advanceFrame(progress, elapsedMs)` each frame:
+Scene compilation and frame execution are separate phases:
+
+- Scene creation/change: `Scene::compile()` builds stable transform chains once per core.
+- Per frame: `SceneManager` calls `advanceFrame(progress, elapsedMs)`.
+- Render: the compiled chain is sampled concurrently on RP2040 dual-core builds.
+
+`advanceFrame(progress, elapsedMs)` is the only place where transforms may update mutable state:
 
 - `progress` (`f16`) is scene-normalized progress for scene/layer orchestration.
 - `elapsedMs` (`TimeMillis`) is scene-relative elapsed time and is the canonical input for
   scalar signal factories (`Sf16Signal`).
+
+`operator()(const UVMap&)` must only wrap the downstream sampler using state that was already prepared in `advanceFrame()`. It must not sample signals, advance accumulators, or depend on per-frame graph rebuilds.
 
 ## Signal model
 
@@ -118,7 +126,9 @@ Periodic shaping:
 - Input: scalar threshold signal, optional clip signal/feather/power.
 - Maps threshold to palette index shift and writes to `PipelineContext`.
 
-## Usage note
+## Dual-core contract
 
-- `defaultPreset` currently applies `ZoomTransform(sine(constant(550), constant(1000), constant(200)))`, so zoom should oscillate
-  periodically by default.
+- `advanceFrame()` may mutate internal state and sample signals.
+- `operator()` must be read-only and safe to use from compiled per-core sampler chains.
+- Do not move signal sampling, accumulator advancement, or time reads into `operator()`.
+- Do not rely on per-frame `ColourMap` copies or rebuilds to refresh transform state.

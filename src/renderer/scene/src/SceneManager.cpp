@@ -22,8 +22,7 @@
 
 namespace PolarShader {
     SceneManager::SceneManager(std::unique_ptr<SceneProvider> provider)
-        : provider(std::move(provider)),
-          currentMap([](f16, f16) { return CRGB::Black; }) {
+        : provider(std::move(provider)) {
     }
 
     void SceneManager::advanceFrame(TimeMillis currentTimeMs) {
@@ -31,9 +30,7 @@ namespace PolarShader {
             currentScene = provider->nextScene();
             if (currentScene) {
                 currentSceneStartTimeMs = currentTimeMs;
-                currentMap = currentScene->build();
-            } else {
-                currentMap = [](f16, f16) { return CRGB::Black; };
+                currentScene->compile();
             }
         }
 
@@ -53,7 +50,10 @@ namespace PolarShader {
         }
     }
 
-    const ColourMap &SceneManager::build() const {
-        return currentMap;
+    CRGB SceneManager::sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+        if (!currentScene) {
+            return CRGB::Black;
+        }
+        return currentScene->sample(coreIndex, angle, radius);
     }
 }

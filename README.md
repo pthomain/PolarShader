@@ -1,7 +1,7 @@
 # PolarShader, a shader-like rendering library for Arduino.
 
-PolarShader is a deterministic, fixed-point LED rendering engine for microcontrollers (Seeeduino XIAO SAMD21, Teensy
-4.1).
+PolarShader is a deterministic, fixed-point LED rendering engine for microcontrollers (Seeeduino XIAO SAMD21, XIAO
+RP2040, Teensy 4.1).
 It renders animated patterns onto LED arrays (like circular/ring displays) using a composable pipeline — all without
 floating-point math.
 
@@ -12,7 +12,7 @@ floating-point math.
 PolarShader is a **domain-specific rendering engine** for LED effects where:
 
 - The **polar domain** (angle + radius) is first-class
-- All math is **fixed-point** (no floats, no heap churn)
+- All math is **fixed-point** (no floats, no per-frame heap churn)
 - Effects are built by **composing transforms**, not by writing monolithic loops
 - Motion and modulation are **explicit, typed, and deterministic**
 
@@ -31,7 +31,8 @@ It targets platforms such as:
   cartesian
 - Composable pipeline — transforms are small, single-responsibility, and stackable in any order via PipelineStep variant
 - Explicit motion — all animation driven by Sf16Signal + PhaseAccumulator, no hidden state
-- Zero heap allocation in hot paths — everything pre-allocated for MCU performance
+- Dual-core safe frame lifecycle — state changes happen in `advanceFrame()`, render sampling is read-only
+- Zero heap allocation in hot paths — scene compilation may allocate on scene changes, never in the per-frame render loop
 
 ### 1. Deterministic Fixed-Point Arithmetic
 
@@ -89,7 +90,24 @@ PolarRenderer → SceneManager → Scene → Layer(s)
                                           ↓
                           Pattern → UV Transforms → Palette → CRGB
 ```
+
+On RP2040 dual-core builds:
+
+- Core 0 owns frame timing, scene transitions, and `FastLED.show()`.
+- Scene compilation happens only when a scene is created or replaced.
+- Each scene builds one compiled sampler chain per core from the same logical scene state.
+- During render, both cores only sample their own compiled chain; no per-frame `ColourMap` handoff or copying occurs.
 ---
+
+## Frame Lifecycle
+
+PolarShader separates frame preparation from sampling:
+
+- `Scene::compile()`: runs on scene creation/change and builds stable sampler chains.
+- `advanceFrame(progress, elapsedMs)`: updates mutable frame state such as signals, accumulators, depth, and cached pattern parameters.
+- `sample()` / compiled functors: read cached state only and must remain safe for concurrent sampling on RP2040.
+
+This split is required for dual-core rendering. Anything that samples signals, advances accumulators, or mutates state must happen before render starts.
 
 ## Key Modules
 
@@ -205,7 +223,8 @@ It is intentionally narrow—and fast.
 
 ## Performance Characteristics
 
-* No heap allocation in hot paths
+* No heap allocation in per-frame hot paths
+* Scene/layer compilation may allocate only when scenes are created or replaced
 * No virtual dispatch in inner loops
 * Small, predictable codegen
 * Suitable for 48–133 MHz MCUs

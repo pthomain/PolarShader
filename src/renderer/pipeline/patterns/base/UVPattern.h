@@ -35,6 +35,11 @@ namespace PolarShader {
 
         virtual void setContext(std::shared_ptr<PipelineContext> context);
 
+        virtual void advanceFrame(f16 progress, TimeMillis elapsedMs) {
+            (void)progress;
+            (void)elapsedMs;
+        }
+
         virtual UVMap layer(const std::shared_ptr<PipelineContext> &context) const;
 
     protected:

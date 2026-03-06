@@ -60,11 +60,11 @@ namespace PolarShader {
         }
     }
 
-    ColourMap Layer::blackLayer(const char *reason) {
+    std::unique_ptr<ColourMap> Layer::blackLayer(const char *reason) {
         if (reason) Serial.println(reason);
-        return [](f16, f16) {
+        return std::make_unique<ColourMap>([](f16, f16) {
             return CRGB::Black;
-        };
+        });
     }
 
     CRGB Layer::mapPalette(
@@ -116,11 +116,8 @@ namespace PolarShader {
         if (context) {
             index = static_cast<uint8_t>(index + context->paletteOffset);
         }
-        uint8_t brightness = map16_to_8(hue_value);
-        if (context && context->paletteClipEnabled) {
-            brightness = 255;
-        }
-        CRGB color = ColorFromPalette(palette, index, brightness, LINEARBLEND);
+
+        CRGB color = ColorFromPalette(palette, index, 255, LINEARBLEND);
         if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
         }
@@ -135,6 +132,10 @@ namespace PolarShader {
             context->depth = depthSignal(progress, elapsedMs);
         }
 
+        if (pattern) {
+            pattern->advanceFrame(progress, elapsedMs);
+        }
+
         for (const auto &step: steps) {
             if (step.uvTransform) {
                 step.uvTransform->advanceFrame(progress, elapsedMs);
@@ -145,8 +146,8 @@ namespace PolarShader {
         }
     }
 
-    ColourMap Layer::build() const {
-        if (!pattern) return blackLayer("Layer::build has no base pattern.");
+    std::unique_ptr<ColourMap> Layer::compile() const {
+        if (!pattern) return blackLayer("Layer::compile has no base pattern.");
 
         UVMap currentUV = pattern->layer(context);
 
@@ -160,7 +161,7 @@ namespace PolarShader {
 
         // Final stage: map UV back to Polar domain for the display, 
         // then map pattern value to a color from the palette.
-        return [palette = palette, layer = std::move(currentUV), context = context](
+        return std::make_unique<ColourMap>([palette = palette, layer = std::move(currentUV), context = context](
             f16 angle,
             f16 radius
         ) {
@@ -173,6 +174,6 @@ namespace PolarShader {
 
             PatternNormU16 value = layer(input);
             return mapPalette(palette, value, context);
-        };
+        });
     }
 }

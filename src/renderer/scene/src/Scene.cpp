@@ -39,12 +39,6 @@ namespace PolarShader {
     }
 
     namespace {
-        struct CompositedLayer {
-            ColourMap map;
-            f16 alpha;
-            BlendMode blendMode;
-        };
-
         CRGB blend(CRGB base, CRGB top, f16 alpha, BlendMode mode) {
             if (raw(alpha) == 0) return base;
 
@@ -84,28 +78,35 @@ namespace PolarShader {
         }
     }
 
-    ColourMap Scene::build() const {
-        if (layers.empty()) {
-            return [](f16, f16) { return CRGB::Black; };
+    void Scene::compile() {
+        for (auto &coreLayers: compiledLayers) {
+            coreLayers.clear();
+            coreLayers.reserve(layers.size());
         }
 
-        fl::vector<CompositedLayer> composedLayers;
-        composedLayers.reserve(layers.size());
-        for (const auto &layer: layers) {
-            composedLayers.push_back(CompositedLayer{
-                layer->build(),
-                layer->getAlpha(),
-                layer->getBlendMode()
-            });
-        }
-
-        return [composedLayers = std::move(composedLayers)](f16 angle, f16 radius) {
-            CRGB result = CRGB::Black;
-            for (const auto &entry: composedLayers) {
-                CRGB layerColor = entry.map(angle, radius);
-                result = blend(result, layerColor, entry.alpha, entry.blendMode);
+        for (auto &coreLayers: compiledLayers) {
+            for (const auto &layer: layers) {
+                coreLayers.push_back(CompositedLayer{
+                    layer->compile(),
+                    layer->getAlpha(),
+                    layer->getBlendMode()
+                });
             }
-            return result;
-        };
+        }
+    }
+
+    CRGB Scene::sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+        if (layers.empty()) {
+            return CRGB::Black;
+        }
+
+        const auto &coreLayers = compiledLayers[coreIndex == 0 ? 0 : 1];
+        CRGB result = CRGB::Black;
+        for (const auto &entry: coreLayers) {
+            if (!entry.map) continue;
+            CRGB layerColor = (*entry.map)(angle, radius);
+            result = blend(result, layerColor, entry.alpha, entry.blendMode);
+        }
+        return result;
     }
 }

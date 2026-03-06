@@ -27,7 +27,7 @@
 namespace PolarShader {
     class RoundDisplaySpec : public PolarDisplaySpec {
     public:
-        static constexpr int LED_PIN = 9;
+        static constexpr int LED_PIN = D1;
         static constexpr EOrder RGB_ORDER = GRB;
         static constexpr uint16_t NB_SEGMENTS = 9;
         static constexpr uint16_t NB_LEDS = 241;

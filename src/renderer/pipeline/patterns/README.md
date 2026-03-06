@@ -20,22 +20,23 @@ This inheritance is mandatory as it allows the rendering pipeline to handle patt
 
 ### 2. Use Lightweight, POD-Style Functors (Preferred)
 
-The `layer()` method should return an instance of a **lightweight functor** (a struct with an `operator()`). This practice is critical for avoiding heap allocations by allowing our `fl::function` layer types to use their small buffer optimization.
+The `layer()` method should return an instance of a **lightweight functor** (a struct with an `operator()`). This practice is critical for keeping compiled sampler chains small and stable when scenes are cached for single-core or dual-core rendering.
 
-Lambdas are allowed when they are non-capturing or only capture POD data known to fit within the `fl::function` small-buffer storage. Keep them to a minimum and avoid them in hot paths.
+Lambdas are allowed when they are non-capturing or only capture lightweight, read-only state known to fit within the `fl::function` small-buffer storage. Avoid mutable captures and avoid capturing objects that perform work during copy or move.
 
 ---
 
-### 3. Patterns MUST Be Stateless
+### 3. Separate Frame State from Sampling
 
-A pattern's role is to define a static, visual structure as a pure function of position.
+A pattern's sampling path must remain pure during render, but the pattern may cache frame-derived values ahead of time.
 
-- **Pure Functions of Position (+ Depth):** A pattern's output must depend **only** on the input coordinates, the optional depth value from the `PipelineContext`, and any immutable configuration parameters passed to its constructor.
-- **NO Internal State:** A pattern's functor **must not** have mutable member variables.
-- **NO `static` Variables:** Pattern code **must not** use `static` variables.
-- **NO Time-Based Logic:** Patterns **must not** use `millis()` or any other time source.
+- **Use `advanceFrame()` for mutable work:** Signal sampling, cached radius/scale calculation, or any other frame-varying state update must happen in `advanceFrame(progress, elapsedMs)`.
+- **Keep `layer()` pure:** `layer()` is part of scene compilation. It must not sample signals, read time, advance accumulators, or mutate pattern state.
+- **Read-only functors during render:** The returned functor may read immutable configuration, `PipelineContext` values that are stable for the current frame, and values prepared in `advanceFrame()`.
+- **NO `static` Variables:** Pattern code **must not** use `static` variables for render state.
+- **NO Time-Based Logic in sampling:** Pattern functors must not call `millis()` or any other live time source.
 
-**All animation is handled *outside* the pattern** via transforms and/or a depth signal updated in the pipeline context. Patterns may consume the context depth but must remain stateless.
+This split is required for RP2040 dual-core rendering, where both cores sample compiled pattern chains concurrently.
 
 ---
 

@@ -35,6 +35,9 @@ namespace PolarShader {
     class HexTilingPattern : public UVPattern {
         // Stateless sampler used by the pipeline.
         struct UVHexTilingFunctor;
+        struct State {
+            int32_t radius_raw = (1 << R8_FRAC_BITS);
+        };
 
         // Fixed-point axial/cube rounding result for a single sample.
         struct HexAxial {
@@ -51,6 +54,7 @@ namespace PolarShader {
         uint8_t color_count;
         uint16_t softness_u16;
         int32_t softness_raw;
+        std::shared_ptr<State> state;
 
     public:
         explicit HexTilingPattern(
@@ -64,6 +68,8 @@ namespace PolarShader {
             uint8_t colorCount = 3,
             uint16_t edgeSoftness = 0
         );
+
+        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

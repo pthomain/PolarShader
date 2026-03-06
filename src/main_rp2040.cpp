@@ -19,6 +19,7 @@
  */
 
 #include <Arduino.h>
+#include <atomic>
 
 #ifdef RP2040_ENABLED
 
@@ -28,22 +29,33 @@
 using namespace PolarShader;
 using PolarDisplay = FastLedDisplay<FabricDisplaySpec>;
 
-static PolarDisplay * volatile display = nullptr;
+extern "C" {
+bool core1_separate_stack = true;
+}
+
+static std::atomic<PolarDisplay *> display{nullptr};
 
 void setup() {
     static FabricDisplaySpec specInstance;
     Serial.begin(115200);
-    display = new PolarDisplay(specInstance, 30);
+    PolarDisplay *createdDisplay = new PolarDisplay(specInstance, 255, 30, true);
+    display.store(createdDisplay, std::memory_order_release);
 }
 
 void setup1() { /* required for arduino-pico to launch Core 1 */ }
 
 void loop() {
-    display->loop();
+    PolarDisplay *currentDisplay = display.load(std::memory_order_acquire);
+    if (currentDisplay) {
+        currentDisplay->loop();
+    }
 }
 
 void loop1() {
-    if (display) display->core1Loop();
+    PolarDisplay *currentDisplay = display.load(std::memory_order_acquire);
+    if (currentDisplay) {
+        currentDisplay->core1Loop();
+    }
 }
 
 #endif

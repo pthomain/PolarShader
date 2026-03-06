@@ -144,7 +144,9 @@ namespace PolarShader {
         : hex_radius_u16(hexRadius == 0 ? 32 : hexRadius),
           color_count(colorCount < 3 ? 3 : colorCount),
           softness_u16(edgeSoftness),
-          softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16) { 
+          softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16),
+          state(std::make_shared<State>()) {
+        state->radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
     }
 
     HexTilingPattern::HexTilingPattern(
@@ -155,22 +157,29 @@ namespace PolarShader {
         hex_radius_u16(0),
         color_count(colorCount < 3 ? 3 : colorCount),
         softness_u16(edgeSoftness),
-        softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16) {
+        softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16),
+        state(std::make_shared<State>()) {
+    }
+
+    void HexTilingPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+        (void)progress;
+        if (hex_radius_signal) {
+            MagnitudeRange range(PatternNormU16(0), PatternNormU16(64 << R8_FRAC_BITS));
+            PatternNormU16 sampled = hex_radius_signal.sample(range, elapsedMs);
+            state->radius_raw = raw(sampled);
+        } else {
+            state->radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
+        }
+
+        if (state->radius_raw < (1 << R8_FRAC_BITS)) {
+            state->radius_raw = (1 << R8_FRAC_BITS);
+        }
     }
 
     UVMap HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        int32_t radius_raw;
-        if (hex_radius_signal) {
-            TimeMillis time = context ? context->timeMs : 0;
-            MagnitudeRange range(PatternNormU16(0), PatternNormU16(64 << R8_FRAC_BITS));
-            PatternNormU16 sampled = hex_radius_signal.sample(range, time);
-            radius_raw = raw(sampled);
-        } else {
-            radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
-        }
-
-        if (radius_raw < (1 << R8_FRAC_BITS)) radius_raw = (1 << R8_FRAC_BITS);
-        
-        return UVHexTilingFunctor{radius_raw, color_count, softness_raw};
+        (void)context;
+        return [state = this->state, color_count = this->color_count, softness_raw = this->softness_raw](UV uv) {
+            return UVHexTilingFunctor{state->radius_raw, color_count, softness_raw}(uv);
+        };
     }
 }

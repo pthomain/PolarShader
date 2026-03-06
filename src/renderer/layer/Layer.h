@@ -62,7 +62,7 @@ namespace PolarShader {
         f16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
 
-        static ColourMap blackLayer(const char *reason);
+        static std::unique_ptr<ColourMap> blackLayer(const char *reason);
 
         static CRGB mapPalette(
             const CRGBPalette16 &palette,
@@ -86,7 +86,7 @@ namespace PolarShader {
     public:
         void advanceFrame(f16 progress, TimeMillis elapsedMs);
 
-        ColourMap build() const;
+        std::unique_ptr<ColourMap> compile() const;
 
         const char *getName() const { return name; }
 

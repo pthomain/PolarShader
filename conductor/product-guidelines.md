@@ -2,7 +2,7 @@
 
 ## Development Philosophy
 - **Clarity & Composability:** Prioritize modular, readable code that reflects the "shader-like" philosophy. Components should be easy to understand in isolation and simple to combine into complex pipelines.
-- **Deterministic Fixed-Point:** Every operation must be deterministic. Avoid floating-point arithmetic and dynamic memory allocation in the hot path.
+- **Deterministic Fixed-Point:** Every operation must be deterministic. Avoid floating-point arithmetic and dynamic memory allocation in the per-frame hot path.
 
 ## API Design
 - **Fluent & Declarative:** Provide a builder-style API that allows users to declare the rendering pipeline in a readable, sequential manner.
@@ -70,14 +70,25 @@
 - `MappedSignal` has no absolute/relative mode.
 - `ZoomTransform` scale mapping is absolute by design.
 
+## Dual-Core Rendering Contract
+
+1. **Single Logical Scene Owner:** Scene timing and scene transitions must be owned by one `SceneManager` on core 0.
+2. **Compile on Scene Change, Not Per Frame:** Scene/layer/pattern graphs may be compiled when a scene is created or replaced. The per-frame render path must not rebuild `ColourMap` chains.
+3. **Per-Core Sampler Instances:** Dual-core rendering must use independently compiled sampler instances derived from the same logical scene definition. Do not construct separate randomized scenes per core.
+4. **`advanceFrame()` Is the Mutable Phase:** Signal sampling, accumulator advancement, depth updates, and cached parameter updates belong in `advanceFrame(progress, elapsedMs)`.
+5. **Sampling Is Read-Only:** `layer()`, transform `operator()`, and final sample functions must be read-only during render. They must not sample signals, mutate shared state, or read live time sources.
+6. **No Per-Frame `ColourMap` Handoff:** Do not copy or move `ColourMap`/`fl::function` objects across cores during frame rendering. Synchronize by frame ownership and slice indices, not by passing function objects around.
+7. **Safe RP2040 Startup:** Core 1 must not dereference shared display/renderer state before it is fully constructed and published.
+
 ## Implementation Standards
 - **Error Handling:** Lean on predictable, documented overflow behavior (wrap or saturation). Use deterministic math rules to ensure consistent results across platforms.
 - **Documentation:** Focus on high-quality `README.md` files for each major module that explain the architecture, math, and usage examples. Inline comments should be used sparingly and only to explain "why" complex logic is necessary.
-- **Performance:** While clarity is key, ensure that inner loops are free of virtual dispatch and heap churn. Keep the memory footprint predictable.
+- **Performance:** While clarity is key, ensure that inner loops are free of virtual dispatch and heap churn. Scene compilation may allocate on scene changes; the active frame loop must not.
 - **Code Organization:** Every module should expose its public headers from `module/` (e.g., `renderer/pipeline/patterns/NoisePattern.h`) while moving implementation `.cpp` files into a sibling `module/src/` package (e.g., `renderer/pipeline/patterns/src/NoisePattern.cpp`). Platform-specific translation units and tests should continue to include the `.cpp` files in their new `src/` location, and PlatformIO filters must be updated to ignore the implementation package when a build target targets a different entry point. This layout keeps headers and implementation logically separated without disturbing the existing include paths.
 
 ## Verification and Safety
 - **Build Verification:** Before finishing any track or committing significant changes, **YOU MUST** verify that the firmware builds and uploads successfully to the `teensy41_matrix` environment.
 - **Hardware Targets:** Always verify compilation for both `native` (for unit tests) and `teensy41_matrix` (for hardware deployment).
+- **RP2040 Changes:** Any change to dual-core scheduling, `SceneManager`, `Scene`, `Layer`, `UVPattern`, or the display handoff must also be verified against `seeed_xiao_rp2040`.
 - **Unit Tests:** Write and run unit tests for all new logic (patterns, math, transforms) in the `native` environment.
 - **No Floating Point:** Do not use `float` or `double` in the rendering pipeline. Use fixed-point math exclusively.

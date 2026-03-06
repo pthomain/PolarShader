@@ -19,4 +19,4 @@
 ## Hardware & Architecture
 - **Focus:** 32-bit MCUs with sufficient clock speed for real-time rendering.
 - **Constraint:** Fixed-point arithmetic only; no reliance on hardware floating-point units (FPU).
-- **Architecture:** Utilizes a mix of template-based strong typing and functional composition for high-level abstractions like Signals, Scenes, and Layers.
+- **Architecture:** Utilizes a mix of template-based strong typing and functional composition for high-level abstractions like Signals, Scenes, and Layers. RP2040 builds may split rendering across both cores using independently compiled per-core sampler chains and an atomic startup handoff.

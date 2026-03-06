@@ -38,7 +38,6 @@ namespace PolarShader {
     class SceneManager {
         std::unique_ptr<SceneProvider> provider;
         std::unique_ptr<Scene> currentScene;
-        ColourMap currentMap;
         TimeMillis currentSceneStartTimeMs{0};
 
     public:
@@ -46,7 +45,7 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis currentTimeMs);
 
-        const ColourMap &build() const;
+        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const;
     };
 }
 

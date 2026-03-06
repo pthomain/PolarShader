@@ -44,36 +44,34 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    noisePattern(),
+                    hexTilingPattern(
+                        100,
+                        16
+                    ),
                     palette,
                     "kaleidoscope"
                 )
-                .setDepthSignal(noise()) //depth signal should always accumulate
+                // .setDepthSignal(sine() //depth signal should always accumulate
                 .addPaletteTransform(
                     PaletteTransform(
-                        noise(
-                            constant(100),
-                            noise(constant(150), constant(70), constant(30)),
-                            noise(constant(150), constant(100), constant(100))
-                        )
+                        noise()
+                        // constant(200)
                     )
                 )
                 .addTransform(
                     ZoomTransform(
                         noise(constant(10), constant(500), constant(500))
-                    ))
-
+                    )
+                )
                 //Translation drifts into solid colour when placed after kaleidoscope
                 .addTransform(
                     TranslationTransform(
                         noise(constant(30)),
                         noise(constant(100), constant(50), constant(50))
-                    )
-                )
-
+                    ))
                 .addTransform(KaleidoscopeTransform(
-                    4,
-                    false
+                    2,
+                    true
                 ))
 
                 .addTransform(VortexTransform(

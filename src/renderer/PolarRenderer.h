@@ -23,6 +23,7 @@
 
 #include "fl/function.h"
 #include "fl/pair.h"
+#include "fl/vector.h"
 #include "renderer/pipeline/maths/units/Units.h"
 #include "renderer/scene/SceneManager.h"
 
@@ -36,7 +37,7 @@ namespace PolarShader {
      * PolarRenderer uses a SceneManager to render complex multi-layered scenes.
      */
     class PolarRenderer {
-        const PolarCoordsMapper coordsMapper;
+        fl::vector<PolarCoords> precomputedCoords;
         SceneManager sceneManager;
 
     public:
@@ -44,7 +45,7 @@ namespace PolarShader {
 
         explicit PolarRenderer(
             uint16_t nbLeds,
-            PolarCoordsMapper coordsMapper
+            const PolarCoordsMapper& coordsMapper
         );
 
         void render(
@@ -52,13 +53,13 @@ namespace PolarShader {
             TimeMillis timeInMillis
         );
 
-        const ColourMap &prepareFrame(TimeMillis timeInMillis);
+        void prepareFrame(TimeMillis timeInMillis);
 
         void renderSlice(
             CRGB *outputArray,
-            const ColourMap &colourMap,
             uint16_t start,
-            uint16_t stride
+            uint16_t stride,
+            uint8_t coreIndex
         ) const;
     };
 } // namespace PolarShader
