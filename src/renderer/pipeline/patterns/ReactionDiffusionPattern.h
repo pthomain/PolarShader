@@ -65,6 +65,7 @@ namespace PolarShader {
 
             static void step(State& s);
             static void seed(State& s);
+            static bool needsReseed(const State& s);
             struct RDFunctor;
 
     public:

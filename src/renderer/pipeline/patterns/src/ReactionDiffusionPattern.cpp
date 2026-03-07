@@ -43,22 +43,22 @@ namespace PolarShader {
         };
         constexpr uint16_t RD_SATURATION_DELTA = 0x0400;
         constexpr uint32_t RD_RESEED_FRAME_LIMIT = 120;
+    }
 
-        bool needsReseed(const ReactionDiffusionPattern::State &s) {
-            const uint16_t * v = s.v.get();
-            const uint32_t n = (uint32_t)s.width * s.height;
-            uint16_t min_v = 65535;
-            uint16_t max_v = 0;
-            for (uint32_t i = 0; i < n; ++i) {
-                const uint16_t value = v[i];
-                if (value < min_v) min_v = value;
-                if (value > max_v) max_v = value;
-                if (max_v - min_v >= RD_SATURATION_DELTA) {
-                    return false;
-                }
+    bool ReactionDiffusionPattern::needsReseed(const State &s) {
+        const uint16_t * v = s.v.get();
+        const uint32_t n = (uint32_t)s.width * s.height;
+        uint16_t min_v = 65535;
+        uint16_t max_v = 0;
+        for (uint32_t i = 0; i < n; ++i) {
+            const uint16_t value = v[i];
+            if (value < min_v) min_v = value;
+            if (value > max_v) max_v = value;
+            if (max_v - min_v >= RD_SATURATION_DELTA) {
+                return false;
             }
-            return true;
         }
+        return true;
     }
 
     struct ReactionDiffusionPattern::RDFunctor {
