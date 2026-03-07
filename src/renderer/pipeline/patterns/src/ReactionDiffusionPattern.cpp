@@ -44,7 +44,7 @@ namespace PolarShader {
         constexpr uint16_t RD_SATURATION_DELTA = 0x0400;
         constexpr uint32_t RD_RESEED_FRAME_LIMIT = 120;
 
-        bool needsReseed(const State &s) {
+        bool needsReseed(const ReactionDiffusionPattern::State &s) {
             const uint16_t * v = s.v.get();
             const uint32_t n = (uint32_t)s.width * s.height;
             uint16_t min_v = 65535;
