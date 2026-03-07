@@ -18,45 +18,27 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <Arduino.h>
-#include <atomic>
+#include "FabricDisplaySpec.h"
+#include "main_rp2040_shared.h"
 
 #ifdef RP2040_ENABLED
-
-#include "FabricDisplaySpec.h"
-#include "RoundDisplaySpec.h"
-#include "display/FastLedDisplay.h"
-
-using namespace PolarShader;
-using PolarDisplay = FastLedDisplay<FabricDisplaySpec>;
-
 extern "C" {
 bool core1_separate_stack = true;
 }
 
-static std::atomic<PolarDisplay *> display{nullptr};
-
 void setup() {
-    static FabricDisplaySpec specInstance;
-    Serial.begin(115200);
-    PolarDisplay *createdDisplay = new PolarDisplay(specInstance, 255, 30, true);
-    display.store(createdDisplay, std::memory_order_release);
+    PolarShader::Rp2040DisplayApp<PolarShader::FabricDisplaySpec>::setup();
 }
 
-void setup1() { /* required for arduino-pico to launch Core 1 */ }
+void setup1() {
+    PolarShader::Rp2040DisplayApp<PolarShader::FabricDisplaySpec>::setup1();
+}
 
 void loop() {
-    PolarDisplay *currentDisplay = display.load(std::memory_order_acquire);
-    if (currentDisplay) {
-        currentDisplay->loop();
-    }
+    PolarShader::Rp2040DisplayApp<PolarShader::FabricDisplaySpec>::loop();
 }
 
 void loop1() {
-    PolarDisplay *currentDisplay = display.load(std::memory_order_acquire);
-    if (currentDisplay) {
-        currentDisplay->core1Loop();
-    }
+    PolarShader::Rp2040DisplayApp<PolarShader::FabricDisplaySpec>::loop1();
 }
-
 #endif
