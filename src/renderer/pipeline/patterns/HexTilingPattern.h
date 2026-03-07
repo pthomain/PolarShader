@@ -54,7 +54,7 @@ namespace PolarShader {
         uint8_t color_count;
         uint16_t softness_u16;
         int32_t softness_raw;
-        std::shared_ptr<State> state;
+        State state;
 
     public:
         explicit HexTilingPattern(

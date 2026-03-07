@@ -44,19 +44,18 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    reactionDiffusionPattern(
-                    ReactionDiffusionPattern::Preset::Spots,
-                    48,
-                    48,
-                    4
-                    ), //last changes broke hexPatterns
+                    hexTilingPattern(
+                        100,
+                        8,
+                        50
+                    ),
                     // noisePattern(),
-                palette,
-                "kaleidoscope"
-            )
-            // .setDepthSignal(sine() //depth signal should always accumulate
-            .addPaletteTransform(
-                PaletteTransform(
+                    palette,
+                    "kaleidoscope"
+                )
+                // .setDepthSignal(sine() //depth signal should always accumulate
+                .addPaletteTransform(
+                    PaletteTransform(
                         noise()
                         // constant(200)
                     )
@@ -94,8 +93,7 @@ namespace PolarShader {
                         ),
                         true
                     )
-                )
-                ;
+                );
     }
 
     LayerBuilder hexKaleidoscopePreset(

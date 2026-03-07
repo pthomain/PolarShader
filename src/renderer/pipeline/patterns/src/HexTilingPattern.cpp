@@ -34,9 +34,11 @@ namespace PolarShader {
 
         uint16_t mapColorValue(uint8_t index, uint8_t colors) {
             if (colors <= 1) return SF16_MAX;
-            uint32_t numerator = static_cast<uint32_t>(index + 1) * SF16_MAX;
-            uint16_t value = static_cast<uint16_t>(numerator / colors);
-            return value == 0 ? 1 : value;
+            uint32_t denominator = static_cast<uint32_t>(colors > 1 ? colors - 1 : colors);
+            if (denominator == 0) return SF16_MAX;
+            uint32_t numerator = static_cast<uint32_t>(index) * SF16_MAX;
+            uint16_t value = static_cast<uint16_t>(numerator / denominator);
+            return value;
         }
 
         int32_t hexRoundF16(int32_t v_f16) {
@@ -57,11 +59,12 @@ namespace PolarShader {
     }
 
     struct HexTilingPattern::UVHexTilingFunctor {
-        int32_t hex_radius_raw;
+        const State *state;
         uint8_t color_count;
         int32_t softness_raw_f16;
 
         PatternNormU16 operator()(UV uv) const {
+            int32_t hex_radius_raw = state ? state->radius_raw : 0;
             if (hex_radius_raw <= 0) return PatternNormU16(0);
 
             int32_t x_raw = raw(uv.u);
@@ -119,10 +122,8 @@ namespace PolarShader {
             // Edge distance metric (normalized difference of squared distances)
             // Near the edge, (d1 - d0) is linear to the actual distance.
             int32_t diff = static_cast<int32_t>(d1 - d0);
-            
-            // Antialiasing width (Q16.16 axial squared units)
-            // Minimum softness scaled to radius to ensure sub-pixel smoothness.
-            int32_t soft = softness_raw_f16 < 1200 ? 1200 : softness_raw_f16;
+            int32_t soft = softness_raw_f16;
+            if (soft <= 0) soft = 1;
 
             if (diff >= soft) return PatternNormU16(c0);
             if (diff <= -soft) return PatternNormU16(c1);
@@ -144,9 +145,8 @@ namespace PolarShader {
         : hex_radius_u16(hexRadius == 0 ? 32 : hexRadius),
           color_count(colorCount < 3 ? 3 : colorCount),
           softness_u16(edgeSoftness),
-          softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16),
-          state(std::make_shared<State>()) {
-        state->radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
+          softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16) {
+        state.radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
     }
 
     HexTilingPattern::HexTilingPattern(
@@ -157,8 +157,7 @@ namespace PolarShader {
         hex_radius_u16(0),
         color_count(colorCount < 3 ? 3 : colorCount),
         softness_u16(edgeSoftness),
-        softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16),
-        state(std::make_shared<State>()) {
+        softness_raw((static_cast<uint32_t>(edgeSoftness) * 20000) >> 16) {
     }
 
     void HexTilingPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
@@ -166,20 +165,18 @@ namespace PolarShader {
         if (hex_radius_signal) {
             MagnitudeRange range(PatternNormU16(0), PatternNormU16(64 << R8_FRAC_BITS));
             PatternNormU16 sampled = hex_radius_signal.sample(range, elapsedMs);
-            state->radius_raw = raw(sampled);
+            state.radius_raw = raw(sampled);
         } else {
-            state->radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
+            state.radius_raw = static_cast<int32_t>(hex_radius_u16) << R8_FRAC_BITS;
         }
 
-        if (state->radius_raw < (1 << R8_FRAC_BITS)) {
-            state->radius_raw = (1 << R8_FRAC_BITS);
+        if (state.radius_raw < (1 << R8_FRAC_BITS)) {
+            state.radius_raw = (1 << R8_FRAC_BITS);
         }
     }
 
     UVMap HexTilingPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
         (void)context;
-        return [state = this->state, color_count = this->color_count, softness_raw = this->softness_raw](UV uv) {
-            return UVHexTilingFunctor{state->radius_raw, color_count, softness_raw}(uv);
-        };
+        return UVHexTilingFunctor{&state, color_count, softness_raw};
     }
 }
