@@ -24,6 +24,7 @@
 #include <memory>
 #include <renderer/pipeline/patterns/WorleyConstants.h>
 #include <renderer/pipeline/patterns/WorleyPatterns.h>
+#include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 
 namespace PolarShader {
@@ -55,11 +56,11 @@ namespace PolarShader {
     // Ridged noise (inverted turbulence).
     std::unique_ptr<UVPattern> ridgedNoisePattern();
 
-    // Hexagon tiling with N-colouring (no adjacent matches when colorCount >= 3).
-    std::unique_ptr<UVPattern> hexTilingPattern(
-        uint16_t hexRadius = 1,
+    // Shape-aware tiling with N-colouring (no adjacent matches when colorCount >= 3).
+    std::unique_ptr<UVPattern> tilingPattern(
+        uint16_t cellSize = 1,
         uint8_t colorCount = 4,
-        uint16_t edgeSoftness = 0
+        TilingPattern::TileShape shape = TilingPattern::TileShape::HEXAGON
     );
 
     // Gray-Scott reaction-diffusion simulation.

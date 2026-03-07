@@ -18,28 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_CARTESIAN_CARTESIANTILINGTRANSFORM_H
-#define POLAR_SHADER_TRANSFORMS_CARTESIAN_CARTESIANTILINGTRANSFORM_H
+#ifndef POLAR_SHADER_TRANSFORMS_TILINGTRANSFORM_H
+#define POLAR_SHADER_TRANSFORMS_TILINGTRANSFORM_H
 
+#include "renderer/pipeline/maths/TilingMaths.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/transforms/base/Transforms.h"
 #include <memory>
 
 namespace PolarShader {
     /**
-     * Tiles the cartesian plane into square cells of uniform size and optionally mirrors every other cell.
+     * Tiles the cartesian plane into shape-aware cells and optionally mirrors every other cell.
      */
-    class CartesianTilingTransform : public UVTransform {
+    class TilingTransform : public UVTransform {
     public:
-        enum class TileShape {
-            SQUARE,
-            TRIANGLE,
-            HEXAGON
-        };
+        using TileShape = TilingMaths::TileShape;
 
-        explicit CartesianTilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false, TileShape shape = TileShape::SQUARE);
+        explicit TilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false, TileShape shape = TileShape::SQUARE);
 
-        explicit CartesianTilingTransform(
+        explicit TilingTransform(
             Sf16Signal cellSize,
             bool mirrored = false,
             TileShape shape = TileShape::SQUARE
@@ -52,14 +49,9 @@ namespace PolarShader {
         UVMap operator()(const UVMap &layer) const override;
 
     private:
-        struct MappedInputs;
-        static MappedInputs makeInputs(
-            Sf16Signal cellSize
-        );
-
         struct State;
         std::shared_ptr<State> state;
     };
 }
 
-#endif // POLAR_SHADER_TRANSFORMS_CARTESIAN_CARTESIANTILINGTRANSFORM_H
+#endif // POLAR_SHADER_TRANSFORMS_TILINGTRANSFORM_H

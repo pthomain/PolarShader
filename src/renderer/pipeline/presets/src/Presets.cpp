@@ -23,6 +23,7 @@
 #include "renderer/pipeline/transforms/RotationTransform.h"
 #include "renderer/pipeline/transforms/TranslationTransform.h"
 #include "renderer/pipeline/transforms/ZoomTransform.h"
+#include "renderer/pipeline/transforms/TilingTransform.h"
 #include "renderer/pipeline/transforms/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/VortexTransform.h"
 #include "renderer/pipeline/patterns/base/UVPattern.h"
@@ -44,10 +45,10 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    hexTilingPattern(
+                    tilingPattern(
                         100,
                         8,
-                        50
+                        TilingPattern::TileShape::HEXAGON
                     ),
                     // noisePattern(),
                     palette,
@@ -56,8 +57,13 @@ namespace PolarShader {
                 // .setDepthSignal(sine() //depth signal should always accumulate
                 .addPaletteTransform(
                     PaletteTransform(
-                        noise()
-                        // constant(200)
+                        // sine()
+                        noise(
+                            constant(300),
+                            constant(100),
+                            sine(constant(300), constant(200)),
+                            noise(constant(200))
+                        )
                     )
                 )
                 .addTransform(
@@ -73,9 +79,16 @@ namespace PolarShader {
                         noise(constant(100), constant(50), constant(50))
                     ))
                 // .addTransform(KaleidoscopeTransform(
-                //     2,
-                //     true
+                    // 2,
+                    // true
                 // ))
+                .addTransform(
+                    TilingTransform(
+                        50,
+                        true,
+                        TilingMaths::TileShape::HEXAGON
+                    )
+                )
                 //
                 // .addTransform(VortexTransform(
                 //     noise(
@@ -100,7 +113,7 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    // hexTilingPattern(
+                    // tilingPattern(
                     // 10000,
                     // 32,
                     // 50
@@ -130,7 +143,7 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    // hexTilingPattern(
+                    // tilingPattern(
                     // 100,
                     // 16
                     // ),

@@ -18,55 +18,45 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_TILINGPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_TILINGPATTERN_H
 
+#include "renderer/pipeline/maths/TilingMaths.h"
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
     /**
-     * @brief Regular hexagon tiling with an N-coloring that guarantees no adjacent matches.
-     *
-     * The hex size is the radius from the center to any corner (pointy-top orientation).
-     * Colors repeat using a (q - r) modulo scheme on axial coordinates, which ensures
-     * all 6 neighbors are different when colorCount >= 3.
+     * Shape-aware tiling pattern with adjacency-safe N-coloring and hard cell edges.
      */
-    class HexTilingPattern : public UVPattern {
+    class TilingPattern : public UVPattern {
+    public:
+        using TileShape = TilingMaths::TileShape;
+
+    private:
         // Stateless sampler used by the pipeline.
-        struct UVHexTilingFunctor;
+        struct UVTilingFunctor;
         struct State {
-            int32_t radius_raw = (1 << R8_FRAC_BITS);
+            int32_t cell_size_raw = (1 << R8_FRAC_BITS);
         };
 
-        // Fixed-point axial/cube rounding result for a single sample.
-        struct HexAxial {
-            int32_t q_raw;
-            int32_t r_raw;
-            int32_t s_raw;
-            int32_t rx;
-            int32_t ry;
-            int32_t rz;
-        };
-
-        Sf16Signal hex_radius_signal;
-        uint16_t hex_radius_u16;
+        Sf16Signal cell_size_signal;
+        uint16_t cell_size_u16;
         uint8_t color_count;
-        uint16_t softness_u16;
-        int32_t softness_raw;
+        TileShape shape;
         State state;
 
     public:
-        explicit HexTilingPattern(
-            uint16_t hexRadius = 32,
+        explicit TilingPattern(
+            uint16_t cellSize = 32,
             uint8_t colorCount = 3,
-            uint16_t edgeSoftness = 0
+            TileShape shape = TileShape::HEXAGON
         );
 
-        explicit HexTilingPattern(
-            Sf16Signal hexRadius,
+        explicit TilingPattern(
+            Sf16Signal cellSize,
             uint8_t colorCount = 3,
-            uint16_t edgeSoftness = 0
+            TileShape shape = TileShape::HEXAGON
         );
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
@@ -75,4 +65,4 @@ namespace PolarShader {
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_HEXTILINGPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_TILINGPATTERN_H

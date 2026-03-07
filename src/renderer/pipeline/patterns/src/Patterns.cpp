@@ -20,7 +20,7 @@
 
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/patterns/NoisePattern.h"
-#include "renderer/pipeline/patterns/HexTilingPattern.h"
+#include "renderer/pipeline/patterns/TilingPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 
 namespace PolarShader {
@@ -54,12 +54,12 @@ namespace PolarShader {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::Ridged);
     }
 
-    std::unique_ptr<UVPattern> hexTilingPattern(
-        uint16_t hexRadius,
+    std::unique_ptr<UVPattern> tilingPattern(
+        uint16_t cellSize,
         uint8_t colorCount,
-        uint16_t edgeSoftness
+        TilingPattern::TileShape shape
     ) {
-        return std::make_unique<HexTilingPattern>(hexRadius, colorCount, edgeSoftness);
+        return std::make_unique<TilingPattern>(cellSize, colorCount, shape);
     }
 
     std::unique_ptr<UVPattern> reactionDiffusionPattern(
