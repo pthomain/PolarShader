@@ -37,12 +37,35 @@ namespace PolarShader {
         PolarRenderer renderer;
         CRGB *outputArray;
         uint8_t refreshRateInMillis;
+        fl::vector<uint8_t> freePinsForEntropy = {2, 3, 4, 5, 6, 7, 8, 9, 10};
 
 #ifdef RP2040_ENABLED
         bool dualCore{false};
         semaphore_t startSem; // Core 0 releases to start Core 1's render
-        semaphore_t doneSem;  // Core 1 releases when its render is done
+        semaphore_t doneSem; // Core 1 releases when its render is done
 #endif
+
+        void addEntropy() {
+            static bool seedSet = false;
+            uint8_t entropy = 0;
+
+            if (!seedSet) {
+                for (auto pin: freePinsForEntropy) {
+                    pinMode(pin, INPUT);
+                }
+            }
+
+            for (uint8_t i = 0; i < 16; i++) {
+                entropy = (entropy << 1) | (analogRead(freePinsForEntropy[i % freePinsForEntropy.size()]) & 1);
+            }
+
+            if (seedSet) {
+                random16_add_entropy(entropy);
+            } else {
+                random16_set_seed(entropy);
+                seedSet = true;
+            }
+        }
 
     public:
         explicit FastLedDisplay(
@@ -53,6 +76,13 @@ namespace PolarShader {
         ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toPolarCoords(pixelIndex); }),
             outputArray(new CRGB[spec.nbLeds()]),
             refreshRateInMillis(refreshRateInMillis) {
+            freePinsForEntropy.erase(
+                fl::remove(freePinsForEntropy.begin(), freePinsForEntropy.end(), SPEC::LED_PIN),
+                freePinsForEntropy.end()
+            );
+
+            addEntropy();
+
             CFastLED::addLeds<WS2812, SPEC::LED_PIN, SPEC::RGB_ORDER>(outputArray, spec.nbLeds())
                     .setCorrection(TypicalLEDStrip);
 
@@ -64,7 +94,7 @@ namespace PolarShader {
             this->dualCore = dualCore;
             if (dualCore) {
                 sem_init(&startSem, 0, 1); // 0 initial permits: Core 1 starts blocked
-                sem_init(&doneSem,  0, 1); // 0 initial permits: Core 0 starts blocked
+                sem_init(&doneSem, 0, 1); // 0 initial permits: Core 0 starts blocked
             }
 #endif
         }
@@ -74,9 +104,9 @@ namespace PolarShader {
 #ifdef RP2040_ENABLED
                 if (dualCore) {
                     renderer.prepareFrame(millis());
-                    sem_release(&startSem);                  // wake Core 1
-                    renderer.renderSlice(outputArray, 0, 2, 0);  // even pixels
-                    sem_acquire_blocking(&doneSem);          // wait for Core 1
+                    sem_release(&startSem); // wake Core 1
+                    renderer.renderSlice(outputArray, 0, 2, 0); // even pixels
+                    sem_acquire_blocking(&doneSem); // wait for Core 1
                 } else {
                     renderer.render(outputArray, millis());
                 }
@@ -92,9 +122,9 @@ namespace PolarShader {
         // renders odd pixels, then signals completion.
         void core1Loop() {
             if (!dualCore) return;
-            sem_acquire_blocking(&startSem);        // wait for Core 0
+            sem_acquire_blocking(&startSem); // wait for Core 0
             renderer.renderSlice(outputArray, 1, 2, 1); // odd pixels
-            sem_release(&doneSem);                  // signal Core 0 done
+            sem_release(&doneSem); // signal Core 0 done
         }
 #endif
 
@@ -102,7 +132,6 @@ namespace PolarShader {
             delete[] outputArray;
         }
     };
-
 } // namespace PolarShader
 
 #endif //POLARSHADER_POLARDISPLAY_H

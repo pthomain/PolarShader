@@ -33,6 +33,7 @@
 #include "renderer/pipeline/patterns/src/Patterns.cpp"
 #include "renderer/pipeline/patterns/src/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/src/HexTilingPattern.cpp"
+#include "renderer/pipeline/patterns/src/ReactionDiffusionPattern.cpp"
 #include "renderer/pipeline/patterns/src/WorleyPatterns.cpp"
 #include "renderer/pipeline/patterns/src/base/UVPattern.cpp"
 #include "renderer/layer/src/Layer.cpp"

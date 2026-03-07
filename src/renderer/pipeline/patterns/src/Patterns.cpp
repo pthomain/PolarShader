@@ -21,6 +21,7 @@
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/patterns/HexTilingPattern.h"
+#include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> worleyPattern(
@@ -59,5 +60,14 @@ namespace PolarShader {
         uint16_t edgeSoftness
     ) {
         return std::make_unique<HexTilingPattern>(hexRadius, colorCount, edgeSoftness);
+    }
+
+    std::unique_ptr<UVPattern> reactionDiffusionPattern(
+        ReactionDiffusionPattern::Preset preset,
+        uint8_t width,
+        uint8_t height,
+        uint8_t stepsPerFrame
+    ) {
+        return std::make_unique<ReactionDiffusionPattern>(preset, width, height, stepsPerFrame);
     }
 }

@@ -28,6 +28,7 @@
 #include "renderer/pipeline/signals/ranges/AngleRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/patterns/Patterns.h"
+#include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/src/PolarMaths.cpp"
@@ -40,6 +41,7 @@
 #include "renderer/pipeline/patterns/src/Patterns.cpp"
 #include "renderer/pipeline/patterns/src/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/src/HexTilingPattern.cpp"
+#include "renderer/pipeline/patterns/src/ReactionDiffusionPattern.cpp"
 #include "renderer/pipeline/patterns/src/WorleyPatterns.cpp"
 #include "renderer/pipeline/patterns/src/base/UVPattern.cpp"
 #include "renderer/layer/src/Layer.cpp"
@@ -185,6 +187,24 @@ void test_scene_manager_lifecycle() {
     TEST_ASSERT_EQUAL_INT(2, provider_call_count);
 }
 
+void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
+    ReactionDiffusionPattern pattern(ReactionDiffusionPattern::Preset::Spots, 20, 20, 1);
+    auto context = std::make_shared<PipelineContext>();
+    UV center(sr16(0x00008000), sr16(0x00008000));
+
+    UVMap compiled = pattern.layer(context);
+    uint16_t initial = raw(compiled(center));
+
+    pattern.advanceFrame(f16(0), 0);
+
+    UVMap fresh = pattern.layer(context);
+    uint16_t compiledAfterAdvance = raw(compiled(center));
+    uint16_t freshAfterAdvance = raw(fresh(center));
+
+    TEST_ASSERT_NOT_EQUAL(initial, freshAfterAdvance);
+    TEST_ASSERT_EQUAL_UINT16(freshAfterAdvance, compiledAfterAdvance);
+}
+
 #ifdef ARDUINO
 
 void setup() {
@@ -194,6 +214,7 @@ void setup() {
     RUN_TEST(test_range_wraps_across_zero);
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
+    RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
 
     UNITY_END();
 
@@ -214,6 +235,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_range_wraps_across_zero);
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
+    RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
 
     return UNITY_END();
 

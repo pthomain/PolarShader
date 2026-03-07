@@ -24,6 +24,7 @@
 #ifdef RP2040_ENABLED
 
 #include "FabricDisplaySpec.h"
+#include "RoundDisplaySpec.h"
 #include "display/FastLedDisplay.h"
 
 using namespace PolarShader;

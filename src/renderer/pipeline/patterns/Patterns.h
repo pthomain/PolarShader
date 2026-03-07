@@ -24,6 +24,7 @@
 #include <memory>
 #include <renderer/pipeline/patterns/WorleyConstants.h>
 #include <renderer/pipeline/patterns/WorleyPatterns.h>
+#include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 
 namespace PolarShader {
     // Pattern factory helpers. These mirror the Presets API for quick creation.
@@ -59,6 +60,15 @@ namespace PolarShader {
         uint16_t hexRadius = 1,
         uint8_t colorCount = 4,
         uint16_t edgeSoftness = 0
+    );
+
+    // Gray-Scott reaction-diffusion simulation.
+    // Runs a stateful per-cell simulation; V concentration is bilinearly sampled.
+    std::unique_ptr<UVPattern> reactionDiffusionPattern(
+        ReactionDiffusionPattern::Preset preset = ReactionDiffusionPattern::Preset::Coral,
+        uint8_t width = 20,
+        uint8_t height = 20,
+        uint8_t stepsPerFrame = 4
     );
 }
 
