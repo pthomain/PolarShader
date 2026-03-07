@@ -18,6 +18,12 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifdef ARDUINO
+#include <FastLED.h>
+#else
+#include "native/FastLED.h"
+#endif
+#include <algorithm>
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 
 namespace PolarShader {
@@ -35,6 +41,24 @@ namespace PolarShader {
             {3604, 4063},  // Coral:   f=0.055, k=0.062
             {1180, 3604},  // Worms:   f=0.018, k=0.055
         };
+        constexpr uint16_t RD_SATURATION_DELTA = 0x0400;
+        constexpr uint32_t RD_RESEED_FRAME_LIMIT = 120;
+
+        bool needsReseed(const State &s) {
+            const uint16_t * v = s.v.get();
+            const uint32_t n = (uint32_t)s.width * s.height;
+            uint16_t min_v = 65535;
+            uint16_t max_v = 0;
+            for (uint32_t i = 0; i < n; ++i) {
+                const uint16_t value = v[i];
+                if (value < min_v) min_v = value;
+                if (value > max_v) max_v = value;
+                if (max_v - min_v >= RD_SATURATION_DELTA) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     struct ReactionDiffusionPattern::RDFunctor {
@@ -86,20 +110,31 @@ namespace PolarShader {
 
     void ReactionDiffusionPattern::seed(State& s) {
         const uint16_t n = (uint16_t)s.width * s.height;
-        for (uint16_t i = 0; i < n; ++i) {
-            s.u[i] = 65535;
-            s.v[i] = 0;
-        }
-        // Seed center region with U=0.5, V=0.25 to kick the Turing instability.
-        const uint8_t cx = s.width  / 2;
-        const uint8_t cy = s.height / 2;
-        for (int8_t dy = -2; dy <= 2; ++dy) {
-            for (int8_t dx = -2; dx <= 2; ++dx) {
-                const uint16_t idx = (uint16_t)((cy + dy) * s.width + (cx + dx));
+        std::fill_n(s.u.get(), n, static_cast<uint16_t>(65535));
+        std::fill_n(s.v.get(), n, static_cast<uint16_t>(0));
+        std::fill_n(s.u_next.get(), n, static_cast<uint16_t>(65535));
+        std::fill_n(s.v_next.get(), n, static_cast<uint16_t>(0));
+
+        const uint8_t spread = 2 + (random8() & 0x3);
+        const uint8_t cx = static_cast<uint8_t>(random16(s.width));
+        const uint8_t cy = static_cast<uint8_t>(random16(s.height));
+        auto wrapCoord = [](int32_t value, uint8_t dim) -> uint8_t {
+            if (dim == 0) return 0;
+            int32_t mod = value % dim;
+            if (mod < 0) mod += dim;
+            return static_cast<uint8_t>(mod);
+        };
+        for (int8_t dy = -static_cast<int8_t>(spread); dy <= static_cast<int8_t>(spread); ++dy) {
+            for (int8_t dx = -static_cast<int8_t>(spread); dx <= static_cast<int8_t>(spread); ++dx) {
+                const uint8_t y = wrapCoord(static_cast<int32_t>(cy) + dy, s.height);
+                const uint8_t x = wrapCoord(static_cast<int32_t>(cx) + dx, s.width);
+                const uint16_t idx = (uint16_t)y * s.width + x;
                 s.u[idx] = 32768;
-                s.v[idx] = 16384;
+                s.v[idx] = static_cast<uint16_t>(16384 + (random8() & 0x3F));
             }
         }
+
+        s.framesSinceSeed = 0;
     }
 
     void ReactionDiffusionPattern::step(State& s) {
@@ -174,6 +209,7 @@ namespace PolarShader {
         state->v      = std::make_unique<uint16_t[]>(n);
         state->u_next = std::make_unique<uint16_t[]>(n);
         state->v_next = std::make_unique<uint16_t[]>(n);
+        state->framesSinceSeed = 0;
 
         seed(*state);
     }
@@ -183,6 +219,10 @@ namespace PolarShader {
         (void)elapsedMs;
         for (uint8_t i = 0; i < stepsPerFrame; ++i) {
             step(*state);
+        }
+        state->framesSinceSeed += stepsPerFrame;
+        if (state->framesSinceSeed >= RD_RESEED_FRAME_LIMIT || needsReseed(*state)) {
+            seed(*state);
         }
     }
 

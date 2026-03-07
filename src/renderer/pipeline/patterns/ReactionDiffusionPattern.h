@@ -57,6 +57,7 @@ namespace PolarShader {
             int32_t dv;   // diffusion rate V, Q16 (fixed: 0.1)
             uint32_t f;   // feed rate, Q16
             uint32_t k;   // kill rate, Q16
+            uint32_t framesSinceSeed = 0;
         };
 
         std::shared_ptr<State> state;
