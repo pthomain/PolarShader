@@ -24,6 +24,7 @@
 #include "native/FastLED.h"
 #endif
 #include <algorithm>
+#include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 
 namespace PolarShader {
@@ -68,46 +69,7 @@ namespace PolarShader {
         const State *state;
 
         PatternNormU16 operator()(UV uv) const {
-            const int32_t u_raw = uv.u.raw();
-            const int32_t v_raw = uv.v.raw();
-
-            // Wrap fl::s16x16 coordinates into [0, 65536).
-            int32_t uw = u_raw % 65536;
-            if (uw < 0) uw += 65536;
-            int32_t vw = v_raw % 65536;
-            if (vw < 0) vw += 65536;
-
-            const uint16_t width = state->width;
-            const uint16_t height = state->height;
-
-            // Scale to grid position in Q16: integer part = cell index.
-            const uint32_t gx = (uint32_t) uw * width;
-            const uint32_t gy = (uint32_t) vw * height;
-
-            const uint8_t x0 = (uint8_t) (gx >> 16);
-            const uint8_t y0 = (uint8_t) (gy >> 16);
-            const uint8_t x1 = (x0 + 1 < width) ? x0 + 1 : 0;
-            const uint8_t y1 = (y0 + 1 < height) ? y0 + 1 : 0;
-
-            const uint32_t fx = gx & 0xFFFFu;
-            const uint32_t fy = gy & 0xFFFFu;
-
-            const uint16_t *v = state->v.get();
-            const uint32_t v00 = v[(uint16_t) y0 * width + x0];
-            const uint32_t v10 = v[(uint16_t) y0 * width + x1];
-            const uint32_t v01 = v[(uint16_t) y1 * width + x0];
-            const uint32_t v11 = v[(uint16_t) y1 * width + x1];
-
-            const uint32_t top = (uint32_t) (
-                ((uint64_t) v00 * (65536u - fx) + (uint64_t) v10 * fx) >> 16
-            );
-            const uint32_t bot = (uint32_t) (
-                ((uint64_t) v01 * (65536u - fx) + (uint64_t) v11 * fx) >> 16
-            );
-            const uint32_t res = (uint32_t) (
-                ((uint64_t) top * (65536u - fy) + (uint64_t) bot * fy) >> 16
-            );
-            return PatternNormU16((uint16_t) res);
+            return sampleScalarGridWrapped(state->v.get(), state->width, state->height, uv);
         }
     };
 

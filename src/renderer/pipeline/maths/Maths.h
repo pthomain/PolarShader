@@ -22,6 +22,7 @@
 #define POLAR_SHADER_PIPELINE_MATHS_MATHS_H
 
 #include "renderer/pipeline/maths/AngleMaths.h"
+#include "renderer/pipeline/maths/FixedPointMaths.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/maths/ScalarMaths.h"

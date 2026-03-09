@@ -51,32 +51,43 @@ namespace PolarShader {
                     //     16,
                     //     TilingPattern::TileShape::TRIANGLE
                     // ),
-                    noisePattern(constant(200)),
+                    flurryPattern(
+                        64,
+                        constant(50),
+                        constant(100),
+                        constant(60),
+                        constant(75),
+                        constant(50),
+                        constant(60),
+                        constant(40),
+                        constant(700)
+                    ),
                     palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(
                     PaletteTransform(
-                        sine(
+                        constant(0
                             // noise(
                             // constant(300),
                             // constant(100),
                             // sine(constant(300), constant(200)),
                             // noise(constant(200))
                         ),
-                        noise(
-                            constant(300),
-                            noise(constant(200), constant(500))
-                        ),
+                        constant(500),
+                        // noise(
+                            // constant(300),
+                            // noise(constant(200), constant(500))
+                        // ),
                         perMil(500)
                     )
                 )
-                .addTransform(
-                    ZoomTransform(
-                        constant(500)
-                        // noise(constant(10), constant(500), constant(500))
-                    )
-                )
+                // .addTransform(
+                //     ZoomTransform(
+                //         constant(500)
+                //         // noise(constant(10), constant(500), constant(500))
+                //     )
+                // )
                 //
                 // .addTransform(
                 //     TranslationTransform(

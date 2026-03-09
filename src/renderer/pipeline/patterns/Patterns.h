@@ -24,6 +24,7 @@
 #include <memory>
 #include <renderer/pipeline/patterns/WorleyConstants.h>
 #include <renderer/pipeline/patterns/WorleyPatterns.h>
+#include <renderer/pipeline/patterns/FlurryPattern.h>
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
@@ -73,6 +74,19 @@ namespace PolarShader {
         uint8_t width = 20,
         uint8_t height = 20,
         uint8_t stepsPerFrame = 4
+    );
+
+    // Persistent advected trail field driven by 1D noise profiles.
+    std::unique_ptr<UVPattern> flurryPattern(
+        uint8_t gridSize = 64,
+        Sf16Signal xDrift = constant(50),
+        Sf16Signal xAmplitude = constant(100),
+        Sf16Signal xFrequency = constant(60),
+        Sf16Signal yDrift = constant(75),
+        Sf16Signal yAmplitude = constant(50),
+        Sf16Signal yFrequency = constant(60),
+        Sf16Signal endpointSpeed = constant(40),
+        Sf16Signal fade = constant(700)
     );
 }
 

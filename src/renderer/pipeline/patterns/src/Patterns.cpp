@@ -19,6 +19,7 @@
  */
 
 #include "renderer/pipeline/patterns/Patterns.h"
+#include "renderer/pipeline/patterns/FlurryPattern.h"
 #include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/patterns/TilingPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
@@ -73,5 +74,29 @@ namespace PolarShader {
         uint8_t stepsPerFrame
     ) {
         return std::make_unique<ReactionDiffusionPattern>(preset, width, height, stepsPerFrame);
+    }
+
+    std::unique_ptr<UVPattern> flurryPattern(
+        uint8_t gridSize,
+        Sf16Signal xDrift,
+        Sf16Signal xAmplitude,
+        Sf16Signal xFrequency,
+        Sf16Signal yDrift,
+        Sf16Signal yAmplitude,
+        Sf16Signal yFrequency,
+        Sf16Signal endpointSpeed,
+        Sf16Signal fade
+    ) {
+        return std::make_unique<FlurryPattern>(
+            gridSize,
+            std::move(xDrift),
+            std::move(xAmplitude),
+            std::move(xFrequency),
+            std::move(yDrift),
+            std::move(yAmplitude),
+            std::move(yFrequency),
+            std::move(endpointSpeed),
+            std::move(fade)
+        );
     }
 }

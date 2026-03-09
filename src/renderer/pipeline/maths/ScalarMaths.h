@@ -55,6 +55,14 @@ namespace PolarShader {
         return sf16(static_cast<int32_t>(result));
     }
 
+    inline sf16 scaleSf16(sf16 value, f16 scale) {
+        int64_t result = static_cast<int64_t>(raw(value)) * static_cast<int64_t>(raw(scale));
+        result += (result >= 0) ? U16_HALF : -U16_HALF;
+        result >>= 16;
+        result = detail::clampI64ToSf16Sat(result);
+        return sf16(static_cast<int32_t>(result));
+    }
+
     inline uint64_t sqrtU64Raw(uint64_t value) {
         uint64_t op = value;
         uint64_t res = 0;
@@ -109,7 +117,6 @@ namespace PolarShader {
         if (raw_value >= F16_MAX) return sf16(SF16_MAX);
         return sf16(static_cast<int32_t>(raw_value << 1) - SF16_ONE);
     }
-
 
     // Convert an integer ratio numerator/denominator to f16 [0..1], with saturation.
     constexpr f16 toF16(uint16_t numerator_raw, uint16_t denominator_raw) {

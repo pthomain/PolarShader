@@ -21,15 +21,14 @@
 #include "renderer/pipeline/maths/PatternMaths.h"
 
 namespace PolarShader {
-    PatternNormU16 patternNormalize(uint16_t value, uint16_t min_value, uint16_t max_value) {
-        if (value <= min_value) return PatternNormU16(0);
-        if (value >= max_value) return PatternNormU16(F16_MAX);
+    PatternNormU16 patternNormalize(uint16_t value, uint16_t minValue, uint16_t maxValue) {
+        if (value <= minValue) return PatternNormU16(0);
+        if (value >= maxValue) return PatternNormU16(F16_MAX);
 
-        uint16_t range = static_cast<uint16_t>(max_value - min_value);
-        if (range == 0) return PatternNormU16(0);
+        uint16_t valueRange = static_cast<uint16_t>(maxValue - minValue);
+        if (valueRange == 0) return PatternNormU16(0);
 
-        uint32_t scaled = static_cast<uint32_t>(value - min_value) * F16_MAX;
-        return PatternNormU16(static_cast<uint16_t>(scaled / range));
+        return PatternNormU16(raw(toF16(static_cast<uint16_t>(value - minValue), valueRange)));
     }
 
     PatternNormU16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x) {
@@ -39,14 +38,13 @@ namespace PolarShader {
         if (x <= edge0) return PatternNormU16(0);
         if (x >= edge1) return PatternNormU16(F16_MAX);
 
-        uint32_t t_norm = (static_cast<uint32_t>(x - edge0) * F16_MAX) / (edge1 - edge0);
-        uint16_t t = static_cast<uint16_t>(t_norm);
+        f16 progress = toF16(static_cast<uint16_t>(x - edge0), static_cast<uint16_t>(edge1 - edge0));
 
-        uint32_t t_sq = (static_cast<uint32_t>(t) * t) >> 16;
-        uint32_t three_minus_2t = F16_MAX * 3 - (2 * t);
-        if (three_minus_2t > F16_MAX * 3) three_minus_2t = 0;
+        uint32_t progressSquared = (static_cast<uint32_t>(raw(progress)) * raw(progress)) >> 16;
+        uint32_t smoothstepFactor = F16_MAX * 3 - (2 * raw(progress));
+        if (smoothstepFactor > F16_MAX * 3) smoothstepFactor = 0;
 
-        uint32_t result = (t_sq * three_minus_2t) >> 16;
+        uint32_t result = (progressSquared * smoothstepFactor) >> 16;
         if (result > F16_MAX) result = F16_MAX;
 
         return PatternNormU16(static_cast<uint16_t>(result));
