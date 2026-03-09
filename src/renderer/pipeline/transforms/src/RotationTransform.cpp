@@ -82,9 +82,9 @@ namespace PolarShader {
             UV polar_uv = cartesianToPolarUV(uv);
             
             // Apply rotation to U (angle)
-            uint16_t angle_raw = static_cast<uint16_t>(raw(polar_uv.u));
+            uint16_t angle_raw = static_cast<uint16_t>(polar_uv.u.raw());
             uint16_t offset_raw = raw(state->angleOffset);
-            polar_uv.u = sr16(static_cast<uint16_t>(angle_raw + offset_raw));
+            polar_uv.u = fl::s16x16::from_raw(static_cast<uint16_t>(angle_raw + offset_raw));
 
             // Convert back to Cartesian UV
             UV rotated_uv = polarToCartesianUV(polar_uv);

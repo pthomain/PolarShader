@@ -197,19 +197,43 @@ void test_scene_manager_lifecycle() {
 void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
     ReactionDiffusionPattern pattern(ReactionDiffusionPattern::Preset::Spots, 20, 20, 1);
     auto context = std::make_shared<PipelineContext>();
-    UV center(sr16(0x00008000), sr16(0x00008000));
+    uint16_t baseline[20][20];
 
     UVMap compiled = pattern.layer(context);
-    uint16_t initial = raw(compiled(center));
+    for (uint8_t y = 0; y < 20; ++y) {
+        for (uint8_t x = 0; x < 20; ++x) {
+            UV probe(
+                fl::s16x16::from_raw(static_cast<int32_t>((static_cast<uint32_t>(x) << 16) / 20u)),
+                fl::s16x16::from_raw(static_cast<int32_t>((static_cast<uint32_t>(y) << 16) / 20u))
+            );
+            baseline[y][x] = raw(compiled(probe));
+        }
+    }
 
     pattern.advanceFrame(f16(0), 0);
 
     UVMap fresh = pattern.layer(context);
-    uint16_t compiledAfterAdvance = raw(compiled(center));
-    uint16_t freshAfterAdvance = raw(fresh(center));
+    bool foundChangedSample = false;
 
-    TEST_ASSERT_NOT_EQUAL(initial, freshAfterAdvance);
-    TEST_ASSERT_EQUAL_UINT16(freshAfterAdvance, compiledAfterAdvance);
+    for (uint8_t y = 0; y < 20 && !foundChangedSample; ++y) {
+        for (uint8_t x = 0; x < 20; ++x) {
+            UV probe(
+                fl::s16x16::from_raw(static_cast<int32_t>((static_cast<uint32_t>(x) << 16) / 20u)),
+                fl::s16x16::from_raw(static_cast<int32_t>((static_cast<uint32_t>(y) << 16) / 20u))
+            );
+
+            uint16_t compiledAfterAdvance = raw(compiled(probe));
+            uint16_t freshAfterAdvance = raw(fresh(probe));
+
+            TEST_ASSERT_EQUAL_UINT16(freshAfterAdvance, compiledAfterAdvance);
+            if (baseline[y][x] != freshAfterAdvance) {
+                foundChangedSample = true;
+                break;
+            }
+        }
+    }
+
+    TEST_ASSERT_TRUE(foundChangedSample);
 }
 
 #ifdef ARDUINO

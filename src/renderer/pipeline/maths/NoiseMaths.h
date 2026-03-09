@@ -37,20 +37,20 @@ namespace PolarShader {
     }
 
     /**
-     * @brief Bilinear noise sampler for sr8/r8 coordinates using FastLED's inoise16.
+     * @brief Bilinear noise sampler for fl::u24x8 coordinates using FastLED's inoise16.
      *
-     * The inputs are unsigned r8 coordinates in noise domain space.
+     * The inputs are unsigned fl::u24x8 coordinates in noise domain space.
      */
     NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y);
 
     NoiseRawU16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z);
 
-    inline NoiseRawU16 sampleNoiseBilinear(r8 x, r8 y) {
-        return sampleNoiseBilinear(raw(x), raw(y));
+    inline NoiseRawU16 sampleNoiseBilinear(fl::u24x8 x, fl::u24x8 y) {
+        return sampleNoiseBilinear(x.raw(), y.raw());
     }
 
-    inline NoiseRawU16 sampleNoiseTrilinear(r8 x, r8 y, r8 z) {
-        return sampleNoiseTrilinear(raw(x), raw(y), raw(z));
+    inline NoiseRawU16 sampleNoiseTrilinear(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
+        return sampleNoiseTrilinear(x.raw(), y.raw(), z.raw());
     }
 }
 

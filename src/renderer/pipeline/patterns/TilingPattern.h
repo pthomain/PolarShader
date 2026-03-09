@@ -37,7 +37,7 @@ namespace PolarShader {
         // Stateless sampler used by the pipeline.
         struct UVTilingFunctor;
         struct State {
-            int32_t cell_size_raw = (1 << R8_FRAC_BITS);
+            int32_t cell_size_raw = (1 << 8);
         };
 
         Sf16Signal cell_size_signal;

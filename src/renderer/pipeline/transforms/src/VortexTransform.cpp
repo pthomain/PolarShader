@@ -69,10 +69,10 @@ namespace PolarShader {
             UV polar_uv = cartesianToPolarUV(uv);
             
             int32_t strength_raw = raw(state->strengthValue);
-            uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
+            uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());
             int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
-            int32_t new_angle = raw(polar_uv.u) + scaled;
-            polar_uv.u = sr16(static_cast<uint16_t>(new_angle));
+            int32_t new_angle = polar_uv.u.raw() + scaled;
+            polar_uv.u = fl::s16x16::from_raw(static_cast<uint16_t>(new_angle));
 
             return layer(polarToCartesianUV(polar_uv));
         };

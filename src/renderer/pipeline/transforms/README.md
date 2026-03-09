@@ -5,10 +5,10 @@ palette mapping state (`PipelineContext`).
 
 ## Domains and units
 
-- Spatial transforms consume and emit `UV` (`sr16` x/y).
-- Internal transform math can use mapped units (`f16`, `sf16`, `sr8`), but
+- Spatial transforms consume and emit `UV` (`fl::s16x16` x/y).
+- Internal transform math can use mapped units (`f16`, `sf16`, `fl::s24x8`), but
   public transform constructors must accept base signal types.
-- `sr16` is the high-precision transform space; `sr8` is for grid/noise-style Cartesian internals where lower fractional precision is acceptable.
+- `fl::s16x16` is the high-precision transform space; `fl::s24x8` is for grid/noise-style Cartesian internals where lower fractional precision is acceptable.
 
 ## Frame lifecycle
 
@@ -59,7 +59,6 @@ Factory signatures:
 
 Constant signal helpers:
 - `constant(permille)`: returns a constant signal remapping unipolar `[0, 1000]` to signed `[-1, 1]`.
-- `sPerMil(int16_t)` maps signed permille `[-1000, 1000]` to scalar `sf16 [-1, 1]`.
 - `perMil(uint16_t)` maps unsigned permille `[0, 1000]` to scalar `f16 [0, 1]`.
 
 Periodic shaping:

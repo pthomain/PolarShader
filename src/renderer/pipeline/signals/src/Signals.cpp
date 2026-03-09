@@ -290,8 +290,8 @@ namespace PolarShader {
     UVSignal uvSignal(Sf16Signal u, Sf16Signal v) {
         return UVSignal([u = std::move(u), v = std::move(v)](f16, TimeMillis elapsedMs) mutable {
             return UV(
-                sr16(raw(u.sample(magnitudeRange(), elapsedMs))),
-                sr16(raw(v.sample(magnitudeRange(), elapsedMs)))
+                fl::s16x16::from_raw(raw(u.sample(magnitudeRange(), elapsedMs))),
+                fl::s16x16::from_raw(raw(v.sample(magnitudeRange(), elapsedMs)))
             );
         });
     }

@@ -54,20 +54,17 @@ A pattern's final output **must** be a `PatternNormU16` value that spans the ful
 
 ### 5. Use Explicit Coordinate Contracts (Cartesian)
 
-Fixed-point arithmetic with `sr8` is powerful but requires care. For patterns involving grids, cells, or integer-based steps, you **must** use the explicit helpers to avoid scaling errors and precision loss.
+Fixed-point arithmetic with `fl::s24x8` is powerful but requires care. For patterns involving grids, cells, or integer-based steps, you **must** use the explicit helpers to avoid scaling errors and precision loss.
 
-- **Use the Central Utility:** The `CartesianMaths.h` header provides safe, explicit functions for fixed-point operations.
+- **Use the Central Utility:** The `CartesianMaths.h` header provides safe, explicit functions for fixed-point operations. Note that `CartesianMaths` now only exposes `from_uv()` and `to_uv()` for coordinate conversion between the `fl::s16x16` UV domain and the `fl::s24x8` Cartesian domain.
   ```cpp
   #include "renderer/pipeline/maths/CartesianMaths.h"
 
-  // Convert an integer to the sr8/r8 format
-  sr8 cell_size = CartesianMaths::from_int(32);
+  // Convert from UV (fl::s16x16) to Cartesian (fl::s24x8)
+  fl::s24x8 cart = CartesianMaths::from_uv(uv_coord);
 
-  // Get the integer part of a coordinate
-  int32_t cell_x = CartesianMaths::floor_to_int(x);
-
-  // Perform safe multiplication/division
-  sr8 scaled_x = CartesianMaths::mul(x, scale_factor);
+  // Convert back from Cartesian (fl::s24x8) to UV (fl::s16x16)
+  fl::s16x16 uv = CartesianMaths::to_uv(cart_coord);
   ```
 
 ---

@@ -30,6 +30,17 @@ namespace PolarShader {
      * @brief Unsigned magnitude range: maps signed signal [-1, 1] via unsigned
      * remapping [0, 1], then scales into [min, max].
      */
+    namespace detail {
+        template<typename T, typename Rep>
+        T make_range_value(Rep r) {
+            if constexpr (std::is_arithmetic_v<T>) {
+                return static_cast<T>(r);
+            } else {
+                return T::from_raw(r);
+            }
+        }
+    }
+
     template<typename T>
     class MagnitudeRange : public Range<T> {
     public:
@@ -45,11 +56,11 @@ namespace PolarShader {
 
         T map(sf16 t) const override {
             int64_t span = max_raw - min_raw;
-            if (span == 0) return T(static_cast<Rep>(min_raw));
+            if (span == 0) return detail::make_range_value<T, Rep>(static_cast<Rep>(min_raw));
 
             uint32_t t_raw = Range<T>::mapUnsignedClamped(t);
             int64_t scaled = (span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
-            return T(static_cast<Rep>(min_raw + scaled));
+            return detail::make_range_value<T, Rep>(static_cast<Rep>(min_raw + scaled));
         }
 
         int64_t minRaw() const { return min_raw; }

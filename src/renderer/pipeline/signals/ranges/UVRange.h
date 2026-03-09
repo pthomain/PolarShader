@@ -36,19 +36,19 @@ namespace PolarShader {
         UV map(sf16 t) const override {
             uint32_t t_raw = mapUnsignedClamped(t);
 
-            int64_t u_min = raw(min_uv.u);
-            int64_t u_max = raw(max_uv.u);
+            int64_t u_min = min_uv.u.raw();
+            int64_t u_max = max_uv.u.raw();
             int64_t u_span = u_max - u_min;
             int64_t u_scaled = (u_span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
 
-            int64_t v_min = raw(min_uv.v);
-            int64_t v_max = raw(max_uv.v);
+            int64_t v_min = min_uv.v.raw();
+            int64_t v_max = max_uv.v.raw();
             int64_t v_span = v_max - v_min;
             int64_t v_scaled = (v_span * static_cast<int64_t>(t_raw) + (1LL << 15)) >> 16;
 
             return UV(
-                sr16(static_cast<int32_t>(u_min + u_scaled)),
-                sr16(static_cast<int32_t>(v_min + v_scaled))
+                fl::s16x16::from_raw(static_cast<int32_t>(u_min + u_scaled)),
+                fl::s16x16::from_raw(static_cast<int32_t>(v_min + v_scaled))
             );
         }
 

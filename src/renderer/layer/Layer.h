@@ -47,7 +47,7 @@ namespace PolarShader {
      *
      * Chains transforms across Cartesian and Polar domains and maps palette-ready pattern intensities
      * to CRGB. Expects the base pattern to output 16-bit intensities in [0..65535]; no normalization is done here.
-     * Angles are represented as 16-bit turns (f16/sf16). Cartesian coords are sr8/r8. Any domain conversion (polar<->cartesian)
+     * Angles are represented as 16-bit turns (f16/sf16). Cartesian coords are fl::s24x8/fl::u24x8. Any domain conversion (polar<->cartesian)
      * happens at explicit PipelineStep boundaries.
      */
     class Layer {

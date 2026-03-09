@@ -47,7 +47,7 @@ namespace PolarShader {
         }
 
         v32 sampleNoisePair(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw) {
-            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << R8_FRAC_BITS;
+            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << 8;
             uint32_t ux = static_cast<uint32_t>(sx_raw + base);
             uint32_t uy = static_cast<uint32_t>(sy_raw + base);
             uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(timeOffsetRaw) + base);
@@ -76,8 +76,8 @@ namespace PolarShader {
         }
 
         v32 sampleCurl(int64_t sx_raw, int64_t sy_raw, int32_t timeOffsetRaw, int32_t amp) {
-            constexpr int32_t EPS = 1 << R8_FRAC_BITS;
-            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << R8_FRAC_BITS;
+            constexpr int32_t EPS = 1 << 8;
+            int64_t base = static_cast<int64_t>(NOISE_DOMAIN_OFFSET) << 8;
             uint32_t ux = static_cast<uint32_t>(sx_raw + base);
             uint32_t uy = static_cast<uint32_t>(sy_raw + base);
             uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(timeOffsetRaw) + base);
@@ -100,9 +100,9 @@ namespace PolarShader {
         Sf16Signal phaseSpeedSignal;
         Sf16Signal amplitudeSignal;
         Sf16Signal warpScaleSignal;
-        MagnitudeRange<sr8> warpScaleRange;
+        MagnitudeRange<fl::s24x8> warpScaleRange;
         Sf16Signal maxOffsetSignal;
-        MagnitudeRange<sr8> maxOffsetRange;
+        MagnitudeRange<fl::s24x8> maxOffsetRange;
         Sf16Signal flowDirectionSignal;
         AngleRange flowDirectionRange;
         Sf16Signal flowStrengthSignal;
@@ -114,8 +114,8 @@ namespace PolarShader {
         Sf16Signal amplitude,
         Sf16Signal warpScale,
         Sf16Signal maxOffset,
-        MagnitudeRange<sr8> warpScaleRange,
-        MagnitudeRange<sr8> maxOffsetRange,
+        MagnitudeRange<fl::s24x8> warpScaleRange,
+        MagnitudeRange<fl::s24x8> maxOffsetRange,
         Sf16Signal flowDirection,
         Sf16Signal flowStrength
     ) {
@@ -140,11 +140,11 @@ namespace PolarShader {
         PhaseAccumulator phase;
         Sf16Signal amplitudeSignal;
         Sf16Signal warpScaleSignal;
-        MagnitudeRange<sr8> warpScaleRange;
+        MagnitudeRange<fl::s24x8> warpScaleRange;
         Sf16Signal maxOffsetSignal;
-        MagnitudeRange<sr8> maxOffsetRange;
-        sr8 warpScale = sr8(0);
-        sr8 maxOffset = sr8(0);
+        MagnitudeRange<fl::s24x8> maxOffsetRange;
+        fl::s24x8 warpScale = fl::s24x8::from_raw(0);
+        fl::s24x8 maxOffset = fl::s24x8::from_raw(0);
         uint8_t octaves;
         Sf16Signal flowDirectionSignal;
         AngleRange flowDirectionRange;
@@ -159,9 +159,9 @@ namespace PolarShader {
             Sf16Signal phaseSpeedSignal,
             Sf16Signal amplitudeSignal,
             Sf16Signal warpScaleSignal,
-            MagnitudeRange<sr8> warpScaleRange,
+            MagnitudeRange<fl::s24x8> warpScaleRange,
             Sf16Signal maxOffsetSignal,
-            MagnitudeRange<sr8> maxOffsetRange,
+            MagnitudeRange<fl::s24x8> maxOffsetRange,
             uint8_t octaves,
             Sf16Signal flowDirectionSignal,
             AngleRange flowDirectionRange,
@@ -191,8 +191,8 @@ namespace PolarShader {
         Sf16Signal amplitude,
         Sf16Signal warpScale,
         Sf16Signal maxOffset,
-        MagnitudeRange<sr8> warpScaleRange,
-        MagnitudeRange<sr8> maxOffsetRange
+        MagnitudeRange<fl::s24x8> warpScaleRange,
+        MagnitudeRange<fl::s24x8> maxOffsetRange
     ) : DomainWarpTransform(WarpType::Basic, std::move(speed), amplitude, warpScale, maxOffset, warpScaleRange, maxOffsetRange, 3) {
     }
 
@@ -202,8 +202,8 @@ namespace PolarShader {
         Sf16Signal amplitude,
         Sf16Signal warpScale,
         Sf16Signal maxOffset,
-        MagnitudeRange<sr8> warpScaleRange,
-        MagnitudeRange<sr8> maxOffsetRange,
+        MagnitudeRange<fl::s24x8> warpScaleRange,
+        MagnitudeRange<fl::s24x8> maxOffsetRange,
         uint8_t octaves,
         Sf16Signal flowDirection,
         Sf16Signal flowStrength
@@ -231,12 +231,12 @@ namespace PolarShader {
         }
 
         f16 phase = state->phase.advance(elapsedMs);
-        state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << R8_FRAC_BITS;
+        state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << 8;
 
         state->warpScale = state->warpScaleSignal.sample(state->warpScaleRange, elapsedMs);
         state->maxOffset = state->maxOffsetSignal.sample(state->maxOffsetRange, elapsedMs);
 
-        int32_t maxOffsetRaw = raw(state->maxOffset);
+        int32_t maxOffsetRaw = state->maxOffset.raw();
         uint32_t ampT = static_cast<uint32_t>(raw(state->amplitudeSignal.sample(magnitudeRange(), elapsedMs)));
         int64_t ampScaled = (static_cast<int64_t>(maxOffsetRaw) * static_cast<int64_t>(ampT)) >> 16;
         state->amplitudeRaw = static_cast<int32_t>(ampScaled);
@@ -263,15 +263,15 @@ namespace PolarShader {
 
     UVMap DomainWarpTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
-            sr8 cx = CartesianMaths::from_uv(uv.u);
-            sr8 cy = CartesianMaths::from_uv(uv.v);
+            fl::s24x8 cx = CartesianMaths::from_uv(uv.u);
+            fl::s24x8 cy = CartesianMaths::from_uv(uv.v);
 
-            sr8 sx = CartesianMaths::mul(cx, state->warpScale);
-            sr8 sy = CartesianMaths::mul(cy, state->warpScale);
+            fl::s24x8 sx = cx * state->warpScale;
+            fl::s24x8 sy = cy * state->warpScale;
 
             v32 warp{0, 0};
-            int64_t sx_raw = raw(sx);
-            int64_t sy_raw = raw(sy);
+            int64_t sx_raw = sx.raw();
+            int64_t sy_raw = sy.raw();
             int32_t time_offset = state->timeOffsetRaw;
 
             switch (state->type) {
@@ -306,14 +306,14 @@ namespace PolarShader {
                     UV current_uv(CartesianMaths::to_uv(sx), CartesianMaths::to_uv(sy));
                     UV polar_uv = cartesianToPolarUV(current_uv);
 
-                    v32 polarNoise = sampleNoisePair(raw(polar_uv.u), raw(polar_uv.v), time_offset);
+                    v32 polarNoise = sampleNoisePair(polar_uv.u.raw(), polar_uv.v.raw(), time_offset);
 
                     int32_t uv_amp = state->amplitudeRaw << 8;
                     int32_t angle_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.x) * uv_amp) >> 16);
                     int32_t radius_delta = static_cast<int32_t>((static_cast<int64_t>(polarNoise.y) * uv_amp) >> 16);
 
-                    polar_uv.u = sr16(raw(polar_uv.u) + angle_delta);
-                    polar_uv.v = sr16(raw(polar_uv.v) + radius_delta);
+                    polar_uv.u = fl::s16x16::from_raw(polar_uv.u.raw() + angle_delta);
+                    polar_uv.v = fl::s16x16::from_raw(polar_uv.v.raw() + radius_delta);
 
                     return layer(polarToCartesianUV(polar_uv));
                 }
@@ -331,8 +331,8 @@ namespace PolarShader {
             }
 
             UV warped_uv(
-                sr16(raw(uv.u) + (warp.x << 8)),
-                sr16(raw(uv.v) + (warp.y << 8))
+                fl::s16x16::from_raw(uv.u.raw() + (warp.x << 8)),
+                fl::s16x16::from_raw(uv.v.raw() + (warp.y << 8))
             );
             return layer(warped_uv);
         };

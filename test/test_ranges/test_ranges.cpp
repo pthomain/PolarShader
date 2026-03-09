@@ -72,8 +72,8 @@ void test_bipolar_range_clamping() {
 
 /** @brief Verify UVRange clamping for out-of-bounds inputs. */
 void test_uv_range_clamping() {
-    UV min(sr16(0), sr16(0));
-    UV max(sr16(1000), sr16(2000));
+    UV min(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0));
+    UV max(fl::s16x16::from_raw(1000), fl::s16x16::from_raw(2000));
     UVRange range(min, max);
     
     // Lower bound (SF16_MIN -> 0.0)

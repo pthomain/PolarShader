@@ -38,12 +38,58 @@ namespace fl {
     };
     using i32 = int32_t;
     using u8 = uint8_t;
-    
+
     template<typename T>
     using function = std::function<T>;
 
     template<typename T>
     using vector = std::vector<T>;
+
+    // Fixed-point stub types for native (non-Arduino) builds
+    // These mirror FastLED's fl/stl/fixed_point.h types
+    template<int FracBits, typename Rep>
+    class fixed_base {
+        Rep v_;
+        constexpr explicit fixed_base(Rep r, int) : v_(r) {}  // raw-value constructor
+    public:
+        using rep_type = Rep;
+        constexpr fixed_base() : v_(0) {}
+        explicit constexpr fixed_base(float f) : v_(static_cast<Rep>(f * (Rep(1) << FracBits))) {}
+        static constexpr fixed_base from_raw(Rep r) { return fixed_base(r, 0); }
+        constexpr Rep raw() const { return v_; }
+        constexpr int32_t to_int() const { return static_cast<int32_t>(v_ >> FracBits); }
+        float to_float() const { return static_cast<float>(v_) / static_cast<float>(Rep(1) << FracBits); }
+        fixed_base operator+(fixed_base o) const { return from_raw(v_ + o.v_); }
+        fixed_base operator-(fixed_base o) const { return from_raw(v_ - o.v_); }
+        fixed_base operator-() const { return from_raw(-v_); }
+        fixed_base operator*(fixed_base o) const {
+            int64_t t = static_cast<int64_t>(v_) * static_cast<int64_t>(o.v_);
+            return from_raw(static_cast<Rep>(t >> FracBits));
+        }
+        fixed_base operator/(fixed_base o) const {
+            if (o.v_ == 0) return from_raw(0);
+            int64_t t = static_cast<int64_t>(v_) << FracBits;
+            return from_raw(static_cast<Rep>(t / static_cast<int64_t>(o.v_)));
+        }
+        fixed_base operator>>(int n) const { return from_raw(v_ >> n); }
+        fixed_base operator<<(int n) const { return from_raw(v_ << n); }
+        fixed_base& operator+=(fixed_base o) { v_ += o.v_; return *this; }
+        fixed_base& operator-=(fixed_base o) { v_ -= o.v_; return *this; }
+        bool operator==(fixed_base o) const { return v_ == o.v_; }
+        bool operator!=(fixed_base o) const { return v_ != o.v_; }
+        bool operator<(fixed_base o) const { return v_ < o.v_; }
+        bool operator>(fixed_base o) const { return v_ > o.v_; }
+        bool operator<=(fixed_base o) const { return v_ <= o.v_; }
+        bool operator>=(fixed_base o) const { return v_ >= o.v_; }
+    };
+    using s16x16 = fixed_base<16, int32_t>;
+    using u16x16 = fixed_base<16, uint32_t>;
+    using s24x8  = fixed_base<8,  int32_t>;
+    using u24x8  = fixed_base<8,  uint32_t>;
+
+    static inline uint8_t map16_to_8(uint16_t v) {
+        return static_cast<uint8_t>(v >> 8);
+    }
 }
 
 struct CRGB {
@@ -68,6 +114,13 @@ struct CRGB {
             (static_cast<uint16_t>(b) + other.b > 255) ? 255 : b + other.b
         );
     }
+
+    CRGB& operator+=(const CRGB& other) {
+        r = (static_cast<uint16_t>(r) + other.r > 255) ? 255 : r + other.r;
+        g = (static_cast<uint16_t>(g) + other.g > 255) ? 255 : g + other.g;
+        b = (static_cast<uint16_t>(b) + other.b > 255) ? 255 : b + other.b;
+        return *this;
+    }
 };
 
 inline const CRGB CRGB::Black = CRGB(0, 0, 0);
@@ -83,10 +136,6 @@ struct CRGBPalette16 {
 
 static inline CRGB ColorFromPalette(const CRGBPalette16& pal, uint8_t index, uint8_t brightness, TBlendType blend) {
     return pal.entries[index % 16];
-}
-
-static inline uint8_t map16_to_8(uint16_t v) {
-    return static_cast<uint8_t>(v >> 8);
 }
 
 static inline uint16_t scale16(uint16_t a, uint16_t b) {

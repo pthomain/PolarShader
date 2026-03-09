@@ -21,13 +21,13 @@
 #ifndef POLAR_SHADER_POLAREFFECT_H
 #define POLAR_SHADER_POLAREFFECT_H
 
-#include "fl/function.h"
-#include "fl/pair.h"
-#include "fl/vector.h"
 #include "renderer/pipeline/maths/units/Units.h"
+#ifdef ARDUINO
+#include "fl/stl/function.h"
+#include "fl/stl/pair.h"
+#include "fl/stl/vector.h"
+#endif
 #include "renderer/scene/SceneManager.h"
-
-struct CRGB;
 
 namespace PolarShader {
     using PolarCoords = fl::pair<f16, f16>;

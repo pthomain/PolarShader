@@ -33,7 +33,7 @@ namespace PolarShader {
      * - phaseSpeed: turns-per-second for the time axis (independent from scene duration).
      * - amplitude: signed signal mapped via MagnitudeRange to scale maxOffset.
      * - warpScale: signed signal mapped via MagnitudeRange, applied before sampling warp noise.
-     * - maxOffset: signed signal mapped via MagnitudeRange, maximum warp displacement in sr8/r8 units.
+     * - maxOffset: signed signal mapped via MagnitudeRange, maximum warp displacement in fl::s24x8/fl::u24x8 units.
      */
     class DomainWarpTransform : public UVTransform {
     public:
@@ -51,8 +51,8 @@ namespace PolarShader {
             Sf16Signal amplitude,
             Sf16Signal warpScale,
             Sf16Signal maxOffset,
-            MagnitudeRange<sr8> warpScaleRange,
-            MagnitudeRange<sr8> maxOffsetRange
+            MagnitudeRange<fl::s24x8> warpScaleRange,
+            MagnitudeRange<fl::s24x8> maxOffsetRange
         );
 
         DomainWarpTransform(
@@ -61,8 +61,8 @@ namespace PolarShader {
             Sf16Signal amplitude,
             Sf16Signal warpScale,
             Sf16Signal maxOffset,
-            MagnitudeRange<sr8> warpScaleRange,
-            MagnitudeRange<sr8> maxOffsetRange,
+            MagnitudeRange<fl::s24x8> warpScaleRange,
+            MagnitudeRange<fl::s24x8> maxOffsetRange,
             uint8_t octaves,
             Sf16Signal flowDirection = Sf16Signal(),
             Sf16Signal flowStrength = Sf16Signal()
@@ -82,8 +82,8 @@ namespace PolarShader {
             Sf16Signal amplitude,
             Sf16Signal warpScale,
             Sf16Signal maxOffset,
-            MagnitudeRange<sr8> warpScaleRange,
-            MagnitudeRange<sr8> maxOffsetRange,
+            MagnitudeRange<fl::s24x8> warpScaleRange,
+            MagnitudeRange<fl::s24x8> maxOffsetRange,
             Sf16Signal flowDirection = Sf16Signal(),
             Sf16Signal flowStrength = Sf16Signal()
         );

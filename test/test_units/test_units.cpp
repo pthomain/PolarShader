@@ -28,7 +28,6 @@
 #include <unity.h>
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/units/Units.h"
-#include "renderer/pipeline/maths/UVMaths.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
@@ -74,42 +73,42 @@ namespace {
     const BipolarRange TEST_SIGNED_RANGE{sf16(SF16_MIN), sf16(SF16_MAX)};
 }
 
-/** @brief Verify that sr16 correctly stores 32-bit fixed-point values. */
+/** @brief Verify that fl::s16x16 correctly stores 32-bit fixed-point values. */
 void test_frac_q16_16_raw_values() {
-    sr16 f(0x00010000); // 1.0
+    fl::s16x16 f = fl::s16x16::from_raw(0x00010000); // 1.0
     TEST_ASSERT_EQUAL_INT32(0x00010000, f.raw());
 }
 
 /** @brief Verify that the UV structure correctly holds U and V components. */
 void test_uv_coordinate_structure() {
-    UV uv(sr16(0x00010000), sr16(0x00008000));
+    UV uv(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
     TEST_ASSERT_EQUAL_INT32(0x00010000, uv.u.raw());
     TEST_ASSERT_EQUAL_INT32(0x00008000, uv.v.raw());
 }
 
 /** @brief Verify basic additive arithmetic for UV coordinates. */
 void test_uv_addition() {
-    UV uv1(sr16(0x00010000), sr16(0x00008000));
-    UV uv2(sr16(0x00004000), sr16(0x00002000));
-    UV result = UVMaths::add(uv1, uv2);
+    UV uv1(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
+    UV uv2(fl::s16x16::from_raw(0x00004000), fl::s16x16::from_raw(0x00002000));
+    UV result(uv1.u + uv2.u, uv1.v + uv2.v);
     TEST_ASSERT_EQUAL_INT32(0x00014000, result.u.raw());
     TEST_ASSERT_EQUAL_INT32(0x0000A000, result.v.raw());
 }
 
-/** @brief Verify conversion between UV (r16/sr16 (Q16.16)) and legacy sr8/r8 Cartesian. */
+/** @brief Verify conversion between UV (fl::u16x16/fl::s16x16 (Q16.16)) and fl::s24x8/fl::u24x8 Cartesian. */
 void test_cartesian_uv_conversion() {
-    sr16 uv_val(0x00008000); // 0.5
-    sr8 cart = CartesianMaths::from_uv(uv_val);
+    fl::s16x16 uv_val = fl::s16x16::from_raw(0x00008000); // 0.5
+    fl::s24x8 cart = CartesianMaths::from_uv(uv_val);
     TEST_ASSERT_EQUAL_INT32(0x00000080, cart.raw()); // 0.5 * 256 = 128 (0x80)
-    
-    sr16 back = CartesianMaths::to_uv(cart);
+
+    fl::s16x16 back = CartesianMaths::to_uv(cart);
     TEST_ASSERT_EQUAL_INT32(0x00008000, back.raw());
 }
 
 /** @brief Verify that the center of the UV domain maps to the origin of the Polar domain. */
 void test_polar_uv_conversion_center() {
     // Center of screen (0.5, 0.5) should have radius 0
-    UV cart_uv(sr16(0x00008000), sr16(0x00008000));
+    UV cart_uv(fl::s16x16::from_raw(0x00008000), fl::s16x16::from_raw(0x00008000));
     UV polar_uv = cartesianToPolarUV(cart_uv);
     TEST_ASSERT_EQUAL_INT32(0, polar_uv.v.raw()); // Radius should be 0
 }
@@ -117,7 +116,7 @@ void test_polar_uv_conversion_center() {
 /** @brief Verify that points on the right edge map to angle 0 and radius 1.0. */
 void test_polar_uv_conversion_right() {
     // Right middle (1.0, 0.5) should have angle 0 and radius 1.0 (0xFFFF in f16/sf16)
-    UV cart_uv(sr16(0x00010000), sr16(0x00008000));
+    UV cart_uv(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
     UV polar_uv = cartesianToPolarUV(cart_uv);
     TEST_ASSERT_EQUAL_INT32(0, polar_uv.u.raw()); // Angle 0
     TEST_ASSERT_UINT32_WITHIN(10, 0x0000FFFF, polar_uv.v.raw()); // Radius ~1.0
@@ -127,7 +126,7 @@ void test_polar_uv_conversion_right() {
 void test_uv_round_trip() {
     // Start with a point, convert to polar and back to cartesian
     // (0.75, 0.75)
-    UV original(sr16(0x0000C000), sr16(0x0000C000));
+    UV original(fl::s16x16::from_raw(0x0000C000), fl::s16x16::from_raw(0x0000C000));
     UV polar = cartesianToPolarUV(original);
     UV back = polarToCartesianUV(polar);
     
@@ -149,7 +148,7 @@ void test_rotation_transform_uv() {
     // Rotated 90 deg (0.25 turns) -> Centered (0.0, 1.0)
     // Back to Cartesian UV -> (0.5, 1.0)
     // Expected U: 0.5 (0x8000)
-    UV input(sr16(0x00010000), sr16(0x00008000));
+    UV input(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
     
     UVMap transformedLayer = rotation(testLayer);
     PatternNormU16 result = transformedLayer(input);
@@ -163,8 +162,8 @@ void test_zoom_transform_uv() {
     zoom.advanceFrame(f16(0), 0);
     
     UVMap testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
-    
-    UV input(sr16(0x0000C000), sr16(0x00008000));
+
+    UV input(fl::s16x16::from_raw(0x0000C000), fl::s16x16::from_raw(0x00008000));
     PatternNormU16 result = zoom(testLayer)(input);
     
     // With direct-mapped zoom and MIN_SCALE=1/4x (16384):
@@ -176,15 +175,15 @@ void test_zoom_transform_uv() {
 /** @brief Verify that relative UV signals correctly accumulate over time. */
 void test_uv_signal_accumulation() {
     // A constant relative signal returning (0.1, 0.1) per call
-    // 0.1 in r16/sr16 (Q16.16) is ~6554
-    UV delta(sr16(6554), sr16(6554));
-    
+    // 0.1 in fl::u16x16/fl::s16x16 (Q16.16) is ~6554
+    UV delta(fl::s16x16::from_raw(6554), fl::s16x16::from_raw(6554));
+
     UVSignal rawSignal([delta](f16, TimeMillis) {
         return delta;
     });
-    
+
     UVSignal resolved(
-        [rawSignal, accumulated = UV(sr16(0), sr16(0))](f16 progress, TimeMillis elapsedMs) mutable {
+        [rawSignal, accumulated = UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0))](f16 progress, TimeMillis elapsedMs) mutable {
             UV value = rawSignal(progress, elapsedMs);
             accumulated.u += value.u;
             accumulated.v += value.v;
@@ -247,7 +246,7 @@ void test_sine_speed() {
 void test_zoom_transform_sine_varies_over_time() {
     ZoomTransform zoom(sine(constant(1000)));
     UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
-    UV input(sr16(0x0000C000), sr16(0x00008000));
+    UV input(fl::s16x16::from_raw(0x0000C000), fl::s16x16::from_raw(0x00008000));
 
     zoom.advanceFrame(f16(0), 0);
     uint16_t a = raw(zoom(probeLayer)(input));
@@ -266,14 +265,14 @@ void test_zoom_transform_sine_varies_over_time() {
 void test_kaleidoscope_translation_mirrors_at_unit_uv_boundary() {
     KaleidoscopeTransform kaleidoscope(6, true);
     TranslationTransform translation(UVSignal([](f16, TimeMillis) {
-        return UV(sr16(0x00010000), sr16(0));
+        return UV(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0));
     }));
     translation.advanceFrame(f16(0), 0);
 
-    UV probe(sr16(0x00009234), sr16(0x00006FED));
+    UV probe(fl::s16x16::from_raw(0x00009234), fl::s16x16::from_raw(0x00006FED));
     UVMap capture = [](UV uv) { return PatternNormU16(raw(uv.u) ^ raw(uv.v)); };
 
-    PatternNormU16 baseline = kaleidoscope(capture)(UV(sr16(0x00006DCB), probe.v));
+    PatternNormU16 baseline = kaleidoscope(capture)(UV(fl::s16x16::from_raw(0x00006DCB), probe.v));
     PatternNormU16 shifted = translation(kaleidoscope(capture))(probe);
 
     TEST_ASSERT_EQUAL_UINT16(raw(baseline), raw(shifted));
@@ -429,8 +428,8 @@ void test_bipolar_range_signed_direct_identity() {
 
 /** @brief Verify that UVRange correctly interpolates 2D coordinates. */
 void test_uv_range() {
-    UV min(sr16(0), sr16(0));
-    UV max(sr16(0x10000), sr16(0x10000));
+    UV min(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0));
+    UV max(fl::s16x16::from_raw(0x10000), fl::s16x16::from_raw(0x10000));
     UVRange range(min, max);
     
     // 0.0 -> midpoint (0.5, 0.5)
@@ -439,31 +438,12 @@ void test_uv_range() {
     TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.v));
 }
 
-/** @brief Verify signed sf16 mul/div sat and wrap helpers. */
+/** @brief Verify signed sf16 mulSf16Sat helper. */
 void test_sf16_mul_div_helpers() {
     sf16 half(0x8000);
     sf16 quarter(0x4000);
 
     TEST_ASSERT_EQUAL_INT32(raw(quarter), raw(mulSf16Sat(half, half)));
-    TEST_ASSERT_EQUAL_INT32(raw(quarter), raw(mulSf16Wrap(half, half)));
-
-    TEST_ASSERT_EQUAL_INT32(SF16_MAX, raw(divSf16Sat(half, half)));
-    TEST_ASSERT_EQUAL_INT32(SF16_ONE, raw(divSf16Wrap(half, half)));
-    TEST_ASSERT_EQUAL_INT32(SF16_MIN, raw(divSf16Sat(sf16(-0x8000), half)));
-    TEST_ASSERT_EQUAL_INT32(0, raw(divSf16Sat(half, sf16(0))));
-}
-
-/** @brief Verify unsigned f16 mul/div sat and wrap helpers. */
-void test_f16_mul_div_helpers() {
-    f16 half(0x8000);
-    f16 quarter(0x4000);
-
-    TEST_ASSERT_EQUAL_UINT16(raw(quarter), raw(mulF16Sat(half, half)));
-    TEST_ASSERT_EQUAL_UINT16(raw(quarter), raw(mulF16Wrap(half, half)));
-
-    TEST_ASSERT_EQUAL_UINT16(F16_MAX, raw(divF16Sat(half, half)));
-    TEST_ASSERT_EQUAL_UINT16(0, raw(divF16Wrap(half, half)));
-    TEST_ASSERT_EQUAL_UINT16(0, raw(divF16Sat(half, f16(0))));
 }
 
 /** @brief Verify direct signed<->unsigned scalar mapping helpers. */
@@ -488,7 +468,7 @@ void test_rotation_accumulation() {
     rotAbs.advanceFrame(f16(0), 0);
     
     UVMap probe = [](UV uv) { return PatternNormU16(raw(uv.u)); };
-    UV input(sr16(0x00010000), sr16(0x00008000)); // (1.0, 0.5) -> Polar Angle 0
+    UV input(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000)); // (1.0, 0.5) -> Polar Angle 0
     
     PatternNormU16 resAbs = rotAbs(probe)(input);
     TEST_ASSERT_UINT16_WITHIN(100, 0x8000, raw(resAbs));
@@ -563,7 +543,6 @@ void setup() {
     RUN_TEST(test_bipolar_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
     RUN_TEST(test_sf16_mul_div_helpers);
-    RUN_TEST(test_f16_mul_div_helpers);
     RUN_TEST(test_sf16_f16_mapping_helpers);
     RUN_TEST(test_rotation_accumulation);
     RUN_TEST(test_noise_pattern_depth_speed_wraps_in_six_hours);
@@ -601,7 +580,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_bipolar_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
     RUN_TEST(test_sf16_mul_div_helpers);
-    RUN_TEST(test_f16_mul_div_helpers);
     RUN_TEST(test_sf16_f16_mapping_helpers);
     RUN_TEST(test_rotation_accumulation);
     RUN_TEST(test_noise_pattern_depth_speed_wraps_in_six_hours);

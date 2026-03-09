@@ -35,11 +35,6 @@ namespace PolarShader {
             if (value < SF16_MIN) return SF16_MIN;
             return value;
         }
-
-        constexpr uint64_t clampU64ToF16Sat(uint64_t value) {
-            if (value > F16_MAX) return F16_MAX;
-            return value;
-        }
     }
 
     inline fl::i32 mulI32F16Sat(fl::i32 value, f16 scale) {
@@ -60,85 +55,11 @@ namespace PolarShader {
         return sf16(static_cast<int32_t>(result));
     }
 
-    inline sf16 mulSf16Wrap(sf16 a, sf16 b) {
-        int64_t result_i64 = static_cast<int64_t>(raw(a)) * static_cast<int64_t>(raw(b));
-        result_i64 += (result_i64 >= 0) ? (1LL << 15) : -(1LL << 15);
-        result_i64 >>= 16;
-        return sf16(static_cast<int32_t>(result_i64));
-    }
-
-    inline sf16 divSf16Sat(sf16 numerator, sf16 denominator) {
-        int32_t denominator_raw = raw(denominator);
-        if (denominator_raw == 0) return sf16(0);
-
-        int64_t scaled_numerator = static_cast<int64_t>(raw(numerator)) * SF16_ONE;
-        int64_t abs_numerator = (scaled_numerator < 0) ? -scaled_numerator : scaled_numerator;
-        int64_t abs_denominator = (denominator_raw < 0) ? -static_cast<int64_t>(denominator_raw) : denominator_raw;
-        int64_t quotient = (abs_numerator + (abs_denominator >> 1)) / abs_denominator;
-
-        bool negative = (scaled_numerator < 0) != (denominator_raw < 0);
-        int64_t signed_quotient = negative ? -quotient : quotient;
-        signed_quotient = detail::clampI64ToSf16Sat(signed_quotient);
-        return sf16(static_cast<int32_t>(signed_quotient));
-    }
-
-    inline sf16 divSf16Wrap(sf16 numerator, sf16 denominator) {
-        int32_t denominator_raw = raw(denominator);
-        if (denominator_raw == 0) return sf16(0);
-
-        int64_t scaled_numerator = static_cast<int64_t>(raw(numerator)) * SF16_ONE;
-        int64_t abs_numerator = (scaled_numerator < 0) ? -scaled_numerator : scaled_numerator;
-        int64_t abs_denominator = (denominator_raw < 0) ? -static_cast<int64_t>(denominator_raw) : denominator_raw;
-        int64_t quotient = (abs_numerator + (abs_denominator >> 1)) / abs_denominator;
-
-        bool negative = (scaled_numerator < 0) != (denominator_raw < 0);
-        int64_t signed_quotient = negative ? -quotient : quotient;
-        return sf16(static_cast<int32_t>(signed_quotient));
-    }
-
-    inline f16 mulF16Sat(f16 a, f16 b) {
-        uint64_t result = static_cast<uint64_t>(raw(a)) * static_cast<uint64_t>(raw(b));
-        result += U16_HALF;
-        result >>= 16;
-        result = detail::clampU64ToF16Sat(result);
-        return f16(static_cast<uint16_t>(result));
-    }
-
-    inline f16 mulF16Wrap(f16 a, f16 b) {
-        uint64_t result = static_cast<uint64_t>(raw(a)) * static_cast<uint64_t>(raw(b));
-        result += U16_HALF;
-        result >>= 16;
-        return f16(static_cast<uint16_t>(result));
-    }
-
-    inline f16 divF16Sat(f16 numerator, f16 denominator) {
-        uint16_t denominator_raw = raw(denominator);
-        if (denominator_raw == 0) return f16(0);
-
-        uint64_t scaled_numerator = static_cast<uint64_t>(raw(numerator)) << 16;
-        uint64_t quotient = (scaled_numerator + (denominator_raw >> 1)) / denominator_raw;
-        quotient = detail::clampU64ToF16Sat(quotient);
-        return f16(static_cast<uint16_t>(quotient));
-    }
-
-    inline f16 divF16Wrap(f16 numerator, f16 denominator) {
-        uint16_t denominator_raw = raw(denominator);
-        if (denominator_raw == 0) return f16(0);
-
-        uint64_t scaled_numerator = static_cast<uint64_t>(raw(numerator)) << 16;
-        uint64_t quotient = (scaled_numerator + (denominator_raw >> 1)) / denominator_raw;
-        return f16(static_cast<uint16_t>(quotient));
-    }
-
     inline uint64_t sqrtU64Raw(uint64_t value) {
         uint64_t op = value;
         uint64_t res = 0;
         uint64_t one = 1ULL << 62;
-
-        while (one > op) {
-            one >>= 2;
-        }
-
+        while (one > op) { one >>= 2; }
         while (one != 0) {
             if (op >= res + one) {
                 op -= res + one;
@@ -189,14 +110,6 @@ namespace PolarShader {
         return sf16(static_cast<int32_t>(raw_value << 1) - SF16_ONE);
     }
 
-    // Convert signed permille [-1000..1000] to signed scalar sf16 [-1..1], with saturation.
-    constexpr sf16 sPerMil(int16_t value) {
-        if (value > 1000) value = 1000;
-        if (value < -1000) value = -1000;
-
-        int32_t raw_value = value * SF16_ONE / 1000;
-        return sf16(raw_value);
-    }
 
     // Convert an integer ratio numerator/denominator to f16 [0..1], with saturation.
     constexpr f16 toF16(uint16_t numerator_raw, uint16_t denominator_raw) {

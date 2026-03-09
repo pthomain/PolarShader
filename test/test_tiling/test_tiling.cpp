@@ -49,10 +49,10 @@ void test_square_tiling_basic() {
     UVMap map(mock_layer);
     auto tiled = transform(map);
 
-    tiled(UV(sr16(0), sr16(0)));
+    tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));
     auto expected = TilingMaths::sampleTile(0, 0, 64, TilingTransform::TileShape::SQUARE);
-    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(sr8(expected.local_x))), raw(captured_uv.u));
-    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(sr8(expected.local_y))), raw(captured_uv.v));
+    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(fl::s24x8::from_raw(expected.local_x))), raw(captured_uv.u));
+    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(fl::s24x8::from_raw(expected.local_y))), raw(captured_uv.v));
 }
 
 void test_triangle_tiling_basic() {
@@ -62,10 +62,10 @@ void test_triangle_tiling_basic() {
     auto mock = [&](UV uv) { cap = uv; return PatternNormU16(0); };
     auto tiled = transform(mock);
 
-    tiled(UV(sr16(0), sr16(0)));
+    tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));
     auto expected = TilingMaths::sampleTile(0, 0, 64, TilingTransform::TileShape::TRIANGLE);
-    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(sr8(expected.local_x))), raw(cap.u));
-    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(sr8(expected.local_y))), raw(cap.v));
+    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(fl::s24x8::from_raw(expected.local_x))), raw(cap.u));
+    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(fl::s24x8::from_raw(expected.local_y))), raw(cap.v));
 }
 
 void test_hexagon_tiling_basic() {
@@ -75,10 +75,10 @@ void test_hexagon_tiling_basic() {
     auto mock = [&](UV uv) { cap = uv; return PatternNormU16(0); };
     auto tiled = transform(mock);
     
-    tiled(UV(sr16(0), sr16(0)));
+    tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));
     auto expected = TilingMaths::sampleTile(0, 0, 64, TilingTransform::TileShape::HEXAGON);
-    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(sr8(expected.local_x))), raw(cap.u));
-    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(sr8(expected.local_y))), raw(cap.v));
+    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(fl::s24x8::from_raw(expected.local_x))), raw(cap.u));
+    TEST_ASSERT_EQUAL_INT32(raw(CartesianMaths::to_uv(fl::s24x8::from_raw(expected.local_y))), raw(cap.v));
 }
 
 void test_signal_tiling_basic() {
@@ -88,7 +88,7 @@ void test_signal_tiling_basic() {
     auto mock = [&](UV uv) { cap = uv; return PatternNormU16(0); };
     auto tiled = transform(mock);
     
-    tiled(UV(sr16(0), sr16(0)));
+    tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));
     int32_t u1 = raw(cap.u);
     TEST_ASSERT_EQUAL_INT32(0, u1);
 }

@@ -110,7 +110,7 @@ namespace PolarShader {
             }
         }
 
-        uint8_t index = map16_to_8(hue_value);
+        uint8_t index = fl::map16_to_8(hue_value);
         if (context) {
             index = static_cast<uint8_t>(index + context->paletteOffset);
         }
@@ -163,10 +163,10 @@ namespace PolarShader {
             f16 radius
         ) {
             // Display provides (Angle, Radius) in legacy f16/sf16.
-            // Convert to UV (r16/sr16 (Q16.16)).
+            // Convert to UV (fl::u16x16/fl::s16x16 (Q16.16)).
             UV input = polarToCartesianUV(UV(
-                sr16(raw(angle)),
-                sr16(raw(radius))
+                fl::s16x16::from_raw(raw(angle)),
+                fl::s16x16::from_raw(raw(radius))
             ));
 
             PatternNormU16 value = layer(input);

@@ -50,7 +50,9 @@ namespace PolarShader {
                     if (raw(alpha) != 0xFFFFu) {
                         top.nscale8_video(static_cast<uint8_t>(raw(alpha) >> 8));
                     }
-                    return base + top;
+                    CRGB result = base;
+                    result += top;
+                    return result;
                 }
                 case BlendMode::Multiply: {
                     if (raw(alpha) != 0xFFFFu) {

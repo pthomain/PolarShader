@@ -77,16 +77,16 @@ namespace PolarShader {
                 return layer(uv);
             }
 
-            sr8 cx = CartesianMaths::from_uv(uv.u);
-            sr8 cy = CartesianMaths::from_uv(uv.v);
-            int32_t x_raw = raw(cx);
-            int32_t y_raw = raw(cy);
+            fl::s24x8 cx = CartesianMaths::from_uv(uv.u);
+            fl::s24x8 cy = CartesianMaths::from_uv(uv.v);
+            int32_t x_raw = cx.raw();
+            int32_t y_raw = cy.raw();
             TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cellSizeRaw, state->shape);
             TilingMaths::applyMirror(tile, state->mirrored);
 
             UV tiled_uv(
-                CartesianMaths::to_uv(sr8(tile.local_x)),
-                CartesianMaths::to_uv(sr8(tile.local_y))
+                CartesianMaths::to_uv(fl::s24x8::from_raw(tile.local_x)),
+                CartesianMaths::to_uv(fl::s24x8::from_raw(tile.local_y))
             );
 
             return layer(tiled_uv);

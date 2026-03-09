@@ -39,8 +39,8 @@ namespace PolarShader {
 
         UV mirrorUv(UV uv) {
             return UV(
-                sr16(mirrorUvRaw(raw(uv.u))),
-                sr16(mirrorUvRaw(raw(uv.v)))
+                fl::s16x16::from_raw(mirrorUvRaw(uv.u.raw())),
+                fl::s16x16::from_raw(mirrorUvRaw(uv.v.raw()))
             );
         }
     }
@@ -63,7 +63,7 @@ namespace PolarShader {
                 uint32_t full_radius = static_cast<uint32_t>(SF16_MAX) + 1u;
                 uint32_t segment = full_radius / divisions;
                 if (segment != 0u) {
-                    uint32_t radius_raw = static_cast<uint32_t>(raw(polar_uv.v));
+                    uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());
                     uint32_t index = radius_raw / segment;
                     if (index >= divisions) index = divisions - 1u;
 
@@ -74,7 +74,7 @@ namespace PolarShader {
 
                     uint32_t scaled = (local * full_radius) / segment;
                     if (scaled >= full_radius) scaled = full_radius - 1u;
-                    polar_uv.v = sr16(static_cast<int32_t>(scaled));
+                    polar_uv.v = fl::s16x16::from_raw(static_cast<int32_t>(scaled));
                 }
             }
 

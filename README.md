@@ -26,8 +26,8 @@ It targets platforms such as:
 
 ## Core Design Goals
 
-- All fixed-point — custom Q-format types (f16, sf16, sr16, sr8, r8) with strong typing to prevent unit mixing
-- Unified UV space — all spatial transforms operate on normalized sr16 (Q16.16 signed) coordinates, agnostic to polar vs
+- All fixed-point — custom Q-format types (f16, sf16, fl::s16x16, fl::s24x8, fl::u24x8) with strong typing to prevent unit mixing
+- Unified UV space — all spatial transforms operate on normalized fl::s16x16 (Q16.16 signed) coordinates, agnostic to polar vs
   cartesian
 - Composable pipeline — transforms are small, single-responsibility, and stackable in any order via PipelineStep variant
 - Explicit motion — all animation driven by Sf16Signal + PhaseAccumulator, no hidden state
@@ -37,7 +37,7 @@ It targets platforms such as:
 ### 1. Deterministic Fixed-Point Arithmetic
 
 - No `float`, no `double`
-- Explicit Q-formats (`f16/sf16 (Q0.16)`, `r16/sr16 (Q16.16)`, `Q1.15`)
+- Explicit Q-formats (`f16/sf16 (Q0.16)`, `fl::u16x16/fl::s16x16 (Q16.16)`, `Q1.15`)
 - Fully deterministic across frames, compilers, and MCUs
 - Predictable overflow, wrap, and saturation behavior
 
@@ -53,16 +53,16 @@ This makes PolarShader suitable for:
 
 PolarShader uses a **unified spatial representation (UV)**:
 
-- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `sr16`.
+- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `fl::s16x16`.
 - **Domain Agnostic:** Transforms like rotation or zoom apply seamlessly to any pattern.
-- **High Precision:** `r16/sr16 (Q16.16)` provides sufficient geometric headroom for large-scale translations and zooms.
-- **Specialized Cartesian Domain:** `sr8/r8` is used for lattice/noise-style Cartesian internals where 8 fractional bits
+- **High Precision:** `fl::u16x16/fl::s16x16 (Q16.16)` provides sufficient geometric headroom for large-scale translations and zooms.
+- **Specialized Cartesian Domain:** `fl::s24x8/fl::u24x8` is used for lattice/noise-style Cartesian internals where 8 fractional bits
   are enough and integer-grid behavior is the priority.
 
-`r16` and `r8` are both ratio/range formats, but they serve different purposes:
+`fl::u16x16` and `fl::u24x8` are both ratio/range formats, but they serve different purposes:
 
-- `r16/sr16`: high-precision transform space (UV, composition, smooth motion).
-- `r8/sr8`: lower-fractional precision Cartesian/noise space (grid cells, lattice sampling, fast domain math).
+- `fl::u16x16/fl::s16x16`: high-precision transform space (UV, composition, smooth motion).
+- `fl::u24x8/fl::s24x8`: lower-fractional precision Cartesian/noise space (grid cells, lattice sampling, fast domain math).
 
 ---
 
@@ -187,14 +187,14 @@ This ensures:
 
 ### Unit Naming Cheat Sheet
 
-| Type   | Signed | Format | Typical Use                                                          |
-|:-------|:-------|:-------|:---------------------------------------------------------------------|
-| `f16`  | No     | Q0.16  | Unit fractions and wrapped angle-like values in `[0, 1)` domains     |
-| `sf16` | Yes    | Q0.16  | Signed scalar signals/modulation in `[-1, 1]`                        |
-| `r16`  | No     | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
-| `sr16` | Yes    | Q16.16 | UV transform/composition space with high fractional precision        |
-| `r8`   | No     | Q24.8  | Unsigned Cartesian/noise-domain coordinates and depth sampling       |
-| `sr8`  | Yes    | Q24.8  | Signed lattice/grid Cartesian internals for pattern math             |
+| Type           | Signed | Format | Typical Use                                                          |
+|:---------------|:-------|:-------|:---------------------------------------------------------------------|
+| `f16`          | No     | Q0.16  | Unit fractions and wrapped angle-like values in `[0, 1)` domains     |
+| `sf16`         | Yes    | Q0.16  | Signed scalar signals/modulation in `[-1, 1]`                        |
+| `fl::u16x16`   | No     | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
+| `fl::s16x16`   | Yes    | Q16.16 | UV transform/composition space with high fractional precision        |
+| `fl::u24x8`    | No     | Q24.8  | Unsigned Cartesian/noise-domain coordinates and depth sampling       |
+| `fl::s24x8`    | Yes    | Q24.8  | Signed lattice/grid Cartesian internals for pattern math             |
 
 ---
 

@@ -99,22 +99,22 @@ namespace PolarShader {
         };
 
         template<>
-        struct SignalAccumulator<sr8> {
-            static sr8 zero() { return sr8(0); }
+        struct SignalAccumulator<fl::s24x8> {
+            static fl::s24x8 zero() { return fl::s24x8::from_raw(0); }
 
-            static sr8 add(sr8 base, sr8 delta) {
-                int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
+            static fl::s24x8 add(fl::s24x8 base, fl::s24x8 delta) {
+                int64_t sum = static_cast<int64_t>(base.raw()) + static_cast<int64_t>(delta.raw());
                 if (sum > std::numeric_limits<int32_t>::max()) sum = std::numeric_limits<int32_t>::max();
                 if (sum < std::numeric_limits<int32_t>::min()) sum = std::numeric_limits<int32_t>::min();
-                return sr8(static_cast<int32_t>(sum));
+                return fl::s24x8::from_raw(static_cast<int32_t>(sum));
             }
         };
 
         template<>
-        struct SignalAccumulator<sr16> {
-            static sr16 zero() { return sr16(0); }
+        struct SignalAccumulator<fl::s16x16> {
+            static fl::s16x16 zero() { return fl::s16x16::from_raw(0); }
 
-            static sr16 add(sr16 base, sr16 delta) {
+            static fl::s16x16 add(fl::s16x16 base, fl::s16x16 delta) {
                 return base + delta;
             }
         };

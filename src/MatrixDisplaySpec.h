@@ -77,13 +77,13 @@ namespace PolarShader {
 
             // Convert to UV space [0, 1] then to Polar UV.
             UV cart_uv(
-                sr16((scaled_x + SF16_ONE) >> 1),
-                sr16((scaled_y + SF16_ONE) >> 1)
+                fl::s16x16::from_raw((scaled_x + SF16_ONE) >> 1),
+                fl::s16x16::from_raw((scaled_y + SF16_ONE) >> 1)
             );
             UV polar = cartesianToPolarUV(cart_uv);
             return {
-                f16(static_cast<uint16_t>(raw(polar.u))),
-                f16(static_cast<uint16_t>(raw(polar.v)))
+                f16(static_cast<uint16_t>(polar.u.raw())),
+                f16(static_cast<uint16_t>(polar.v.raw()))
             };
         }
     };

@@ -69,8 +69,8 @@ namespace PolarShader {
     }
 
     UV polarToCartesianUV(UV polar_uv) {
-        f16 angle_turns = f16(static_cast<uint16_t>(raw(polar_uv.u)));
-        f16 radius = f16(static_cast<uint16_t>(raw(polar_uv.v)));
+        f16 angle_turns = f16(static_cast<uint16_t>(polar_uv.u.raw()));
+        f16 radius = f16(static_cast<uint16_t>(polar_uv.v.raw()));
 
         sf16 cos_val = angleCosF16(angle_turns);
         sf16 sin_val = angleSinF16(angle_turns);
@@ -86,14 +86,14 @@ namespace PolarShader {
         int32_t x_norm = (x_raw + 0x00010000) >> 1;
         int32_t y_norm = (y_raw + 0x00010000) >> 1;
 
-        return UV(sr16(x_norm), sr16(y_norm));
+        return UV(fl::s16x16::from_raw(x_norm), fl::s16x16::from_raw(y_norm));
     }
 
     UV cartesianToPolarUV(UV cart_uv) {
         // Map from [0, 1] to [-1, 1]
         // x = cart_u * 2 - 1
-        int32_t x = (raw(cart_uv.u) << 1) - 0x00010000;
-        int32_t y = (raw(cart_uv.v) << 1) - 0x00010000;
+        int32_t x = (cart_uv.u.raw() << 1) - 0x00010000;
+        int32_t y = (cart_uv.v.raw() << 1) - 0x00010000;
 
         int32_t clamped_x = constrain(x, SF16_MIN, SF16_MAX);
         int32_t clamped_y = constrain(y, SF16_MIN, SF16_MAX);
@@ -111,6 +111,6 @@ namespace PolarShader {
             magnitude_raw = SF16_MAX;
         }
 
-        return UV(sr16(raw(angle_units)), sr16(static_cast<int32_t>(magnitude_raw)));
+        return UV(fl::s16x16::from_raw(raw(angle_units)), fl::s16x16::from_raw(static_cast<int32_t>(magnitude_raw)));
     }
 }

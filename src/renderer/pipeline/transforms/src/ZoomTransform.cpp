@@ -86,8 +86,8 @@ namespace PolarShader {
     UVMap ZoomTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
             // Map from [0, 1] to [-1, 1] (relative to center)
-            int64_t x = (static_cast<int64_t>(raw(uv.u)) << 1) - 0x00010000;
-            int64_t y = (static_cast<int64_t>(raw(uv.v)) << 1) - 0x00010000;
+            int64_t x = (static_cast<int64_t>(uv.u.raw()) << 1) - 0x00010000;
+            int64_t y = (static_cast<int64_t>(uv.v.raw()) << 1) - 0x00010000;
             int32_t scale = raw(state->scaleValue);
 
             // Apply f16/sf16 scale
@@ -100,8 +100,8 @@ namespace PolarShader {
 
             // Map from [-1, 1] to [0, 1]
             UV scaled_uv(
-                sr16((fx + 0x00010000) >> 1),
-                sr16((fy + 0x00010000) >> 1)
+                fl::s16x16::from_raw((fx + 0x00010000) >> 1),
+                fl::s16x16::from_raw((fy + 0x00010000) >> 1)
             );
 
             return layer(scaled_uv);

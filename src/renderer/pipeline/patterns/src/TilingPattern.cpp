@@ -74,8 +74,8 @@ namespace PolarShader {
 
             uint8_t colors = (color_count < 3) ? 3 : color_count;
 
-            int32_t x_raw = raw(CartesianMaths::from_uv(uv.u));
-            int32_t y_raw = raw(CartesianMaths::from_uv(uv.v));
+            int32_t x_raw = CartesianMaths::from_uv(uv.u).raw();
+            int32_t y_raw = CartesianMaths::from_uv(uv.v).raw();
 
             if (shape == TileShape::SQUARE) {
                 TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cell_size_raw, shape);

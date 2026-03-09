@@ -24,9 +24,11 @@
 #ifdef ARDUINO
 #include <stdint.h>
 #include <type_traits>
+#include "FastLED.h"
 #else
 #include <cstdint>
 #include <type_traits>
+#include "native/FastLED.h"
 #endif
 
 /**
@@ -76,6 +78,8 @@ namespace PolarShader {
         explicit constexpr Typed(Rep raw) : v_(raw) {
         }
 
+        static constexpr Typed from_raw(Rep r) { return Typed(r); }
+
         constexpr Rep raw() const { return v_; }
 
         friend constexpr bool operator==(Typed a, Typed b) { return a.v_ == b.v_; }
@@ -121,10 +125,6 @@ namespace PolarShader {
     // Full turn in the 16-bit angle domain.
     inline constexpr uint32_t ANGLE_FULL_TURN_U32 = 1u << 16;
 
-    // Cartesian coordinate fixed-point fractional bits (sr8/r8).
-    // These coordinates represent f16 lattice units with extra fractional precision.
-    inline constexpr uint8_t R8_FRAC_BITS = 8;
-
     // --- Angle domain constants (uint16_t) ---
     // The domain for 16-bit angle samples is [0..65535], where 65536 represents a full circle (the modulus).
     inline constexpr uint16_t QUARTER_TURN_U16 = 16384u;
@@ -139,15 +139,9 @@ namespace PolarShader {
     struct sf16Tag {
     };
 
-    struct r16Tag {
-    };
-
-    struct sr16Tag {
-    };
-
     /**
      * @brief Unsigned fixed-point fraction in f16 (Q0.16) format.
-     * 
+     *
      * Definition: 16-bit integer where 0 represents 0.0 and 65535 represents ~1.0.
      * Usage: Used for angles (mod 2^16), alpha blending, and unsigned scaling factors.
      * Analysis: Strictly required for circular math and operations where negative values are semantically invalid.
@@ -156,35 +150,20 @@ namespace PolarShader {
 
     /**
      * @brief Signed fixed-point scalar in sf16 (Q0.16) format stored in a 32-bit container.
-     * 
+     *
      * Definition: Signed integer where 65536 represents 1.0 and -65536 represents -1.0.
      * Usage: The primary currency for signals, oscillators, and trigonometric outputs (sine/cosine).
      * Analysis: Strictly required for the signal engine to support bidirectional modulation (e.g. oscillating around zero).
      */
     using sf16 = Typed<int32_t, sf16Tag>;
 
-    /**
-     * @brief Unsigned fixed-point scalar in r16 (Q16.16) format.
-     *
-     * Definition: 16 integer bits and 16 fractional bits. 65536 represents 1.0.
-     * Usage: Higher-precision ratio/range values where transform composition needs sub-pixel stability.
-     */
-    using r16 = Typed<uint32_t, r16Tag>;
-
-    /**
-     * @brief Signed fixed-point scalar in sr16 (Q16.16) format.
-     * 
-     * Definition: 16 integer bits and 16 fractional bits. 65536 represents 1.0.
-     * Usage: Used exclusively for UV spatial coordinates.
-     * Analysis: Strictly required to provide enough dynamic range for tiling/zoom (values > 1.0) while maintaining sub-pixel precision.
-     */
-    using sr16 = Typed<int32_t, sr16Tag>;
-
     // --- Raw extractors ---
     constexpr uint16_t raw(f16 f) { return f.raw(); }
     constexpr int32_t raw(sf16 v) { return v.raw(); }
-    constexpr uint32_t raw(r16 v) { return v.raw(); }
-    constexpr int32_t raw(sr16 v) { return v.raw(); }
+    constexpr int32_t raw(fl::s16x16 v) { return v.raw(); }
+    constexpr uint32_t raw(fl::u16x16 v) { return v.raw(); }
+    constexpr int32_t raw(fl::s24x8 v) { return v.raw(); }
+    constexpr uint32_t raw(fl::u24x8 v) { return v.raw(); }
 
     // --- Cartesian Units ---
 
@@ -198,32 +177,6 @@ namespace PolarShader {
         int32_t x;
         int32_t y;
     };
-
-    struct sr8Tag {
-    };
-
-    struct r8Tag {
-    };
-
-    /**
-     * @brief Signed fixed-point coordinate in sr8/r8 format.
-     * 
-     * Definition: 24 integer bits, 8 fractional bits. 256 represents 1.0.
-     * Usage: Implementation detail for lattice-aligned patterns (Worley, HexTiling).
-     * Analysis: Chosen over sr16 when grid/index logic dominates and 8 fractional bits are sufficient.
-     */
-    using sr8 = Typed<int32_t, sr8Tag>;
-
-    /**
-     * @brief Unsigned fixed-point coordinate in sr8/r8 format.
-     * 
-     * Usage: Exclusively for noise domain sampling (inoise16).
-     * Analysis: Required to match the unsigned interface of hardware-optimized noise generators and keep noise-domain math lightweight.
-     */
-    using r8 = Typed<uint32_t, r8Tag>;
-
-    constexpr int32_t raw(sr8 v) { return v.raw(); }
-    constexpr uint32_t raw(r8 v) { return v.raw(); }
 
     // --- Pattern Units ---
 
@@ -260,7 +213,7 @@ namespace PolarShader {
      * @brief Represents a normalized spatial coordinate in UV space.
      * 
      * Definition: A 2D vector where U and V are normalized values in the range [0.0, 1.0], 
-     * mapped to the signed sr16 (Q16.16) fixed-point type.
+     * mapped to the fl::s16x16 (Q16.16) fixed-point type.
      * 
      * Usage: The unified standard for all spatial transformations and pattern sampling.
      * 
@@ -268,13 +221,13 @@ namespace PolarShader {
      * and Polar transforms without explicit domain switching logic.
      */
     struct UV {
-        sr16 u;
-        sr16 v;
+        fl::s16x16 u;
+        fl::s16x16 v;
 
-        constexpr UV() : u(0), v(0) {
+        constexpr UV() : u(fl::s16x16::from_raw(0)), v(fl::s16x16::from_raw(0)) {
         }
 
-        constexpr UV(sr16 u, sr16 v) : u(u), v(v) {
+        constexpr UV(fl::s16x16 u, fl::s16x16 v) : u(u), v(v) {
         }
     };
 }

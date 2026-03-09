@@ -68,10 +68,10 @@ namespace PolarShader {
         const State *state;
 
         PatternNormU16 operator()(UV uv) const {
-            const int32_t u_raw = raw(uv.u);
-            const int32_t v_raw = raw(uv.v);
+            const int32_t u_raw = uv.u.raw();
+            const int32_t v_raw = uv.v.raw();
 
-            // Wrap sr16 coordinates into [0, 65536).
+            // Wrap fl::s16x16 coordinates into [0, 65536).
             int32_t uw = u_raw % 65536;
             if (uw < 0) uw += 65536;
             int32_t vw = v_raw % 65536;

@@ -37,11 +37,11 @@ namespace PolarShader {
         const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = SF16_ONE / 2;
         const int32_t TRANSLATION_SMOOTH_SCALE_MIN = SF16_ONE >> 4; // 1/16x
         const int32_t TRANSLATION_SMOOTH_SCALE_MAX = SF16_ONE << 4; // 16x
-        const int32_t TRANSLATION_MAX_SPEED = SF16_ONE >> 2; // 1/4 of UV units in sr16 (Q16.16) raw domain
+        const int32_t TRANSLATION_MAX_SPEED = SF16_ONE >> 2; // 1/4 of UV units in fl::s16x16 (Q16.16) raw domain
 
         UVSignal accumulateUVSignal(UVSignal signal) {
             return UVSignal(
-                [signal = std::move(signal), accumulated = UV(sr16(0), sr16(0))](
+                [signal = std::move(signal), accumulated = UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0))](
             f16 progress,
             TimeMillis elapsedMs
         ) mutable {
@@ -56,7 +56,7 @@ namespace PolarShader {
 
     struct TranslationTransform::State {
         UVSignal offsetSignal;
-        UV offset{sr16(0), sr16(0)};
+        UV offset{fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)};
         bool hasSmoothed{false};
 
         State(UVSignal signal) : offsetSignal(std::move(signal)) {
@@ -71,26 +71,26 @@ namespace PolarShader {
         Sf16Signal direction,
         Sf16Signal speed
     ) : TranslationTransform(accumulateUVSignal(UVSignal([direction, speed]() {
-        // Map speed signal to sr16 velocity magnitude [0 .. 0.25 UV units].
-        MagnitudeRange speedRange(sr16(0), sr16(TRANSLATION_MAX_SPEED));
+        // Map speed signal to fl::s16x16 velocity magnitude [0 .. 0.25 UV units].
+        MagnitudeRange speedRange(fl::s16x16::from_raw(0), fl::s16x16::from_raw(TRANSLATION_MAX_SPEED));
 
         // Use a lambda to combine direction and speed into a velocity UV vector
         // This is a per-frame delta signal that is accumulated into absolute offset.
         AngleRange directionRange;
         return UVSignal([direction, speed, speedRange, directionRange](f16 progress, TimeMillis elapsedMs) mutable {
             f16 dir = direction.sample(directionRange, elapsedMs);
-            int32_t s = raw(speed.sample(speedRange, elapsedMs));
+            int32_t s = speed.sample(speedRange, elapsedMs).raw();
 
             sf16 cos_val = angleCosF16(dir);
             sf16 sin_val = angleSinF16(dir);
 
-            // Velocity vector in UV units (r16/sr16 (Q16.16)) per scene
-            // Trig is f16/sf16, s is r16/sr16 (Q16.16) units/scene. 
-            // Result is r16/sr16 (Q16.16).
+            // Velocity vector in UV units (fl::u16x16/fl::s16x16 (Q16.16)) per scene
+            // Trig is f16/sf16, s is fl::u16x16/fl::s16x16 (Q16.16) units/scene.
+            // Result is fl::u16x16/fl::s16x16 (Q16.16).
             int32_t vx = static_cast<int32_t>((static_cast<int64_t>(s) * raw(cos_val)) >> 16);
             int32_t vy = static_cast<int32_t>((static_cast<int64_t>(s) * raw(sin_val)) >> 16);
 
-            return UV(sr16(vx), sr16(vy));
+            return UV(fl::s16x16::from_raw(vx), fl::s16x16::from_raw(vy));
         });
     }()))) {
     }
@@ -114,13 +114,13 @@ namespace PolarShader {
         int64_t alpha = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN) +
                         ((alpha_span * zoom_norm) >> 16);
 
-        int64_t du = static_cast<int64_t>(raw(target.u)) - static_cast<int64_t>(raw(state->offset.u));
-        int64_t dv = static_cast<int64_t>(raw(target.v)) - static_cast<int64_t>(raw(state->offset.v));
+        int64_t du = static_cast<int64_t>(target.u.raw()) - static_cast<int64_t>(state->offset.u.raw());
+        int64_t dv = static_cast<int64_t>(target.v.raw()) - static_cast<int64_t>(state->offset.v.raw());
         du = (du * alpha) >> 16;
         dv = (dv * alpha) >> 16;
 
-        state->offset.u = sr16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.u)) + du));
-        state->offset.v = sr16(static_cast<int32_t>(static_cast<int64_t>(raw(state->offset.v)) + dv));
+        state->offset.u = fl::s16x16::from_raw(static_cast<int32_t>(static_cast<int64_t>(state->offset.u.raw()) + du));
+        state->offset.v = fl::s16x16::from_raw(static_cast<int32_t>(static_cast<int64_t>(state->offset.v.raw()) + dv));
     }
 
     UVMap TranslationTransform::operator()(const UVMap &layer) const {

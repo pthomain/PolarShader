@@ -29,7 +29,7 @@ namespace PolarShader {
     /**
      * @brief Shared Worley/Voronoi base implementation with fixed 3x3 neighbor search.
      *
-     * The cell size defines the lattice spacing in sr8/r8 units and is clamped to
+     * The cell size defines the lattice spacing in fl::s24x8/fl::u24x8 units and is clamped to
      * at least WorleyCellUnit (one unit). Distances are computed as squared
      * distances (no sqrt) and normalized to the PatternNormU16 domain.
      */
@@ -48,11 +48,11 @@ namespace PolarShader {
 
         explicit WorleyBasePattern(WorleyAliasing aliasingMode);
 
-        void configureCellSize(sr8 cellSize);
+        void configureCellSize(fl::s24x8 cellSize);
 
-        sr8 aliasingOffset() const;
+        fl::s24x8 aliasingOffset() const;
 
-        Distances computeDistances(sr8 x, sr8 y) const;
+        Distances computeDistances(fl::s24x8 x, fl::s24x8 y) const;
 
         PatternNormU16 normalizeDistance(uint64_t dist) const;
 
@@ -71,16 +71,16 @@ namespace PolarShader {
 
     public:
         explicit WorleyPattern(
-            sr8 cellSize = sr8(WorleyCellUnit),
+            fl::s24x8 cellSize = fl::s24x8::from_raw(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        PatternNormU16 sampleFast(sr8 x, sr8 y) const;
+        PatternNormU16 sampleFast(fl::s24x8 x, fl::s24x8 y) const;
 
-        PatternNormU16 samplePrecise(sr8 x, sr8 y) const;
+        PatternNormU16 samplePrecise(fl::s24x8 x, fl::s24x8 y) const;
     };
 
     /**
@@ -98,21 +98,21 @@ namespace PolarShader {
 
     public:
         explicit VoronoiPattern(
-            sr8 cellSize = sr8(WorleyCellUnit),
+            fl::s24x8 cellSize = fl::s24x8::from_raw(WorleyCellUnit),
             WorleyAliasing aliasingMode = WorleyAliasing::Fast
         );
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        PatternNormU16 sampleIdFast(sr8 x, sr8 y) const;
+        PatternNormU16 sampleIdFast(fl::s24x8 x, fl::s24x8 y) const;
 
         PatternNormU16 sampleFastestId(
-            sr8 x0, sr8 y0,
-            sr8 x1, sr8 y1
+            fl::s24x8 x0, fl::s24x8 y0,
+            fl::s24x8 x1, fl::s24x8 y1
         ) const;
 
-        PatternNormU16 samplePrecise(sr8 x, sr8 y) const;
+        PatternNormU16 samplePrecise(fl::s24x8 x, fl::s24x8 y) const;
     };
 }
 
