@@ -34,7 +34,9 @@
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/ranges/UVRange.h"
+#include "renderer/pipeline/transforms/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/RotationTransform.h"
+#include "renderer/pipeline/transforms/TranslationTransform.h"
 #include "renderer/pipeline/transforms/ZoomTransform.h"
 #define private public
 #include "renderer/pipeline/patterns/NoisePattern.h"
@@ -46,7 +48,9 @@
 #include "renderer/pipeline/maths/src/PatternMaths.cpp"
 #include "renderer/pipeline/maths/src/TimeMaths.cpp"
 #include "renderer/pipeline/maths/src/TilingMaths.cpp"
+#include "renderer/pipeline/transforms/src/KaleidoscopeTransform.cpp"
 #include "renderer/pipeline/transforms/src/RotationTransform.cpp"
+#include "renderer/pipeline/transforms/src/TranslationTransform.cpp"
 #include "renderer/pipeline/transforms/src/ZoomTransform.cpp"
 #include "renderer/pipeline/signals/src/Signals.cpp"
 #include "renderer/pipeline/signals/src/SignalSamplers.cpp"
@@ -256,6 +260,23 @@ void test_zoom_transform_sine_varies_over_time() {
 
     // If zoom is animated, at least one later sample must differ from the initial one.
     TEST_ASSERT_TRUE(a != b || a != c);
+}
+
+/** @brief Verify kaleidoscope input mirrors at the unit-UV boundary. */
+void test_kaleidoscope_translation_mirrors_at_unit_uv_boundary() {
+    KaleidoscopeTransform kaleidoscope(6, true);
+    TranslationTransform translation(UVSignal([](f16, TimeMillis) {
+        return UV(sr16(0x00010000), sr16(0));
+    }));
+    translation.advanceFrame(f16(0), 0);
+
+    UV probe(sr16(0x00009234), sr16(0x00006FED));
+    UVMap capture = [](UV uv) { return PatternNormU16(raw(uv.u) ^ raw(uv.v)); };
+
+    PatternNormU16 baseline = kaleidoscope(capture)(UV(sr16(0x00006DCB), probe.v));
+    PatternNormU16 shifted = translation(kaleidoscope(capture))(probe);
+
+    TEST_ASSERT_EQUAL_UINT16(raw(baseline), raw(shifted));
 }
 
 /** @brief Verify easing functions loop if period > 0. */
@@ -528,6 +549,7 @@ void setup() {
     RUN_TEST(test_phase_accumulator_signed);
     RUN_TEST(test_sine_speed);
     RUN_TEST(test_zoom_transform_sine_varies_over_time);
+    RUN_TEST(test_kaleidoscope_translation_mirrors_at_unit_uv_boundary);
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);
@@ -565,6 +587,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_phase_accumulator_signed);
     RUN_TEST(test_sine_speed);
     RUN_TEST(test_zoom_transform_sine_varies_over_time);
+    RUN_TEST(test_kaleidoscope_translation_mirrors_at_unit_uv_boundary);
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);

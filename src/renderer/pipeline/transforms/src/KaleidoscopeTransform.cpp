@@ -22,6 +22,29 @@
 #include "renderer/pipeline/maths/PolarMaths.h"
 
 namespace PolarShader {
+    namespace {
+        constexpr int32_t UV_PERIOD_RAW = 0x00010000;
+        constexpr int32_t UV_MIRROR_PERIOD_RAW = UV_PERIOD_RAW * 2;
+
+        int32_t mirrorUvRaw(int32_t value) {
+            int32_t mirrored = value % UV_MIRROR_PERIOD_RAW;
+            if (mirrored < 0) {
+                mirrored += UV_MIRROR_PERIOD_RAW;
+            }
+            if (mirrored >= UV_PERIOD_RAW) {
+                mirrored = (UV_MIRROR_PERIOD_RAW - 1) - mirrored;
+            }
+            return mirrored;
+        }
+
+        UV mirrorUv(UV uv) {
+            return UV(
+                sr16(mirrorUvRaw(raw(uv.u))),
+                sr16(mirrorUvRaw(raw(uv.v)))
+            );
+        }
+    }
+
     struct KaleidoscopeTransform::State {
         uint8_t facets;
         bool mirrored;
@@ -33,7 +56,7 @@ namespace PolarShader {
 
     UVMap KaleidoscopeTransform::operator()(const UVMap &layer) const {
         return [state = this->state, layer](UV uv) {
-            UV polar_uv = cartesianToPolarUV(uv);
+            UV polar_uv = cartesianToPolarUV(mirrorUv(uv));
             
             uint8_t facets = state->facets;
             if (facets > 1u) {

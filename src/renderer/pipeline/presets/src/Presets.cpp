@@ -45,12 +45,12 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    // tilingPattern(
-                    //     100,
-                    //     8,
-                    //     TilingPattern::TileShape::HEXAGON
-                    // ),
-                    noisePattern(constant(100)),
+                    tilingPattern(
+                        100,
+                        16,
+                        TilingPattern::TileShape::TRIANGLE
+                    ),
+                    // noisePattern(constant(100)),
                     palette,
                     "kaleidoscope"
                 )
@@ -76,14 +76,6 @@ namespace PolarShader {
                         // noise(constant(10), constant(500), constant(500))
                     )
                 )
-
-                //Translation drifts into solid colour when placed after kaleidoscope
-                .addTransform(
-                    TranslationTransform(
-                        noise(constant(30)),
-                        noise(constant(100), constant(50), constant(50))
-                    ))
-
                 // .addTransform(
                 // TilingTransform(
                 // 80,
@@ -93,6 +85,11 @@ namespace PolarShader {
                 // )
 
 
+                .addTransform(
+                    TranslationTransform(
+                        noise(constant(30)),
+                        noise(constant(100), constant(50), constant(50))
+                    ))
                 .addTransform(VortexTransform(
                     noise(
                         constant(100),
@@ -103,6 +100,65 @@ namespace PolarShader {
                     )
                 ))
 
+                .addTransform(KaleidoscopeTransform(
+                    3,
+                    false
+                ))
+
+                .addTransform(
+                    TranslationTransform(
+                        noise(constant(30)),
+                        noise(constant(100), constant(50), constant(50))
+                    ))
+
+                .addTransform(
+                    RotationTransform(
+                        noise(
+                            constant(50),
+                            noise()
+                        ),
+                        false
+                    )
+                );
+    }
+
+    LayerBuilder fabricPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    noisePattern(constant(100)),
+                    palette,
+                    "kaleidoscope"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        sine(),
+                        noise(
+                            constant(300),
+                            noise(constant(200), constant(500))
+                        ),
+                        perMil(500)
+                    )
+                )
+                .addTransform(
+                    ZoomTransform(
+                        constant(500)
+                    )
+                )
+                .addTransform(
+                    TranslationTransform(
+                        noise(constant(30)),
+                        noise(constant(100), constant(50), constant(50))
+                    ))
+                .addTransform(VortexTransform(
+                    noise(
+                        constant(100),
+                        noise(
+                            noise(constant(150)),
+                            constant(500)
+                        )
+                    )
+                ))
                 .addTransform(KaleidoscopeTransform(
                     2,
                     true

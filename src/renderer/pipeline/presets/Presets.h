@@ -30,6 +30,10 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     );
 
+    LayerBuilder fabricPreset(
+        const CRGBPalette16 &palette
+    );
+
     LayerBuilder hexKaleidoscopePreset(
         const CRGBPalette16 &palette
     );
