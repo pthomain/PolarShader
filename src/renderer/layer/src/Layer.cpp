@@ -37,7 +37,6 @@ namespace PolarShader {
         fl::vector<PipelineStep> steps,
         const char *name,
         std::shared_ptr<PipelineContext> context,
-        DepthSignal depthSignal,
         f16 alpha,
         BlendMode blendMode
     ) : pattern(std::move(pattern)),
@@ -45,7 +44,6 @@ namespace PolarShader {
         steps(std::move(steps)),
         name(name ? name : "unnamed"),
         context(std::move(context)),
-        depthSignal(std::move(depthSignal)),
         alpha(alpha),
         blendMode(blendMode) {
         Serial.print("Building layer: ");
@@ -129,7 +127,6 @@ namespace PolarShader {
             Serial.println("Layer::advanceFrame context is null.");
         } else {
             context->timeMs = elapsedMs;
-            context->depth = depthSignal(progress, elapsedMs);
         }
 
         if (pattern) {

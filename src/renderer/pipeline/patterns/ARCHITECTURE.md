@@ -25,12 +25,12 @@ This document defines the "Definition of Done" for any new pattern in the PolarS
     - Patterns may keep mutable cached frame state, but that state must be fully prepared before render starts.
     - Stochastic patterns (e.g., Voronoi) MUST accept a `uint32_t seed` in their constructor to ensure they are deterministic.
 
-6.  **NO TIME-BASED LOGIC IN `layer()` OR THE SAMPLER**: All animation is handled by `advanceFrame()`, transforms, and/or a depth signal updated in the pipeline context. Patterns must not use `millis()` or any other time source during compilation or sampling.
+6.  **NO TIME-BASED LOGIC IN `layer()` OR THE SAMPLER**: All animation is handled by `advanceFrame()`, transforms, and pattern-owned state prepared ahead of sampling. Patterns must not use `millis()` or any other time source during compilation or sampling.
 
 7.  **DUAL-CORE SAFETY**: RP2040 renders by sampling compiled pattern chains from two cores.
     - The sampler returned by `layer()` must be read-only during render.
     - Do not sample signals, mutate shared state, or depend on copy/move side effects in the compiled sampler.
-    - `PipelineContext` may be read during sampling only for values that are stable for the current frame, such as depth.
+    - `PipelineContext` may be read during sampling only for values that are stable for the current frame, such as palette settings or zoom scale.
 
 8.  **NORMALIZATION**: The final output MUST be a `PatternNormU16` (0-65535).
     - Normalize continuous fields to the full range.

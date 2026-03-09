@@ -20,6 +20,7 @@
 
 #ifndef POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANNOISEPATTERN_H
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANNOISEPATTERN_H
+#include "renderer/pipeline/signals/Signals.h"
 
 #ifdef ARDUINO
 #include <FastLED.h>
@@ -28,6 +29,7 @@
 #endif
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
+#include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
     class NoisePattern : public UVPattern {
@@ -41,9 +43,17 @@ namespace PolarShader {
 
     private:
         struct UVNoisePatternFunctor;
+        struct State {
+            uint32_t depth = 0u;
+            uint64_t depthRemainder = 0u;
+            TimeMillis lastElapsedMs = 0u;
+            bool hasLastElapsed = false;
+        };
 
         NoiseType type;
         fl::u8 octaves;
+        Sf16Signal depthSpeedSignal;
+        State state;
 
         static PatternNormU16 noiseLayerImpl(r8 x, r8 y, r8 z);
 
@@ -54,7 +64,13 @@ namespace PolarShader {
         static PatternNormU16 ridgedLayerImpl(r8 x, r8 y, r8 z);
 
     public:
-        explicit NoisePattern(NoiseType noiseType = NoiseType::Basic, fl::u8 octaveCount = 4);
+        explicit NoisePattern(
+            NoiseType noiseType = NoiseType::Basic,
+            fl::u8 octaveCount = 4,
+            Sf16Signal depthSpeedSignal = cRandom()
+        );
+
+        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

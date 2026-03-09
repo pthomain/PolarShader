@@ -26,6 +26,9 @@
 #include <renderer/pipeline/patterns/WorleyPatterns.h>
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
+#include <renderer/pipeline/signals/SignalTypes.h>
+
+#include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {
     // Pattern factory helpers. These mirror the Presets API for quick creation.
@@ -43,7 +46,7 @@ namespace PolarShader {
     );
 
     // Base noise pattern (inoise16) with signed cartesian input.
-    std::unique_ptr<UVPattern> noisePattern();
+    std::unique_ptr<UVPattern> noisePattern(Sf16Signal depthSpeedSignal = cRandom());
 
     // fBm noise pattern with configurable octaves (default 4).
     std::unique_ptr<UVPattern> fbmNoisePattern(

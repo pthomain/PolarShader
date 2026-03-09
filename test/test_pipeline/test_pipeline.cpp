@@ -63,14 +63,20 @@ void test_range_wraps_across_zero() {
 // Global variable to capture progress
 static f16 captured_progress(0);
 
-void test_scene_progress_calculation() {
-    // 1. Setup Layer that captures progress
-    auto layer = std::make_shared<Layer>(LayerBuilder(noisePattern(), CloudColors_p, "TestLayer")
-        .withDepth([](f16 progress, TimeMillis) {
+namespace {
+    class ProgressCapturePattern : public UVPattern {
+    public:
+        void advanceFrame(f16 progress, TimeMillis) override {
             captured_progress = progress;
-            return 0u;
-        })
-        .build());
+        }
+    };
+}
+
+void test_scene_progress_calculation() {
+    // 1. Setup Layer with a pattern that captures progress in advanceFrame.
+    auto layer = std::make_shared<Layer>(
+        LayerBuilder(std::make_unique<ProgressCapturePattern>(), CloudColors_p, "TestLayer").build()
+    );
 
     // 2. Setup Scene with 1000ms duration
     auto scene = std::make_unique<Scene>(

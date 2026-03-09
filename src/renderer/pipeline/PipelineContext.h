@@ -29,8 +29,6 @@ namespace PolarShader {
         TimeMillis timeMs = 0u;
         // Current zoom scale in f16/sf16.
         sf16 zoomScale = sf16(SF16_ONE);
-        // Current depth value in unsigned r8 domain.
-        uint32_t depth = 0u;
         // Palette index offset applied during final palette lookup.
         uint8_t paletteOffset = 0u;
         // Optional low-end clipping for palette lookup.

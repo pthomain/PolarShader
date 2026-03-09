@@ -31,7 +31,6 @@
 #include "../pipeline/patterns/base/UVPattern.h"
 #include "../pipeline/PipelineContext.h"
 #include "../pipeline/PipelineStep.h"
-#include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/transforms/base/Layers.h"
 #include <memory>
 
@@ -57,7 +56,6 @@ namespace PolarShader {
         fl::vector<PipelineStep> steps;
         const char *name;
         std::shared_ptr<PipelineContext> context;
-        DepthSignal depthSignal;
         
         f16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
@@ -76,7 +74,6 @@ namespace PolarShader {
             fl::vector<PipelineStep> steps,
             const char *name,
             std::shared_ptr<PipelineContext> context,
-            DepthSignal depthSignal,
             f16 alpha = f16(0xFFFFu),
             BlendMode blendMode = BlendMode::Normal
         );

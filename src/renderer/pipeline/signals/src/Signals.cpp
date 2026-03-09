@@ -307,26 +307,4 @@ namespace PolarShader {
         return uvInRange(std::move(signal), min, max);
     }
 
-    DepthSignal constantDepth(uint32_t value) {
-        return [value](f16, TimeMillis) { return value; };
-    }
-
-    DepthSignal depth(
-        Sf16Signal signal,
-        MagnitudeRange<uint32_t> range
-    ) {
-        return [signal = std::move(signal), range](f16, TimeMillis elapsedMs) mutable -> uint32_t {
-            return signal.sample(range, elapsedMs);
-        };
-    }
-
-    DepthSignal depth(
-        Sf16Signal signal,
-        uint32_t scale,
-        uint32_t offset
-    ) {
-        uint64_t max = static_cast<uint64_t>(offset) + static_cast<uint64_t>(scale);
-        uint32_t maxDepth = (max > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(max);
-        return depth(std::move(signal), MagnitudeRange(offset, maxDepth));
-    }
 }

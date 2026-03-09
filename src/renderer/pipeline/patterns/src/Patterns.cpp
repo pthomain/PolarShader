@@ -38,8 +38,12 @@ namespace PolarShader {
         return std::make_unique<VoronoiPattern>(cellSize, aliasingMode);
     }
 
-    std::unique_ptr<UVPattern> noisePattern() {
-        return std::make_unique<NoisePattern>(NoisePattern::NoiseType::Basic);
+    std::unique_ptr<UVPattern> noisePattern(Sf16Signal depthSpeedSignal) {
+        return std::make_unique<NoisePattern>(
+            NoisePattern::NoiseType::Basic,
+            4,
+            std::move(depthSpeedSignal)
+        );
     }
 
     std::unique_ptr<UVPattern> fbmNoisePattern(fl::u8 octaves) {

@@ -20,6 +20,8 @@
 
 #include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/maths/NoiseMaths.h"
+#include "renderer/pipeline/signals/Signals.h"
+#include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -28,14 +30,31 @@
 #include <algorithm>
 
 namespace PolarShader {
+    namespace {
+        constexpr uint64_t NOISE_DEPTH_FULL_SCALE_WRAP_MS = 6ull * 60ull * 60ull * 1000ull;
+        constexpr uint64_t NOISE_DEPTH_SIGNAL_FULL_SCALE = static_cast<uint64_t>(F16_MAX);
+
+        const BipolarRange<sf16> &noiseDepthSpeedSignalRange() {
+            static const BipolarRange<sf16> range{
+                sf16(SF16_MIN),
+                sf16(SF16_MAX)
+            };
+            return range;
+        }
+
+        uint32_t random32Seed() {
+            return (static_cast<uint32_t>(random16()) << 16) | random16();
+        }
+    }
+
     struct NoisePattern::UVNoisePatternFunctor {
         NoiseType type;
         fl::u8 octaves;
-        PipelineContext *context;
+        const State *state;
 
         PatternNormU16 operator()(UV uv) const {
             uint32_t offset = NOISE_DOMAIN_OFFSET << R8_FRAC_BITS;
-            uint32_t depth = context ? context->depth : 0u;
+            uint32_t depth = state ? state->depth : 0u;
 
             // UV is r16/sr16 (Q16.16) (0.0 .. 1.0, raw 0..65535).
             // We interpret this directly as Cartesian sr8/r8 (0.0 .. 256.0).
@@ -97,12 +116,48 @@ namespace PolarShader {
         return noiseNormaliseU16(NoiseRawU16(inverted));
     }
 
-    NoisePattern::NoisePattern(NoiseType noiseType, fl::u8 octaveCount)
+    NoisePattern::NoisePattern(
+        NoiseType noiseType,
+        fl::u8 octaveCount,
+        Sf16Signal depthSpeedSignal
+    )
         : type(noiseType),
-          octaves(octaveCount) {
+          octaves(octaveCount),
+          depthSpeedSignal(depthSpeedSignal ? std::move(depthSpeedSignal) : cRandom()) {
+        state.depth = random32Seed();
+    }
+
+    void NoisePattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+        (void) progress;
+        if (!state.hasLastElapsed) {
+            state.lastElapsedMs = elapsedMs;
+            state.hasLastElapsed = true;
+            return;
+        }
+
+        int64_t deltaMs = static_cast<int64_t>(elapsedMs) - static_cast<int64_t>(state.lastElapsedMs);
+        state.lastElapsedMs = elapsedMs;
+
+        if (MAX_DELTA_TIME_MS != 0) {
+            const int64_t maxDelta = MAX_DELTA_TIME_MS;
+            if (deltaMs > maxDelta) deltaMs = maxDelta;
+            if (deltaMs < -maxDelta) deltaMs = -maxDelta;
+        }
+
+        if (deltaMs <= 0 || !depthSpeedSignal) return;
+
+        const sf16 signedSpeed = depthSpeedSignal.sample(noiseDepthSpeedSignalRange(), elapsedMs);
+        const uint64_t speed = static_cast<uint64_t>(raw(toUnsignedClamped(signedSpeed)));
+        const uint64_t denominator = NOISE_DEPTH_SIGNAL_FULL_SCALE * NOISE_DEPTH_FULL_SCALE_WRAP_MS;
+        const uint64_t numerator =
+            speed * static_cast<uint64_t>(UINT32_MAX) * static_cast<uint64_t>(deltaMs) + state.depthRemainder;
+        const uint64_t increment = numerator / denominator;
+        state.depthRemainder = numerator % denominator;
+        state.depth += static_cast<uint32_t>(increment);
     }
 
     UVMap NoisePattern::layer(const std::shared_ptr<PipelineContext> &context) const {
-        return UVNoisePatternFunctor{type, octaves, context.get()};
+        (void) context;
+        return UVNoisePatternFunctor{type, octaves, &state};
     }
 }

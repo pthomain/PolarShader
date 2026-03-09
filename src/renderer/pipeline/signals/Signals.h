@@ -121,14 +121,6 @@ namespace PolarShader {
     /** @brief Maps a signed signal into a UV area via unsigned range mapping. */
     UVSignal uvInRange(Sf16Signal signal, UV min, UV max);
 
-    // Depth signals for animating noise domains (unsigned r8).
-    DepthSignal constantDepth(uint32_t value);
-
-    // Map a signed signal into the unsigned r8 depth domain.
-    DepthSignal depth(
-        Sf16Signal signal = constant(100),
-        MagnitudeRange<uint32_t> range = MagnitudeRange<uint32_t>(0, 1000)
-    );
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_MODULATORS_SIGNALS_H

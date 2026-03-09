@@ -36,6 +36,9 @@
 #include "renderer/pipeline/signals/ranges/UVRange.h"
 #include "renderer/pipeline/transforms/RotationTransform.h"
 #include "renderer/pipeline/transforms/ZoomTransform.h"
+#define private public
+#include "renderer/pipeline/patterns/NoisePattern.h"
+#undef private
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/src/PolarMaths.cpp"
@@ -297,6 +300,21 @@ void test_aperiodic_reset_wraps_time() {
     TEST_ASSERT_INT32_WITHIN(2, 250, raw(s.sample(TEST_SIGNED_RANGE, 1250)));
 }
 
+/** @brief Verify aperiodic SATURATE mode clamps time at duration. */
+void test_aperiodic_saturate_clamps_time() {
+    Sf16Signal s(
+        SignalKind::APERIODIC,
+        LoopMode::SATURATE,
+        1000,
+        [](TimeMillis t) {
+            return sf16(static_cast<int32_t>(t));
+        }
+    );
+
+    TEST_ASSERT_INT32_WITHIN(2, 250, raw(s.sample(TEST_SIGNED_RANGE, 250)));
+    TEST_ASSERT_INT32_WITHIN(2, 1000, raw(s.sample(TEST_SIGNED_RANGE, 1250)));
+}
+
 /** @brief Verify aperiodic duration=0 emits zero regardless of waveform. */
 void test_aperiodic_zero_duration_emits_zero() {
     Sf16Signal s(
@@ -469,6 +487,30 @@ void test_rotation_accumulation() {
     TEST_ASSERT_UINT16_WITHIN(100, 42893, raw(resAcc));
 }
 
+/** @brief Verify full-scale noise depth speed traverses the full uint32 range in 6 hours. */
+void test_noise_pattern_depth_speed_wraps_in_six_hours() {
+    const TimeMillis sixHoursMs = 6u * 60u * 60u * 1000u;
+    const TimeMillis stepMs = MAX_DELTA_TIME_MS;
+
+    NoisePattern pattern(
+        NoisePattern::NoiseType::Basic,
+        4,
+        constant(uint16_t(1000))
+    );
+
+    const uint32_t startDepth = pattern.state.depth;
+
+    pattern.advanceFrame(f16(0), 0);
+    for (TimeMillis t = stepMs; t <= sixHoursMs; t += stepMs) {
+        pattern.advanceFrame(f16(0), t);
+    }
+
+    const uint32_t endDepth = pattern.state.depth;
+    const uint32_t delta = endDepth - startDepth;
+
+    TEST_ASSERT_UINT32_WITHIN(5000u, UINT32_MAX, delta);
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000); 
@@ -489,6 +531,7 @@ void setup() {
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);
+    RUN_TEST(test_aperiodic_saturate_clamps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
     RUN_TEST(test_sine_negative_speed_works);
@@ -501,6 +544,7 @@ void setup() {
     RUN_TEST(test_f16_mul_div_helpers);
     RUN_TEST(test_sf16_f16_mapping_helpers);
     RUN_TEST(test_rotation_accumulation);
+    RUN_TEST(test_noise_pattern_depth_speed_wraps_in_six_hours);
     UNITY_END();
 }
 
@@ -524,6 +568,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);
+    RUN_TEST(test_aperiodic_saturate_clamps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
     RUN_TEST(test_sine_negative_speed_works);
@@ -536,6 +581,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_f16_mul_div_helpers);
     RUN_TEST(test_sf16_f16_mapping_helpers);
     RUN_TEST(test_rotation_accumulation);
+    RUN_TEST(test_noise_pattern_depth_speed_wraps_in_six_hours);
     return UNITY_END();
 }
 #endif

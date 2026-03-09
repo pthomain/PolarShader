@@ -40,7 +40,8 @@ namespace PolarShader {
     };
 
     enum class LoopMode : uint8_t {
-        RESET
+        RESET,
+        SATURATE
     };
 
     /**
@@ -88,6 +89,11 @@ namespace PolarShader {
 
                 switch (loopMode_) {
                     case LoopMode::RESET:
+                        relativeTime = elapsedMs % durationMs_;
+                        break;
+                    case LoopMode::SATURATE:
+                        relativeTime = (elapsedMs >= durationMs_) ? durationMs_ : elapsedMs;
+                        break;
                     default:
                         relativeTime = elapsedMs % durationMs_;
                         break;

@@ -12,9 +12,9 @@ namespace PolarShader {
     Layer LayerBuilder::build() {
         if (built) {
             Serial.println("LayerBuilder::build called more than once; returning black layer.");
-            return Layer(std::move(pattern), palette, {}, name, context, depthSignal, alpha, blendMode);
+            return Layer(std::move(pattern), palette, {}, name, context, alpha, blendMode);
         }
         built = true;
-        return Layer(std::move(pattern), palette, std::move(steps), name, context, depthSignal, alpha, blendMode);
+        return Layer(std::move(pattern), palette, std::move(steps), name, context, alpha, blendMode);
     }
 }

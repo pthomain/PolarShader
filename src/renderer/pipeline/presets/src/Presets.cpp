@@ -45,24 +45,28 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    tilingPattern(
-                        100,
-                        8,
-                        TilingPattern::TileShape::HEXAGON
-                    ),
-                    // noisePattern(),
+                    // tilingPattern(
+                    //     100,
+                    //     8,
+                    //     TilingPattern::TileShape::HEXAGON
+                    // ),
+                    noisePattern(constant(100)),
                     palette,
                     "kaleidoscope"
                 )
-                // .setDepthSignal(sine() //depth signal should always accumulate
                 .addPaletteTransform(
                     PaletteTransform(
-                        // sine()
+                        sine(
+                            // noise(
+                            // constant(300),
+                            // constant(100),
+                            // sine(constant(300), constant(200)),
+                            // noise(constant(200))
+                        ),
                         noise(
-                            constant(300),
-                            constant(100),
-                            sine(constant(300), constant(200)),
-                            noise(constant(200))
+                            constant(500),
+                            noise(constant(400), constant(400)),
+                            constant(100)
                         )
                     )
                 )
@@ -72,6 +76,7 @@ namespace PolarShader {
                         // noise(constant(10), constant(500), constant(500))
                     )
                 )
+
                 //Translation drifts into solid colour when placed after kaleidoscope
                 .addTransform(
                     TranslationTransform(
@@ -79,17 +84,19 @@ namespace PolarShader {
                         noise(constant(100), constant(50), constant(50))
                     ))
                 // .addTransform(KaleidoscopeTransform(
-                    // 2,
-                    // true
+                //     2,
+                //     true
                 // ))
-                .addTransform(
-                    TilingTransform(
-                        50,
-                        true,
-                        TilingMaths::TileShape::HEXAGON
-                    )
-                )
-                //
+
+                // .addTransform(
+                // TilingTransform(
+                // 80,
+                // true,
+                // TilingMaths::TileShape::HEXAGON
+                // )
+                // )
+
+
                 // .addTransform(VortexTransform(
                 //     noise(
                 //         constant(100),
@@ -147,11 +154,10 @@ namespace PolarShader {
                     // 100,
                     // 16
                     // ),
-                    noisePattern(),
+                    noisePattern(noise()),
                     palette,
                     "kaleidoscope"
                 )
-                .setDepthSignal(noise()) //depth signal should always accumulate
                 .addPaletteTransform(
                     PaletteTransform(
                         sine(),

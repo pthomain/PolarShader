@@ -34,7 +34,6 @@
 #include "../pipeline/patterns/base/UVPattern.h"
 #include "renderer/pipeline/signals/accumulators/Accumulators.h"
 #include "renderer/pipeline/transforms/PaletteTransform.h"
-#include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {
     class LayerBuilder {
@@ -45,7 +44,6 @@ namespace PolarShader {
         // Must point to a string with static storage duration (presets use literals).
         const char *name;
         std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
-        DepthSignal depthSignal = constantDepth(static_cast<uint32_t>(random16()) << R8_FRAC_BITS);
         f16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
 
@@ -90,40 +88,6 @@ namespace PolarShader {
             return std::move(*this);
         }
 
-        LayerBuilder &setDepthSignal(DepthSignal signal) & {
-            if (built) return *this;
-            if (!signal) {
-                return *this;
-            }
-            depthSignal = std::move(signal);
-            return *this;
-        }
-
-        LayerBuilder &&setDepthSignal(DepthSignal signal) && {
-            if (built) return std::move(*this);
-            if (!signal) return std::move(*this);
-
-            depthSignal = std::move(signal);
-            return std::move(*this);
-        }
-
-        LayerBuilder &setDepthSignal(Sf16Signal signal) & {
-            if (built) return *this;
-            if (!signal) {
-                return *this;
-            }
-            depthSignal = depth(std::move(signal));
-            return *this;
-        }
-
-        LayerBuilder &&setDepthSignal(Sf16Signal signal) && {
-            if (built) return std::move(*this);
-            if (!signal) return std::move(*this);
-
-            depthSignal = depth(std::move(signal));
-            return std::move(*this);
-        }
-
         template<typename T, typename = std::enable_if_t<std::is_base_of<UVTransform, T>::value> >
         LayerBuilder &addTransform(T transform) & {
             if (built) return *this;
@@ -148,15 +112,6 @@ namespace PolarShader {
             if (built) return std::move(*this);
             steps.push_back(PipelineStep::palette(std::make_unique<PaletteTransform>(std::move(transform))));
             return std::move(*this);
-        }
-
-        // duplicates
-        LayerBuilder &withDepth(DepthSignal signal) & {
-            return setDepthSignal(std::move(signal));
-        }
-
-        LayerBuilder &&withDepth(DepthSignal signal) && {
-            return std::move(setDepthSignal(std::move(signal)));
         }
 
         Layer build();

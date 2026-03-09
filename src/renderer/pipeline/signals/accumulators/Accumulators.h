@@ -24,13 +24,6 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
-    /**
-     * @brief Progress-indexed depth signal in unsigned r8 domain.
-     *
-     * Typically used for animated noise depth/phase offsets.
-     */
-    using DepthSignal = fl::function<uint32_t(f16, TimeMillis)>;
-
     // PhaseAccumulator wraps in 16-bit turn space and is only valid for angular/phase domains.
     class PhaseAccumulator {
     public:
