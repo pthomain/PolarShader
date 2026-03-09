@@ -26,6 +26,7 @@
 #include "renderer/pipeline/transforms/TilingTransform.h"
 #include "renderer/pipeline/transforms/KaleidoscopeTransform.h"
 #include "renderer/pipeline/transforms/VortexTransform.h"
+#include "renderer/pipeline/transforms/FlowFieldTransform.h"
 #include "renderer/pipeline/patterns/base/UVPattern.h"
 #include <utility>
 #include "renderer/pipeline/patterns/Patterns.h"
@@ -50,7 +51,7 @@ namespace PolarShader {
                     //     16,
                     //     TilingPattern::TileShape::TRIANGLE
                     // ),
-                    noisePattern(constant(100)),
+                    noisePattern(constant(200)),
                     palette,
                     "kaleidoscope"
                 )
@@ -76,21 +77,21 @@ namespace PolarShader {
                         // noise(constant(10), constant(500), constant(500))
                     )
                 )
-
-                .addTransform(
-                    TranslationTransform(
-                        noise(constant(30)),
-                        noise(constant(100), constant(50), constant(50))
-                    ))
-                .addTransform(VortexTransform(
-                    noise(
-                        constant(100),
-                        noise(
-                            noise(constant(150)),
-                            constant(500)
-                        )
-                    )
-                ))
+                //
+                // .addTransform(
+                //     TranslationTransform(
+                //         noise(constant(30)),
+                //         noise(constant(100), constant(50), constant(50))
+                //     ))
+                // .addTransform(VortexTransform(
+                //     noise(
+                //         constant(100),
+                //         noise(
+                //             noise(constant(150)),
+                //             constant(500)
+                //         )
+                //     )
+                // ))
 
                 // .addTransform(KaleidoscopeTransform(
                 //     3,
@@ -98,20 +99,23 @@ namespace PolarShader {
                 // ))
 
                 // .addTransform(
-                //     TranslationTransform(
-                //         noise(constant(30)),
-                //         noise(constant(100), constant(50), constant(50))
-                //     ))
-
-                .addTransform(
-                    RotationTransform(
-                        noise(
-                            constant(50),
-                            noise()
-                        ),
-                        false
-                    )
-                );
+                //     FlowFieldTransform(
+                //         constant(200),
+                //         constant(300),
+                //         constant(750),
+                //         constant(500)
+                //     )
+                // )
+                // .addTransform(
+                //     RotationTransform(
+                //         noise(
+                //             constant(50),
+                //             noise()
+                //         ),
+                //         false
+                //     )
+                // )
+                ;
     }
 
     LayerBuilder fabricPreset(

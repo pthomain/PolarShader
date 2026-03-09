@@ -109,16 +109,15 @@ Periodic shaping:
 - Zoom mapping is absolute by design (no mapped relative mode).
 - Writes current zoom scale to `PipelineContext::zoomScale`.
 
-### DomainWarpTransform
+### FlowFieldTransform
 
 - Inputs:
-  - `speed`: signed turns-per-second for time-axis phase integration.
-  - `amplitude`: mapped displacement strength.
-  - `warpScale`: mapped spatial frequency control.
+  - `phaseSpeed`: signed turns-per-second for field animation.
+  - `flowStrength`: mapped displacement strength.
+  - `fieldScale`: mapped spatial density of the vector field.
   - `maxOffset`: mapped displacement cap.
-  - Optional directional flow controls.
-- Uses `PhaseAccumulator` for time evolution.
-- Samples signed speed directly with `bipolarRange()`.
+- Samples a local vector from animated noise and offsets UVs along that vector.
+- Unlike `TranslationTransform`, the direction varies per sample position instead of being globally uniform.
 
 ### PaletteTransform
 
