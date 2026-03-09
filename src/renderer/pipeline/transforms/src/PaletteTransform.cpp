@@ -19,16 +19,28 @@
  */
 
 #include "renderer/pipeline/transforms/PaletteTransform.h"
+#include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include <Arduino.h>
 
 namespace PolarShader {
+    namespace {
+        f16 sampleClipMagnitude(const Sf16Signal &signal, TimeMillis elapsedMs) {
+            static const BipolarRange<sf16> signedRange{sf16(SF16_MIN), sf16(SF16_MAX)};
+            const int32_t signedRaw = raw(signal.sample(signedRange, elapsedMs));
+            const uint32_t magnitude = (signedRaw < 0)
+                ? static_cast<uint32_t>(-(static_cast<int64_t>(signedRaw)))
+                : static_cast<uint32_t>(signedRaw);
+            const uint32_t clamped = (magnitude > F16_MAX) ? F16_MAX : magnitude;
+            return f16(static_cast<uint16_t>(clamped));
+        }
+    }
+
     struct PaletteTransform::MappedInputs {
         Sf16Signal offsetSignal;
         MagnitudeRange<uint8_t> offsetRange{0, 255};
         Sf16Signal clipSignal;
-        MagnitudeRange<f16> clipRange{f16(0), f16(SF16_MAX)};
         f16 feather = f16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
@@ -50,7 +62,6 @@ namespace PolarShader {
             std::move(offset),
             MagnitudeRange<uint8_t>(0, 255),
             std::move(clipSignal),
-            MagnitudeRange(f16(0), f16(SF16_MAX)),
             feather,
             clipPower,
             true
@@ -62,7 +73,6 @@ namespace PolarShader {
         MagnitudeRange<uint8_t> offsetRange;
         uint8_t offsetValue = 0;
         Sf16Signal clipSignal;
-        MagnitudeRange<f16> clipRange;
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
         f16 feather = f16(0);
@@ -73,7 +83,6 @@ namespace PolarShader {
             : offsetSignal(std::move(inputs.offsetSignal)),
               offsetRange(std::move(inputs.offsetRange)),
               clipSignal(std::move(inputs.clipSignal)),
-              clipRange(std::move(inputs.clipRange)),
               feather(inputs.feather),
               clipPower(inputs.clipPower),
               hasClip(inputs.hasClip) {
@@ -103,12 +112,7 @@ namespace PolarShader {
         if (context) {
             context->paletteOffset = state->offsetValue;
             if (state->hasClip) {
-                f16 clipRaw = state->clipSignal.sample(state->clipRange, elapsedMs);
-                if (raw(clipRaw) == 0) {
-                    context->paletteClipEnabled = false;
-                    context->paletteClipInvert = false;
-                    return;
-                }
+                f16 clipRaw = sampleClipMagnitude(state->clipSignal, elapsedMs);
                 state->clipInvert = false;
                 state->clipValue = PatternNormU16(raw(clipRaw));
                 context->paletteClip = state->clipValue;

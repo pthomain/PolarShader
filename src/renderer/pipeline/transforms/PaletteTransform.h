@@ -41,7 +41,7 @@ namespace PolarShader {
         PaletteTransform(
             Sf16Signal offset,
             Sf16Signal clipSignal,
-            f16 feather = perMil(200),
+            f16 feather = perMil(500),
             PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square
         );
 

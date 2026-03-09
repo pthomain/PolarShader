@@ -64,10 +64,10 @@ namespace PolarShader {
                             // noise(constant(200))
                         ),
                         noise(
-                            constant(500),
-                            noise(constant(400), constant(400)),
-                            constant(100)
-                        )
+                            constant(300),
+                            noise(constant(200), constant(500))
+                        ),
+                        perMil(500)
                     )
                 )
                 .addTransform(
@@ -83,10 +83,6 @@ namespace PolarShader {
                         noise(constant(30)),
                         noise(constant(100), constant(50), constant(50))
                     ))
-                // .addTransform(KaleidoscopeTransform(
-                //     2,
-                //     true
-                // ))
 
                 // .addTransform(
                 // TilingTransform(
@@ -97,21 +93,27 @@ namespace PolarShader {
                 // )
 
 
-                // .addTransform(VortexTransform(
-                //     noise(
-                //         constant(100),
-                //         noise(
-                //             noise(constant(150)),
-                //             constant(500)
-                //         )
-                //     )
-                // ))
+                .addTransform(VortexTransform(
+                    noise(
+                        constant(100),
+                        noise(
+                            noise(constant(150)),
+                            constant(500)
+                        )
+                    )
+                ))
+
+                .addTransform(KaleidoscopeTransform(
+                    2,
+                    true
+                ))
                 .addTransform(
                     RotationTransform(
                         noise(
-                            constant(200)
+                            constant(50),
+                            noise()
                         ),
-                        true
+                        false
                     )
                 );
     }
