@@ -26,6 +26,10 @@
 #endif
 
 namespace PolarShader {
+    uint32_t random32() {
+        return (static_cast<uint32_t>(random16()) << 16) | random16();
+    }
+
     NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
         // FastLED's inoise16 samples integer lattice points; we interpolate between
         // grid corners to support smooth fl::s24x8/fl::u24x8 coordinates without blocky stepping.

@@ -41,13 +41,11 @@ namespace PolarShader {
 
     public:
         FlurryPattern(
-            uint8_t gridSize = 64,
+            uint8_t gridSize = 32,
             Sf16Signal xDrift = constant(50),
-            Sf16Signal xAmplitude = constant(100),
-            Sf16Signal xFrequency = constant(60),
             Sf16Signal yDrift = constant(75),
-            Sf16Signal yAmplitude = constant(50),
-            Sf16Signal yFrequency = constant(60),
+            Sf16Signal amplitude = constant(100),
+            Sf16Signal frequency = constant(60),
             Sf16Signal endpointSpeed = constant(40),
             Sf16Signal fade = constant(700)
         );

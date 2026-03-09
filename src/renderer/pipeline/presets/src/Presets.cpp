@@ -52,61 +52,59 @@ namespace PolarShader {
                     //     TilingPattern::TileShape::TRIANGLE
                     // ),
                     flurryPattern(
-                        64,
-                        constant(50),
-                        constant(100),
-                        constant(60),
-                        constant(75),
-                        constant(50),
-                        constant(60),
-                        constant(40),
-                        constant(700)
+                        32,
+                        noise(),
+                        noise(),
+                        constant(500),
+                        constant(500),
+                        constant(600),
+                        constant(800)
                     ),
                     palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(
                     PaletteTransform(
-                        constant(0
-                            // noise(
-                            // constant(300),
-                            // constant(100),
-                            // sine(constant(300), constant(200)),
-                            // noise(constant(200))
-                        ),
-                        constant(500),
+                        //     noise(
+                        //     constant(300),
+                        //     constant(100),
+                        //     sine(constant(300), constant(200)),
+                        //     noise(constant(200))
+                        // ),
+                        sine(),
+                        constant(600),
                         // noise(
-                            // constant(300),
-                            // noise(constant(200), constant(500))
+                        // constant(300),
+                        // noise(constant(200), constant(500))
                         // ),
                         perMil(500)
                     )
                 )
-                // .addTransform(
-                //     ZoomTransform(
-                //         constant(500)
-                //         // noise(constant(10), constant(500), constant(500))
-                //     )
-                // )
+                .addTransform(
+                    ZoomTransform(
+                        noise(constant(300), constant(100))
+                        // noise(constant(10), constant(500), constant(500))
+                    )
+                )
                 //
                 // .addTransform(
                 //     TranslationTransform(
                 //         noise(constant(30)),
                 //         noise(constant(100), constant(50), constant(50))
                 //     ))
-                // .addTransform(VortexTransform(
-                //     noise(
-                //         constant(100),
-                //         noise(
-                //             noise(constant(150)),
-                //             constant(500)
-                //         )
-                //     )
-                // ))
+                .addTransform(VortexTransform(
+                    noise(
+                        constant(100),
+                        noise(
+                            noise(constant(150)),
+                            constant(500)
+                        )
+                    )
+                ))
 
                 // .addTransform(KaleidoscopeTransform(
-                //     3,
-                //     false
+                //     2,
+                //     true
                 // ))
 
                 // .addTransform(
@@ -117,15 +115,15 @@ namespace PolarShader {
                 //         constant(500)
                 //     )
                 // )
-                // .addTransform(
-                //     RotationTransform(
-                //         noise(
-                //             constant(50),
-                //             noise()
-                //         ),
-                //         false
-                //     )
-                // )
+                .addTransform(
+                    RotationTransform(
+                        noise(
+                            constant(50),
+                            noise()
+                        ),
+                        false
+                    )
+                )
                 ;
     }
 

@@ -27,21 +27,43 @@
 
 namespace PolarShader {
     namespace {
+        constexpr fl::s16x16 s16x16FromFraction(uint16_t numerator, uint16_t denominator) {
+            return fl::s16x16::from_raw(raw(toF16(numerator, denominator)));
+        }
+
+        constexpr fl::s16x16 s16x16FromMixed(uint16_t whole, uint16_t numerator, uint16_t denominator) {
+            return fl::s16x16::from_raw(static_cast<int32_t>(whole) * SF16_ONE + raw(toF16(numerator, denominator)));
+        }
+
         constexpr uint8_t kMinGridSize = 4;
         constexpr uint8_t kMaxGridSize = 64;
         constexpr uint8_t kQ16Shift = 16;
         constexpr uint16_t kQ16FractionMask = F16_MAX;
         constexpr uint32_t kQ16FractionSpan = ANGLE_FULL_TURN_U32;
-        constexpr fl::s16x16 kGridHalf = fl::s16x16::from_raw(SF16_ONE >> 1);
-        constexpr fl::s16x16 kMinFrequency = fl::s16x16::from_raw(1024); // 1/64
-        constexpr fl::s16x16 kRowShiftPixels = fl::s16x16::from_raw(117965); // 1.8
-        constexpr fl::s16x16 kColShiftPixels = fl::s16x16::from_raw(117965); // 1.8
-        constexpr fl::s16x16 kBaseNoiseFrequency = fl::s16x16::from_raw(15073); // 0.23
-        constexpr f16 kFadeBase = f16(58982); // 0.90
-        constexpr f16 kFadeSpan = f16(6553); // ~0.09999
+
+        constexpr fl::s16x16 kGridHalf = s16x16FromFraction(1, 2); // 0.5
+        constexpr fl::s16x16 kMinFrequency = s16x16FromFraction(1, 64); // 0.015625 (1/64)
+
+        constexpr fl::s16x16 kRowShiftPixels = s16x16FromMixed(1, 4, 5); // 1.8
+        constexpr fl::s16x16 kColShiftPixels = kRowShiftPixels;
+
+        constexpr fl::s16x16 kBaseNoiseFrequency = s16x16FromFraction(23, 100); // 0.23
+        constexpr f16 kFadeBase = perMil(900); // 0.9
+        constexpr f16 kFadeSpan = perMil(99); // 0.99 - avoid overflow
+
         constexpr uint16_t kFullIntensity = F16_MAX;
-        constexpr uint32_t kXProfileNoiseSeed = 0x13579BDFu;
-        constexpr uint32_t kYProfileNoiseSeed = 0x2468ACE1u;
+        constexpr f16 kMaxProfileAmplitude = toF16(1, 2); // ~1.0
+        constexpr fl::s16x16 kMaxProfileSpeed = s16x16FromFraction(1, 4); // 0.0625 (1/16)
+        constexpr fl::s16x16 kMaxProfileFrequency = s16x16FromFraction(1, 2);
+
+        constexpr fl::s16x16 kEndpointDiscRadius = s16x16FromFraction(60, 100); // 0.85
+        constexpr fl::s16x16 kEndpointDiscSoftEdge = s16x16FromFraction(1, 2); // 0.5
+
+        constexpr int32_t kLineSampleDensity = 3; // 3 samples per cell of dominant line length
+        constexpr uint16_t kEndpointAXPhase = 2086u; // 0.03183 turns
+        constexpr uint16_t kEndpointAYPhase = 13557u; // 0.20686 turns
+        constexpr uint16_t kEndpointBXPhase = 22938u; // 0.35001 turns
+        constexpr uint16_t kEndpointBYPhase = 7307u; // 0.11150 turns
 
         struct EndpointMotion {
             fl::s16x16 xAmplitude;
@@ -53,28 +75,22 @@ namespace PolarShader {
         };
 
         constexpr EndpointMotion kEndpointA{
-            fl::s16x16::from_raw(23552),
-            fl::s16x16::from_raw(21504),
-            fl::s16x16::from_raw(74056),
-            fl::s16x16::from_raw(112066),
-            2086u,
-            13557u
+            s16x16FromFraction(23, 64), // 0.359375
+            s16x16FromFraction(21, 64), // 0.328125
+            s16x16FromMixed(1, 13, 100), // 1.13
+            s16x16FromMixed(1, 71, 100), // 1.71
+            kEndpointAXPhase,
+            kEndpointAYPhase
         };
 
         constexpr EndpointMotion kEndpointB{
-            fl::s16x16::from_raw(24576),
-            fl::s16x16::from_raw(22528),
-            fl::s16x16::from_raw(123863),
-            fl::s16x16::from_raw(89784),
-            22938u,
-            7307u
+            s16x16FromFraction(3, 8), // 0.375
+            s16x16FromFraction(11, 32), // 0.34375
+            s16x16FromMixed(1, 89, 100), // 1.89
+            s16x16FromMixed(1, 37, 100), // 1.37
+            kEndpointBXPhase,
+            kEndpointBYPhase
         };
-
-        constexpr fl::s16x16 kMaxProfileSpeed = fl::s16x16::from_raw(SF16_ONE * 2);
-        constexpr fl::s16x16 kMaxProfileFrequency = fl::s16x16::from_raw(SF16_ONE * 4);
-        constexpr fl::s16x16 kEndpointGlowOffset = fl::s16x16::from_raw(SF16_ONE >> 2);
-        constexpr uint16_t kEndpointGlowIntensity = 24576u;
-        constexpr int32_t kLineSampleDensity = 3;
 
         const BipolarRange<fl::s16x16> &profileSpeedRange() {
             static const BipolarRange range(-kMaxProfileSpeed, kMaxProfileSpeed);
@@ -82,7 +98,7 @@ namespace PolarShader {
         }
 
         const MagnitudeRange<f16> &profileAmplitudeRange() {
-            static const MagnitudeRange range(f16(0), f16(F16_MAX));
+            static const MagnitudeRange range(perMil(0), kMaxProfileAmplitude);
             return range;
         }
 
@@ -92,7 +108,7 @@ namespace PolarShader {
         }
 
         const MagnitudeRange<fl::s16x16> &endpointSpeedRange() {
-            static const MagnitudeRange range(fl::s16x16::from_raw(0), kMaxProfileSpeed);
+            static const MagnitudeRange range(s16x16FromFraction(0, 1), kMaxProfileSpeed);
             return range;
         }
 
@@ -151,13 +167,31 @@ namespace PolarShader {
             blendPixel(cells, gridSize, baseX + 1, baseY + 1, bottomRightWeight);
         }
 
-        // Draw a bright endpoint marker with a small cross-shaped glow around the center.
+        // Draw a soft disc around the endpoint to seed the advection with a rounded source.
         void drawEndpointGlow(uint16_t *cells, uint8_t gridSize, fl::s16x16 xPos, fl::s16x16 yPos) {
-            drawSubpixelPoint(cells, gridSize, xPos, yPos, f16(kFullIntensity));
-            drawSubpixelPoint(cells, gridSize, xPos + kEndpointGlowOffset, yPos, f16(kEndpointGlowIntensity));
-            drawSubpixelPoint(cells, gridSize, xPos - kEndpointGlowOffset, yPos, f16(kEndpointGlowIntensity));
-            drawSubpixelPoint(cells, gridSize, xPos, yPos + kEndpointGlowOffset, f16(kEndpointGlowIntensity));
-            drawSubpixelPoint(cells, gridSize, xPos, yPos - kEndpointGlowOffset, f16(kEndpointGlowIntensity));
+            fl::s16x16 edgeRadius = kEndpointDiscRadius + kEndpointDiscSoftEdge;
+            int32_t minX = std::max<int32_t>(0, (raw(xPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
+            int32_t maxX = std::min<int32_t>(
+                gridSize - 1,
+                (raw(xPos + edgeRadius + fl::s16x16::from_raw(SF16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
+            );
+            int32_t minY = std::max<int32_t>(0, (raw(yPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
+            int32_t maxY = std::min<int32_t>(
+                gridSize - 1,
+                (raw(yPos + edgeRadius + fl::s16x16::from_raw(SF16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
+            );
+
+            for (int32_t py = minY; py <= maxY; ++py) {
+                for (int32_t px = minX; px <= maxX; ++px) {
+                    fl::s16x16 dx = fl::s16x16::from_raw(((px << kQ16Shift) + (SF16_ONE >> 1)) - raw(xPos));
+                    fl::s16x16 dy = fl::s16x16::from_raw(((py << kQ16Shift) + (SF16_ONE >> 1)) - raw(yPos));
+                    fl::s16x16 distance = fl::s16x16::sqrt(dx * dx + dy * dy);
+                    int32_t weightRaw = raw(edgeRadius - distance);
+                    if (weightRaw <= 0) continue;
+                    if (weightRaw > SF16_ONE) weightRaw = SF16_ONE;
+                    blendPixel(cells, gridSize, px, py, f16(static_cast<uint16_t>(weightRaw)));
+                }
+            }
         }
 
         // Sample a stable 1D noise profile by treating the coordinate as a single animated noise axis.
@@ -166,25 +200,22 @@ namespace PolarShader {
             return sampler(static_cast<uint32_t>(raw(coord)) + seedOffset);
         }
 
-        // Read from a shifted row or column with clamped bilinear sampling along that single axis.
-        uint16_t sampleShiftedLaneClamped(
+        // Read from a shifted row or column with wrapped bilinear sampling along that single axis.
+        uint16_t sampleShiftedLaneWrapped(
             const uint16_t *sourceCells,
             size_t laneBaseIndex,
             size_t laneStride,
             uint8_t laneLength,
             uint8_t destinationIndex,
-            fl::s16x16 laneShift,
-            fl::s16x16 maxLaneCoord
+            fl::s16x16 laneShift
         ) {
-            fl::s16x16 sampleCoord = clampS16x16(
-                fl::s16x16::from_raw(static_cast<int32_t>(destinationIndex) << kQ16Shift) - laneShift,
-                fl::s16x16::from_raw(0),
-                maxLaneCoord
-            );
+            int32_t laneSpanRaw = static_cast<int32_t>(laneLength) << kQ16Shift;
+            int32_t sampleCoordRaw = (static_cast<int32_t>(destinationIndex) << kQ16Shift) - raw(laneShift);
+            sampleCoordRaw %= laneSpanRaw;
+            if (sampleCoordRaw < 0) sampleCoordRaw += laneSpanRaw;
+            fl::s16x16 sampleCoord = fl::s16x16::from_raw(sampleCoordRaw);
             uint8_t lowerIndex = static_cast<uint8_t>(raw(sampleCoord) >> kQ16Shift);
-            uint8_t upperIndex = static_cast<uint8_t>(
-                (lowerIndex + 1u < laneLength) ? (lowerIndex + 1u) : (laneLength - 1u)
-            );
+            uint8_t upperIndex = static_cast<uint8_t>((lowerIndex + 1u) % laneLength);
             f16 mix(static_cast<uint16_t>(raw(sampleCoord) & kQ16FractionMask));
 
             return lerpU16ByQ16(
@@ -201,6 +232,8 @@ namespace PolarShader {
         std::unique_ptr<uint16_t[]> rowPass;
         std::unique_ptr<sf16[]> columnShiftProfile;
         std::unique_ptr<sf16[]> rowShiftProfile;
+        uint32_t xProfileNoiseSeed;
+        uint32_t yProfileNoiseSeed;
         Sf16Signal xDriftSignal;
         Sf16Signal xAmplitudeSignal;
         Sf16Signal xFrequencySignal;
@@ -224,11 +257,9 @@ namespace PolarShader {
         explicit State(
             uint8_t size,
             Sf16Signal xDrift,
-            Sf16Signal xAmplitude,
-            Sf16Signal xFrequency,
             Sf16Signal yDrift,
-            Sf16Signal yAmplitude,
-            Sf16Signal yFrequency,
+            Sf16Signal amplitude,
+            Sf16Signal frequency,
             Sf16Signal endpointSpeed,
             Sf16Signal fade
         ) : gridSize(size),
@@ -236,12 +267,14 @@ namespace PolarShader {
             rowPass(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
             columnShiftProfile(std::make_unique<sf16[]>(size)),
             rowShiftProfile(std::make_unique<sf16[]>(size)),
+            xProfileNoiseSeed(random32()),
+            yProfileNoiseSeed(random32()),
             xDriftSignal(std::move(xDrift)),
-            xAmplitudeSignal(std::move(xAmplitude)),
-            xFrequencySignal(std::move(xFrequency)),
+            xAmplitudeSignal(amplitude),
+            xFrequencySignal(frequency),
             yDriftSignal(std::move(yDrift)),
-            yAmplitudeSignal(std::move(yAmplitude)),
-            yFrequencySignal(std::move(yFrequency)),
+            yAmplitudeSignal(std::move(amplitude)),
+            yFrequencySignal(std::move(frequency)),
             endpointSpeedSignal(std::move(endpointSpeed)),
             fadeSignal(std::move(fade)) {
             std::fill_n(cells.get(), static_cast<size_t>(size) * size, uint16_t(0));
@@ -260,21 +293,17 @@ namespace PolarShader {
     FlurryPattern::FlurryPattern(
         uint8_t gridSize,
         Sf16Signal xDrift,
-        Sf16Signal xAmplitude,
-        Sf16Signal xFrequency,
         Sf16Signal yDrift,
-        Sf16Signal yAmplitude,
-        Sf16Signal yFrequency,
+        Sf16Signal amplitude,
+        Sf16Signal frequency,
         Sf16Signal endpointSpeed,
         Sf16Signal fade
     ) : state(std::make_shared<State>(
         std::max<uint8_t>(kMinGridSize, std::min<uint8_t>(gridSize, kMaxGridSize)),
         std::move(xDrift),
-        std::move(xAmplitude),
-        std::move(xFrequency),
         std::move(yDrift),
-        std::move(yAmplitude),
-        std::move(yFrequency),
+        std::move(amplitude),
+        std::move(frequency),
         std::move(endpointSpeed),
         std::move(fade)
     )) {
@@ -311,11 +340,11 @@ namespace PolarShader {
             fl::s16x16 xProfileCoord = profileCoord * patternState.xFrequency;
             fl::s16x16 yProfileCoord = profileCoord * patternState.yFrequency;
             sf16 columnShift = scaleSf16(
-                sampleProfileNoise(xProfileCoord + xPhase, kXProfileNoiseSeed),
+                sampleProfileNoise(xProfileCoord + xPhase, patternState.xProfileNoiseSeed),
                 patternState.xAmplitude
             );
             sf16 rowShift = scaleSf16(
-                sampleProfileNoise(yProfileCoord + yPhase, kYProfileNoiseSeed),
+                sampleProfileNoise(yProfileCoord + yPhase, patternState.yProfileNoiseSeed),
                 patternState.yAmplitude
             );
             patternState.columnShiftProfile[gridSize - 1u - index] = columnShift;
@@ -377,20 +406,18 @@ namespace PolarShader {
         drawEndpointGlow(cells, gridSize, endpointBX, endpointBY);
 
         uint16_t *rowPass = patternState.rowPass.get();
-        fl::s16x16 maxGridCoord = fl::s16x16::from_raw(static_cast<int32_t>(gridSize - 1u) << kQ16Shift);
 
         for (uint8_t y = 0; y < gridSize; ++y) {
             fl::s16x16 rowShift = mulS16x16(kRowShiftPixels, patternState.rowShiftProfile[y]);
             size_t rowBaseIndex = static_cast<size_t>(y) * gridSize;
             for (uint8_t x = 0; x < gridSize; ++x) {
-                rowPass[rowBaseIndex + x] = sampleShiftedLaneClamped(
+                rowPass[rowBaseIndex + x] = sampleShiftedLaneWrapped(
                     cells,
                     rowBaseIndex,
                     1u,
                     gridSize,
                     x,
-                    rowShift,
-                    maxGridCoord
+                    rowShift
                 );
             }
         }
@@ -398,14 +425,13 @@ namespace PolarShader {
         for (uint8_t x = 0; x < gridSize; ++x) {
             fl::s16x16 columnShift = mulS16x16(kColShiftPixels, patternState.columnShiftProfile[x]);
             for (uint8_t y = 0; y < gridSize; ++y) {
-                uint16_t advected = sampleShiftedLaneClamped(
+                uint16_t advected = sampleShiftedLaneWrapped(
                     rowPass,
                     x,
                     gridSize,
                     gridSize,
                     y,
-                    columnShift,
-                    maxGridCoord
+                    columnShift
                 );
                 cells[static_cast<size_t>(y) * gridSize + x] = scaleU16ByF16(advected, patternState.fadeFactor);
             }

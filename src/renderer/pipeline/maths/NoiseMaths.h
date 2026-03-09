@@ -52,6 +52,8 @@ namespace PolarShader {
     inline NoiseRawU16 sampleNoiseTrilinear(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
         return sampleNoiseTrilinear(x.raw(), y.raw(), z.raw());
     }
+
+    uint32_t random32();
 }
 
 #endif // POLAR_SHADER_PIPELINE_MATHS_NOISEMATHS_H
