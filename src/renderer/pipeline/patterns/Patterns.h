@@ -79,6 +79,8 @@ namespace PolarShader {
     // Persistent advected trail field driven by 1D noise profiles.
     std::unique_ptr<UVPattern> flurryPattern(
         uint8_t gridSize = 32,
+        uint8_t lineCount = 1,
+        FlurryPattern::Shape shape = FlurryPattern::Shape::Line,
         Sf16Signal xDrift = constant(50),
         Sf16Signal yDrift = constant(75),
         Sf16Signal amplitude = constant(100),

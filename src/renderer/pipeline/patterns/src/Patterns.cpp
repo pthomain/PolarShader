@@ -78,6 +78,8 @@ namespace PolarShader {
 
     std::unique_ptr<UVPattern> flurryPattern(
         uint8_t gridSize,
+        uint8_t lineCount,
+        FlurryPattern::Shape shape,
         Sf16Signal xDrift,
         Sf16Signal yDrift,
         Sf16Signal amplitude,
@@ -87,6 +89,8 @@ namespace PolarShader {
     ) {
         return std::make_unique<FlurryPattern>(
             gridSize,
+            lineCount,
+            shape,
             std::move(xDrift),
             std::move(yDrift),
             std::move(amplitude),

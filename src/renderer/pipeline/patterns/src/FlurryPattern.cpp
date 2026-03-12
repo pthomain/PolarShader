@@ -37,6 +37,8 @@ namespace PolarShader {
 
         constexpr uint8_t kMinGridSize = 4;
         constexpr uint8_t kMaxGridSize = 64;
+        constexpr uint8_t kMinLineCount = 1;
+        constexpr uint8_t kMaxLineCount = 8;
         constexpr uint8_t kQ16Shift = 16;
         constexpr uint16_t kQ16FractionMask = F16_MAX;
         constexpr uint32_t kQ16FractionSpan = ANGLE_FULL_TURN_U32;
@@ -58,12 +60,19 @@ namespace PolarShader {
 
         constexpr fl::s16x16 kEndpointDiscRadius = s16x16FromFraction(60, 100); // 0.85
         constexpr fl::s16x16 kEndpointDiscSoftEdge = s16x16FromFraction(1, 2); // 0.5
+        constexpr fl::s16x16 kBallDiscRadius = s16x16FromMixed(1, 1, 4); // 1.25
+        constexpr fl::s16x16 kBallDiscSoftEdge = s16x16FromFraction(3, 4); // 0.75
+        constexpr fl::s16x16 kBallRadiusSpread = s16x16FromFraction(3, 20); // 0.15
 
         constexpr int32_t kLineSampleDensity = 3; // 3 samples per cell of dominant line length
         constexpr uint16_t kEndpointAXPhase = 2086u; // 0.03183 turns
         constexpr uint16_t kEndpointAYPhase = 13557u; // 0.20686 turns
         constexpr uint16_t kEndpointBXPhase = 22938u; // 0.35001 turns
         constexpr uint16_t kEndpointBYPhase = 7307u; // 0.11150 turns
+        constexpr uint16_t kLinePhaseStride = 8191u;
+        constexpr uint16_t kLineSecondaryPhaseStride = 24593u;
+        constexpr fl::s16x16 kLineRateSpread = s16x16FromFraction(3, 100); // 0.03
+        constexpr fl::s16x16 kLineAmplitudeSpread = s16x16FromFraction(1, 20); // 0.05
 
         struct EndpointMotion {
             fl::s16x16 xAmplitude;
@@ -167,9 +176,16 @@ namespace PolarShader {
             blendPixel(cells, gridSize, baseX + 1, baseY + 1, bottomRightWeight);
         }
 
-        // Draw a soft disc around the endpoint to seed the advection with a rounded source.
-        void drawEndpointGlow(uint16_t *cells, uint8_t gridSize, fl::s16x16 xPos, fl::s16x16 yPos) {
-            fl::s16x16 edgeRadius = kEndpointDiscRadius + kEndpointDiscSoftEdge;
+        void drawSoftDisc(
+            uint16_t *cells,
+            uint8_t gridSize,
+            fl::s16x16 xPos,
+            fl::s16x16 yPos,
+            fl::s16x16 radius,
+            fl::s16x16 softEdge,
+            f16 intensity
+        ) {
+            fl::s16x16 edgeRadius = radius + softEdge;
             int32_t minX = std::max<int32_t>(0, (raw(xPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
             int32_t maxX = std::min<int32_t>(
                 gridSize - 1,
@@ -189,9 +205,42 @@ namespace PolarShader {
                     int32_t weightRaw = raw(edgeRadius - distance);
                     if (weightRaw <= 0) continue;
                     if (weightRaw > SF16_ONE) weightRaw = SF16_ONE;
-                    blendPixel(cells, gridSize, px, py, f16(static_cast<uint16_t>(weightRaw)));
+                    blendPixel(
+                        cells,
+                        gridSize,
+                        px,
+                        py,
+                        f16(scaleU16ByF16(static_cast<uint16_t>(weightRaw), intensity))
+                    );
                 }
             }
+        }
+
+        // Draw a soft disc around the endpoint to seed the advection with a rounded source.
+        void drawEndpointGlow(
+            uint16_t *cells,
+            uint8_t gridSize,
+            fl::s16x16 xPos,
+            fl::s16x16 yPos,
+            f16 intensity
+        ) {
+            drawSoftDisc(cells, gridSize, xPos, yPos, kEndpointDiscRadius, kEndpointDiscSoftEdge, intensity);
+        }
+
+        f16 intensityPerLine(uint8_t lineCount) {
+            return f16(clampU16(std::max<uint32_t>(1u, kFullIntensity / static_cast<uint32_t>(lineCount))));
+        }
+
+        uint16_t phaseOffsetForLine(uint8_t lineIndex, uint16_t stride, uint16_t basePhase) {
+            return static_cast<uint16_t>(basePhase + static_cast<uint16_t>(lineIndex * stride));
+        }
+
+        fl::s16x16 lineCenteredOffset(uint8_t lineIndex, uint8_t lineCount) {
+            int32_t doubledIndex = static_cast<int32_t>(lineIndex) * 2;
+            int32_t doubledCenter = static_cast<int32_t>(lineCount) - 1;
+            return fl::s16x16::from_raw(
+                static_cast<int32_t>(((doubledIndex - doubledCenter) * SF16_ONE) / 2)
+            );
         }
 
         // Sample a stable 1D noise profile by treating the coordinate as a single animated noise axis.
@@ -228,6 +277,8 @@ namespace PolarShader {
 
     struct FlurryPattern::State {
         uint8_t gridSize;
+        uint8_t lineCount;
+        Shape shape;
         std::unique_ptr<uint16_t[]> cells;
         std::unique_ptr<uint16_t[]> rowPass;
         std::unique_ptr<sf16[]> columnShiftProfile;
@@ -256,6 +307,8 @@ namespace PolarShader {
 
         explicit State(
             uint8_t size,
+            uint8_t lines,
+            Shape patternShape,
             Sf16Signal xDrift,
             Sf16Signal yDrift,
             Sf16Signal amplitude,
@@ -263,6 +316,8 @@ namespace PolarShader {
             Sf16Signal endpointSpeed,
             Sf16Signal fade
         ) : gridSize(size),
+            lineCount(lines),
+            shape(patternShape),
             cells(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
             rowPass(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
             columnShiftProfile(std::make_unique<sf16[]>(size)),
@@ -292,6 +347,8 @@ namespace PolarShader {
 
     FlurryPattern::FlurryPattern(
         uint8_t gridSize,
+        uint8_t lineCount,
+        Shape shape,
         Sf16Signal xDrift,
         Sf16Signal yDrift,
         Sf16Signal amplitude,
@@ -300,6 +357,8 @@ namespace PolarShader {
         Sf16Signal fade
     ) : state(std::make_shared<State>(
         std::max<uint8_t>(kMinGridSize, std::min<uint8_t>(gridSize, kMaxGridSize)),
+        std::max<uint8_t>(kMinLineCount, std::min<uint8_t>(lineCount, kMaxLineCount)),
+        shape,
         std::move(xDrift),
         std::move(yDrift),
         std::move(amplitude),
@@ -351,59 +410,102 @@ namespace PolarShader {
             patternState.rowShiftProfile[index] = rowShift;
         }
 
-        fl::s16x16 endpointAXRate = patternState.endpointSpeed * kEndpointA.xRate;
-        fl::s16x16 endpointAYRate = patternState.endpointSpeed * kEndpointA.yRate;
-        fl::s16x16 endpointBXRate = patternState.endpointSpeed * kEndpointB.xRate;
-        fl::s16x16 endpointBYRate = patternState.endpointSpeed * kEndpointB.yRate;
-
-        f16 endpointAXPhase(
-            static_cast<uint16_t>(raw(patternState.timeQ16 * endpointAXRate) + kEndpointA.xPhase));
-        f16 endpointAYPhase(
-            static_cast<uint16_t>(raw(patternState.timeQ16 * endpointAYRate) + kEndpointA.yPhase));
-        f16 endpointBXPhase(
-            static_cast<uint16_t>(raw(patternState.timeQ16 * endpointBXRate) + kEndpointB.xPhase));
-        f16 endpointBYPhase(
-            static_cast<uint16_t>(raw(patternState.timeQ16 * endpointBYRate) + kEndpointB.yPhase));
-
         fl::s16x16 gridCenter = fl::s16x16::from_raw(static_cast<int32_t>(gridSize - 1u) * raw(kGridHalf));
-        fl::s16x16 endpointAX = gridCenter +
-                                mulS16x16(scaleByGridSize(gridSize, kEndpointA.xAmplitude),
-                                          angleSinF16(endpointAXPhase));
-        fl::s16x16 endpointAY = gridCenter +
-                                mulS16x16(scaleByGridSize(gridSize, kEndpointA.yAmplitude),
-                                          angleSinF16(endpointAYPhase));
-        fl::s16x16 endpointBX = gridCenter +
-                                mulS16x16(scaleByGridSize(gridSize, kEndpointB.xAmplitude),
-                                          angleSinF16(endpointBXPhase));
-        fl::s16x16 endpointBY = gridCenter +
-                                mulS16x16(scaleByGridSize(gridSize, kEndpointB.yAmplitude),
-                                          angleSinF16(endpointBYPhase));
-
         uint16_t *cells = patternState.cells.get();
-        fl::s16x16 lineDeltaX = endpointBX - endpointAX;
-        fl::s16x16 lineDeltaY = endpointBY - endpointAY;
-        int32_t lineDeltaXRaw = raw(lineDeltaX);
-        int32_t lineDeltaYRaw = raw(lineDeltaY);
-        int32_t maxLineDelta = std::max(
-            lineDeltaXRaw < 0 ? -lineDeltaXRaw : lineDeltaXRaw,
-            lineDeltaYRaw < 0 ? -lineDeltaYRaw : lineDeltaYRaw
-        );
-        int32_t lineStepCount = std::max<int32_t>(1, (maxLineDelta * kLineSampleDensity) >> kQ16Shift);
-        for (int32_t step = 0; step <= lineStepCount; ++step) {
-            uint32_t mixRaw = static_cast<uint32_t>(
-                (static_cast<uint64_t>(step) * kFullIntensity) / static_cast<uint32_t>(lineStepCount)
-            );
-            f16 mix(static_cast<uint16_t>(mixRaw));
-            drawSubpixelPoint(
-                cells,
-                gridSize,
-                lerpS16x16(endpointAX, endpointBX, mix),
-                lerpS16x16(endpointAY, endpointBY, mix)
-            );
-        }
+        f16 lineIntensity = intensityPerLine(patternState.lineCount);
+        for (uint8_t lineIndex = 0; lineIndex < patternState.lineCount; ++lineIndex) {
+            fl::s16x16 lineOffset = lineCenteredOffset(lineIndex, patternState.lineCount);
+            fl::s16x16 rateMultiplier = fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kLineRateSpread);
+            fl::s16x16 amplitudeMultiplier =
+                fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kLineAmplitudeSpread);
 
-        drawEndpointGlow(cells, gridSize, endpointAX, endpointAY);
-        drawEndpointGlow(cells, gridSize, endpointBX, endpointBY);
+            fl::s16x16 endpointAXRate = patternState.endpointSpeed * (kEndpointA.xRate * rateMultiplier);
+            fl::s16x16 endpointAYRate = patternState.endpointSpeed * (kEndpointA.yRate * rateMultiplier);
+            fl::s16x16 endpointBXRate = patternState.endpointSpeed * (kEndpointB.xRate * rateMultiplier);
+            fl::s16x16 endpointBYRate = patternState.endpointSpeed * (kEndpointB.yRate * rateMultiplier);
+
+            f16 endpointAXPhase(static_cast<uint16_t>(
+                raw(patternState.timeQ16 * endpointAXRate) +
+                phaseOffsetForLine(lineIndex, kLinePhaseStride, kEndpointA.xPhase)
+            ));
+            f16 endpointAYPhase(static_cast<uint16_t>(
+                raw(patternState.timeQ16 * endpointAYRate) +
+                phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kEndpointA.yPhase)
+            ));
+            f16 endpointBXPhase(static_cast<uint16_t>(
+                raw(patternState.timeQ16 * endpointBXRate) +
+                phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kEndpointB.xPhase)
+            ));
+            f16 endpointBYPhase(static_cast<uint16_t>(
+                raw(patternState.timeQ16 * endpointBYRate) +
+                phaseOffsetForLine(lineIndex, kLinePhaseStride, kEndpointB.yPhase)
+            ));
+
+            fl::s16x16 endpointAX = gridCenter +
+                                    mulS16x16(
+                                        scaleByGridSize(gridSize, kEndpointA.xAmplitude * amplitudeMultiplier),
+                                        angleSinF16(endpointAXPhase)
+                                    );
+            fl::s16x16 endpointAY = gridCenter +
+                                    mulS16x16(
+                                        scaleByGridSize(gridSize, kEndpointA.yAmplitude * amplitudeMultiplier),
+                                        angleSinF16(endpointAYPhase)
+                                    );
+            fl::s16x16 endpointBX = gridCenter +
+                                    mulS16x16(
+                                        scaleByGridSize(gridSize, kEndpointB.xAmplitude * amplitudeMultiplier),
+                                        angleSinF16(endpointBXPhase)
+                                    );
+            fl::s16x16 endpointBY = gridCenter +
+                                    mulS16x16(
+                                        scaleByGridSize(gridSize, kEndpointB.yAmplitude * amplitudeMultiplier),
+                                        angleSinF16(endpointBYPhase)
+                                    );
+
+            if (patternState.shape == Shape::Ball) {
+                fl::s16x16 ballX = (endpointAX + endpointBX) * kGridHalf;
+                fl::s16x16 ballY = (endpointAY + endpointBY) * kGridHalf;
+                fl::s16x16 ballRadius =
+                    kBallDiscRadius * (fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kBallRadiusSpread));
+                fl::s16x16 ballSoftEdge =
+                    kBallDiscSoftEdge * (fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kBallRadiusSpread));
+                drawSoftDisc(
+                    cells,
+                    gridSize,
+                    ballX,
+                    ballY,
+                    ballRadius,
+                    ballSoftEdge,
+                    lineIntensity
+                );
+            } else {
+                fl::s16x16 lineDeltaX = endpointBX - endpointAX;
+                fl::s16x16 lineDeltaY = endpointBY - endpointAY;
+                int32_t lineDeltaXRaw = raw(lineDeltaX);
+                int32_t lineDeltaYRaw = raw(lineDeltaY);
+                int32_t maxLineDelta = std::max(
+                    lineDeltaXRaw < 0 ? -lineDeltaXRaw : lineDeltaXRaw,
+                    lineDeltaYRaw < 0 ? -lineDeltaYRaw : lineDeltaYRaw
+                );
+                int32_t lineStepCount = std::max<int32_t>(1, (maxLineDelta * kLineSampleDensity) >> kQ16Shift);
+                for (int32_t step = 0; step <= lineStepCount; ++step) {
+                    uint32_t mixRaw = static_cast<uint32_t>(
+                        (static_cast<uint64_t>(step) * kFullIntensity) / static_cast<uint32_t>(lineStepCount)
+                    );
+                    f16 mix(static_cast<uint16_t>(mixRaw));
+                    drawSubpixelPoint(
+                        cells,
+                        gridSize,
+                        lerpS16x16(endpointAX, endpointBX, mix),
+                        lerpS16x16(endpointAY, endpointBY, mix),
+                        lineIntensity
+                    );
+                }
+
+                drawEndpointGlow(cells, gridSize, endpointAX, endpointAY, lineIntensity);
+                drawEndpointGlow(cells, gridSize, endpointBX, endpointBY, lineIntensity);
+            }
+        }
 
         uint16_t *rowPass = patternState.rowPass.get();
 

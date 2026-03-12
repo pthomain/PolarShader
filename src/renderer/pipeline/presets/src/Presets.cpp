@@ -53,6 +53,8 @@ namespace PolarShader {
                     // ),
                     flurryPattern(
                         32,
+                        3,
+                        FlurryPattern::Shape::Line,
                         noise(),
                         noise(),
                         constant(500),
@@ -82,7 +84,8 @@ namespace PolarShader {
                 )
                 .addTransform(
                     ZoomTransform(
-                        noise(constant(300), constant(100))
+                        constant(100)
+                        // noise(constant(300), constant(100))
                         // noise(constant(10), constant(500), constant(500))
                     )
                 )
@@ -92,6 +95,12 @@ namespace PolarShader {
                 //         noise(constant(30)),
                 //         noise(constant(100), constant(50), constant(50))
                 //     ))
+
+                .addTransform(KaleidoscopeTransform(
+                    2,
+                    true
+                ))
+
                 .addTransform(VortexTransform(
                     noise(
                         constant(100),
@@ -101,20 +110,6 @@ namespace PolarShader {
                         )
                     )
                 ))
-
-                // .addTransform(KaleidoscopeTransform(
-                //     2,
-                //     true
-                // ))
-
-                // .addTransform(
-                //     FlowFieldTransform(
-                //         constant(200),
-                //         constant(300),
-                //         constant(750),
-                //         constant(500)
-                //     )
-                // )
                 .addTransform(
                     RotationTransform(
                         noise(
@@ -123,8 +118,7 @@ namespace PolarShader {
                         ),
                         false
                     )
-                )
-                ;
+                );
     }
 
     LayerBuilder fabricPreset(

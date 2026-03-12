@@ -40,8 +40,15 @@ namespace PolarShader {
         std::shared_ptr<State> state;
 
     public:
+        enum class Shape : uint8_t {
+            Line,
+            Ball
+        };
+
         FlurryPattern(
             uint8_t gridSize = 32,
+            uint8_t lineCount = 1,
+            Shape shape = Shape::Line,
             Sf16Signal xDrift = constant(50),
             Sf16Signal yDrift = constant(75),
             Sf16Signal amplitude = constant(100),
