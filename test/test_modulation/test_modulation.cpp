@@ -4,6 +4,7 @@
 #include <unity.h>
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/signals/SignalSamplers.h"
+#include "renderer/pipeline/transforms/PaletteTransform.h"
 #include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/ranges/AngleRange.h"
@@ -23,6 +24,7 @@
 #include "renderer/pipeline/signals/src/Signals.cpp"
 #include "renderer/pipeline/signals/src/SignalSamplers.cpp"
 #include "renderer/pipeline/signals/src/accumulators/Accumulators.cpp"
+#include "renderer/pipeline/transforms/src/PaletteTransform.cpp"
 #endif
 
 using namespace PolarShader;
@@ -125,13 +127,28 @@ void test_bounded_sine_centered_range() {
 
 /** @brief Verify that zero phase velocity results in no phase advance. */
 void test_zero_speed_signal() {
-    Sf16Signal s = sine(constant(500), sf16(0));
+    Sf16Signal s = sine(constant(0), sf16(0));
     
     (void) s.sample(SIGNED_RANGE, 0);
     int32_t a = raw(s.sample(SIGNED_RANGE, 500));
     int32_t b = raw(s.sample(SIGNED_RANGE, 1000));
     
     TEST_ASSERT_EQUAL_INT32(a, b);
+}
+
+/** @brief Verify phase velocity is interpreted in the magnitude domain. */
+void test_half_speed_signal() {
+    Sf16Signal s = sine(constant(500), sf16(0));
+
+    TEST_ASSERT_INT32_WITHIN(200, 0, raw(s.sample(SIGNED_RANGE, 0)));
+
+    (void) s.sample(SIGNED_RANGE, 200);
+    (void) s.sample(SIGNED_RANGE, 400);
+    TEST_ASSERT_INT32_WITHIN(500, SF16_MAX, raw(s.sample(SIGNED_RANGE, 500)));
+
+    (void) s.sample(SIGNED_RANGE, 700);
+    (void) s.sample(SIGNED_RANGE, 900);
+    TEST_ASSERT_INT32_WITHIN(500, 0, raw(s.sample(SIGNED_RANGE, 1000)));
 }
 
 /** @brief Verify handling of negative time (e.g. scene loop/reset). */
@@ -184,6 +201,44 @@ void test_smap_preserves_aperiodic_metadata() {
     TEST_ASSERT_EQUAL_UINT32(750u, s.duration());
 }
 
+/** @brief Verify zero clip disables feather even when max feather defaults are used. */
+void test_palette_clip_zero_has_zero_feather() {
+    auto context = std::make_shared<PipelineContext>();
+    PaletteTransform transform(constant(0), constant(0));
+
+    transform.setContext(context);
+    transform.advanceFrame(f16(0), 0);
+
+    TEST_ASSERT_EQUAL_UINT16(0, raw(context->paletteClip));
+    TEST_ASSERT_EQUAL_UINT16(0, raw(context->paletteClipFeather));
+}
+
+/** @brief Verify palette clip feather scales proportionally with the live clip signal. */
+void test_palette_clip_feather_scales_with_clip_signal() {
+    auto context = std::make_shared<PipelineContext>();
+    PaletteTransform transform(
+        constant(0),
+        sine(constant(1000), constant(0), constant(200))
+    );
+
+    transform.setContext(context);
+
+    transform.advanceFrame(f16(0), 0);
+    TEST_ASSERT_UINT16_WITHIN(50, raw(perMil(100)), raw(context->paletteClip));
+    TEST_ASSERT_UINT16_WITHIN(50, raw(perMil(50)), raw(context->paletteClipFeather));
+
+    transform.advanceFrame(f16(0), 150);
+    transform.advanceFrame(f16(0), 250);
+    TEST_ASSERT_UINT16_WITHIN(50, raw(perMil(200)), raw(context->paletteClip));
+    TEST_ASSERT_UINT16_WITHIN(50, raw(perMil(100)), raw(context->paletteClipFeather));
+
+    transform.advanceFrame(f16(0), 400);
+    transform.advanceFrame(f16(0), 600);
+    transform.advanceFrame(f16(0), 750);
+    TEST_ASSERT_EQUAL_UINT16(0, raw(context->paletteClip));
+    TEST_ASSERT_EQUAL_UINT16(0, raw(context->paletteClipFeather));
+}
+
 #ifdef ARDUINO
 void setup() {
     delay(2000);
@@ -195,11 +250,14 @@ void setup() {
     RUN_TEST(test_bounded_sine_waveform);
     RUN_TEST(test_bounded_sine_centered_range);
     RUN_TEST(test_zero_speed_signal);
+    RUN_TEST(test_half_speed_signal);
     RUN_TEST(test_negative_time_reset);
     RUN_TEST(test_bounded_sine_clamps_and_swaps_bounds);
     RUN_TEST(test_phase_offset_wraps);
     RUN_TEST(test_smap_animated_bounds);
     RUN_TEST(test_smap_preserves_aperiodic_metadata);
+    RUN_TEST(test_palette_clip_zero_has_zero_feather);
+    RUN_TEST(test_palette_clip_feather_scales_with_clip_signal);
     UNITY_END();
 }
 void loop() {}
@@ -213,11 +271,14 @@ int main() {
     RUN_TEST(test_bounded_sine_waveform);
     RUN_TEST(test_bounded_sine_centered_range);
     RUN_TEST(test_zero_speed_signal);
+    RUN_TEST(test_half_speed_signal);
     RUN_TEST(test_negative_time_reset);
     RUN_TEST(test_bounded_sine_clamps_and_swaps_bounds);
     RUN_TEST(test_phase_offset_wraps);
     RUN_TEST(test_smap_animated_bounds);
     RUN_TEST(test_smap_preserves_aperiodic_metadata);
+    RUN_TEST(test_palette_clip_zero_has_zero_feather);
+    RUN_TEST(test_palette_clip_feather_scales_with_clip_signal);
     return UNITY_END();
 }
 #endif

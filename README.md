@@ -139,7 +139,7 @@ Factory families:
 * Periodic factories (`sine`, `noise`, `triangle`, `square`, `sawtooth`) expose:
     - A base signature: `(phaseVelocity, phaseOffset)`.
     - Bounded overloads: `(phaseVelocity, floor, ceiling)` and `(phaseVelocity, phaseOffset, floor, ceiling)`.
-    - `phaseVelocity` is scene-time velocity in turns/second.
+    - Waveform `phaseVelocity` is sampled through the magnitude domain, where `constant(1000)` = 1 Hz and `constant(500)` = 0.5 Hz.
     - `phaseOffset` is a signed turn offset wrapped into the phase domain.
     - When a bounded overload is used, the factory applies `smap()` internally.
 * Aperiodic factories (`linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`) share:
@@ -152,7 +152,7 @@ Output contract:
 * Use `smap(signal, floorSignal, ceilingSignal)` to remap a signal into a bounded unipolar interval before it is converted back to signed `sf16`.
     - `floorSignal` and `ceilingSignal` are sampled through the unsigned magnitude domain.
     - If the sampled floor exceeds the sampled ceiling, the bounds are swapped for that sample.
-* Internal phase integration uses signed phase velocity for direction reversal.
+* Internal waveform phase integration uses magnitude-domain phase velocity with a 1 Hz full-scale maximum.
 
 ---
 

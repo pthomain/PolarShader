@@ -19,21 +19,33 @@
  */
 
 #include "renderer/pipeline/transforms/PaletteTransform.h"
-#include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include "native/Arduino.h"
+#endif
 
 namespace PolarShader {
     namespace {
         f16 sampleClipMagnitude(const Sf16Signal &signal, TimeMillis elapsedMs) {
-            static const BipolarRange<sf16> signedRange{sf16(SF16_MIN), sf16(SF16_MAX)};
-            const int32_t signedRaw = raw(signal.sample(signedRange, elapsedMs));
-            const uint32_t magnitude = (signedRaw < 0)
-                ? static_cast<uint32_t>(-(static_cast<int64_t>(signedRaw)))
-                : static_cast<uint32_t>(signedRaw);
-            const uint32_t clamped = (magnitude > F16_MAX) ? F16_MAX : magnitude;
-            return f16(static_cast<uint16_t>(clamped));
+            static const MagnitudeRange<f16> clipRange{f16(0), f16(F16_MAX)};
+            return signal.sample(clipRange, elapsedMs);
+        }
+
+        f16 scaleClipFeather(f16 maxFeather, f16 clipMagnitude) {
+            const uint16_t maxFeatherRaw = raw(maxFeather);
+            const uint16_t clipRaw = raw(clipMagnitude);
+
+            if (maxFeatherRaw == 0 || clipRaw == 0) return f16(0);
+            if (clipRaw >= F16_MAX) return maxFeather;
+            if (maxFeatherRaw >= F16_MAX) return clipMagnitude;
+
+            uint32_t scaled = static_cast<uint32_t>(maxFeatherRaw) * static_cast<uint32_t>(clipRaw);
+            scaled = (scaled + (F16_MAX / 2u)) / F16_MAX;
+            if (scaled > F16_MAX) scaled = F16_MAX;
+            return f16(static_cast<uint16_t>(scaled));
         }
     }
 
@@ -41,7 +53,7 @@ namespace PolarShader {
         Sf16Signal offsetSignal;
         MagnitudeRange<uint8_t> offsetRange{0, 255};
         Sf16Signal clipSignal;
-        f16 feather = f16(0);
+        f16 maxFeather = f16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
     };
@@ -55,14 +67,14 @@ namespace PolarShader {
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(
         Sf16Signal offset,
         Sf16Signal clipSignal,
-        f16 feather,
+        f16 maxFeather,
         PipelineContext::PaletteClipPower clipPower
     ) {
         return MappedInputs{
             std::move(offset),
             MagnitudeRange<uint8_t>(0, 255),
             std::move(clipSignal),
-            feather,
+            maxFeather,
             clipPower,
             true
         };
@@ -75,7 +87,7 @@ namespace PolarShader {
         Sf16Signal clipSignal;
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
-        f16 feather = f16(0);
+        f16 maxFeather = f16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
 
@@ -83,7 +95,7 @@ namespace PolarShader {
             : offsetSignal(std::move(inputs.offsetSignal)),
               offsetRange(std::move(inputs.offsetRange)),
               clipSignal(std::move(inputs.clipSignal)),
-              feather(inputs.feather),
+              maxFeather(inputs.maxFeather),
               clipPower(inputs.clipPower),
               hasClip(inputs.hasClip) {
         }
@@ -96,13 +108,13 @@ namespace PolarShader {
     PaletteTransform::PaletteTransform(
         Sf16Signal offset,
         Sf16Signal clipSignal,
-        f16 feather,
+        f16 maxFeather,
         PipelineContext::PaletteClipPower clipPower
     ) {
         state = std::make_shared<State>(makeInputs(
             std::move(offset),
             std::move(clipSignal),
-            feather,
+            maxFeather,
             clipPower
         ));
     }
@@ -113,10 +125,11 @@ namespace PolarShader {
             context->paletteOffset = state->offsetValue;
             if (state->hasClip) {
                 f16 clipRaw = sampleClipMagnitude(state->clipSignal, elapsedMs);
+                f16 clipFeather = scaleClipFeather(state->maxFeather, clipRaw);
                 state->clipInvert = false;
                 state->clipValue = PatternNormU16(raw(clipRaw));
                 context->paletteClip = state->clipValue;
-                context->paletteClipFeather = state->feather;
+                context->paletteClipFeather = clipFeather;
                 context->paletteClipPower = state->clipPower;
                 context->paletteClipInvert = state->clipInvert;
                 context->paletteClipEnabled = true;

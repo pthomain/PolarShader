@@ -97,7 +97,7 @@ namespace PolarShader {
 
     /**
      * @brief Animated noise signal driven by a phase velocity signal.
-     * @param phaseVelocity Coordinate velocity in turns-per-second.
+     * @param phaseVelocity Magnitude-domain rate where `constant(1000)` = 1.0 and `constant(500)` = 0.5.
      * @param phaseOffset Signed turn offset wrapped into the internal phase domain.
      */
     Sf16Signal noise(
@@ -120,7 +120,7 @@ namespace PolarShader {
 
     /**
      * @brief Periodic sine wave signal driven by a phase velocity signal.
-     * @param phaseVelocity Signed turns-per-second (1.0 = 1 cycle/sec).
+     * @param phaseVelocity Magnitude-domain rate where `constant(1000)` = 1 Hz and `constant(500)` = 0.5 Hz.
      * @param phaseOffset Signed turn offset wrapped into the internal phase domain.
      * @note The overloads that accept floor/ceiling signals apply smap() internally.
      */

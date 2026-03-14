@@ -24,6 +24,8 @@
 #include <renderer/pipeline/signals/SignalTypes.h>
 #include <renderer/pipeline/transforms/base/Transforms.h>
 
+#include "renderer/pipeline/signals/Signals.h"
+
 namespace PolarShader {
     /**
      * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in f16/sf16.
@@ -34,7 +36,7 @@ namespace PolarShader {
      */
     class ZoomTransform : public UVTransform {
     public:
-        explicit ZoomTransform(Sf16Signal scale);
+        explicit ZoomTransform(Sf16Signal scale = constant(500));
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 

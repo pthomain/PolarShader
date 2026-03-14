@@ -29,10 +29,13 @@
 
 namespace PolarShader {
     /**
-     * @brief Per-frame palette index offset.
+     * @brief Per-frame palette index offset and optional low-end palette clip.
      *
-     * Maps a signed signal through an unsigned range into a palette index range
-     * and stores it in the pipeline context.
+     * Maps the offset signal through an unsigned range into a palette index range.
+     * When a clip signal is provided, it is sampled in the unipolar magnitude
+     * domain so `constant(0)` disables clipping and `constant(1000)` clips up to
+     * the full palette range. The optional max feather is scaled proportionally
+     * to the sampled clip magnitude, so zero clip also means zero feather.
      */
     class PaletteTransform : public FrameTransform {
     public:
@@ -41,7 +44,7 @@ namespace PolarShader {
         PaletteTransform(
             Sf16Signal offset,
             Sf16Signal clipSignal,
-            f16 feather = perMil(500),
+            f16 maxFeather = perMil(500),
             PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square
         );
 
@@ -57,7 +60,7 @@ namespace PolarShader {
         static MappedInputs makeInputs(
             Sf16Signal offset,
             Sf16Signal clipSignal,
-            f16 feather,
+            f16 maxFeather,
             PipelineContext::PaletteClipPower clipPower
         );
 

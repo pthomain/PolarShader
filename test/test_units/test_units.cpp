@@ -361,20 +361,15 @@ void test_signal_sample_clamped() {
     TEST_ASSERT_EQUAL_INT32(-1000, raw(s.sample(TEST_SIGNED_RANGE, 123)));
 }
 
-/** @brief Verify negative speed results in reverse phase accumulation. */
-void test_sine_negative_speed_works() {
-    // Speed: -1.0 turn per second
-    Sf16Signal negative = sine(constant(0), sf16(0));
+/** @brief Verify phase velocity uses the magnitude domain for oscillator speed. */
+void test_sine_half_speed_uses_magnitude_domain() {
+    Sf16Signal s = sine(constant(500), sf16(0));
 
-    // t=0 -> 0
-    (void) negative.sample(TEST_SIGNED_RANGE, 0);
-    
-    // t=250ms -> -1.0 turn -> 0.75 turns (if it wraps) -> negative peak
-    (void) negative.sample(TEST_SIGNED_RANGE, 200);
-    int32_t a = raw(negative.sample(TEST_SIGNED_RANGE, 250));
-    
-    // sin(0.75 * 2pi) = -1.0
-    TEST_ASSERT_INT32_WITHIN(500, SF16_MIN, a);
+    TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
+
+    (void) s.sample(TEST_SIGNED_RANGE, 200);
+    (void) s.sample(TEST_SIGNED_RANGE, 400);
+    TEST_ASSERT_INT32_WITHIN(500, SF16_MAX, raw(s.sample(TEST_SIGNED_RANGE, 500)));
 }
 
 /** @brief Verify magnitude constant helpers (unipolar mapping). */
@@ -535,7 +530,7 @@ void setup() {
     RUN_TEST(test_aperiodic_saturate_clamps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
-    RUN_TEST(test_sine_negative_speed_works);
+    RUN_TEST(test_sine_half_speed_uses_magnitude_domain);
     RUN_TEST(test_magnitude_constant_helpers);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);
@@ -572,7 +567,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_aperiodic_saturate_clamps_time);
     RUN_TEST(test_aperiodic_zero_duration_emits_zero);
     RUN_TEST(test_signal_sample_clamped);
-    RUN_TEST(test_sine_negative_speed_works);
+    RUN_TEST(test_sine_half_speed_uses_magnitude_domain);
     RUN_TEST(test_magnitude_constant_helpers);
     RUN_TEST(test_signal_range_mapping);
     RUN_TEST(test_magnitude_range);

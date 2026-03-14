@@ -46,11 +46,6 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    tilingPattern(
-                        100,
-                        16,
-                        TilingPattern::TileShape::TRIANGLE
-                    ),
                     // flurryPattern(
                     //     32,
                     //     3,
@@ -62,34 +57,22 @@ namespace PolarShader {
                     //     constant(600),
                     //     constant(800)
                     // ),
+                    noisePattern(),
                     palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(
                     PaletteTransform(
-                        //     noise(
-                        //     constant(300),
-                        //     constant(100),
-                        //     sine(constant(300), constant(200)),
-                        //     noise(constant(200))
-                        // ),
-                        sine(),
-                        constant(600),
-                        // noise(
-                        // constant(300),
-                        // noise(constant(200), constant(500))
-                        // ),
-                        perMil(500)
+                        noise(),
+                        constant(0)
                     )
                 )
                 .addTransform(
                     ZoomTransform(
-                        constant(100)
                         // noise(constant(300), constant(100))
                         // noise(constant(10), constant(500), constant(500))
                     )
                 )
-                //
                 // .addTransform(
                 //     TranslationTransform(
                 //         noise(constant(30)),
@@ -110,8 +93,8 @@ namespace PolarShader {
                 // ))
                 .addTransform(
                     RotationTransform(
-                        noise(constant(50)),
-                        false
+                        noise(constant(100)),
+                        true
                     )
                 )
         ;

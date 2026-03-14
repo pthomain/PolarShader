@@ -49,7 +49,7 @@ Factory signatures:
 - Periodic factories:
   - Base form: `sine(phaseVelocity, phaseOffset)` / `noise(phaseVelocity, phaseOffset)`
   - Bounded overloads: `(phaseVelocity, floor, ceiling)` and `(phaseVelocity, phaseOffset, floor, ceiling)`
-  - `phaseVelocity` is scene-time velocity in turns-per-second.
+  - Waveform `phaseVelocity` is sampled through the magnitude domain, where `constant(1000)` = 1 Hz and `constant(500)` = 0.5 Hz.
   - `phaseOffset` is a signed turn offset wrapped into the phase domain.
   - Bounded overloads apply `smap()` internally.
 - Aperiodic factories:
@@ -126,8 +126,10 @@ Periodic shaping:
 
 ### PaletteTransform
 
-- Input: scalar threshold signal, optional clip signal/feather/power.
-- Maps threshold to palette index shift and writes to `PipelineContext`.
+- Input: scalar threshold signal, optional clip signal/max-feather/power.
+- Maps the threshold signal to palette index shift and writes it to `PipelineContext`.
+- Samples the optional clip signal in the unipolar magnitude domain, so `constant(0)` means no clipping and bounded periodic signals like `sine(speed, floor, ceiling)` behave as direct clip thresholds.
+- Scales the effective feather proportionally to the sampled clip magnitude: `effectiveFeather = round(maxFeather * clip / 65535)`.
 
 ## Dual-core contract
 

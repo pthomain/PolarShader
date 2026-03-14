@@ -44,7 +44,7 @@
   - Factories: `sine`, `noise`.
   - Base signature must be: `(phaseVelocity, phaseOffset)`.
   - Bounded overloads may also accept `(phaseVelocity, floor, ceiling)` and `(phaseVelocity, phaseOffset, floor, ceiling)`.
-  - `phaseVelocity` is scene-time velocity in turns-per-second.
+  - Waveform `phaseVelocity` must be interpreted through the magnitude domain, where `constant(1000)` = 1 Hz and `constant(500)` = 0.5 Hz.
   - `phaseOffset` is a signed turn offset wrapped into the phase domain.
 - **Aperiodic (`SignalKind::APERIODIC`):**
   - Factories: `linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`.
@@ -58,7 +58,7 @@
 - **Bounded Modulation:** Use `smap(signal, floorSignal, ceilingSignal)` to constrain and rescale a signal inside dynamically sampled unipolar bounds.
   - `floorSignal` and `ceilingSignal` must be interpreted through `magnitudeRange()`.
   - If sampled bounds cross, they must be reordered for that sample before remapping.
-- **Directionality:** Internal phase accumulation must preserve signed phase velocity for reverse motion.
+- **Phase Rate:** Waveform phase accumulation must treat phase velocity as a unipolar magnitude with a 1 Hz full-scale maximum.
 
 ### Signal Responsibilities
 - `Sf16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).

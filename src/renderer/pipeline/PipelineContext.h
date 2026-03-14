@@ -33,7 +33,7 @@ namespace PolarShader {
         uint8_t paletteOffset = 0u;
         // Optional low-end clipping for palette lookup.
         PatternNormU16 paletteClip = PatternNormU16(0);
-        // Feather width for palette clipping (f16/sf16).
+        // Effective feather width for palette clipping after clip-proportional scaling.
         f16 paletteClipFeather = f16(0);
 
         // Power curve applied to the clip input.

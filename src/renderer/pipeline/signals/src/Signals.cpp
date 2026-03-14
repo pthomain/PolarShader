@@ -71,7 +71,7 @@ namespace PolarShader {
         ) {
             PhaseAccumulator acc(
                 [phaseVelocity = std::move(phaseVelocity)](TimeMillis elapsedMs) mutable -> sf16 {
-                    return phaseVelocity.sample(bipolarRange(), elapsedMs);
+                    return phaseVelocity.sample(magnitudeRange(), elapsedMs);
                 },
                 wrapPhaseOffset(phaseOffset)
             );
