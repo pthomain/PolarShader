@@ -42,9 +42,10 @@
 ### Signal Kinds
 - **Periodic (`SignalKind::PERIODIC`):**
   - Factories: `sine`, `noise`.
-  - Signature must be: `(speed, amplitude, offset, phaseOffset)`.
-  - `speed` is signed turns-per-second, scene-duration independent.
-  - `phaseOffset` is normalized turns (`0..1`).
+  - Base signature must be: `(phaseVelocity, phaseOffset)`.
+  - Bounded overloads may also accept `(phaseVelocity, floor, ceiling)` and `(phaseVelocity, phaseOffset, floor, ceiling)`.
+  - `phaseVelocity` is scene-time velocity in turns-per-second.
+  - `phaseOffset` is a signed turn offset wrapped into the phase domain.
 - **Aperiodic (`SignalKind::APERIODIC`):**
   - Factories: `linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`.
   - Signature must be: `(duration, loopMode)`.
@@ -54,7 +55,10 @@
 ### Value Constraints
 - **Normalization:** `Sf16Signal` public outputs are clamped to `[-1, 1]`.
 - **Range Coverage:** Periodic samplers (`sine`, `noise`) must span the full signed range by default.
-- **Directionality:** Internal phase accumulation must preserve signed speed for reverse motion.
+- **Bounded Modulation:** Use `smap(signal, floorSignal, ceilingSignal)` to constrain and rescale a signal inside dynamically sampled unipolar bounds.
+  - `floorSignal` and `ceilingSignal` must be interpreted through `magnitudeRange()`.
+  - If sampled bounds cross, they must be reordered for that sample before remapping.
+- **Directionality:** Internal phase accumulation must preserve signed phase velocity for reverse motion.
 
 ### Signal Responsibilities
 - `Sf16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).

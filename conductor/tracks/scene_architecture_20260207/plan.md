@@ -8,7 +8,7 @@ This file is kept as historical execution detail. Current signal behavior differ
 entries in this plan:
 
 - Scalar signals are elapsed-time sampled (`elapsedMs`) with `SignalKind::{PERIODIC, APERIODIC}`.
-- Periodic factories use `(speed, amplitude, offset, phaseOffset)`.
+- Periodic factories use `(phaseVelocity, phaseOffset)` and bounded shaping is handled via `smap(...)`.
 - Aperiodic factories use `(duration, loopMode)` with `LoopMode::RESET` modulo behavior.
 - Signed phase speed is preserved internally for phase accumulation.
 

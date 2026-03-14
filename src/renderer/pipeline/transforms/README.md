@@ -47,10 +47,11 @@ Sampling contract:
 Factory signatures:
 
 - Periodic factories:
-  - `sine(speed, amplitude, threshold, phaseOffset)`
-  - `noise(speed, amplitude, threshold, phaseOffset)`
-  - `speed` is signed turns-per-second and independent of scene duration.
-  - `phaseOffset` is normalized turns (`0..1`).
+  - Base form: `sine(phaseVelocity, phaseOffset)` / `noise(phaseVelocity, phaseOffset)`
+  - Bounded overloads: `(phaseVelocity, floor, ceiling)` and `(phaseVelocity, phaseOffset, floor, ceiling)`
+  - `phaseVelocity` is scene-time velocity in turns-per-second.
+  - `phaseOffset` is a signed turn offset wrapped into the phase domain.
+  - Bounded overloads apply `smap()` internally.
 - Aperiodic factories:
   - `linear(duration, loopMode)`
   - `quadraticIn(duration, loopMode)`
@@ -60,10 +61,14 @@ Factory signatures:
 Constant signal helpers:
 - `constant(permille)`: returns a constant signal remapping unipolar `[0, 1000]` to signed `[-1, 1]`.
 - `perMil(uint16_t)` maps unsigned permille `[0, 1000]` to scalar `f16 [0, 1]`.
+- `smap(signal, floorSignal, ceilingSignal)`: constrains a signed signal to dynamically sampled unipolar bounds and returns the remapped signed result.
+  - `floorSignal` and `ceilingSignal` are sampled through `magnitudeRange()`.
+  - If the sampled floor exceeds the sampled ceiling, the bounds are swapped for that sample.
 
 Periodic shaping:
 
-- Sine/noise factories emit signed waveform values, then saturate to `[-1, 1]`.
+- Periodic factories emit raw signed waveform values in `[-1, 1]`.
+- Use `smap()` when a bounded sub-range is required.
 
 ## Mapping and accumulation
 
@@ -82,9 +87,9 @@ Periodic shaping:
 
 ### RotationTransform
 
-- Input: scalar angle or speed signal, optional `isAngleTurn` flag.
+- Input: scalar angle or phase-velocity signal, optional `isAngleTurn` flag.
 - `isAngleTurn = true` (Absolute): Internally maps with `AngleRange` to absolute turn offsets.
-- `isAngleTurn = false` (Accumulation - default): Treats input as angular velocity (speed), maps with `bipolarRange` and integrates over time.
+- `isAngleTurn = false` (Accumulation - default): Treats input as signed angular velocity, maps with `bipolarRange` and integrates over time.
 
 ### VortexTransform
 

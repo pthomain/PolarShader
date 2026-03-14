@@ -38,7 +38,7 @@ namespace PolarShader {
 
         // Power curve applied to the clip input.
         enum class PaletteClipPower : uint8_t {
-            // No shaping; threshold uses the raw pattern value.
+            // No shaping; palette clipping uses the raw pattern value.
             None = 1,
             // Square the clip input to emphasize peaks and thin out mid values.
             Square = 2,

@@ -46,22 +46,22 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    // tilingPattern(
-                    //     100,
-                    //     16,
-                    //     TilingPattern::TileShape::TRIANGLE
-                    // ),
-                    flurryPattern(
-                        32,
-                        3,
-                        FlurryPattern::Shape::Line,
-                        noise(),
-                        noise(),
-                        constant(500),
-                        constant(500),
-                        constant(600),
-                        constant(800)
+                    tilingPattern(
+                        100,
+                        16,
+                        TilingPattern::TileShape::TRIANGLE
                     ),
+                    // flurryPattern(
+                    //     32,
+                    //     3,
+                    //     FlurryPattern::Shape::Line,
+                    //     noise(),
+                    //     noise(),
+                    //     constant(500),
+                    //     constant(500),
+                    //     constant(600),
+                    //     constant(800)
+                    // ),
                     palette,
                     "kaleidoscope"
                 )
@@ -96,29 +96,25 @@ namespace PolarShader {
                 //         noise(constant(100), constant(50), constant(50))
                 //     ))
 
-                .addTransform(KaleidoscopeTransform(
-                    2,
-                    true
-                ))
-
-                .addTransform(VortexTransform(
-                    noise(
-                        constant(100),
-                        noise(
-                            noise(constant(150)),
-                            constant(500)
-                        )
-                    )
-                ))
+                // .addTransform(KaleidoscopeTransform(
+                //     2,
+                //     true
+                // ))
+                //
+                // .addTransform(VortexTransform(
+                //     noise(
+                //         constant(100),
+                //         constant(250),
+                //         constant(750)
+                //     )
+                // ))
                 .addTransform(
                     RotationTransform(
-                        noise(
-                            constant(50),
-                            noise()
-                        ),
+                        noise(constant(50)),
                         false
                     )
-                );
+                )
+        ;
     }
 
     LayerBuilder fabricPreset(
@@ -132,10 +128,7 @@ namespace PolarShader {
                 .addPaletteTransform(
                     PaletteTransform(
                         sine(),
-                        noise(
-                            constant(300),
-                            noise(constant(200), constant(500))
-                        ),
+                        noise(constant(300), constant(250), constant(750)),
                         perMil(500)
                     )
                 )
@@ -147,16 +140,10 @@ namespace PolarShader {
                 .addTransform(
                     TranslationTransform(
                         noise(constant(30)),
-                        noise(constant(100), constant(50), constant(50))
+                        noise(constant(100), constant(25), constant(75))
                     ))
                 .addTransform(VortexTransform(
-                    noise(
-                        constant(100),
-                        noise(
-                            noise(constant(150)),
-                            constant(500)
-                        )
-                    )
+                    noise(constant(100), constant(250), constant(750))
                 ))
                 .addTransform(KaleidoscopeTransform(
                     2,
@@ -164,10 +151,7 @@ namespace PolarShader {
                 ))
                 .addTransform(
                     RotationTransform(
-                        noise(
-                            constant(50),
-                            noise()
-                        ),
+                        noise(constant(50)),
                         false
                     )
                 );
@@ -189,13 +173,13 @@ namespace PolarShader {
                 .addPaletteTransform(PaletteTransform(noise(constant(600))))
                 .addTransform(TranslationTransform(
                     noise(constant(550)),
-                    noise(constant(550), constant(300))
+                    noise(constant(550), constant(350), constant(650))
                 ))
                 .addTransform(ZoomTransform(
                     quadraticInOut(10000)
                 ))
                 .addTransform(VortexTransform(
-                    noise(constant(505), constant(200))
+                    noise(constant(505), constant(400), constant(600))
                 ))
                 .addTransform(KaleidoscopeTransform(6, true))
                 .addTransform(RotationTransform(
@@ -218,22 +202,18 @@ namespace PolarShader {
                 .addPaletteTransform(
                     PaletteTransform(
                         sine(),
-                        noise(
-                            constant(100),
-                            noise(constant(150), constant(70), constant(30)),
-                            noise(constant(150), constant(100), constant(100))
-                        ),
+                        noise(constant(100), constant(50), constant(150)),
                         perMil(200)
                     ))
                 .addTransform(
                     ZoomTransform(
-                        noise(constant(10), constant(500), constant(500))
+                        noise(constant(10), constant(250), constant(750))
                     ))
 
                 //Translation drifts into solid colour when placed after kaleidoscope
                 .addTransform(TranslationTransform(
                     noise(constant(30)),
-                    noise(constant(100), constant(50), constant(50))
+                    noise(constant(100), constant(25), constant(75))
                 ))
                 .addTransform(KaleidoscopeTransform(
                     4,
@@ -241,13 +221,7 @@ namespace PolarShader {
                 ))
 
                 .addTransform(VortexTransform(
-                    noise(
-                        constant(100),
-                        noise(
-                            noise(constant(150)),
-                            constant(500)
-                        )
-                    )
+                    noise(constant(100), constant(250), constant(750))
                 ))
                 .addTransform(
                     RotationTransform(
