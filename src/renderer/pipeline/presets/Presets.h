@@ -41,6 +41,18 @@ namespace PolarShader {
     LayerBuilder noiseKaleidoscopePattern(
         const CRGBPalette16 &palette
     );
+
+    LayerBuilder flowFieldPreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder flowFieldDotsPreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder flowFieldKaleidoscopePreset(
+        const CRGBPalette16 &palette
+    );
 }
 
 #endif //POLAR_SHADER_PIPELINE_PRESETS_H

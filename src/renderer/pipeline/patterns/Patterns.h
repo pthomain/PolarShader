@@ -25,6 +25,7 @@
 #include <renderer/pipeline/patterns/WorleyConstants.h>
 #include <renderer/pipeline/patterns/WorleyPatterns.h>
 #include <renderer/pipeline/patterns/FlurryPattern.h>
+#include <renderer/pipeline/patterns/FlowFieldPattern.h>
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
@@ -74,6 +75,21 @@ namespace PolarShader {
         uint8_t width = 20,
         uint8_t height = 20,
         uint8_t stepsPerFrame = 4
+    );
+
+    // Persistent advected trail field with orbital dots, noise punch, and half-life fade.
+    std::unique_ptr<UVPattern> flowFieldPattern(
+        uint8_t gridSize = 32,
+        uint8_t dotCount = 3,
+        FlowFieldPattern::EmitterMode mode = FlowFieldPattern::EmitterMode::Both,
+        Sf16Signal xDrift = constant(50),
+        Sf16Signal yDrift = constant(75),
+        Sf16Signal amplitude = constant(100),
+        Sf16Signal frequency = constant(60),
+        Sf16Signal endpointSpeed = constant(500),
+        Sf16Signal halfLife = constant(600),
+        Sf16Signal orbitSpeed = constant(300),
+        Sf16Signal orbitRadius = constant(500)
     );
 
     // Persistent advected trail field driven by 1D noise profiles.

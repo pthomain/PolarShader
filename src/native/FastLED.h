@@ -81,6 +81,13 @@ namespace fl {
         bool operator>(fixed_base o) const { return v_ > o.v_; }
         bool operator<=(fixed_base o) const { return v_ <= o.v_; }
         bool operator>=(fixed_base o) const { return v_ >= o.v_; }
+        static fixed_base sqrt(fixed_base x) {
+            if (x.v_ <= 0) return from_raw(0);
+            // Newton's method in float for the native stub.
+            double val = static_cast<double>(x.v_) / static_cast<double>(Rep(1) << FracBits);
+            double root = std::sqrt(val);
+            return from_raw(static_cast<Rep>(root * static_cast<double>(Rep(1) << FracBits)));
+        }
     };
     using s16x16 = fixed_base<16, int32_t>;
     using u16x16 = fixed_base<16, uint32_t>;

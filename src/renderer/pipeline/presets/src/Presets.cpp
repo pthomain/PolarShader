@@ -215,4 +215,129 @@ namespace PolarShader {
                     )
                 );
     }
+
+    LayerBuilder flowFieldPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    flowFieldPattern(
+                        32,
+                        3,
+                        FlowFieldPattern::EmitterMode::Both,
+                        noise(),
+                        noise(),
+                        constant(500),
+                        constant(500),
+                        constant(600),
+                        constant(600),
+                        constant(300),
+                        constant(500)
+                    ),
+                    palette,
+                    "flowField"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        noise(),
+                        constant(0)
+                    )
+                )
+                .addTransform(
+                    ZoomTransform(
+                        sine(constant(550))
+                    )
+                )
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(100)),
+                        true
+                    )
+                );
+    }
+
+    LayerBuilder flowFieldDotsPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    flowFieldPattern(
+                        32,
+                        5,
+                        FlowFieldPattern::EmitterMode::Dots,
+                        constant(75),
+                        constant(75),
+                        constant(600),
+                        constant(400),
+                        constant(0),
+                        constant(700),
+                        constant(400),
+                        constant(600)
+                    ),
+                    palette,
+                    "flowFieldDots"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        sine(constant(300)),
+                        noise(constant(200), constant(300), constant(700)),
+                        perMil(400)
+                    )
+                )
+                .addTransform(
+                    VortexTransform(
+                        noise(constant(100), constant(250), constant(750))
+                    )
+                )
+                .addTransform(KaleidoscopeTransform(
+                    3,
+                    true
+                ))
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(50)),
+                        false
+                    )
+                );
+    }
+
+    LayerBuilder flowFieldKaleidoscopePreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    flowFieldPattern(
+                        32,
+                        2,
+                        FlowFieldPattern::EmitterMode::Lissajous,
+                        noise(constant(200)),
+                        noise(constant(200)),
+                        constant(700),
+                        constant(600),
+                        constant(500),
+                        constant(500),
+                        constant(0),
+                        constant(0)
+                    ),
+                    palette,
+                    "flowFieldKaleidoscope"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        noise(constant(600))
+                    )
+                )
+                .addTransform(TranslationTransform(
+                    noise(constant(550)),
+                    noise(constant(550), constant(350), constant(650))
+                ))
+                .addTransform(
+                    ZoomTransform(
+                        quadraticInOut(10000)
+                    )
+                )
+                .addTransform(KaleidoscopeTransform(6, true))
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(550))
+                    )
+                );
+    }
 }

@@ -1,0 +1,249 @@
+//  SPDX-License-Identifier: GPL-3.0-or-later
+//  Copyright (C) 2025 Pierre Thomain
+
+/*
+ * This file is part of PolarShader.
+ *
+ * PolarShader is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * PolarShader is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_GRIDUTILS_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_GRIDUTILS_H
+
+#include "renderer/pipeline/maths/Maths.h"
+#include "renderer/pipeline/signals/SignalSamplers.h"
+#include <algorithm>
+
+namespace PolarShader {
+    namespace grid {
+        // ---- Constexpr fixed-point builders ----
+
+        constexpr fl::s16x16 s16x16FromFraction(uint16_t numerator, uint16_t denominator) {
+            return fl::s16x16::from_raw(raw(toF16(numerator, denominator)));
+        }
+
+        constexpr fl::s16x16 s16x16FromMixed(uint16_t whole, uint16_t numerator, uint16_t denominator) {
+            return fl::s16x16::from_raw(static_cast<int32_t>(whole) * SF16_ONE + raw(toF16(numerator, denominator)));
+        }
+
+        // ---- Shared constants ----
+
+        constexpr uint8_t kQ16Shift = 16;
+        constexpr uint16_t kQ16FractionMask = F16_MAX;
+        constexpr uint32_t kQ16FractionSpan = ANGLE_FULL_TURN_U32;
+        constexpr uint16_t kFullIntensity = F16_MAX;
+        constexpr uint8_t kMinGridSize = 4;
+        constexpr uint8_t kMaxGridSize = 64;
+        constexpr fl::s16x16 kGridHalf = s16x16FromFraction(1, 2);
+        constexpr fl::s16x16 kRowShiftPixels = s16x16FromMixed(1, 4, 5); // 1.8
+        constexpr fl::s16x16 kColShiftPixels = kRowShiftPixels;
+        constexpr fl::s16x16 kBaseNoiseFrequency = s16x16FromFraction(23, 100); // 0.23
+        constexpr fl::s16x16 kEndpointDiscRadius = s16x16FromFraction(60, 100); // 0.85
+        constexpr fl::s16x16 kEndpointDiscSoftEdge = s16x16FromFraction(1, 2); // 0.5
+
+        // ---- Grid drawing primitives ----
+
+        // Blend a scalar cell toward full intensity by the given fractional weight.
+        inline uint16_t blendTowardWhite(uint16_t current, f16 weight) {
+            return lerpU16ByQ16(current, kFullIntensity, weight);
+        }
+
+        // Draw into one grid cell if the target coordinate is inside the simulation buffer.
+        inline void blendPixel(uint16_t *cells, uint8_t gridSize, int32_t x, int32_t y, f16 weight) {
+            if (x < 0 || y < 0 || x >= gridSize || y >= gridSize || raw(weight) == 0u) return;
+            size_t index = static_cast<size_t>(y) * gridSize + static_cast<size_t>(x);
+            cells[index] = blendTowardWhite(cells[index], weight);
+        }
+
+        // Rasterize a point at fractional cell coordinates with bilinear weights over the 4 neighbours.
+        inline void drawSubpixelPoint(
+            uint16_t *cells,
+            uint8_t gridSize,
+            fl::s16x16 xPos,
+            fl::s16x16 yPos,
+            f16 intensity = f16(kFullIntensity)
+        ) {
+            int32_t baseX = raw(xPos) >> kQ16Shift;
+            int32_t baseY = raw(yPos) >> kQ16Shift;
+            uint32_t fracX = static_cast<uint32_t>(raw(xPos)) & kQ16FractionMask;
+            uint32_t fracY = static_cast<uint32_t>(raw(yPos)) & kQ16FractionMask;
+            uint32_t invFracX = kQ16FractionSpan - fracX;
+            uint32_t invFracY = kQ16FractionSpan - fracY;
+
+            f16 topLeftWeight(clampU16(
+                static_cast<uint32_t>((static_cast<uint64_t>(invFracX) * invFracY * raw(intensity)) >> (kQ16Shift * 2))
+            ));
+            f16 topRightWeight(clampU16(
+                static_cast<uint32_t>((static_cast<uint64_t>(fracX) * invFracY * raw(intensity)) >> (kQ16Shift * 2))
+            ));
+            f16 bottomLeftWeight(clampU16(
+                static_cast<uint32_t>((static_cast<uint64_t>(invFracX) * fracY * raw(intensity)) >> (kQ16Shift * 2))
+            ));
+            f16 bottomRightWeight(clampU16(
+                static_cast<uint32_t>((static_cast<uint64_t>(fracX) * fracY * raw(intensity)) >> (kQ16Shift * 2))
+            ));
+
+            blendPixel(cells, gridSize, baseX, baseY, topLeftWeight);
+            blendPixel(cells, gridSize, baseX + 1, baseY, topRightWeight);
+            blendPixel(cells, gridSize, baseX, baseY + 1, bottomLeftWeight);
+            blendPixel(cells, gridSize, baseX + 1, baseY + 1, bottomRightWeight);
+        }
+
+        inline void drawSoftDisc(
+            uint16_t *cells,
+            uint8_t gridSize,
+            fl::s16x16 xPos,
+            fl::s16x16 yPos,
+            fl::s16x16 radius,
+            fl::s16x16 softEdge,
+            f16 intensity
+        ) {
+            fl::s16x16 edgeRadius = radius + softEdge;
+            int32_t minX = std::max<int32_t>(0, (raw(xPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
+            int32_t maxX = std::min<int32_t>(
+                gridSize - 1,
+                (raw(xPos + edgeRadius + fl::s16x16::from_raw(SF16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
+            );
+            int32_t minY = std::max<int32_t>(0, (raw(yPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
+            int32_t maxY = std::min<int32_t>(
+                gridSize - 1,
+                (raw(yPos + edgeRadius + fl::s16x16::from_raw(SF16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
+            );
+
+            for (int32_t py = minY; py <= maxY; ++py) {
+                for (int32_t px = minX; px <= maxX; ++px) {
+                    fl::s16x16 dx = fl::s16x16::from_raw(((px << kQ16Shift) + (SF16_ONE >> 1)) - raw(xPos));
+                    fl::s16x16 dy = fl::s16x16::from_raw(((py << kQ16Shift) + (SF16_ONE >> 1)) - raw(yPos));
+                    fl::s16x16 distance = fl::s16x16::sqrt(dx * dx + dy * dy);
+                    int32_t weightRaw = raw(edgeRadius - distance);
+                    if (weightRaw <= 0) continue;
+                    if (weightRaw > SF16_ONE) weightRaw = SF16_ONE;
+                    blendPixel(
+                        cells,
+                        gridSize,
+                        px,
+                        py,
+                        f16(scaleU16ByF16(static_cast<uint16_t>(weightRaw), intensity))
+                    );
+                }
+            }
+        }
+
+        // Draw a soft disc around an endpoint to seed the advection with a rounded source.
+        inline void drawEndpointGlow(
+            uint16_t *cells,
+            uint8_t gridSize,
+            fl::s16x16 xPos,
+            fl::s16x16 yPos,
+            f16 intensity
+        ) {
+            drawSoftDisc(cells, gridSize, xPos, yPos, kEndpointDiscRadius, kEndpointDiscSoftEdge, intensity);
+        }
+
+        // ---- Noise profile sampling ----
+
+        // Sample a stable 1D noise profile by treating the coordinate as a single animated noise axis.
+        inline sf16 sampleProfileNoise(fl::s16x16 coord, uint32_t seedOffset) {
+            static const SampleSignal32 sampler = sampleNoise32();
+            return sampler(static_cast<uint32_t>(raw(coord)) + seedOffset);
+        }
+
+        // ---- Lane advection ----
+
+        // Read from a shifted row or column with wrapped bilinear sampling along that single axis.
+        inline uint16_t sampleShiftedLaneWrapped(
+            const uint16_t *sourceCells,
+            size_t laneBaseIndex,
+            size_t laneStride,
+            uint8_t laneLength,
+            uint8_t destinationIndex,
+            fl::s16x16 laneShift
+        ) {
+            int32_t laneSpanRaw = static_cast<int32_t>(laneLength) << kQ16Shift;
+            int32_t sampleCoordRaw = (static_cast<int32_t>(destinationIndex) << kQ16Shift) - raw(laneShift);
+            sampleCoordRaw %= laneSpanRaw;
+            if (sampleCoordRaw < 0) sampleCoordRaw += laneSpanRaw;
+            fl::s16x16 sampleCoord = fl::s16x16::from_raw(sampleCoordRaw);
+            uint8_t lowerIndex = static_cast<uint8_t>(raw(sampleCoord) >> kQ16Shift);
+            uint8_t upperIndex = static_cast<uint8_t>((lowerIndex + 1u) % laneLength);
+            f16 mix(static_cast<uint16_t>(raw(sampleCoord) & kQ16FractionMask));
+
+            return lerpU16ByQ16(
+                sourceCells[laneBaseIndex + static_cast<size_t>(lowerIndex) * laneStride],
+                sourceCells[laneBaseIndex + static_cast<size_t>(upperIndex) * laneStride],
+                mix
+            );
+        }
+
+        // ---- Grid scale helper ----
+
+        inline fl::s16x16 scaleByGridSize(uint8_t gridSize, fl::s16x16 scale) {
+            return fl::s16x16::from_raw(static_cast<int32_t>(gridSize) * raw(scale));
+        }
+
+        // ---- Half-life fade ----
+
+        /// Framerate-independent fade: pow(0.5, dt / halfLife) as f16.
+        /// Uses a 17-entry constexpr LUT for pow(0.5, x) where x in [0, 1].
+        /// dt and halfLifeMs are in milliseconds.
+        inline f16 halfLifeFade(TimeMillis dtMs, uint16_t halfLifeMs) {
+            if (halfLifeMs == 0u) return f16(0);
+            if (dtMs == 0u) return f16(F16_MAX);
+
+            // Compute ratio = dt / halfLife in Q4.12 fixed-point.
+            // Max dt is 200ms (clamped), max ratio is ~2.0 in Q4.12 = 8192.
+            uint32_t ratioQ12 = (static_cast<uint32_t>(dtMs) << 12) / static_cast<uint32_t>(halfLifeMs);
+
+            // pow(0.5, i/16) for i in [0..16], as f16 values.
+            // LUT[0] = pow(0.5, 0) = 1.0 = 65535
+            // LUT[16] = pow(0.5, 1) = 0.5 = 32768
+            static constexpr uint16_t kHalfLifeLUT[17] = {
+                65535u, 62757u, 60096u, 57548u, 55108u, 52772u, 50534u, 48392u,
+                46340u, 44376u, 42494u, 40693u, 38967u, 37315u, 35733u, 34218u,
+                32768u
+            };
+            // Split ratio into integer + fractional parts.
+            // Integer part n: result >>= n (each integer step halves).
+            // Fractional part f (0..1): index into LUT with linear interpolation.
+
+            // Extract integer and fractional parts from Q4.12.
+            // ratio = n + f where n is integer, f in [0, 1).
+            // In Q4.12: integer part = ratioQ12 >> 12, fractional = ratioQ12 & 0xFFF.
+            uint32_t intPart = ratioQ12 >> 12;
+            uint32_t fracQ12 = ratioQ12 & 0xFFFu;
+
+            // Map fractional part to LUT index [0..16] in Q4.12 -> Q4.8 for 16 steps.
+            // lutIndex = fracQ12 * 16 / 4096 = fracQ12 >> 8
+            uint32_t lutScaled = fracQ12 << 4; // fracQ12 * 16, now Q4.16
+            uint32_t lutIndex = lutScaled >> 12;
+            if (lutIndex > 15u) lutIndex = 15u;
+            uint32_t lutFrac = (lutScaled >> 4) & 0xFFu; // 8-bit interpolation fraction
+            uint16_t lutFracF16 = static_cast<uint16_t>(lutFrac << 8); // scale to Q0.16
+
+            uint16_t base = kHalfLifeLUT[lutIndex];
+            uint16_t next = kHalfLifeLUT[lutIndex + 1u];
+            uint16_t interpolated = lerpU16ByQ16(base, next, f16(lutFracF16));
+
+            // Apply integer halving: result >>= intPart.
+            // Cap to prevent zero for very large ratios.
+            if (intPart >= 16u) return f16(0);
+            uint32_t result = static_cast<uint32_t>(interpolated) >> intPart;
+
+            return f16(static_cast<uint16_t>(result));
+        }
+
+    } // namespace grid
+} // namespace PolarShader
+
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_GRIDUTILS_H
