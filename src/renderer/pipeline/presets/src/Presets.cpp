@@ -340,4 +340,162 @@ namespace PolarShader {
                     )
                 );
     }
+
+    LayerBuilder spiralSinkPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    transportPattern(
+                        32,
+                        TransportPattern::TransportMode::SpiralInward,
+                        constant(400),
+                        constant(300),
+                        constant(600),
+                        constant(500)
+                    ),
+                    palette,
+                    "spiralSink"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(noise())
+                )
+                .addTransform(KaleidoscopeTransform(4, true))
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(100)),
+                        true
+                    )
+                );
+    }
+
+    LayerBuilder radialPulsePreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    transportPattern(
+                        32,
+                        TransportPattern::TransportMode::PolarPulse,
+                        constant(500),
+                        constant(0),
+                        constant(700),
+                        constant(400)
+                    ),
+                    palette,
+                    "radialPulse"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        sine(constant(400)),
+                        noise(constant(200), constant(300), constant(700)),
+                        perMil(400)
+                    )
+                )
+                .addTransform(
+                    ZoomTransform(
+                        sine(constant(550))
+                    )
+                )
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(50)),
+                        false
+                    )
+                );
+    }
+
+    LayerBuilder shockwavePreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    transportPattern(
+                        32,
+                        TransportPattern::TransportMode::Shockwave,
+                        constant(300),
+                        constant(0),
+                        constant(500),
+                        constant(600)
+                    ),
+                    palette,
+                    "shockwave"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        noise(constant(600))
+                    )
+                )
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(200)),
+                        true
+                    )
+                );
+    }
+
+    LayerBuilder vortexCapturePreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    transportPattern(
+                        32,
+                        TransportPattern::TransportMode::AttractorField,
+                        constant(250),
+                        constant(0),
+                        constant(600),
+                        constant(400),
+                        true
+                    ),
+                    palette,
+                    "vortexCapture"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        noise(),
+                        constant(0)
+                    )
+                )
+                .addTransform(
+                    ZoomTransform(constant(500))
+                )
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(100)),
+                        true
+                    )
+                );
+    }
+
+    LayerBuilder fractalTrailPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    transportPattern(
+                        32,
+                        TransportPattern::TransportMode::FractalSpiral,
+                        constant(300),
+                        constant(400),
+                        constant(650),
+                        constant(500)
+                    ),
+                    palette,
+                    "fractalTrail"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        sine(),
+                        noise(constant(100), constant(50), constant(150)),
+                        perMil(300)
+                    )
+                )
+                .addTransform(TranslationTransform(
+                    noise(constant(30)),
+                    noise(constant(100), constant(25), constant(75))
+                ))
+                .addTransform(KaleidoscopeTransform(3, false))
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(200)),
+                        true
+                    )
+                );
+    }
 }

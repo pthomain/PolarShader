@@ -44,7 +44,6 @@ namespace PolarShader {
         constexpr fl::s16x16 kBallDiscSoftEdge = s16x16FromFraction(3, 4); // 0.75
         constexpr fl::s16x16 kBallRadiusSpread = s16x16FromFraction(3, 20); // 0.15
 
-        constexpr int32_t kLineSampleDensity = 3; // 3 samples per cell of dominant line length
         constexpr uint16_t kEndpointAXPhase = 2086u; // 0.03183 turns
         constexpr uint16_t kEndpointAYPhase = 13557u; // 0.20686 turns
         constexpr uint16_t kEndpointBXPhase = 22938u; // 0.35001 turns

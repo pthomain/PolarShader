@@ -26,6 +26,7 @@
 #include <renderer/pipeline/patterns/WorleyPatterns.h>
 #include <renderer/pipeline/patterns/FlurryPattern.h>
 #include <renderer/pipeline/patterns/FlowFieldPattern.h>
+#include <renderer/pipeline/patterns/TransportPattern.h>
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
@@ -90,6 +91,17 @@ namespace PolarShader {
         Sf16Signal halfLife = constant(600),
         Sf16Signal orbitSpeed = constant(300),
         Sf16Signal orbitRadius = constant(500)
+    );
+
+    // 2D backward-advected transport field with pluggable vector modes.
+    std::unique_ptr<UVPattern> transportPattern(
+        uint8_t gridSize = 32,
+        TransportPattern::TransportMode mode = TransportPattern::TransportMode::SpiralInward,
+        Sf16Signal radialSpeed = constant(300),
+        Sf16Signal angularSpeed = constant(200),
+        Sf16Signal halfLife = constant(600),
+        Sf16Signal emitterSpeed = constant(500),
+        bool velocityGlow = false
     );
 
     // Persistent advected trail field driven by 1D noise profiles.

@@ -53,6 +53,26 @@ namespace PolarShader {
     LayerBuilder flowFieldKaleidoscopePreset(
         const CRGBPalette16 &palette
     );
+
+    LayerBuilder spiralSinkPreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder radialPulsePreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder shockwavePreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder vortexCapturePreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder fractalTrailPreset(
+        const CRGBPalette16 &palette
+    );
 }
 
 #endif //POLAR_SHADER_PIPELINE_PRESETS_H

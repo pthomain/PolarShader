@@ -48,40 +48,6 @@ namespace PolarShader {
         // NoisePunch decay half-life in milliseconds.
         constexpr uint16_t kPunchDecayHalfLifeMs = 1500u;
 
-        // Lissajous constants (shared with FlurryPattern).
-        constexpr int32_t kLineSampleDensity = 3;
-        constexpr uint16_t kEndpointAXPhase = 2086u;
-        constexpr uint16_t kEndpointAYPhase = 13557u;
-        constexpr uint16_t kEndpointBXPhase = 22938u;
-        constexpr uint16_t kEndpointBYPhase = 7307u;
-
-        struct EndpointMotion {
-            fl::s16x16 xAmplitude;
-            fl::s16x16 yAmplitude;
-            fl::s16x16 xRate;
-            fl::s16x16 yRate;
-            uint16_t xPhase;
-            uint16_t yPhase;
-        };
-
-        constexpr EndpointMotion kEndpointA{
-            s16x16FromFraction(23, 64),
-            s16x16FromFraction(21, 64),
-            s16x16FromMixed(1, 13, 100),
-            s16x16FromMixed(1, 71, 100),
-            kEndpointAXPhase,
-            kEndpointAYPhase
-        };
-
-        constexpr EndpointMotion kEndpointB{
-            s16x16FromFraction(3, 8),
-            s16x16FromFraction(11, 32),
-            s16x16FromMixed(1, 89, 100),
-            s16x16FromMixed(1, 37, 100),
-            kEndpointBXPhase,
-            kEndpointBYPhase
-        };
-
         const BipolarRange<fl::s16x16> &profileSpeedRange() {
             static const BipolarRange range(-kMaxProfileSpeed, kMaxProfileSpeed);
             return range;
@@ -384,39 +350,7 @@ namespace PolarShader {
 
         // Lissajous line.
         if (s.mode == EmitterMode::Lissajous || s.mode == EmitterMode::Both) {
-            f16 endpointAXPhase(static_cast<uint16_t>(
-                raw(s.timeQ16 * (s.endpointSpeed * kEndpointA.xRate)) + kEndpointA.xPhase
-            ));
-            f16 endpointAYPhase(static_cast<uint16_t>(
-                raw(s.timeQ16 * (s.endpointSpeed * kEndpointA.yRate)) + kEndpointA.yPhase
-            ));
-            f16 endpointBXPhase(static_cast<uint16_t>(
-                raw(s.timeQ16 * (s.endpointSpeed * kEndpointB.xRate)) + kEndpointB.xPhase
-            ));
-            f16 endpointBYPhase(static_cast<uint16_t>(
-                raw(s.timeQ16 * (s.endpointSpeed * kEndpointB.yRate)) + kEndpointB.yPhase
-            ));
-
-            fl::s16x16 ax = gridCenter + mulS16x16(scaleByGridSize(gridSize, kEndpointA.xAmplitude), angleSinF16(endpointAXPhase));
-            fl::s16x16 ay = gridCenter + mulS16x16(scaleByGridSize(gridSize, kEndpointA.yAmplitude), angleSinF16(endpointAYPhase));
-            fl::s16x16 bx = gridCenter + mulS16x16(scaleByGridSize(gridSize, kEndpointB.xAmplitude), angleSinF16(endpointBXPhase));
-            fl::s16x16 by = gridCenter + mulS16x16(scaleByGridSize(gridSize, kEndpointB.yAmplitude), angleSinF16(endpointBYPhase));
-
-            fl::s16x16 lineDeltaX = bx - ax;
-            fl::s16x16 lineDeltaY = by - ay;
-            int32_t maxDelta = std::max(
-                raw(lineDeltaX) < 0 ? -raw(lineDeltaX) : raw(lineDeltaX),
-                raw(lineDeltaY) < 0 ? -raw(lineDeltaY) : raw(lineDeltaY)
-            );
-            int32_t lineStepCount = std::max<int32_t>(1, (maxDelta * kLineSampleDensity) >> kQ16Shift);
-            for (int32_t step = 0; step <= lineStepCount; ++step) {
-                uint32_t mixRaw = (static_cast<uint64_t>(step) * kFullIntensity) / static_cast<uint32_t>(lineStepCount);
-                f16 mix(static_cast<uint16_t>(mixRaw));
-                drawSubpixelPoint(cells, gridSize, lerpS16x16(ax, bx, mix), lerpS16x16(ay, by, mix));
-            }
-
-            drawEndpointGlow(cells, gridSize, ax, ay, f16(kFullIntensity));
-            drawEndpointGlow(cells, gridSize, bx, by, f16(kFullIntensity));
+            emitLissajousLine(cells, gridSize, gridCenter, s.timeQ16, s.endpointSpeed);
         }
 
         // Orbital dots.

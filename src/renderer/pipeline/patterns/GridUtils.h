@@ -243,6 +243,131 @@ namespace PolarShader {
             return f16(static_cast<uint16_t>(result));
         }
 
+        // ---- Lissajous emitter ----
+
+        constexpr int32_t kLineSampleDensity = 3;
+
+        struct EndpointMotion {
+            fl::s16x16 xAmplitude;
+            fl::s16x16 yAmplitude;
+            fl::s16x16 xRate;
+            fl::s16x16 yRate;
+            uint16_t xPhase;
+            uint16_t yPhase;
+        };
+
+        constexpr EndpointMotion kLissajousEndpointA{
+            s16x16FromFraction(23, 64),
+            s16x16FromFraction(21, 64),
+            s16x16FromMixed(1, 13, 100),
+            s16x16FromMixed(1, 71, 100),
+            2086u, 13557u
+        };
+
+        constexpr EndpointMotion kLissajousEndpointB{
+            s16x16FromFraction(3, 8),
+            s16x16FromFraction(11, 32),
+            s16x16FromMixed(1, 89, 100),
+            s16x16FromMixed(1, 37, 100),
+            22938u, 7307u
+        };
+
+        /// Emit a Lissajous line + endpoint glows onto a scalar grid.
+        /// speed is the emitter speed (fl::s16x16), timeQ16 is accumulated Q16.16 time.
+        inline void emitLissajousLine(
+            uint16_t *cells,
+            uint8_t gridSize,
+            fl::s16x16 gridCenter,
+            fl::s16x16 timeQ16,
+            fl::s16x16 speed
+        ) {
+            f16 aXPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointA.xRate)) + kLissajousEndpointA.xPhase));
+            f16 aYPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointA.yRate)) + kLissajousEndpointA.yPhase));
+            f16 bXPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointB.xRate)) + kLissajousEndpointB.xPhase));
+            f16 bYPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointB.yRate)) + kLissajousEndpointB.yPhase));
+
+            fl::s16x16 ax = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointA.xAmplitude), angleSinF16(aXPh));
+            fl::s16x16 ay = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointA.yAmplitude), angleSinF16(aYPh));
+            fl::s16x16 bx = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointB.xAmplitude), angleSinF16(bXPh));
+            fl::s16x16 by = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointB.yAmplitude), angleSinF16(bYPh));
+
+            fl::s16x16 ldx = bx - ax;
+            fl::s16x16 ldy = by - ay;
+            int32_t maxDelta = std::max(
+                raw(ldx) < 0 ? -raw(ldx) : raw(ldx),
+                raw(ldy) < 0 ? -raw(ldy) : raw(ldy)
+            );
+            int32_t steps = std::max<int32_t>(1, (maxDelta * kLineSampleDensity) >> kQ16Shift);
+            for (int32_t step = 0; step <= steps; ++step) {
+                uint32_t mixRaw = (static_cast<uint64_t>(step) * kFullIntensity) / static_cast<uint32_t>(steps);
+                f16 mix(static_cast<uint16_t>(mixRaw));
+                drawSubpixelPoint(cells, gridSize, lerpS16x16(ax, bx, mix), lerpS16x16(ay, by, mix));
+            }
+            drawEndpointGlow(cells, gridSize, ax, ay, f16(kFullIntensity));
+            drawEndpointGlow(cells, gridSize, bx, by, f16(kFullIntensity));
+        }
+
+        // ---- 2D backward advection ----
+
+        /// Bilinear sample from a scalar grid at fractional Q16.16 coordinates with wrapping.
+        inline uint16_t sampleGridBilinearWrapped(
+            const uint16_t *source,
+            uint8_t gridSize,
+            int32_t xRaw,   // Q16.16 grid-cell coordinate
+            int32_t yRaw
+        ) {
+            int32_t spanRaw = static_cast<int32_t>(gridSize) << kQ16Shift;
+
+            // Wrap to [0, spanRaw). Subtract-loop avoids expensive modulo on M0.
+            while (xRaw < 0) xRaw += spanRaw;
+            while (xRaw >= spanRaw) xRaw -= spanRaw;
+            while (yRaw < 0) yRaw += spanRaw;
+            while (yRaw >= spanRaw) yRaw -= spanRaw;
+
+            uint8_t x0 = static_cast<uint8_t>(xRaw >> kQ16Shift);
+            uint8_t y0 = static_cast<uint8_t>(yRaw >> kQ16Shift);
+            uint8_t x1 = (x0 + 1u < gridSize) ? (x0 + 1u) : 0u;
+            uint8_t y1 = (y0 + 1u < gridSize) ? (y0 + 1u) : 0u;
+            uint16_t fx = static_cast<uint16_t>(xRaw & kQ16FractionMask);
+            uint16_t fy = static_cast<uint16_t>(yRaw & kQ16FractionMask);
+
+            uint16_t v00 = source[static_cast<size_t>(y0) * gridSize + x0];
+            uint16_t v10 = source[static_cast<size_t>(y0) * gridSize + x1];
+            uint16_t v01 = source[static_cast<size_t>(y1) * gridSize + x0];
+            uint16_t v11 = source[static_cast<size_t>(y1) * gridSize + x1];
+
+            uint16_t top = lerpU16ByQ16(v00, v10, f16(fx));
+            uint16_t bot = lerpU16ByQ16(v01, v11, f16(fx));
+            return lerpU16ByQ16(top, bot, f16(fy));
+        }
+
+        /// Per-pixel 2D backward advection with per-pixel vector callback.
+        /// vectorFn returns displacement in Q16.16 grid-cell units.
+        using TransportVectorFn = v32(*)(
+            uint8_t x, uint8_t y, uint8_t gridSize, const void *params
+        );
+
+        inline void advectGrid2DBackward(
+            const uint16_t *source,
+            uint16_t *dest,
+            uint8_t gridSize,
+            TransportVectorFn vectorFn,
+            const void *params,
+            f16 fadeFactor
+        ) {
+            for (uint8_t y = 0; y < gridSize; ++y) {
+                int32_t yCenter = (static_cast<int32_t>(y) << kQ16Shift) + (SF16_ONE >> 1);
+                for (uint8_t x = 0; x < gridSize; ++x) {
+                    int32_t xCenter = (static_cast<int32_t>(x) << kQ16Shift) + (SF16_ONE >> 1);
+                    v32 disp = vectorFn(x, y, gridSize, params);
+                    int32_t srcX = xCenter - disp.x;
+                    int32_t srcY = yCenter - disp.y;
+                    uint16_t sampled = sampleGridBilinearWrapped(source, gridSize, srcX, srcY);
+                    dest[static_cast<size_t>(y) * gridSize + x] = scaleU16ByF16(sampled, fadeFactor);
+                }
+            }
+        }
+
     } // namespace grid
 } // namespace PolarShader
 

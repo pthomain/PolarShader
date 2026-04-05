@@ -21,6 +21,7 @@
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/patterns/FlurryPattern.h"
 #include "renderer/pipeline/patterns/FlowFieldPattern.h"
+#include "renderer/pipeline/patterns/TransportPattern.h"
 #include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/patterns/TilingPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
@@ -102,6 +103,26 @@ namespace PolarShader {
             std::move(halfLife),
             std::move(orbitSpeed),
             std::move(orbitRadius)
+        );
+    }
+
+    std::unique_ptr<UVPattern> transportPattern(
+        uint8_t gridSize,
+        TransportPattern::TransportMode mode,
+        Sf16Signal radialSpeed,
+        Sf16Signal angularSpeed,
+        Sf16Signal halfLife,
+        Sf16Signal emitterSpeed,
+        bool velocityGlow
+    ) {
+        return std::make_unique<TransportPattern>(
+            gridSize,
+            mode,
+            std::move(radialSpeed),
+            std::move(angularSpeed),
+            std::move(halfLife),
+            std::move(emitterSpeed),
+            velocityGlow
         );
     }
 
