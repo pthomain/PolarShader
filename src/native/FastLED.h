@@ -134,6 +134,10 @@ inline const CRGB CRGB::Black = CRGB(0, 0, 0);
 
 enum TBlendType { NOBLEND, LINEARBLEND };
 
+enum EOrder { RGB, RBG, GRB, GBR, BRG, BGR };
+
+constexpr int D1 = 1;
+
 struct CRGBPalette16 {
     CRGB entries[16];
     CRGBPalette16() {

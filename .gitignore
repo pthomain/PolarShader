@@ -11,3 +11,8 @@ build
 out
 *.swp
 *.bak
+web/.stage
+web/dist
+web/.home
+web/.clang-tool-chain
+web/.toolchain-shims

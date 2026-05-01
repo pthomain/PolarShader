@@ -55,7 +55,7 @@ namespace PolarShader {
             uint16_t mHeight = matrixHeight();
 
             if (pixelIndex >= nbLeds()) {
-                return {0, 0};
+                return {f16(0), f16(0)};
             }
 
             uint16_t x = pixelIndex % mWidth;
