@@ -46,29 +46,28 @@ namespace PolarShader {
         const CRGBPalette16 &palette
     ) {
         return makeBuilder(
-                    // flurryPattern(
-                    //     32,
-                    //     3,
-                    //     FlurryPattern::Shape::Line,
-                    //     noise(),
-                    //     noise(),
-                    //     constant(500),
-                    //     constant(500),
-                    //     constant(600),
-                    //     constant(800)
-                    // ),
-                    noisePattern(),
+                    // noisePattern(),
+                    transportPattern(
+                        16,
+                        TransportPattern::TransportMode::Shockwave,
+                        constant(300),
+                        constant(400),
+                        constant(650),
+                        constant(500)
+                    ),
                     palette,
                     "kaleidoscope"
                 )
                 .addPaletteTransform(
                     PaletteTransform(
-                        noise(),
-                        constant(0)
+                        constant(100),
+                        noise()
                     )
                 )
                 .addTransform(
                     ZoomTransform(
+                        constant(200)
+                        // noise()
                         // noise(constant(300), constant(100))
                         // noise(constant(10), constant(500), constant(500))
                     )
@@ -80,7 +79,7 @@ namespace PolarShader {
                 //     ))
 
                 // .addTransform(KaleidoscopeTransform(
-                //     2,
+                //     4,
                 //     true
                 // ))
                 //
@@ -494,6 +493,59 @@ namespace PolarShader {
                 .addTransform(
                     RotationTransform(
                         noise(constant(200)),
+                        true
+                    )
+                );
+    }
+
+    LayerBuilder spiralPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    spiralPattern(
+                        2,
+                        true,
+                        constant(720),
+                        constant(500),
+                        noise(constant(150))
+                    ),
+                    palette,
+                    "spiral"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(noise(constant(200)))
+                )
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(80)),
+                        true
+                    )
+                );
+    }
+
+    LayerBuilder annuliPreset(
+        const CRGBPalette16 &palette
+    ) {
+        return makeBuilder(
+                    annuliPattern(
+                        8,
+                        32,
+                        false,
+                        80,
+                        800
+                    ),
+                    palette,
+                    "annuli"
+                )
+                .addPaletteTransform(
+                    PaletteTransform(
+                        constant(100),
+                        noise()
+                    )
+                )
+                .addTransform(
+                    RotationTransform(
+                        noise(constant(150)),
                         true
                     )
                 );
