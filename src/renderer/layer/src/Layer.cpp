@@ -22,7 +22,7 @@
 #include "renderer/pipeline/maths/PatternMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/maths/units/Units.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <Arduino.h>
 #include "FastLED.h"
 #else

@@ -11,8 +11,10 @@ build
 out
 *.swp
 *.bak
+.venv-fastled
 web/.stage
 web/dist
 web/.home
 web/.clang-tool-chain
 web/.toolchain-shims
+web/.fastled

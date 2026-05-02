@@ -23,7 +23,7 @@
 #include <cstdio>
 
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <Arduino.h>
 #else
 #include "native/Arduino.h"

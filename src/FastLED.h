@@ -18,16 +18,16 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLARSHADER_DISPLAY_FASTLED_H
-#define POLARSHADER_DISPLAY_FASTLED_H
+#ifndef POLARSHADER_FASTLED_H
+#define POLARSHADER_FASTLED_H
 
 #if defined(ARDUINO) || defined(__EMSCRIPTEN__)
-#include <FastLED.h>
+#include_next <FastLED.h>
 #if defined(__EMSCRIPTEN__) && !defined(D1)
 #define D1 1
 #endif
 #else
-#include "../native/FastLED.h"
+#include "native/FastLED.h"
 #endif
 
-#endif // POLARSHADER_DISPLAY_FASTLED_H
+#endif // POLARSHADER_FASTLED_H

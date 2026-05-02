@@ -2,7 +2,7 @@
 //  Copyright (C) 2025 Pierre Thomain
 
 #include "renderer/layer/LayerBuilder.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <Arduino.h>
 #else
 #include "native/Arduino.h"

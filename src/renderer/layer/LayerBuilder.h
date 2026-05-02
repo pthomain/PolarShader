@@ -24,7 +24,7 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include "FastLED.h"
 #else
 #include "native/FastLED.h"

@@ -21,7 +21,7 @@
 #include "renderer/pipeline/transforms/PaletteTransform.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <Arduino.h>
 #else
 #include "native/Arduino.h"

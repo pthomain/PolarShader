@@ -22,7 +22,7 @@
 #define POLAR_SHADER_POLAREFFECT_H
 
 #include "renderer/pipeline/maths/units/Units.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include "fl/stl/function.h"
 #include "fl/stl/pair.h"
 #include "fl/stl/vector.h"

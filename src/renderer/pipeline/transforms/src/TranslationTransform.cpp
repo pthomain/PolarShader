@@ -20,7 +20,7 @@
 
 #include "renderer/pipeline/transforms/TranslationTransform.h"
 #include "renderer/pipeline/maths/Maths.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <Arduino.h>
 #else
 #include "native/Arduino.h"

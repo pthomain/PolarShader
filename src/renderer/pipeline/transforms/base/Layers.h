@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
 #define POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H
 
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include "FastLED.h"
 #else
 #include "native/FastLED.h"

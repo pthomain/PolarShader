@@ -22,7 +22,7 @@
 #define POLAR_SHADER_PIPELINE_PATTERNS_CARTESIAN_CARTESIANNOISEPATTERN_H
 #include "renderer/pipeline/signals/Signals.h"
 
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <FastLED.h>
 #else
 #include "native/FastLED.h"
