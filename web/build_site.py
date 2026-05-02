@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import struct
 import json
 from pathlib import Path
 import os
@@ -24,8 +25,6 @@ DIST_ROOT = WEB_ROOT / "dist"
 LANDING_PAGE = WEB_ROOT / "index.html"
 REQUIREMENTS_PATH = WEB_ROOT / "requirements.txt"
 HOME_ROOT = WEB_ROOT / ".home"
-CLANG_TOOLCHAIN_ROOT = HOME_ROOT / ".clang-tool-chain"
-TOOLCHAIN_SHIM_ROOT = WEB_ROOT / ".toolchain-shims"
 FASTLED_CACHE_ROOT = WEB_ROOT / ".fastled"
 FASTLED_VERSION = "3.10.3"
 FASTLED_ARCHIVE_URL = f"https://github.com/FastLED/FastLED/archive/refs/tags/{FASTLED_VERSION}.zip"
@@ -266,33 +265,44 @@ def resolve_fastled_executable() -> str:
     )
 
 
+def detect_clang_toolchain_platform_arch() -> tuple[str, str]:
+    if sys.platform == "win32":
+        platform_name = "win"
+    elif sys.platform == "darwin":
+        platform_name = "darwin"
+    else:
+        platform_name = "linux"
+
+    machine = getattr(os, "uname", lambda: None)()
+    machine_name = machine.machine.lower() if machine is not None else ""
+    if not machine_name:
+        machine_name = "amd64" if struct.calcsize("P") * 8 == 64 else "x86"
+
+    if machine_name in ("x86_64", "amd64"):
+        arch = "x86_64"
+    elif machine_name in ("arm64", "aarch64"):
+        arch = "arm64"
+    else:
+        arch = machine_name
+
+    return platform_name, arch
+
+
+def ensure_emscripten_installation() -> Path:
+    from clang_tool_chain.installers.emscripten import ensure_emscripten_available
+    from clang_tool_chain.path_utils import get_emscripten_install_dir
+
+    platform_name, arch = detect_clang_toolchain_platform_arch()
+    ensure_emscripten_available(platform_name, arch)
+    install_dir = get_emscripten_install_dir(platform_name, arch)
+    config_path = install_dir / ".emscripten"
+    if not config_path.exists():
+        raise FileNotFoundError(f"Expected Emscripten config at {config_path}")
+    return install_dir
+
+
 def run_fastled_compile(stage_dir: Path) -> None:
     HOME_ROOT.mkdir(parents=True, exist_ok=True)
-    CLANG_TOOLCHAIN_ROOT.mkdir(parents=True, exist_ok=True)
-    TOOLCHAIN_SHIM_ROOT.mkdir(parents=True, exist_ok=True)
-
-    emcc_shim = TOOLCHAIN_SHIM_ROOT / "clang-tool-chain-emcc"
-    emar_shim = TOOLCHAIN_SHIM_ROOT / "clang-tool-chain-emar"
-    for shim_path, tool_name in ((emcc_shim, "emcc"), (emar_shim, "emar")):
-        shim_path.write_text(
-            "\n".join(
-                [
-                    "#!/bin/sh",
-                    "set -eu",
-                    f'for candidate in "{CLANG_TOOLCHAIN_ROOT}"/emscripten/*/*/emscripten/{tool_name} "{CLANG_TOOLCHAIN_ROOT}"/emscripten/*/emscripten/{tool_name}; do',
-                    '  if [ -x "$candidate" ]; then',
-                    '    exec "$candidate" "$@"',
-                    "  fi",
-                    "done",
-                    f'echo "Unable to find {tool_name} inside {CLANG_TOOLCHAIN_ROOT}." >&2',
-                    "exit 1",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-        shim_path.chmod(0o755)
-
     fastled_library = ensure_fastled_library()
     fastled_executable = resolve_fastled_executable()
 
@@ -305,10 +315,24 @@ def run_fastled_compile(stage_dir: Path) -> None:
         str(fastled_library),
     ]
 
+    original_home = os.environ.get("HOME")
+    os.environ["HOME"] = str(HOME_ROOT)
+    try:
+        emscripten_install_dir = ensure_emscripten_installation()
+    finally:
+        if original_home is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = original_home
+
     env = dict(os.environ)
     env["HOME"] = str(HOME_ROOT)
-    env["CLANG_TOOL_CHAIN_DOWNLOAD_PATH"] = str(CLANG_TOOLCHAIN_ROOT)
-    env["PATH"] = f"{TOOLCHAIN_SHIM_ROOT}{os.pathsep}{env.get('PATH', '')}"
+    env["EMSCRIPTEN"] = str(emscripten_install_dir / "emscripten")
+    env["EMSCRIPTEN_ROOT"] = env["EMSCRIPTEN"]
+    env["EM_CONFIG"] = str(emscripten_install_dir / ".emscripten")
+    env["EMSDK_PYTHON"] = sys.executable
+    env["EMCC_SKIP_SANITY_CHECK"] = "1"
+    env["PATH"] = f"{emscripten_install_dir / 'bin'}{os.pathsep}{env.get('PATH', '')}"
 
     subprocess.run(
         command,
