@@ -21,13 +21,6 @@
 #ifndef POLARSHADER_DISPLAY_FASTLED_H
 #define POLARSHADER_DISPLAY_FASTLED_H
 
-#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
-#include <FastLED.h>
-#if defined(__EMSCRIPTEN__) && !defined(D1)
-#define D1 1
-#endif
-#else
-#include "../native/FastLED.h"
-#endif
+#include "../FastLED.h"
 
 #endif // POLARSHADER_DISPLAY_FASTLED_H

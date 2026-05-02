@@ -22,11 +22,6 @@
 #define POLAR_SHADER_POLAREFFECT_H
 
 #include "renderer/pipeline/maths/units/Units.h"
-#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
-#include "fl/stl/function.h"
-#include "fl/stl/pair.h"
-#include "fl/stl/vector.h"
-#endif
 #include "renderer/scene/SceneManager.h"
 
 namespace PolarShader {

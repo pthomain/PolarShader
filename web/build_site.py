@@ -37,7 +37,6 @@ MINIMAL_FRONTEND_MARKERS = (
 )
 
 EXCLUDED_SOURCE_FILES = {
-    "FastLED.h",
     "main_samd.cpp",
     "main_teensy.cpp",
     "main_rp2040_fabric.cpp",

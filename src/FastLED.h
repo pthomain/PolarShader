@@ -23,6 +23,12 @@
 
 #if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include_next <FastLED.h>
+#if __has_include("fl/stl/fixed_point.h")
+#include "fl/stl/fixed_point.h"
+#include "fl/stl/function.h"
+#include "fl/stl/pair.h"
+#include "fl/stl/vector.h"
+#endif
 #if defined(__EMSCRIPTEN__) && !defined(D1)
 #define D1 1
 #endif
