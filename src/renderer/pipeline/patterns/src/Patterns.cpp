@@ -25,6 +25,8 @@
 #include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/patterns/TilingPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
+#include "renderer/pipeline/patterns/SpiralPattern.h"
+#include "renderer/pipeline/patterns/AnnuliPattern.h"
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> worleyPattern(
@@ -123,6 +125,38 @@ namespace PolarShader {
             std::move(halfLife),
             std::move(emitterSpeed),
             velocityGlow
+        );
+    }
+
+    std::unique_ptr<UVPattern> spiralPattern(
+        uint8_t armCount,
+        bool clockwise,
+        Sf16Signal tightness,
+        Sf16Signal armThickness,
+        Sf16Signal rotationSpeed
+    ) {
+        return std::make_unique<SpiralPattern>(
+            armCount,
+            clockwise,
+            std::move(tightness),
+            std::move(armThickness),
+            std::move(rotationSpeed)
+        );
+    }
+
+    std::unique_ptr<UVPattern> annuliPattern(
+        uint8_t ringCount,
+        uint8_t slicesPerRing,
+        bool reverse,
+        uint16_t stepIntervalMs,
+        uint16_t holdMs
+    ) {
+        return std::make_unique<AnnuliPattern>(
+            ringCount,
+            slicesPerRing,
+            reverse,
+            stepIntervalMs,
+            holdMs
         );
     }
 

@@ -29,6 +29,8 @@
 #include <renderer/pipeline/patterns/TransportPattern.h>
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
+#include <renderer/pipeline/patterns/SpiralPattern.h>
+#include <renderer/pipeline/patterns/AnnuliPattern.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
 
 #include "renderer/pipeline/signals/Signals.h"
@@ -102,6 +104,24 @@ namespace PolarShader {
         Sf16Signal halfLife = constant(600),
         Sf16Signal emitterSpeed = constant(500),
         bool velocityGlow = false
+    );
+
+    // Rotating Archimedean spiral. Stateless per-pixel (theta - tightness*r - phase) formula.
+    std::unique_ptr<UVPattern> spiralPattern(
+        uint8_t armCount = 2,
+        bool clockwise = true,
+        Sf16Signal tightness = constant(720),
+        Sf16Signal armThickness = constant(500),
+        Sf16Signal rotationSpeed = constant(300)
+    );
+
+    // Concentric annuli sweep-fill. Polar reinterpretation of CD77 box-fill.
+    std::unique_ptr<UVPattern> annuliPattern(
+        uint8_t ringCount = 8,
+        uint8_t slicesPerRing = 32,
+        bool reverse = false,
+        uint16_t stepIntervalMs = 80,
+        uint16_t holdMs = 800
     );
 
     // Persistent advected trail field driven by 1D noise profiles.

@@ -73,6 +73,14 @@ namespace PolarShader {
     LayerBuilder fractalTrailPreset(
         const CRGBPalette16 &palette
     );
+
+    LayerBuilder spiralPreset(
+        const CRGBPalette16 &palette
+    );
+
+    LayerBuilder annuliPreset(
+        const CRGBPalette16 &palette
+    );
 }
 
 #endif //POLAR_SHADER_PIPELINE_PRESETS_H
