@@ -44,41 +44,10 @@ namespace PolarShader {
         constexpr fl::s16x16 kBallDiscSoftEdge = s16x16FromFraction(3, 4); // 0.75
         constexpr fl::s16x16 kBallRadiusSpread = s16x16FromFraction(3, 20); // 0.15
 
-        constexpr uint16_t kEndpointAXPhase = 2086u; // 0.03183 turns
-        constexpr uint16_t kEndpointAYPhase = 13557u; // 0.20686 turns
-        constexpr uint16_t kEndpointBXPhase = 22938u; // 0.35001 turns
-        constexpr uint16_t kEndpointBYPhase = 7307u; // 0.11150 turns
         constexpr uint16_t kLinePhaseStride = 8191u;
         constexpr uint16_t kLineSecondaryPhaseStride = 24593u;
         constexpr fl::s16x16 kLineRateSpread = s16x16FromFraction(3, 100); // 0.03
         constexpr fl::s16x16 kLineAmplitudeSpread = s16x16FromFraction(1, 20); // 0.05
-
-        struct EndpointMotion {
-            fl::s16x16 xAmplitude;
-            fl::s16x16 yAmplitude;
-            fl::s16x16 xRate;
-            fl::s16x16 yRate;
-            uint16_t xPhase;
-            uint16_t yPhase;
-        };
-
-        constexpr EndpointMotion kEndpointA{
-            s16x16FromFraction(23, 64), // 0.359375
-            s16x16FromFraction(21, 64), // 0.328125
-            s16x16FromMixed(1, 13, 100), // 1.13
-            s16x16FromMixed(1, 71, 100), // 1.71
-            kEndpointAXPhase,
-            kEndpointAYPhase
-        };
-
-        constexpr EndpointMotion kEndpointB{
-            s16x16FromFraction(3, 8), // 0.375
-            s16x16FromFraction(11, 32), // 0.34375
-            s16x16FromMixed(1, 89, 100), // 1.89
-            s16x16FromMixed(1, 37, 100), // 1.37
-            kEndpointBXPhase,
-            kEndpointBYPhase
-        };
 
         const BipolarRange<fl::s16x16> &profileSpeedRange() {
             static const BipolarRange range(-kMaxProfileSpeed, kMaxProfileSpeed);
@@ -267,46 +236,46 @@ namespace PolarShader {
             fl::s16x16 amplitudeMultiplier =
                 fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kLineAmplitudeSpread);
 
-            fl::s16x16 endpointAXRate = patternState.endpointSpeed * (kEndpointA.xRate * rateMultiplier);
-            fl::s16x16 endpointAYRate = patternState.endpointSpeed * (kEndpointA.yRate * rateMultiplier);
-            fl::s16x16 endpointBXRate = patternState.endpointSpeed * (kEndpointB.xRate * rateMultiplier);
-            fl::s16x16 endpointBYRate = patternState.endpointSpeed * (kEndpointB.yRate * rateMultiplier);
+            fl::s16x16 endpointAXRate = patternState.endpointSpeed * (kLissajousEndpointA.xRate * rateMultiplier);
+            fl::s16x16 endpointAYRate = patternState.endpointSpeed * (kLissajousEndpointA.yRate * rateMultiplier);
+            fl::s16x16 endpointBXRate = patternState.endpointSpeed * (kLissajousEndpointB.xRate * rateMultiplier);
+            fl::s16x16 endpointBYRate = patternState.endpointSpeed * (kLissajousEndpointB.yRate * rateMultiplier);
 
             f16 endpointAXPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointAXRate) +
-                phaseOffsetForLine(lineIndex, kLinePhaseStride, kEndpointA.xPhase)
+                phaseOffsetForLine(lineIndex, kLinePhaseStride, kLissajousEndpointA.xPhase)
             ));
             f16 endpointAYPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointAYRate) +
-                phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kEndpointA.yPhase)
+                phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kLissajousEndpointA.yPhase)
             ));
             f16 endpointBXPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointBXRate) +
-                phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kEndpointB.xPhase)
+                phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kLissajousEndpointB.xPhase)
             ));
             f16 endpointBYPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointBYRate) +
-                phaseOffsetForLine(lineIndex, kLinePhaseStride, kEndpointB.yPhase)
+                phaseOffsetForLine(lineIndex, kLinePhaseStride, kLissajousEndpointB.yPhase)
             ));
 
             fl::s16x16 endpointAX = gridCenter +
                                     mulS16x16(
-                                        scaleByGridSize(gridSize, kEndpointA.xAmplitude * amplitudeMultiplier),
+                                        scaleByGridSize(gridSize, kLissajousEndpointA.xAmplitude * amplitudeMultiplier),
                                         angleSinF16(endpointAXPhase)
                                     );
             fl::s16x16 endpointAY = gridCenter +
                                     mulS16x16(
-                                        scaleByGridSize(gridSize, kEndpointA.yAmplitude * amplitudeMultiplier),
+                                        scaleByGridSize(gridSize, kLissajousEndpointA.yAmplitude * amplitudeMultiplier),
                                         angleSinF16(endpointAYPhase)
                                     );
             fl::s16x16 endpointBX = gridCenter +
                                     mulS16x16(
-                                        scaleByGridSize(gridSize, kEndpointB.xAmplitude * amplitudeMultiplier),
+                                        scaleByGridSize(gridSize, kLissajousEndpointB.xAmplitude * amplitudeMultiplier),
                                         angleSinF16(endpointBXPhase)
                                     );
             fl::s16x16 endpointBY = gridCenter +
                                     mulS16x16(
-                                        scaleByGridSize(gridSize, kEndpointB.yAmplitude * amplitudeMultiplier),
+                                        scaleByGridSize(gridSize, kLissajousEndpointB.yAmplitude * amplitudeMultiplier),
                                         angleSinF16(endpointBYPhase)
                                     );
 
