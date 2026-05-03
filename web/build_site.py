@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import struct
-import json
 from pathlib import Path
 import os
 import re
@@ -26,9 +25,27 @@ LANDING_PAGE = WEB_ROOT / "index.html"
 REQUIREMENTS_PATH = WEB_ROOT / "requirements.txt"
 HOME_ROOT = WEB_ROOT / ".home"
 FASTLED_CACHE_ROOT = WEB_ROOT / ".fastled"
-FASTLED_VERSION = "3.10.3"
-FASTLED_ARCHIVE_URL = f"https://github.com/FastLED/FastLED/archive/refs/tags/{FASTLED_VERSION}.zip"
-FASTLED_LIBRARY_ROOT = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_VERSION}"
+# TODO: revert to a tagged FastLED release once one ships the fl::s16x16 /
+# fl::u16x16 / fl::s24x8 / fl::u24x8 fixed-point types.
+#
+# Why this is pinned to a master commit:
+#   - PolarShader's pipeline (src/renderer/pipeline/maths/units/Units.h,
+#     FixedPointMaths.h, etc.) uses fl::s16x16 / fl::u16x16 / fl::s24x8 /
+#     fl::u24x8 unconditionally as part of its public type system.
+#   - These types live under src/fl/math/fixed_point/ on FastLED master and
+#     are NOT present in the latest tagged release (3.10.3, 2025-09-20), so
+#     a release-tagged WASM build fails with "no type named 's16x16' in
+#     namespace 'fl'".
+#   - The embedded targets already track FastLED master via platformio.ini
+#     (lib_deps: https://github.com/FastLED/FastLED.git#master), so this
+#     keeps the WASM build aligned with the same source of truth.
+#
+# When the next FastLED release exposes these types, switch back to a
+# tagged-release URL (https://github.com/FastLED/FastLED/archive/refs/tags/
+# <version>.zip) and rename FASTLED_REVISION back to FASTLED_VERSION.
+FASTLED_REVISION = "cec6034926407cdc89e0c570aba3ad2bf8f0b907"  # master @ 2026-05-03
+FASTLED_ARCHIVE_URL = f"https://github.com/FastLED/FastLED/archive/{FASTLED_REVISION}.zip"
+FASTLED_LIBRARY_ROOT = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_REVISION}"
 SOURCE_WRAPPER_PREFIX = "polarshader_unit_"
 PLACEHOLDER_FRONTEND_MARKER = 'module._extern_setup();'
 MINIMAL_FRONTEND_MARKERS = (
@@ -138,18 +155,6 @@ def stage_sketch(sketch: Sketch) -> Path:
     return stage_dir
 
 
-def fastled_version(path: Path) -> str | None:
-    metadata_path = path / "library.json"
-    if not metadata_path.exists():
-        return None
-
-    with metadata_path.open(encoding="utf-8") as metadata_file:
-        metadata = json.load(metadata_file)
-
-    version = metadata.get("version")
-    return version if isinstance(version, str) else None
-
-
 def disable_fastled_wasm_build_system(fastled_dir: Path) -> None:
     wasm_build_script = fastled_dir / "ci" / "wasm_build.py"
     disabled_script = fastled_dir / "ci" / "wasm_build.py.disabled"
@@ -184,20 +189,23 @@ def download_fastled_source(destination_dir: Path) -> None:
         shutil.rmtree(destination_dir)
 
     with tempfile.TemporaryDirectory(dir=FASTLED_CACHE_ROOT) as temp_dir_name:
-        archive_path = Path(temp_dir_name) / f"FastLED-{FASTLED_VERSION}.zip"
+        archive_path = Path(temp_dir_name) / f"FastLED-{FASTLED_REVISION}.zip"
         with urllib.request.urlopen(FASTLED_ARCHIVE_URL) as response, archive_path.open("wb") as archive_file:
             shutil.copyfileobj(response, archive_file)
 
         with zipfile.ZipFile(archive_path) as archive:
             archive.extractall(FASTLED_CACHE_ROOT)
 
-    extracted_dir = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_VERSION}"
+    extracted_dir = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_REVISION}"
     if extracted_dir != destination_dir:
         extracted_dir.rename(destination_dir)
 
 
 def ensure_fastled_library() -> Path:
-    if fastled_version(FASTLED_LIBRARY_ROOT) == FASTLED_VERSION:
+    # FASTLED_REVISION is encoded in FASTLED_LIBRARY_ROOT, so directory
+    # presence is a sufficient cache check (a different revision lands in
+    # a different directory).
+    if (FASTLED_LIBRARY_ROOT / "library.json").exists():
         return normalize_fastled_library(FASTLED_LIBRARY_ROOT)
 
     download_fastled_source(FASTLED_LIBRARY_ROOT)
