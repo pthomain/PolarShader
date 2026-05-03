@@ -53,7 +53,7 @@ namespace PolarShader {
 
     public:
         explicit WebFastLedDisplay(
-            PolarDisplaySpec &spec,
+            SPEC &spec,
             const WebDisplayGeometry &geometry,
             uint8_t brightness = 255,
             uint8_t refreshRateInMillis = 30

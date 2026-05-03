@@ -8,17 +8,18 @@ namespace {
     constexpr uint8_t BRIGHTNESS = 30;
     constexpr uint8_t REFRESH_MS = 30;
 
-    WebFastLedDisplay<RoundDisplaySpec> *display = nullptr;
+    WebFastLedDisplay<RoundDisplaySpec>& display() {
+        static RoundDisplaySpec spec;
+        static WebDisplayGeometry geometry = buildWebGeometry(spec);
+        static WebFastLedDisplay<RoundDisplaySpec> instance(spec, geometry, BRIGHTNESS, REFRESH_MS);
+        return instance;
+    }
 }
 
 void setup() {
-    static RoundDisplaySpec spec;
-    static WebDisplayGeometry geometry = buildWebGeometry(spec);
-    display = new WebFastLedDisplay<RoundDisplaySpec>(spec, geometry, BRIGHTNESS, REFRESH_MS);
+    (void) display();
 }
 
 void loop() {
-    if (display) {
-        display->loop();
-    }
+    display().loop();
 }

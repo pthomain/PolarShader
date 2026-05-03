@@ -112,15 +112,9 @@ namespace PolarShader {
             const uint16_t segmentLength = spec.segmentSize(segmentIndex);
             const float radius = static_cast<float>(segmentIndex);
 
-            if (segmentLength == 0) {
-                continue;
-            }
-
-            if (segmentIndex == 0) {
-                geometry.points.push_back({geometry.centerX, geometry.centerY});
-                continue;
-            }
-
+            // Always emit `segmentLength` points so geometry.points.size()
+            // matches spec.nbLeds(). Segment 0 yields coincident points at
+            // the center because radius == 0.
             for (uint16_t pixelInSegment = 0; pixelInSegment < segmentLength; ++pixelInSegment) {
                 const float angle = (2.0f * detail::PI_F * static_cast<float>(pixelInSegment))
                                     / static_cast<float>(segmentLength);
