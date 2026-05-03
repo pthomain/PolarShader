@@ -21,7 +21,7 @@
 #ifndef POLAR_SHADER_PIPELINE_UNITS_UNITS_H
 #define POLAR_SHADER_PIPELINE_UNITS_UNITS_H
 
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <stdint.h>
 #include <type_traits>
 #include "FastLED.h"
@@ -45,7 +45,7 @@ inline constexpr TimeMillis MAX_DELTA_TIME_MS = 200; // 0 disables delta-time cl
 namespace PolarShader {
     // Pull standard types into our namespace so we can use them without prefixes
     // while avoiding global namespace pollution.
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
     using ::int8_t;
     using ::uint8_t;
     using ::int16_t;

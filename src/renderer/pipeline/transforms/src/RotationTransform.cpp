@@ -24,7 +24,7 @@
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
-#ifdef ARDUINO
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <Arduino.h>
 #else
 #include "native/Arduino.h"

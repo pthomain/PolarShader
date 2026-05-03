@@ -83,7 +83,7 @@ namespace PolarShader {
             }
 
             // This should not be reached if pixelIndex is valid.
-            return {0, 0};
+            return {f16(0), f16(0)};
         }
     };
 }

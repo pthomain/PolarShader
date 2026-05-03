@@ -18,33 +18,22 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "renderer/pipeline/presets/PresetPicker.h"
+#ifndef POLARSHADER_FASTLED_H
+#define POLARSHADER_FASTLED_H
+
 #if defined(ARDUINO) || defined(__EMSCRIPTEN__)
-#include <FastLED.h>
+#include_next <FastLED.h>
+#if __has_include("fl/stl/fixed_point.h")
+#include "fl/stl/fixed_point.h"
+#include "fl/stl/function.h"
+#include "fl/stl/pair.h"
+#include "fl/stl/vector.h"
+#endif
+#if defined(__EMSCRIPTEN__) && !defined(D1)
+#define D1 1
+#endif
 #else
 #include "native/FastLED.h"
 #endif
-#include <iterator>
-#include "renderer/pipeline/patterns/Patterns.h"
 
-namespace PolarShader {
-    namespace {
-        Layer makeHexKaleidoscope(const CRGBPalette16 &palette) {
-            return hexKaleidoscopePreset(palette).build();
-        }
-        
-        Layer makeNoiseKaleidoscope(const CRGBPalette16 &palette) {
-            return noiseKaleidoscopePattern(palette).build();
-        }
-    }
-
-    Layer PresetPicker::pickRandom(const CRGBPalette16 &palette) {
-        static const PipelineFactory factories[] = {
-            makeHexKaleidoscope,
-            makeNoiseKaleidoscope
-        };
-
-        uint8_t idx = random8(std::size(factories));
-        return factories[idx](palette);
-    }
-}
+#endif // POLARSHADER_FASTLED_H

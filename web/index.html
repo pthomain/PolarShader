@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PolarShader Web Demos</title>
+  <style>
+    :root {
+      --bg: #f5efe3;
+      --panel: rgba(255, 252, 245, 0.92);
+      --ink: #1f1b16;
+      --muted: #5e554b;
+      --accent: #c65d32;
+      --accent-dark: #7b8f5a;
+      --shadow: rgba(72, 50, 28, 0.15);
+      --border: rgba(31, 27, 22, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(198, 93, 50, 0.18), transparent 32rem),
+        radial-gradient(circle at top right, rgba(123, 143, 90, 0.22), transparent 28rem),
+        linear-gradient(180deg, #fbf5ea 0%, var(--bg) 100%);
+    }
+
+    main {
+      width: min(64rem, calc(100% - 3rem));
+      margin: 0 auto;
+      padding: 4rem 0 5rem;
+    }
+
+    .hero {
+      margin-bottom: 2.5rem;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.75rem;
+      color: var(--accent);
+      font-size: 0.85rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 1rem;
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      line-height: 0.95;
+      font-weight: 600;
+    }
+
+    .intro {
+      max-width: 42rem;
+      margin: 0;
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+      gap: 1.25rem;
+      margin-top: 2.5rem;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 1.5rem;
+      background: var(--panel);
+      box-shadow: 0 1.2rem 2.5rem var(--shadow);
+      text-decoration: none;
+      color: inherit;
+      transform: translateY(0);
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: auto -20% -45% auto;
+      width: 11rem;
+      height: 11rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(198, 93, 50, 0.18), rgba(123, 143, 90, 0.08));
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      transform: translateY(-0.2rem);
+      box-shadow: 0 1.8rem 3rem var(--shadow);
+      border-color: rgba(198, 93, 50, 0.28);
+    }
+
+    .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      color: var(--accent-dark);
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .title {
+      margin: 0 0 0.65rem;
+      font-size: 1.8rem;
+    }
+
+    .copy {
+      margin: 0 0 1.4rem;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .cta {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">PolarShader</p>
+      <h1>Browser replicas of the Fabric and Round displays.</h1>
+      <p class="intro">
+        These demos run the existing PolarShader renderer through FastLED WASM, preserving the Fabric matrix wiring and the Round ring topology as browser screen maps.
+      </p>
+    </section>
+
+    <section class="grid" aria-label="Display demos">
+      <a class="card" href="./fabric/">
+        <div class="label">20 × 20 matrix</div>
+        <h2 class="title">Fabric</h2>
+        <p class="copy">
+          A serpentine square layout with the same 400-pixel ordering used by the physical Fabric display.
+        </p>
+        <div class="cta">Open demo</div>
+      </a>
+
+      <a class="card" href="./round/">
+        <div class="label">241-pixel radial map</div>
+        <h2 class="title">Round</h2>
+        <p class="copy">
+          A concentric ring layout built from the current segment sizes, including the single center pixel and eight outer rings.
+        </p>
+        <div class="cta">Open demo</div>
+      </a>
+    </section>
+  </main>
+</body>
+</html>

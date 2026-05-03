@@ -18,33 +18,19 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "renderer/pipeline/presets/PresetPicker.h"
+#ifndef POLARSHADER_DISPLAY_FASTLED_H
+#define POLARSHADER_DISPLAY_FASTLED_H
+
+// Standalone shim: do NOT delegate to src/FastLED.h, because src/FastLED.h is
+// excluded from the WASM staging dir (its #include_next has nothing to find
+// when the stage dir is the last -I entry). Native and Arduino paths only.
 #if defined(ARDUINO) || defined(__EMSCRIPTEN__)
 #include <FastLED.h>
-#else
-#include "native/FastLED.h"
+#if defined(__EMSCRIPTEN__) && !defined(D1)
+#define D1 1
 #endif
-#include <iterator>
-#include "renderer/pipeline/patterns/Patterns.h"
+#else
+#include "../native/FastLED.h"
+#endif
 
-namespace PolarShader {
-    namespace {
-        Layer makeHexKaleidoscope(const CRGBPalette16 &palette) {
-            return hexKaleidoscopePreset(palette).build();
-        }
-        
-        Layer makeNoiseKaleidoscope(const CRGBPalette16 &palette) {
-            return noiseKaleidoscopePattern(palette).build();
-        }
-    }
-
-    Layer PresetPicker::pickRandom(const CRGBPalette16 &palette) {
-        static const PipelineFactory factories[] = {
-            makeHexKaleidoscope,
-            makeNoiseKaleidoscope
-        };
-
-        uint8_t idx = random8(std::size(factories));
-        return factories[idx](palette);
-    }
-}
+#endif // POLARSHADER_DISPLAY_FASTLED_H
