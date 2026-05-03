@@ -26,26 +26,25 @@
 
 namespace PolarShader::composer {
     namespace {
-        struct Entry {
-            uint8_t id;
-            const ::CRGBPalette16 *palette;
-        };
-
-        // `static const`, not `static constexpr`: FastLED palette globals'
-        // types and constexpr-correctness vary across versions and platforms.
-        // `const` avoids tripping over that.
-        static const Entry kPalettes[] = {
-            {0, &Rainbow_gp},
-            {1, &CloudColors_p},
-            {2, &PartyColors_p},
-            {3, &ForestColors_p},
-        };
+        // FastLED's palette globals come in two flavours:
+        //   - `..._gp` suffix → TProgmemRGBGradientPalette_byte[] (color stops)
+        //   - `..._p`  suffix → TProgmemRGBPalette16 (16 raw colors)
+        // Neither is a CRGBPalette16; both convert via CRGBPalette16's
+        // converting constructors. We keep one CRGBPalette16 instance per
+        // ID, materialised once at first access, and return a pointer.
+        const ::CRGBPalette16 &kPaletteRainbow() { static const ::CRGBPalette16 p(Rainbow_gp);      return p; }
+        const ::CRGBPalette16 &kPaletteCloud()   { static const ::CRGBPalette16 p(CloudColors_p);   return p; }
+        const ::CRGBPalette16 &kPaletteParty()   { static const ::CRGBPalette16 p(PartyColors_p);   return p; }
+        const ::CRGBPalette16 &kPaletteForest()  { static const ::CRGBPalette16 p(ForestColors_p);  return p; }
     }
 
     const ::CRGBPalette16 *paletteById(uint8_t id) {
-        for (const auto &entry : kPalettes) {
-            if (entry.id == id) return entry.palette;
+        switch (id) {
+            case 0: return &kPaletteRainbow();
+            case 1: return &kPaletteCloud();
+            case 2: return &kPaletteParty();
+            case 3: return &kPaletteForest();
+            default: return nullptr;
         }
-        return nullptr;
     }
 }

@@ -18,3 +18,4 @@ web/.home
 web/.clang-tool-chain
 web/.toolchain-shims
 web/.fastled
+.claude/
