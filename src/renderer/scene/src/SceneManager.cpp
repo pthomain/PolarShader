@@ -50,6 +50,15 @@ namespace PolarShader {
         }
     }
 
+    void SceneManager::replaceScene(std::unique_ptr<Scene> scene, TimeMillis currentTimeMs) {
+        if (!scene) {
+            return;
+        }
+        currentScene = std::move(scene);
+        currentSceneStartTimeMs = currentTimeMs;
+        currentScene->compile();
+    }
+
     CRGB SceneManager::sample(uint8_t coreIndex, f16 angle, f16 radius) const {
         if (!currentScene) {
             return CRGB::Black;
