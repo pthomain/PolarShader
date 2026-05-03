@@ -45,6 +45,12 @@ namespace PolarShader {
 
         void advanceFrame(TimeMillis currentTimeMs);
 
+        // Out-of-band override that bypasses the SceneProvider for the next frame.
+        // Drops the current scene immediately, takes ownership of `scene`, resets
+        // the elapsed-time counter to currentTimeMs, and calls scene->compile().
+        // No-op if scene == nullptr.
+        void replaceScene(std::unique_ptr<Scene> scene, TimeMillis currentTimeMs);
+
         CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const;
     };
 }

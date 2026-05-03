@@ -1,0 +1,196 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2025 Pierre Thomain
+ *
+ * Composer panel styling. The panel mounts as a fixed sidebar on the
+ * right; FastLED's Three.js canvas keeps the rest of the viewport.
+ */
+
+#composer-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    max-width: 40vw;
+    overflow-y: auto;
+    background: #15171a;
+    color: #d8dde2;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    padding: 16px;
+    box-sizing: border-box;
+    border-left: 1px solid #2a2e34;
+    z-index: 10000;
+}
+
+#composer-panel h1 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+}
+
+#composer-panel h2 {
+    margin: 16px 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8b95a0;
+}
+
+.panel-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #232830;
+}
+
+.top-row, .pattern-picker-row, .add-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.top-row > span:first-child {
+    width: 60px;
+    color: #8b95a0;
+}
+
+input[type="number"], input[type="range"], select {
+    background: #1d2026;
+    border: 1px solid #2e333b;
+    color: #d8dde2;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+input[type="number"] { max-width: 80px; flex: 0 0 80px; }
+input[type="range"]  { flex: 1; min-width: 80px; }
+
+button {
+    background: #2a2e34;
+    color: #d8dde2;
+    border: 1px solid #3a3f47;
+    padding: 3px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+button:hover:not(:disabled) {
+    background: #34393f;
+}
+
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.config-form, .signals-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.param {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.param-label {
+    width: 100px;
+    flex: 0 0 100px;
+    color: #8b95a0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.param-readout {
+    flex: 0 0 50px;
+    text-align: right;
+    color: #6a7480;
+    font-variant-numeric: tabular-nums;
+}
+
+.signal-row {
+    margin-top: 6px;
+    padding: 6px;
+    background: #181b1f;
+    border-radius: 4px;
+}
+
+.signal-row-label {
+    color: #c0c8d0;
+    font-size: 11px;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.signal-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0 4px 8px;
+    border-left: 2px solid #2e333b;
+}
+
+.signal-type {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 160px;
+}
+
+.signal-params {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.transform-card {
+    background: #181b1f;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.transform-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.transform-title {
+    flex: 1;
+    font-weight: 500;
+    color: #c0c8d0;
+}
+
+.transform-header button {
+    padding: 2px 8px;
+    min-width: 24px;
+}
+
+.transform-list:empty::before {
+    content: "(no transforms)";
+    color: #5a626c;
+    font-style: italic;
+}
+
+.status {
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+}
+
+.status.ok { background: #1c2a1d; color: #7fb88a; }
+.status.err { background: #2a1c1c; color: #d88a8a; }

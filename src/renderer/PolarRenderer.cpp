@@ -45,6 +45,10 @@ namespace PolarShader {
         sceneManager.advanceFrame(timeInMillis);
     }
 
+    void PolarRenderer::replaceScene(std::unique_ptr<Scene> scene, TimeMillis currentTimeMs) {
+        sceneManager.replaceScene(std::move(scene), currentTimeMs);
+    }
+
     void PolarRenderer::render(
         CRGB *outputArray,
         TimeMillis timeInMillis

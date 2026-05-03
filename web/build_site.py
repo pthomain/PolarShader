@@ -91,7 +91,17 @@ class Sketch:
 SKETCHES = (
     Sketch("fabric", SKETCH_ROOT / "fabric" / "fabric.ino"),
     Sketch("round", SKETCH_ROOT / "round" / "round.ino"),
+    Sketch("composer", SKETCH_ROOT / "composer" / "composer.ino"),
 )
+
+# Sketches that ship a custom UI panel mounted into FastLED's generated
+# index.html. For each, we copy the listed assets verbatim into the dist
+# dir alongside the FastLED-built page and inject <link>/<script> tags.
+COMPOSER_PANEL_ASSETS = {
+    "css":     ("composer.css",),
+    "modules": ("schema.js", "codec.js", "signal-editor.js", "composer.js"),
+}
+SKETCHES_WITH_PANEL = {"composer": COMPOSER_PANEL_ASSETS}
 
 
 def reset_directory(path: Path) -> None:
@@ -381,6 +391,40 @@ def validate_frontend_output(output_dir: Path) -> None:
         )
 
 
+def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -> None:
+    """For sketches with a custom UI panel: copy CSS + JS modules into the
+    dist sketch dir and patch the FastLED-generated index.html to load them
+    via <link rel=stylesheet> and <script type=module>.
+
+    The panel itself is mounted from JS at runtime (composer.js builds the
+    DOM after the WASM module is ready), so we don't ship an HTML fragment.
+    """
+    sketch_src_dir = sketch.source_file.parent
+    for fname in assets["css"] + assets["modules"]:
+        src = sketch_src_dir / fname
+        if not src.exists():
+            raise FileNotFoundError(f"Panel asset missing: {src}")
+        shutil.copy2(src, dist_sketch_dir / fname)
+
+    # Build the injection block. CSS first, then ES modules (composer.js
+    # imports the others). FastLED's generated index.html ends with a
+    # closing </body>; insert just before it.
+    css_links = "\n".join(f'    <link rel="stylesheet" href="./{name}">' for name in assets["css"])
+    # composer.js is the entry module; the others are imported transitively.
+    entry_module = assets["modules"][-1]
+    inject = (
+        css_links
+        + f'\n    <script type="module" src="./{entry_module}"></script>\n'
+    )
+
+    index_path = dist_sketch_dir / "index.html"
+    text = index_path.read_text(encoding="utf-8")
+    if "</body>" not in text:
+        raise RuntimeError(f"Cannot inject panel assets — no </body> in {index_path}")
+    text = text.replace("</body>", inject + "</body>", 1)
+    index_path.write_text(text, encoding="utf-8")
+
+
 def build_site() -> None:
     reset_directory(STAGE_ROOT)
     reset_directory(DIST_ROOT)
@@ -390,7 +434,10 @@ def build_site() -> None:
         run_fastled_compile(stage_dir)
         output_dir = find_build_output(stage_dir)
         validate_frontend_output(output_dir)
-        shutil.copytree(output_dir, DIST_ROOT / sketch.name)
+        dist_sketch_dir = DIST_ROOT / sketch.name
+        shutil.copytree(output_dir, dist_sketch_dir)
+        if sketch.name in SKETCHES_WITH_PANEL:
+            inject_panel_assets(sketch, dist_sketch_dir, SKETCHES_WITH_PANEL[sketch.name])
 
     shutil.copy2(LANDING_PAGE, DIST_ROOT / "index.html")
 

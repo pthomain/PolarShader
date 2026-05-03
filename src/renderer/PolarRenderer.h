@@ -48,6 +48,10 @@ namespace PolarShader {
             TimeMillis timeInMillis
         );
 
+        // Pass-through to SceneManager::replaceScene. See SceneManager.h
+        // for semantics. Used by the composer to swap scenes live.
+        void replaceScene(std::unique_ptr<Scene> scene, TimeMillis currentTimeMs);
+
         void prepareFrame(TimeMillis timeInMillis);
 
         void renderSlice(
