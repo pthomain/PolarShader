@@ -24,7 +24,15 @@
 #include <type_traits>
 #include <vector>
 
+// FastLED master moved screenmap.h from fl/ to fl/math/. Pre-3.10.4
+// releases keep it under fl/, so prefer the new path with a fallback.
+// TODO: drop the fl/screenmap.h fallback once we're back on a tagged
+// release that has fl/math/screenmap.h.
+#if __has_include(<fl/math/screenmap.h>)
+#include <fl/math/screenmap.h>
+#else
 #include <fl/screenmap.h>
+#endif
 
 #include "FastLED.h"
 #include "PolarDisplaySpec.h"
