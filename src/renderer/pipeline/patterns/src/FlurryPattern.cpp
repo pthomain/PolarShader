@@ -22,6 +22,7 @@
 #include "renderer/pipeline/patterns/GridUtils.h"
 #include "renderer/pipeline/signals/ranges/BipolarRange.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
+#include "ProfileRanges.h"
 #include <algorithm>
 
 namespace PolarShader {
@@ -31,14 +32,8 @@ namespace PolarShader {
         constexpr uint8_t kMinLineCount = 1;
         constexpr uint8_t kMaxLineCount = 8;
 
-        constexpr fl::s16x16 kMinFrequency = s16x16FromFraction(1, 64); // 0.015625 (1/64)
-
         constexpr f16 kFadeBase = perMil(900); // 0.9
         constexpr f16 kFadeSpan = perMil(99); // 0.99 - avoid overflow
-
-        constexpr f16 kMaxProfileAmplitude = toF16(1, 2); // ~1.0
-        constexpr fl::s16x16 kMaxProfileSpeed = s16x16FromFraction(1, 4); // 0.0625 (1/16)
-        constexpr fl::s16x16 kMaxProfileFrequency = s16x16FromFraction(1, 2);
 
         constexpr fl::s16x16 kBallDiscRadius = s16x16FromMixed(1, 1, 4); // 1.25
         constexpr fl::s16x16 kBallDiscSoftEdge = s16x16FromFraction(3, 4); // 0.75
@@ -48,26 +43,6 @@ namespace PolarShader {
         constexpr uint16_t kLineSecondaryPhaseStride = 24593u;
         constexpr fl::s16x16 kLineRateSpread = s16x16FromFraction(3, 100); // 0.03
         constexpr fl::s16x16 kLineAmplitudeSpread = s16x16FromFraction(1, 20); // 0.05
-
-        const BipolarRange<fl::s16x16> &profileSpeedRange() {
-            static const BipolarRange range(-kMaxProfileSpeed, kMaxProfileSpeed);
-            return range;
-        }
-
-        const MagnitudeRange<f16> &profileAmplitudeRange() {
-            static const MagnitudeRange range(perMil(0), kMaxProfileAmplitude);
-            return range;
-        }
-
-        const MagnitudeRange<fl::s16x16> &profileFrequencyRange() {
-            static const MagnitudeRange range(kMinFrequency, kMaxProfileFrequency);
-            return range;
-        }
-
-        const MagnitudeRange<fl::s16x16> &endpointSpeedRange() {
-            static const MagnitudeRange range(s16x16FromFraction(0, 1), kMaxProfileSpeed);
-            return range;
-        }
 
         const MagnitudeRange<f16> &fadeRange() {
             static const MagnitudeRange range(kFadeBase, f16(raw(kFadeBase) + raw(kFadeSpan)));

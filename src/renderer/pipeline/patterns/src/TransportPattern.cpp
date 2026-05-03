@@ -21,15 +21,13 @@
 #include "renderer/pipeline/patterns/TransportPattern.h"
 #include "renderer/pipeline/patterns/GridUtils.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
+#include "HalfLifeRange.h"
 #include <algorithm>
 
 namespace PolarShader {
     using namespace grid;
 
     namespace {
-        constexpr uint16_t kHalfLifeMinMs = 100u;
-        constexpr uint16_t kHalfLifeMaxMs = 5000u;
-
         constexpr fl::s16x16 kMaxRadialSpeed = s16x16FromFraction(3, 1); // 3.0 cells/frame
         constexpr fl::s16x16 kMaxAngularSpeed = s16x16FromFraction(1, 8); // 1/8 turn/frame
 
