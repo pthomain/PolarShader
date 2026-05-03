@@ -21,6 +21,16 @@
 #ifndef POLARSHADER_DISPLAY_FASTLED_H
 #define POLARSHADER_DISPLAY_FASTLED_H
 
-#include "../FastLED.h"
+// Standalone shim: do NOT delegate to src/FastLED.h, because src/FastLED.h is
+// excluded from the WASM staging dir (its #include_next has nothing to find
+// when the stage dir is the last -I entry). Native and Arduino paths only.
+#if defined(ARDUINO) || defined(__EMSCRIPTEN__)
+#include <FastLED.h>
+#if defined(__EMSCRIPTEN__) && !defined(D1)
+#define D1 1
+#endif
+#else
+#include "../native/FastLED.h"
+#endif
 
 #endif // POLARSHADER_DISPLAY_FASTLED_H
