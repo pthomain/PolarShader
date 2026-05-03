@@ -398,23 +398,66 @@ def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -
 
     The panel itself is mounted from JS at runtime (composer.js builds the
     DOM after the WASM module is ready), so we don't ship an HTML fragment.
+
+    A short content hash is appended to each asset URL as a query string so
+    the browser doesn't keep serving stale modules from cache after a
+    redeploy. ES module imports inside composer.js are *also* rewritten to
+    carry the same hash — otherwise Chrome/Firefox keep their own
+    HTTP-cache copies of the imported modules across reloads.
     """
+    import hashlib
+
     sketch_src_dir = sketch.source_file.parent
-    for fname in assets["css"] + assets["modules"]:
+    asset_names = list(assets["css"]) + list(assets["modules"])
+
+    # Compute a single hash over all panel sources so the same redeploy
+    # invalidates every URL together. (Per-file hashes would also work but
+    # add no benefit here — the panel is shipped as a unit.)
+    hasher = hashlib.sha1()
+    for fname in asset_names:
         src = sketch_src_dir / fname
         if not src.exists():
             raise FileNotFoundError(f"Panel asset missing: {src}")
-        shutil.copy2(src, dist_sketch_dir / fname)
+        hasher.update(src.read_bytes())
+    cache_buster = hasher.hexdigest()[:8]
+
+    # Copy assets verbatim, then patch ES-module import statements in each
+    # JS module to carry the same cache_buster on every relative import.
+    module_set = set(assets["modules"])
+    for fname in asset_names:
+        src = sketch_src_dir / fname
+        dst = dist_sketch_dir / fname
+        if fname in module_set:
+            text = src.read_text(encoding="utf-8")
+            # Naive but sufficient: rewrite `from './foo.js'` →
+            # `from './foo.js?v=HASH'`. Only matches the panel's own modules.
+            for sibling in module_set:
+                if sibling == fname:
+                    continue
+                text = text.replace(
+                    f"from './{sibling}'",
+                    f"from './{sibling}?v={cache_buster}'",
+                )
+                text = text.replace(
+                    f"import('./{sibling}')",
+                    f"import('./{sibling}?v={cache_buster}')",
+                )
+            dst.write_text(text, encoding="utf-8")
+        else:
+            shutil.copy2(src, dst)
 
     # Build the injection block. CSS first, then ES modules (composer.js
     # imports the others). FastLED's generated index.html ends with a
     # closing </body>; insert just before it.
-    css_links = "\n".join(f'    <link rel="stylesheet" href="./{name}">' for name in assets["css"])
+    css_links = "\n".join(
+        f'    <link rel="stylesheet" href="./{name}?v={cache_buster}">'
+        for name in assets["css"]
+    )
     # composer.js is the entry module; the others are imported transitively.
     entry_module = assets["modules"][-1]
     inject = (
         css_links
-        + f'\n    <script type="module" src="./{entry_module}"></script>\n'
+        + f'\n    <script type="module" src="./{entry_module}?v={cache_buster}"></script>\n'
     )
 
     index_path = dist_sketch_dir / "index.html"

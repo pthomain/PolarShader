@@ -174,8 +174,11 @@ button:disabled {
 }
 
 .transform-header button {
-    padding: 2px 8px;
-    min-width: 24px;
+    padding: 4px 10px;
+    min-width: 32px;
+    height: 28px;
+    font-size: 14px;
+    line-height: 1;
 }
 
 .transform-list:empty::before {

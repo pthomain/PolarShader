@@ -59,12 +59,15 @@ function renderParamControl(p, signal, onChange) {
 
     // Numeric: 'permille', 'f16', 'u8', 'u16', 'u32', 'i32'.
     // permille and f16 get a slider; the rest get a number input.
+    // Bound match the C++ helper expectations:
+    //   - permille → constant(uint16_t) takes 0..1000 (1000 = 1.0)
+    //   - f16      → raw f16 fraction, full uint16 range (65535 ≈ 1.0)
     const isSlider = p.kind === 'permille' || p.kind === 'f16';
     const input = document.createElement('input');
     input.type = isSlider ? 'range' : 'number';
     if (isSlider) {
-        input.min = p.kind === 'permille' ? '0' : '0';
-        input.max = p.kind === 'permille' ? '65535' : '65535';
+        input.min = '0';
+        input.max = p.kind === 'permille' ? '1000' : '65535';
         input.step = '1';
     }
     input.value = signal.params[p.name] ?? p.default ?? 0;
