@@ -20,31 +20,9 @@
 
 #include "renderer/pipeline/transforms/RadialKaleidoscopeTransform.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
+#include "MirrorUv.h"
 
 namespace PolarShader {
-    namespace {
-        constexpr int32_t UV_PERIOD_RAW = 0x00010000;
-        constexpr int32_t UV_MIRROR_PERIOD_RAW = UV_PERIOD_RAW * 2;
-
-        int32_t mirrorUvRaw(int32_t value) {
-            int32_t mirrored = value % UV_MIRROR_PERIOD_RAW;
-            if (mirrored < 0) {
-                mirrored += UV_MIRROR_PERIOD_RAW;
-            }
-            if (mirrored >= UV_PERIOD_RAW) {
-                mirrored = (UV_MIRROR_PERIOD_RAW - 1) - mirrored;
-            }
-            return mirrored;
-        }
-
-        UV mirrorUv(UV uv) {
-            return UV(
-                fl::s16x16::from_raw(mirrorUvRaw(uv.u.raw())),
-                fl::s16x16::from_raw(mirrorUvRaw(uv.v.raw()))
-            );
-        }
-    }
-
     struct RadialKaleidoscopeTransform::State {
         uint16_t divisions;
         bool mirrored;
