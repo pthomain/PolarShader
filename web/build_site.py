@@ -19,12 +19,19 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = REPO_ROOT / "web"
 SOURCE_ROOT = REPO_ROOT / "src"
 SKETCH_ROOT = WEB_ROOT / "sketches"
-STAGE_ROOT = WEB_ROOT / ".stage"
-DIST_ROOT = WEB_ROOT / "dist"
 LANDING_PAGE = WEB_ROOT / "index.html"
 REQUIREMENTS_PATH = WEB_ROOT / "requirements.txt"
-HOME_ROOT = WEB_ROOT / ".home"
-FASTLED_CACHE_ROOT = WEB_ROOT / ".fastled"
+# POLARSHADER_WORK_ROOT_OVERRIDE lets an external orchestrator reparent the
+# four write roots (.stage/, .home/, .fastled/, dist/) under a directory of
+# its choosing — useful when build_site.py is invoked from outside the
+# PolarShader checkout and the caller wants to keep the submodule tree clean.
+# Defaults to WEB_ROOT, preserving the original layout.
+WORK_ROOT = Path(os.environ["POLARSHADER_WORK_ROOT_OVERRIDE"]).resolve() \
+    if "POLARSHADER_WORK_ROOT_OVERRIDE" in os.environ else WEB_ROOT
+STAGE_ROOT = WORK_ROOT / ".stage"
+DIST_ROOT = WORK_ROOT / "dist"
+HOME_ROOT = WORK_ROOT / ".home"
+FASTLED_CACHE_ROOT = WORK_ROOT / ".fastled"
 # TODO: revert to a tagged FastLED release once one ships the fl::s16x16 /
 # fl::u16x16 / fl::s24x8 / fl::u24x8 fixed-point types.
 #
@@ -43,7 +50,14 @@ FASTLED_CACHE_ROOT = WEB_ROOT / ".fastled"
 # When the next FastLED release exposes these types, switch back to a
 # tagged-release URL (https://github.com/FastLED/FastLED/archive/refs/tags/
 # <version>.zip) and rename FASTLED_REVISION back to FASTLED_VERSION.
-FASTLED_REVISION = "cec6034926407cdc89e0c570aba3ad2bf8f0b907"  # master @ 2026-05-03
+# POLARSHADER_FASTLED_REVISION_OVERRIDE lets an external orchestrator pin
+# a different FastLED commit (e.g. to share a single revision across multiple
+# projects that consume PolarShader). MUST be read here, before
+# FASTLED_ARCHIVE_URL and FASTLED_LIBRARY_ROOT are derived from it.
+FASTLED_REVISION = os.environ.get(
+    "POLARSHADER_FASTLED_REVISION_OVERRIDE",
+    "cec6034926407cdc89e0c570aba3ad2bf8f0b907",  # master @ 2026-05-03
+)
 FASTLED_ARCHIVE_URL = f"https://github.com/FastLED/FastLED/archive/{FASTLED_REVISION}.zip"
 FASTLED_LIBRARY_ROOT = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_REVISION}"
 PLACEHOLDER_FRONTEND_MARKER = 'module._extern_setup();'
@@ -93,6 +107,31 @@ SKETCHES = (
     Sketch("round", SKETCH_ROOT / "round" / "round.ino"),
     Sketch("composer", SKETCH_ROOT / "composer" / "composer.ino"),
 )
+
+# POLARSHADER_SKETCHES_OVERRIDE filters SKETCHES to a comma-separated list of
+# names — useful when an orchestrator only needs one sketch (e.g. "composer",
+# which handles fabric/round switching at runtime via _composer_set_display).
+# Unknown names are rejected loudly rather than silently dropped.
+if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
+    _requested_sketch_names = {
+        name.strip()
+        for name in os.environ["POLARSHADER_SKETCHES_OVERRIDE"].split(",")
+        if name.strip()
+    }
+    _known_sketch_names = {sketch.name for sketch in SKETCHES}
+    _unknown_sketch_names = _requested_sketch_names - _known_sketch_names
+    if _unknown_sketch_names:
+        raise SystemExit(
+            "POLARSHADER_SKETCHES_OVERRIDE references unknown sketch(es): "
+            f"{sorted(_unknown_sketch_names)}. Known: {sorted(_known_sketch_names)}."
+        )
+    SKETCHES = tuple(
+        sketch for sketch in SKETCHES if sketch.name in _requested_sketch_names
+    )
+    if not SKETCHES:
+        raise SystemExit(
+            "POLARSHADER_SKETCHES_OVERRIDE filtered out every sketch."
+        )
 
 # Sketches that ship a custom UI panel mounted into FastLED's generated
 # index.html. For each, we copy the listed assets verbatim into the dist
