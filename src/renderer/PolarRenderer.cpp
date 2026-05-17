@@ -35,7 +35,7 @@ namespace PolarShader {
         const PolarCoordsMapper& coordsMapper
     ) : sceneManager(
 #ifdef POLAR_SHADER_RANDOM_MODE
-            std::make_unique<RandomSceneProvider>(30000)
+            std::make_unique<RandomSceneProvider>()
 #else
             std::make_unique<DefaultSceneProvider>([]() {
                 fl::vector<std::shared_ptr<Layer> > layers;

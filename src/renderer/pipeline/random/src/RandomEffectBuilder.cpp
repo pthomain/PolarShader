@@ -35,32 +35,42 @@
 
 namespace PolarShader::random_fx {
     namespace {
-        // Inclusive [lo, hi] uniform random.
+        // Inclusive [lo, hi] uniform random. Uses uint32 math to support the
+        // full uint16 range without overflow (e.g. lo=0, hi=0xFFFF).
         uint16_t randInRange(uint16_t lo, uint16_t hi) {
             if (hi <= lo) return lo;
-            return lo + random16(static_cast<uint16_t>(hi - lo + 1));
+            uint32_t span = static_cast<uint32_t>(hi) - static_cast<uint32_t>(lo) + 1u;
+            if (span >= 0x10000u) return random16(); // full uint16 span
+            return lo + random16(static_cast<uint16_t>(span));
         }
 
         // Pick one of {constant, sine, triangle, noise}.
-        // - constant: uniform permille in [0, 1000]
-        // - waveforms: phase velocity (permille) in [pvMin, pvMax]
-        Sf16Signal randomSignal(uint16_t pvMin = 30, uint16_t pvMax = 500) {
+        // freqMin/freqMax are the phase-velocity bounds (permille, 1000 = 1 Hz)
+        // applied to the periodic waveforms; the constant branch is a static
+        // magnitude and ignores the frequency bounds by design.
+        Sf16Signal randomSignal(uint16_t freqMin = 30, uint16_t freqMax = 500) {
             uint8_t kind = random8(4);
             switch (kind) {
                 case 0: {
                     uint16_t v = randInRange(0, 1000);
                     return constant(v);
                 }
-                case 1: return sine(constant(randInRange(pvMin, pvMax)));
-                case 2: return triangle(constant(randInRange(pvMin, pvMax)));
+                case 1: return sine(constant(randInRange(freqMin, freqMax)));
+                case 2: return triangle(constant(randInRange(freqMin, freqMax)));
                 case 3:
-                default: return noise(constant(randInRange(pvMin, pvMax)));
+                default: return noise(constant(randInRange(freqMin, freqMax)));
             }
         }
 
+        // Lower-frequency variant for params that look better drifting slowly
+        // (palette offset, translation). Avoids strobing on fast modulators.
+        Sf16Signal slowSignal() { return randomSignal(20, 150); }
+
         std::unique_ptr<UVPattern> randomPattern() {
-            // 9 entries; heavy grid sims (ReactionDiffusion, Flurry) excluded.
-            uint8_t pick = random8(9);
+            // 10 entries; heavy grid sims (ReactionDiffusion, Flurry) excluded.
+            // Transport and FlowField are kept but pinned to a small (16) grid
+            // so their per-instance grid memory stays bounded on RP2040.
+            uint8_t pick = random8(10);
             switch (pick) {
                 case 0: return noisePattern(randomSignal());
                 case 1: return fbmNoisePattern(static_cast<fl::u8>(randInRange(3, 5)));
@@ -86,7 +96,6 @@ namespace PolarShader::random_fx {
                     return annuliPattern(rings, slices, reverse, stepMs, holdMs);
                 }
                 case 7: {
-                    // Keep grid small (16) for MCU RAM.
                     auto mode = static_cast<TransportPattern::TransportMode>(random8(10));
                     bool glow = (random8() & 1) != 0;
                     return transportPattern(16, mode,
@@ -95,6 +104,16 @@ namespace PolarShader::random_fx {
                                             glow);
                 }
                 case 8: {
+                    uint8_t dots = static_cast<uint8_t>(randInRange(1, 3));
+                    auto mode = static_cast<FlowFieldPattern::EmitterMode>(random8(3));
+                    return flowFieldPattern(16, dots, mode,
+                                            randomSignal(), randomSignal(),
+                                            randomSignal(), randomSignal(),
+                                            randomSignal(), randomSignal(),
+                                            randomSignal(), randomSignal());
+                }
+                case 9:
+                default: {
                     int32_t cellRaw = static_cast<int32_t>(randInRange(4000, 16000));
                     auto alias = static_cast<WorleyAliasing>(random8(3));
                     fl::s24x8 cell = fl::s24x8::from_raw(cellRaw);
@@ -102,7 +121,6 @@ namespace PolarShader::random_fx {
                                ? worleyPattern(cell, alias)
                                : voronoiPattern(cell, alias);
                 }
-                default: return noisePattern(randomSignal());
             }
         }
 
@@ -120,7 +138,7 @@ namespace PolarShader::random_fx {
                     return;
                 }
                 case 2: {
-                    builder.addTransform(TranslationTransform(randomSignal(), randomSignal()));
+                    builder.addTransform(TranslationTransform(slowSignal(), slowSignal()));
                     return;
                 }
                 case 3: {
@@ -153,8 +171,9 @@ namespace PolarShader::random_fx {
     std::unique_ptr<Scene> buildRandomScene(TimeMillis durationMs) {
         LayerBuilder builder(randomPattern(), CRGBPalette16(Rainbow_gp), "random");
 
-        // Palette transform: animated offset (always).
-        builder.addPaletteTransform(PaletteTransform(randomSignal()));
+        // Palette transform: slow animated offset (always). Fast palette sweeps
+        // tend to strobe; slowSignal() keeps the colour drift legible.
+        builder.addPaletteTransform(PaletteTransform(slowSignal()));
 
         // 3 or 4 random UV transforms.
         uint8_t count = static_cast<uint8_t>(3 + (random8() & 1));
