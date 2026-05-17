@@ -124,6 +124,22 @@ namespace PolarShader::random_fx {
                        : sine(constant(randInRange(80, 200)));
         }
 
+        // Palette clip: bounded slow noise. Sampled in the unipolar magnitude
+        // domain — 0 disables clipping, 1000 clips fully. Floor/ceiling stay
+        // in the same range every preset uses (50..150 / 250..750) so the
+        // clip amount drifts inside a moderate band rather than swinging
+        // from no-clip to all-clip.
+        Sf16Signal signalForPaletteClip() {
+            // Random floor in [50, 300]; ceiling = floor + random width
+            // (clamped at 950) so floor < ceiling holds.
+            uint16_t floorPerMil = randInRange(50, 300);
+            uint16_t ceilPerMil = floorPerMil + randInRange(150, 500);
+            if (ceilPerMil > 950) ceilPerMil = 950;
+            return noise(constant(randInRange(100, 300)),
+                         constant(floorPerMil),
+                         constant(ceilPerMil));
+        }
+
         // Pattern-internal parameter (e.g. Transport radial speed, FlowField
         // amplitude). Most preset internal params are simple constants in
         // 200..800, with occasional slow noise.
@@ -276,8 +292,14 @@ namespace PolarShader::random_fx {
 
         LayerBuilder builder(randomPattern(), CRGBPalette16(Rainbow_gp), "random");
 
-        // 1. Palette transform — always.
-        builder.addPaletteTransform(PaletteTransform(signalForPaletteOffset()));
+        // 1. Palette transform — always. Offset + clip both driven by
+        //    slow signals; maxFeather picked from the values seen in the
+        //    hand-crafted presets (perMil 200..500).
+        f16 maxFeather = perMil(randInRange(200, 500));
+        builder.addPaletteTransform(PaletteTransform(
+            signalForPaletteOffset(),
+            signalForPaletteClip(),
+            maxFeather));
 
         // 2. 1 or 2 early modifiers without replacement.
         addRandomEarlyModifiers(builder);
