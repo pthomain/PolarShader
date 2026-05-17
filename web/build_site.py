@@ -32,10 +32,8 @@ STAGE_ROOT = WORK_ROOT / ".stage"
 DIST_ROOT = WORK_ROOT / "dist"
 HOME_ROOT = WORK_ROOT / ".home"
 FASTLED_CACHE_ROOT = WORK_ROOT / ".fastled"
-# TODO: revert to a tagged FastLED release once one ships the fl::s16x16 /
-# fl::u16x16 / fl::s24x8 / fl::u24x8 fixed-point types.
-#
-# Why this is pinned to a master commit:
+
+# Why FASTLED_REVISION is pinned to a master commit:
 #   - PolarShader's pipeline (src/renderer/pipeline/maths/units/Units.h,
 #     FixedPointMaths.h, etc.) uses fl::s16x16 / fl::u16x16 / fl::s24x8 /
 #     fl::u24x8 unconditionally as part of its public type system.
@@ -47,11 +45,14 @@ FASTLED_CACHE_ROOT = WORK_ROOT / ".fastled"
 #     (lib_deps: https://github.com/FastLED/FastLED.git#master), so this
 #     keeps the WASM build aligned with the same source of truth.
 #
-# When the next FastLED release exposes these types, switch back to a
-# tagged-release URL (https://github.com/FastLED/FastLED/archive/refs/tags/
-# <version>.zip) and rename FASTLED_REVISION back to FASTLED_VERSION.
-# POLARSHADER_FASTLED_REVISION_OVERRIDE lets an external orchestrator pin
-# a different FastLED commit (e.g. to share a single revision across multiple
+# TODO: revert to a tagged FastLED release once one ships the fl::s16x16 /
+# fl::u16x16 / fl::s24x8 / fl::u24x8 fixed-point types. When the next FastLED
+# release exposes these types, switch back to a tagged-release URL
+# (https://github.com/FastLED/FastLED/archive/refs/tags/<version>.zip) and
+# rename FASTLED_REVISION back to FASTLED_VERSION.
+#
+# POLARSHADER_FASTLED_REVISION_OVERRIDE lets an external orchestrator pin a
+# different FastLED commit (e.g. to share a single revision across multiple
 # projects that consume PolarShader). MUST be read here, before
 # FASTLED_ARCHIVE_URL and FASTLED_LIBRARY_ROOT are derived from it.
 FASTLED_REVISION = os.environ.get(
