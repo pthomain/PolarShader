@@ -37,11 +37,15 @@ namespace {
     constexpr uint8_t DISPLAY_FABRIC = 0;
     constexpr uint8_t DISPLAY_ROUND  = 1;
 
+#ifndef COMPOSER_INITIAL_DISPLAY
+#define COMPOSER_INITIAL_DISPLAY DISPLAY_FABRIC
+#endif
+
     // Exactly one of these is non-null at a time. Holding both type slots
     // keeps the dispatch type-safe without runtime polymorphism.
     std::unique_ptr<WebFastLedDisplay<FabricDisplaySpec>> fabricDisplay;
     std::unique_ptr<WebFastLedDisplay<RoundDisplaySpec>>  roundDisplay;
-    uint8_t activeDisplay = DISPLAY_FABRIC;
+    uint8_t activeDisplay = COMPOSER_INITIAL_DISPLAY;
 
     // Most-recent successfully-decoded scene blob. Empty until the JS
     // side pushes its first valid scene; in that interim the display
@@ -84,6 +88,7 @@ namespace {
             fabricDisplay->replaceScene(std::move(scene));
         }
     }
+
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -103,13 +108,22 @@ int composer_apply_scene(const uint8_t *bytes, uint32_t len) {
         return static_cast<int>(status);
     }
 
-    // Push to the active renderer first; only then overwrite the cached
-    // blob. Order doesn't strictly matter (decode already succeeded so
-    // replay would also succeed), but this is clearer.
+    // Initial apply starts the scene clock. Later live edits keep elapsed
+    // time so speed/phase changes affect the current frame instead of
+    // restarting the animation at t=0.
+    const bool firstApply = lastValidBlob.empty();
     if (activeDisplay == DISPLAY_ROUND && roundDisplay) {
-        roundDisplay->replaceScene(std::move(scene));
+        if (firstApply) {
+            roundDisplay->replaceScene(std::move(scene));
+        } else {
+            roundDisplay->replaceScenePreservingElapsed(std::move(scene));
+        }
     } else if (fabricDisplay) {
-        fabricDisplay->replaceScene(std::move(scene));
+        if (firstApply) {
+            fabricDisplay->replaceScene(std::move(scene));
+        } else {
+            fabricDisplay->replaceScenePreservingElapsed(std::move(scene));
+        }
     }
 
     lastValidBlob.assign(bytes, bytes + len);
@@ -133,6 +147,23 @@ void composer_set_display(uint8_t which) {
     activeDisplay = which;
     buildActiveDisplay();
     replayBlob();
+}
+
+// 0 = fabric, 1 = round. Intended for generated JS to call before setup(),
+// so the initial FastLED screen map matches the iframe URL.
+EMSCRIPTEN_KEEPALIVE
+void composer_set_initial_display(uint8_t which) {
+    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND) return;
+    if (fabricDisplay || roundDisplay) {
+        composer_set_display(which);
+        return;
+    }
+    activeDisplay = which;
+}
+
+EMSCRIPTEN_KEEPALIVE
+uint8_t composer_get_display() {
+    return activeDisplay;
 }
 
 }  // extern "C"

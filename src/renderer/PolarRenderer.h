@@ -52,6 +52,8 @@ namespace PolarShader {
         // for semantics. Used by the composer to swap scenes live.
         void replaceScene(std::unique_ptr<Scene> scene, TimeMillis currentTimeMs);
 
+        void replaceScenePreservingElapsed(std::unique_ptr<Scene> scene);
+
         void prepareFrame(TimeMillis timeInMillis);
 
         void renderSlice(

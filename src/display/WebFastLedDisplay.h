@@ -81,8 +81,7 @@ namespace PolarShader {
 
         void loop() {
             EVERY_N_MILLISECONDS(refreshRateInMillis) {
-                renderer.render(outputArray.data(), millis());
-                FastLED.show();
+                renderNow();
             }
         }
 
@@ -90,6 +89,17 @@ namespace PolarShader {
         // sketch to swap the active Scene live without rebuilding the display.
         void replaceScene(std::unique_ptr<Scene> scene) {
             renderer.replaceScene(std::move(scene), millis());
+            renderNow();
+        }
+
+        void replaceScenePreservingElapsed(std::unique_ptr<Scene> scene) {
+            renderer.replaceScenePreservingElapsed(std::move(scene));
+            renderNow();
+        }
+
+        void renderNow() {
+            renderer.render(outputArray.data(), millis());
+            FastLED.show();
         }
     };
 }

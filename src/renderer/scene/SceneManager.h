@@ -51,6 +51,11 @@ namespace PolarShader {
         // No-op if scene == nullptr.
         void replaceScene(std::unique_ptr<Scene> scene, TimeMillis currentTimeMs);
 
+        // Drops the current scene but keeps the existing elapsed-time origin.
+        // Used by live editors where changing a speed or phase parameter should
+        // update the current frame instead of restarting the animation at t=0.
+        void replaceScenePreservingElapsed(std::unique_ptr<Scene> scene);
+
         CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const;
     };
 }

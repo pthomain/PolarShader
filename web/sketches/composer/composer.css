@@ -197,3 +197,42 @@ button:disabled {
 
 .status.ok { background: #1c2a1d; color: #7fb88a; }
 .status.err { background: #2a1c1c; color: #d88a8a; }
+
+#composer-debug-console {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #333941;
+    border-radius: 5px;
+    background: rgba(8, 10, 12, 0.78);
+    color: #cbd3dc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    max-height: 190px;
+    overflow: hidden;
+}
+
+.composer-debug-title {
+    margin-bottom: 6px;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.composer-debug-log {
+    max-height: 155px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.composer-debug-line {
+    margin-bottom: 3px;
+}
+
+.composer-debug-line.emit { color: #87bfff; }
+.composer-debug-line.update { color: #86d390; }
+.composer-debug-line.coalesce { color: #c9b56b; }
+.composer-debug-line.error { color: #e28b8b; }
+.composer-debug-line.system { color: #9aa4af; }

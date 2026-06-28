@@ -59,6 +59,14 @@ namespace PolarShader {
         currentScene->compile();
     }
 
+    void SceneManager::replaceScenePreservingElapsed(std::unique_ptr<Scene> scene) {
+        if (!scene) {
+            return;
+        }
+        currentScene = std::move(scene);
+        currentScene->compile();
+    }
+
     CRGB SceneManager::sample(uint8_t coreIndex, f16 angle, f16 radius) const {
         if (!currentScene) {
             return CRGB::Black;
