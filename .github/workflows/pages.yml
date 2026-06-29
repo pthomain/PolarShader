@@ -34,6 +34,9 @@ jobs:
       - name: Build static site
         run: python web/build_site.py
 
+      - name: Prevent Jekyll processing
+        run: touch web/dist/.nojekyll
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
