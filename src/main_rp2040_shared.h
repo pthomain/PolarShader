@@ -28,6 +28,10 @@
 
 #include "display/FastLedDisplay.h"
 
+#ifdef POLAR_SHADER_RANDOM_MODE
+#include "renderer/pipeline/random/RandomEffectBuilder.h"
+#endif
+
 #ifndef POLAR_SHADER_RP2040_BRIGHTNESS
 #define POLAR_SHADER_RP2040_BRIGHTNESS 255
 #endif
@@ -50,6 +54,20 @@ namespace PolarShader {
         static void setup() {
             static Spec specInstance;
             Serial.begin(115200);
+
+#ifdef POLAR_SHADER_RANDOM_MODE
+            // Wire up per-scene analog-pin entropy injection. Same pin list
+            // FastLedDisplay uses for its initial random16_set_seed, minus
+            // the LED pin. random_fx::setEntropyPins() also configures each
+            // pin as INPUT (idempotent with FastLedDisplay's own pinMode).
+            fl::vector<uint8_t> entropyPins = {2, 3, 4, 5, 6, 7, 8, 9, 10};
+            entropyPins.erase(
+                fl::remove(entropyPins.begin(), entropyPins.end(), Spec::LED_PIN),
+                entropyPins.end()
+            );
+            random_fx::setEntropyPins(std::move(entropyPins));
+#endif
+
             Display *createdDisplay = new Display(
                 specInstance,
                 POLAR_SHADER_RP2040_BRIGHTNESS,

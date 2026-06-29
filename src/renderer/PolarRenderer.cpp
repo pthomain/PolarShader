@@ -25,15 +25,25 @@
 #include <renderer/scene/SceneManager.h>
 #include <renderer/layer/Layer.h>
 
+#ifdef POLAR_SHADER_RANDOM_MODE
+#include <renderer/scene/RandomSceneProvider.h>
+#endif
+
 namespace PolarShader {
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
         const PolarCoordsMapper& coordsMapper
-    ) : sceneManager(std::make_unique<DefaultSceneProvider>([]() {
-            fl::vector<std::shared_ptr<Layer> > layers;
-            layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
-            return std::make_unique<Scene>(std::move(layers));
-        })),
+    ) : sceneManager(
+#ifdef POLAR_SHADER_RANDOM_MODE
+            std::make_unique<RandomSceneProvider>()
+#else
+            std::make_unique<DefaultSceneProvider>([]() {
+                fl::vector<std::shared_ptr<Layer> > layers;
+                layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
+                return std::make_unique<Scene>(std::move(layers));
+            })
+#endif
+        ),
         nbLeds(nbLeds) {
         precomputedCoords.reserve(nbLeds);
         for (uint16_t i = 0; i < nbLeds; ++i) {
