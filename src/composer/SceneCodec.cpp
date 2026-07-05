@@ -93,6 +93,27 @@ namespace PolarShader::composer {
             PAT_FLURRY            = 0x0A, // body: u8 gridSize + u8 lineCount + u8 shape + 6 signals
             PAT_WORLEY            = 0x0B, // body: i32 cellSize raw + u8 aliasingMode
             PAT_VORONOI           = 0x0C, // body: i32 cellSize raw + u8 aliasingMode
+
+            // PatternFlow bare field patterns (one tag per Variant). Body layout:
+            // static config bytes (if any) THEN ordered Sf16Signal blobs.
+            PAT_PF_DUAL_AXIS        = 0x0D, // signals: phaseSpeed, warp, thickness
+            PAT_PF_COUNTER_RIBBONS  = 0x0E, // signals: phaseSpeed, warp, thickness
+            PAT_PF_QUAD_DIRECTIONAL = 0x0F, // signals: phaseSpeed, warp, thickness
+            PAT_PF_POSTERIZED       = 0x10, // u8 posterizeLevels; signals: phaseSpeed, warp, thickness
+            PAT_PF_CROSS            = 0x11, // signals: phaseSpeed, warp, thickness
+            PAT_PF_PETALS           = 0x12, // u8 petalCount; signals: phaseSpeed, fold, thickness
+            PAT_PF_RIPPLE           = 0x13, // u8 waveCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_ORGANIC          = 0x14, // u8 contourLevels + u8 hardEdges; signals: phaseSpeed, tension
+            PAT_PF_TOPOGRAPHIC      = 0x15, // u8 contourLevels + u8 hardEdges; signals: phaseSpeed, tension
+            PAT_PF_PLASMA           = 0x16, // signals: phaseSpeed, warp, thickness
+            PAT_PF_TENDRILS         = 0x17, // signals: phaseSpeed, warp, thickness
+            PAT_PF_LIQUID_GATE      = 0x18, // signals: phaseSpeed, warp, thickness
+            PAT_PF_CONCENTRIC_GRID  = 0x19, // u8 cellCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_ROW_SEGMENTS     = 0x1A, // u8 cellCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_SHAPES           = 0x1B, // u8 cellCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_DOTS             = 0x1C, // u8 cellCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_WAVE_MATRIX      = 0x1D, // u8 cellCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_RADIAL_PULSE     = 0x1E, // u8 cellCount; signals: phaseSpeed, warp, thickness
         };
 
         enum TransformTag : uint8_t {
@@ -105,6 +126,7 @@ namespace PolarShader::composer {
             TFM_PALETTE           = 0x06, // body: signal offset (offset-only PaletteTransform)
             TFM_TILING            = 0x07, // body: u8 mirrored + u8 shape + signal cellSize
             TFM_FLOW_FIELD        = 0x08, // body: 4 signals (phaseSpeed, flowStrength, fieldScale, maxOffset)
+            TFM_PALETTE_CLIP      = 0x09, // body: u16 maxFeather + u8 clipPower + u8 colourMask + signal offset + signal clip
         };
 
         // ───── Bounds-checked byte reader ─────────────────────────────
@@ -430,6 +452,99 @@ namespace PolarShader::composer {
                         : voronoiPattern(cell, alias);
                 }
 
+                // ── PatternFlow bare fields ──────────────────────────
+                // Interference/Plasma variants: no config, 3 signals.
+                case PAT_PF_DUAL_AXIS:
+                case PAT_PF_COUNTER_RIBBONS:
+                case PAT_PF_QUAD_DIRECTIONAL:
+                case PAT_PF_CROSS:
+                case PAT_PF_PLASMA:
+                case PAT_PF_TENDRILS:
+                case PAT_PF_LIQUID_GATE: {
+                    Sf16Signal phaseSpeed = decodeSignal(r, status);
+                    Sf16Signal warp       = decodeSignal(r, status);
+                    Sf16Signal thickness  = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    switch (tag) {
+                        case PAT_PF_DUAL_AXIS:        return pfDualAxis(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_COUNTER_RIBBONS:  return pfCounterRibbons(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_QUAD_DIRECTIONAL: return pfQuadDirectional(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_CROSS:            return pfCross(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_PLASMA:           return pfPlasma(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_TENDRILS:         return pfTendrils(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_LIQUID_GATE:      return pfLiquidGate(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                    }
+                    return nullptr;
+                }
+
+                case PAT_PF_POSTERIZED: {
+                    uint8_t levels = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status);
+                    Sf16Signal warp       = decodeSignal(r, status);
+                    Sf16Signal thickness  = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfPosterized(levels, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                }
+
+                case PAT_PF_PETALS: {
+                    uint8_t petalCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status);
+                    Sf16Signal fold       = decodeSignal(r, status);
+                    Sf16Signal thickness  = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfPetals(petalCount, std::move(phaseSpeed), std::move(fold), std::move(thickness));
+                }
+
+                case PAT_PF_RIPPLE: {
+                    uint8_t waveCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status);
+                    Sf16Signal warp       = decodeSignal(r, status);
+                    Sf16Signal thickness  = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfRipple(waveCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                }
+
+                // Contour variants: u8 contourLevels + u8 hardEdges, 2 signals.
+                case PAT_PF_ORGANIC:
+                case PAT_PF_TOPOGRAPHIC: {
+                    uint8_t contourLevels = r.readU8();
+                    uint8_t hardEdges     = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status);
+                    Sf16Signal tension    = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return tag == PAT_PF_ORGANIC
+                        ? pfOrganic(contourLevels, hardEdges != 0, std::move(phaseSpeed), std::move(tension))
+                        : pfTopographic(contourLevels, hardEdges != 0, std::move(phaseSpeed), std::move(tension));
+                }
+
+                // Cellular variants: u8 cellCount, 3 signals.
+                case PAT_PF_CONCENTRIC_GRID:
+                case PAT_PF_ROW_SEGMENTS:
+                case PAT_PF_SHAPES:
+                case PAT_PF_DOTS:
+                case PAT_PF_WAVE_MATRIX:
+                case PAT_PF_RADIAL_PULSE: {
+                    uint8_t cellCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status);
+                    Sf16Signal warp       = decodeSignal(r, status);
+                    Sf16Signal thickness  = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    switch (tag) {
+                        case PAT_PF_CONCENTRIC_GRID: return pfConcentricGrid(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_ROW_SEGMENTS:    return pfRowSegments(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_SHAPES:          return pfShapes(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_DOTS:            return pfDots(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_WAVE_MATRIX:     return pfWaveMatrix(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_RADIAL_PULSE:    return pfRadialPulse(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                    }
+                    return nullptr;
+                }
+
                 default:
                     setStatusIfOk(status, DecodeStatus::UNKNOWN_TAG);
                     return nullptr;
@@ -490,6 +605,36 @@ namespace PolarShader::composer {
                     Sf16Signal offset = decodeSignal(r, status);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addPaletteTransform(PaletteTransform(std::move(offset)));
+                    return true;
+                }
+                case TFM_PALETTE_CLIP: {
+                    uint16_t maxFeatherRaw = r.readU16();
+                    uint8_t clipPowerByte = r.readU8();
+                    uint8_t colourMaskByte = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return false; }
+
+                    PipelineContext::PaletteClipPower clipPower;
+                    switch (clipPowerByte) {
+                        case 0:
+                            clipPower = PipelineContext::PaletteClipPower::None;
+                            break;
+                        case 1:
+                            clipPower = PipelineContext::PaletteClipPower::Square;
+                            break;
+                        case 2:
+                            clipPower = PipelineContext::PaletteClipPower::Quartic;
+                            break;
+                        default:
+                            setStatusIfOk(status, DecodeStatus::BAD_ENUM);
+                            return false;
+                    }
+
+                    Sf16Signal offset = decodeSignal(r, status);
+                    Sf16Signal clip = decodeSignal(r, status);
+                    if (*status != DecodeStatus::OK) return false;
+                    builder.addPaletteTransform(PaletteTransform(
+                        std::move(offset), std::move(clip), f16(maxFeatherRaw), clipPower,
+                        colourMaskByte != 0));
                     return true;
                 }
                 case TFM_TILING: {

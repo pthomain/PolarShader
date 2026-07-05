@@ -51,6 +51,10 @@ namespace PolarShader {
         bool paletteClipInvert = false;
         // Whether palette clipping should be applied.
         bool paletteClipEnabled = false;
+        // Colour-mask mode: tint the whole scene with the single colour at
+        // paletteOffset and use the pattern value (shaped by the clip mask)
+        // as alpha, instead of mapping the pattern value to a palette index.
+        bool paletteColourMask = false;
 
         // Palette brightness is always full when mapping colors.
     };

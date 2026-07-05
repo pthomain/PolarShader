@@ -110,6 +110,17 @@ namespace PolarShader {
             }
         }
 
+        if (context && context->paletteColourMask) {
+            // Colour-mask mode: paletteOffset selects a single tint colour for
+            // the whole scene; the pattern value drives alpha (brightness),
+            // further shaped by the clip mask. When the clip signal is 0 the
+            // mask is fully open (F16_MAX), so alpha reduces to the raw value.
+            CRGB color = ColorFromPalette(palette, context->paletteOffset, 255, LINEARBLEND);
+            uint16_t alpha = scale16(hue_value, mask_value);
+            color.nscale8_video(static_cast<uint8_t>(alpha >> 8));
+            return color;
+        }
+
         uint8_t index = fl::map16_to_8(hue_value);
         if (context) {
             index = static_cast<uint8_t>(index + context->paletteOffset);

@@ -56,6 +56,7 @@ namespace PolarShader {
         f16 maxFeather = f16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
+        bool colourMask = false;
     };
 
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(Sf16Signal offset) {
@@ -68,7 +69,8 @@ namespace PolarShader {
         Sf16Signal offset,
         Sf16Signal clipSignal,
         f16 maxFeather,
-        PipelineContext::PaletteClipPower clipPower
+        PipelineContext::PaletteClipPower clipPower,
+        bool colourMask
     ) {
         return MappedInputs{
             std::move(offset),
@@ -76,7 +78,8 @@ namespace PolarShader {
             std::move(clipSignal),
             maxFeather,
             clipPower,
-            true
+            true,
+            colourMask
         };
     }
 
@@ -90,6 +93,7 @@ namespace PolarShader {
         f16 maxFeather = f16(0);
         PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
+        bool colourMask = false;
 
         explicit State(MappedInputs inputs)
             : offsetSignal(std::move(inputs.offsetSignal)),
@@ -97,7 +101,8 @@ namespace PolarShader {
               clipSignal(std::move(inputs.clipSignal)),
               maxFeather(inputs.maxFeather),
               clipPower(inputs.clipPower),
-              hasClip(inputs.hasClip) {
+              hasClip(inputs.hasClip),
+              colourMask(inputs.colourMask) {
         }
     };
 
@@ -109,13 +114,15 @@ namespace PolarShader {
         Sf16Signal offset,
         Sf16Signal clipSignal,
         f16 maxFeather,
-        PipelineContext::PaletteClipPower clipPower
+        PipelineContext::PaletteClipPower clipPower,
+        bool colourMask
     ) {
         state = std::make_shared<State>(makeInputs(
             std::move(offset),
             std::move(clipSignal),
             maxFeather,
-            clipPower
+            clipPower,
+            colourMask
         ));
     }
 
@@ -133,8 +140,10 @@ namespace PolarShader {
                 context->paletteClipPower = state->clipPower;
                 context->paletteClipInvert = state->clipInvert;
                 context->paletteClipEnabled = true;
+                context->paletteColourMask = state->colourMask;
             } else {
                 context->paletteClipEnabled = false;
+                context->paletteColourMask = false;
             }
         } else {
             Serial.println("PaletteTransform::advanceFrame context is null.");

@@ -45,7 +45,8 @@ namespace PolarShader {
             Sf16Signal offset,
             Sf16Signal clipSignal,
             f16 maxFeather = perMil(500),
-            PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square
+            PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::Square,
+            bool colourMask = false
         );
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
@@ -61,7 +62,8 @@ namespace PolarShader {
             Sf16Signal offset,
             Sf16Signal clipSignal,
             f16 maxFeather,
-            PipelineContext::PaletteClipPower clipPower
+            PipelineContext::PaletteClipPower clipPower,
+            bool colourMask
         );
 
         struct State;

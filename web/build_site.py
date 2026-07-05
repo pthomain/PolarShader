@@ -81,6 +81,11 @@ EXCLUDED_SOURCE_DIRS = {
 
 EXCLUDED_AMALGAMATED_SOURCE_PATHS = {
     "display/src/SmartMatrixDisplay.cpp",
+    # Native-only PGM/PPM dumper: ships its own main() and includes
+    # native/Arduino.h (a dir excluded from staging). platformio.ini keeps it
+    # out of every env except native_pf_snapshot; exclude it here too so the
+    # WASM unity build never links a second main.
+    "tools/pf_snapshot.cpp",
 }
 
 
@@ -512,6 +517,70 @@ def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -
     index_path.write_text(text, encoding="utf-8")
 
 
+# The FastLED CLI generates a background render worker (fastled_background_worker.js)
+# that runs its own wasm module and owns the OffscreenCanvas — the main-thread
+# module's frames are never shown. Its onmessage switch has no case for the
+# composer's live-scene push, so composer_apply_scene never reaches the visible
+# module. We inject a case + handler here (the file is regenerated every build,
+# so this must run post-generation rather than being a checked-in edit).
+_WORKER_CASE_ANCHOR = (
+    "      default:\n"
+    "        throw new Error(`Unknown message type: ${type}`);"
+)
+_WORKER_CASE_INJECT = (
+    '      case "composer_apply_scene":\n'
+    "        response = handleComposerApplyScene(payload);\n"
+    "        break;\n"
+    + _WORKER_CASE_ANCHOR
+)
+_WORKER_HANDLER = """
+
+// Injected by PolarShader build_site.py (patch_render_worker): apply a composer
+// .psc scene to this worker's wasm module, which owns the OffscreenCanvas. The
+// worker uses `workerState.fastledModule` as its Module; `_composer_apply_scene`
+// is an EMSCRIPTEN_KEEPALIVE export of the composer sketch. Returns { status }
+// where status is 0 on success or a non-zero composer::DecodeStatus.
+function handleComposerApplyScene(payload) {
+  const Module = workerState.fastledModule;
+  if (!Module || !Module._composer_apply_scene || !Module._malloc || !Module.HEAPU8) {
+    return { status: -1 };
+  }
+  const bytes = new Uint8Array(payload && payload.bytes ? payload.bytes : []);
+  const ptr = Module._malloc(bytes.length);
+  Module.HEAPU8.set(bytes, ptr);
+  const status = Module._composer_apply_scene(ptr, bytes.length);
+  Module._free(ptr);
+  return { status };
+}
+"""
+
+
+def patch_render_worker(dist_sketch_dir: Path) -> None:
+    """Inject a composer_apply_scene message handler into the FastLED-generated
+    background render worker so live scene pushes reach the module that owns the
+    canvas. Raises if the expected anchor is gone (FastLED changed the worker),
+    so a silent no-op can't mask a broken composer."""
+    worker_path = dist_sketch_dir / "fastled_background_worker.js"
+    if not worker_path.exists():
+        raise FileNotFoundError(
+            f"Render worker not found for panel sketch: {worker_path}. "
+            "FastLED no longer emits a background worker — the composer's "
+            "worker-routed scene apply needs revisiting."
+        )
+    text = worker_path.read_text(encoding="utf-8")
+    if "handleComposerApplyScene" in text:
+        return
+    if _WORKER_CASE_ANCHOR not in text:
+        raise RuntimeError(
+            f"Cannot patch {worker_path}: onmessage switch anchor not found. "
+            "The FastLED worker's message dispatch changed; update "
+            "patch_render_worker."
+        )
+    text = text.replace(_WORKER_CASE_ANCHOR, _WORKER_CASE_INJECT, 1)
+    text = text + _WORKER_HANDLER
+    worker_path.write_text(text, encoding="utf-8")
+
+
 def build_site() -> None:
     reset_directory(STAGE_ROOT)
     reset_directory(DIST_ROOT)
@@ -525,6 +594,7 @@ def build_site() -> None:
         shutil.copytree(output_dir, dist_sketch_dir)
         if sketch.name in SKETCHES_WITH_PANEL:
             inject_panel_assets(sketch, dist_sketch_dir, SKETCHES_WITH_PANEL[sketch.name])
+            patch_render_worker(dist_sketch_dir)
 
     shutil.copy2(LANDING_PAGE, DIST_ROOT / "index.html")
 

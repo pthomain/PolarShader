@@ -31,6 +31,7 @@
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 #include <renderer/pipeline/patterns/SpiralPattern.h>
 #include <renderer/pipeline/patterns/AnnuliPattern.h>
+#include <renderer/pipeline/patterns/patternflow/PatternFlow.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
 
 #include "renderer/pipeline/signals/Signals.h"

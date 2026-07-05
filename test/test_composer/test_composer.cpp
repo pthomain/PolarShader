@@ -69,6 +69,7 @@ namespace {
         PAT_TILING            = 0x04,
         PAT_TRANSPORT         = 0x07,
         PAT_ANNULI            = 0x09,
+        PAT_PF_DOTS           = 0x1C,
     };
 
     enum : uint8_t {
@@ -76,6 +77,7 @@ namespace {
         TFM_ZOOM              = 0x02,
         TFM_KALEIDOSCOPE      = 0x04,
         TFM_PALETTE           = 0x06,
+        TFM_PALETTE_CLIP      = 0x09,
     };
 
     class WireBuilder {
@@ -195,6 +197,43 @@ namespace {
         return std::make_unique<Scene>(std::move(layers));
     }
 
+    std::unique_ptr<Scene> buildReferencePfDots() {
+        // pfDots with constant signals is deterministic (no random state).
+        const ::CRGBPalette16 *p = paletteById(0);
+        LayerBuilder b(pfDots(6, constant(500), constant(400), constant(600)),
+                       *p, "ref");
+        fl::vector<std::shared_ptr<Layer>> layers;
+        layers.push_back(std::make_shared<Layer>(b.build()));
+        return std::make_unique<Scene>(std::move(layers));
+    }
+
+    std::unique_ptr<Scene> buildReferencePaletteClip() {
+        const ::CRGBPalette16 *p = paletteById(1);
+        LayerBuilder b(annuliPattern(8, 32, false, 80, 800), *p, "ref");
+        b.addPaletteTransform(PaletteTransform(
+            constant(100),
+            constant(300),
+            perMil(250),
+            PipelineContext::PaletteClipPower::Quartic));
+        fl::vector<std::shared_ptr<Layer>> layers;
+        layers.push_back(std::make_shared<Layer>(b.build()));
+        return std::make_unique<Scene>(std::move(layers));
+    }
+
+    std::unique_ptr<Scene> buildReferencePaletteColourMask() {
+        const ::CRGBPalette16 *p = paletteById(1);
+        LayerBuilder b(annuliPattern(8, 32, false, 80, 800), *p, "ref");
+        b.addPaletteTransform(PaletteTransform(
+            constant(100),
+            constant(300),
+            perMil(250),
+            PipelineContext::PaletteClipPower::Quartic,
+            true));  // colourMask
+        fl::vector<std::shared_ptr<Layer>> layers;
+        layers.push_back(std::make_shared<Layer>(b.build()));
+        return std::make_unique<Scene>(std::move(layers));
+    }
+
 }  // namespace
 
 // ═════════════════════════════════════════════════════════════════════
@@ -287,6 +326,98 @@ void test_decode_determinism_nested_smap_signal() {
     ::CRGB outDecoded[16];
     ::CRGB outReference[16];
     const TimeMillis t = 3000;
+    runScene(*decoded, t, outDecoded);
+    runScene(*reference, t, outReference);
+
+    TEST_ASSERT_TRUE(renderEqual(outDecoded, outReference));
+}
+
+void test_decode_determinism_palette_clip_transform() {
+    // Wire format: AnnuliPattern + PaletteTransform(offset, clip, maxFeather, Quartic).
+    // Palette clip config bytes (maxFeather, clipPower, colourMask) are encoded
+    // before the offset/clip signal slots.
+    WireBuilder w;
+    w.header(1)
+     .u8(PAT_ANNULI)
+     .u8(8).u8(32).u8(0).u16(80).u16(800)
+     .u8(1)
+     .u8(TFM_PALETTE_CLIP)
+       .u16(raw(perMil(250)))
+       .u8(2)
+       .u8(0)
+       .sigConstant(100)
+       .sigConstant(300);
+
+    DecodeStatus status;
+    auto decoded = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+
+    auto reference = buildReferencePaletteClip();
+
+    ::CRGB outDecoded[16];
+    ::CRGB outReference[16];
+    const TimeMillis t = 1500;
+    runScene(*decoded, t, outDecoded);
+    runScene(*reference, t, outReference);
+
+    TEST_ASSERT_TRUE(renderEqual(outDecoded, outReference));
+}
+
+void test_decode_determinism_palette_colour_mask() {
+    // Same wire layout as the palette-clip test but with the colourMask byte
+    // set to 1, so the decoded transform tints the scene via paletteOffset and
+    // uses the pattern value as alpha.
+    WireBuilder w;
+    w.header(1)
+     .u8(PAT_ANNULI)
+     .u8(8).u8(32).u8(0).u16(80).u16(800)
+     .u8(1)
+     .u8(TFM_PALETTE_CLIP)
+       .u16(raw(perMil(250)))
+       .u8(2)
+       .u8(1)
+       .sigConstant(100)
+       .sigConstant(300);
+
+    DecodeStatus status;
+    auto decoded = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+
+    auto reference = buildReferencePaletteColourMask();
+
+    ::CRGB outDecoded[16];
+    ::CRGB outReference[16];
+    const TimeMillis t = 1500;
+    runScene(*decoded, t, outDecoded);
+    runScene(*reference, t, outReference);
+
+    TEST_ASSERT_TRUE(renderEqual(outDecoded, outReference));
+}
+
+void test_decode_determinism_pf_dots() {
+    // Wire format: pfDots (PatternFlow cellular field, tag 0x1C).
+    // Body: u8 cellCount THEN 3 signals (phaseSpeed, warp, thickness).
+    WireBuilder w;
+    w.header(0)
+     .u8(PAT_PF_DOTS)
+     .u8(6)                    // cellCount
+     .sigConstant(500)         // phaseSpeed
+     .sigConstant(400)         // warp
+     .sigConstant(600)         // thickness
+     .u8(0);                   // 0 transforms
+
+    DecodeStatus status;
+    auto decoded = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+
+    auto reference = buildReferencePfDots();
+
+    ::CRGB outDecoded[16];
+    ::CRGB outReference[16];
+    const TimeMillis t = 2000;
     runScene(*decoded, t, outDecoded);
     runScene(*reference, t, outReference);
 
@@ -443,6 +574,19 @@ void test_decode_bad_pattern_enum() {
     TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
 }
 
+void test_decode_bad_palette_clip_power() {
+    WireBuilder w;
+    w.header(0)
+     .u8(PAT_NOISE_BASIC).sigConstant(550)
+     .u8(1)
+     .u8(TFM_PALETTE_CLIP).u16(raw(perMil(250))).u8(0xFF).u8(0);
+
+    DecodeStatus status;
+    auto s = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_NULL(s.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // Test harness
 // ═════════════════════════════════════════════════════════════════════
@@ -453,6 +597,9 @@ void setup() {
     RUN_TEST(test_decode_determinism_minimal);
     RUN_TEST(test_decode_determinism_full_transform_stack);
     RUN_TEST(test_decode_determinism_nested_smap_signal);
+    RUN_TEST(test_decode_determinism_palette_clip_transform);
+    RUN_TEST(test_decode_determinism_palette_colour_mask);
+    RUN_TEST(test_decode_determinism_pf_dots);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_golden_fixture);
@@ -464,6 +611,7 @@ void setup() {
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
     RUN_TEST(test_decode_bad_pattern_enum);
+    RUN_TEST(test_decode_bad_palette_clip_power);
     UNITY_END();
 }
 
@@ -474,6 +622,9 @@ int main() {
     RUN_TEST(test_decode_determinism_minimal);
     RUN_TEST(test_decode_determinism_full_transform_stack);
     RUN_TEST(test_decode_determinism_nested_smap_signal);
+    RUN_TEST(test_decode_determinism_palette_clip_transform);
+    RUN_TEST(test_decode_determinism_palette_colour_mask);
+    RUN_TEST(test_decode_determinism_pf_dots);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_golden_fixture);
@@ -485,6 +636,7 @@ int main() {
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
     RUN_TEST(test_decode_bad_pattern_enum);
+    RUN_TEST(test_decode_bad_palette_clip_power);
     return UNITY_END();
 }
 #endif

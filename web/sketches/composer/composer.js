@@ -10,7 +10,7 @@
 // of the viewport.
 
 import {
-    PALETTES, PATTERNS, TRANSFORMS, DEFAULT_SCENE, DEFAULT_SIGNAL,
+    PALETTES, PATTERNS, TRANSFORMS, PF_PRESETS, DEFAULT_SCENE, DEFAULT_SIGNAL,
 } from './schema.js';
 import { encodeScene, decodeScene } from './codec.js';
 import { renderSignalSlot } from './signal-editor.js';
@@ -73,15 +73,25 @@ function mutateScene(path, value, mutator) {
 }
 
 function formatValue(value) {
-    const text = typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
-    if (text.length <= 140) return text;
-    return `${text.slice(0, 137)}...`;
+    return typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
 }
 
 function signalSummary(signal) {
     return {
         id: signal?.id,
         params: signal?.params ?? {},
+    };
+}
+
+// The render view of the scene: transforms toggled off in the UI (enabled ===
+// false) are dropped so the renderer never applies them, while they stay
+// intact in the UI model (params unchanged) for quick re-enabling. `enabled`
+// is UI-only state — it has no PSC wire representation, so it lives purely on
+// the JS scene object. A shallow copy is fine: encodeScene only reads.
+function sceneForRender(scene) {
+    return {
+        ...scene,
+        transforms: (scene.transforms ?? []).filter((t) => t.enabled !== false),
     };
 }
 
@@ -128,6 +138,10 @@ function logDebug(kind, detail) {
 function mountDebugConsole() {
     if (document.getElementById('composer-debug-console')) return;
 
+    // FastLED injects a default "Async Controls" box (Start/Stop/Toggle/FPS)
+    // that the composer does not use — remove it.
+    document.getElementById('fastled-async-controls')?.remove();
+
     const panel = document.createElement('div');
     panel.id = 'composer-debug-console';
 
@@ -140,8 +154,7 @@ function mountDebugConsole() {
     state.debugLogEl.className = 'composer-debug-log';
     panel.appendChild(state.debugLogEl);
 
-    const anchor = document.getElementById('fastled-async-controls')
-        ?? document.getElementById('canvas-container');
+    const anchor = document.getElementById('canvas-container');
     if (anchor) {
         anchor.insertAdjacentElement('afterend', panel);
     } else {
@@ -173,6 +186,13 @@ function getWorkerManager() {
 }
 
 async function callApplyScene(bytes) {
+    // Route to the render worker first when it is active. This FastLED build
+    // renders in a background worker that owns the OffscreenCanvas and runs
+    // its OWN wasm module — the main-thread module's frames are never shown.
+    // A scene is only visible if it reaches the worker's module. The worker's
+    // composer_apply_scene message handler is injected by build_site.py
+    // (patch_render_worker). Fall back to the main module only before the
+    // worker activates (early boot); that scene is re-pushed on worker init.
     const workerManager = getWorkerManager();
     if (workerManager) {
         const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
@@ -184,12 +204,15 @@ async function callApplyScene(bytes) {
     }
 
     const M = getWasmModule();
-    if (!M || !M._composer_apply_scene || !M._malloc) return { status: -1, target: 'none' };
-    const ptr = M._malloc(bytes.length);
-    M.HEAPU8.set(bytes, ptr);
-    const status = M._composer_apply_scene(ptr, bytes.length);
-    M._free(ptr);
-    return { status, target: 'main' };
+    if (M && M._composer_apply_scene && M._malloc) {
+        const ptr = M._malloc(bytes.length);
+        M.HEAPU8.set(bytes, ptr);
+        const status = M._composer_apply_scene(ptr, bytes.length);
+        M._free(ptr);
+        return { status, target: 'main' };
+    }
+
+    return { status: -1, target: 'none' };
 }
 
 const STATUS_LABELS = [
@@ -214,7 +237,7 @@ function schedulePush() {
         state.pushFrame = null;
         const pushEvent = state.latestEvent;
         try {
-            const bytes = encodeScene(sceneStore.scene);
+            const bytes = encodeScene(sceneForRender(sceneStore.scene));
             const result = await callApplyScene(bytes);
             const status = result.status;
             if (status === 0) {
@@ -406,6 +429,7 @@ function renderTransformsSection() {
     const addRow = document.createElement('div'); addRow.className = 'add-row';
     const addSel = document.createElement('select');
     for (const [id, def] of Object.entries(TRANSFORMS)) {
+        if (def.hidden) continue;
         const opt = document.createElement('option');
         opt.value = id; opt.textContent = def.label;
         addSel.appendChild(opt);
@@ -422,10 +446,30 @@ function renderTransformsSection() {
             hydrateSignals(def.signals, t.signals);
 
             const card = document.createElement('div'); card.className = 'transform-card';
+            if (t.enabled === false) card.classList.add('transform-disabled');
             const header = document.createElement('div'); header.className = 'transform-header';
             const title = document.createElement('span'); title.className = 'transform-title';
             title.textContent = `${i + 1}. ${def.label}`;
             header.appendChild(title);
+
+            // Enabled toggle: unchecking drops this transform from the render
+            // push (sceneForRender) without touching its params, so its effect
+            // can be compared on/off instantly.
+            const enableWrap = document.createElement('label');
+            enableWrap.className = 'transform-enable';
+            const enableCb = document.createElement('input');
+            enableCb.type = 'checkbox';
+            enableCb.checked = t.enabled !== false;
+            enableCb.addEventListener('change', () => {
+                mutateScene(`transforms.${i}.${t.id}.enabled`, enableCb.checked, () => {
+                    t.enabled = enableCb.checked;
+                });
+                card.classList.toggle('transform-disabled', !enableCb.checked);
+            });
+            enableWrap.appendChild(enableCb);
+            enableWrap.appendChild(Object.assign(
+                document.createElement('span'), { textContent: 'Enabled' }));
+            header.appendChild(enableWrap);
 
             const btnUp   = document.createElement('button'); btnUp.textContent   = '↑';
             const btnDown = document.createElement('button'); btnDown.textContent = '↓';
@@ -546,6 +590,29 @@ function renderTopSection() {
     ioRow.appendChild(saveBtn); ioRow.appendChild(loadBtn); ioRow.appendChild(fileIn);
     section.appendChild(ioRow);
 
+    // PatternFlow ready-made presets: load a bare pf pattern + its transform
+    // stack in one click (mirrors the native pf*Preset recipes).
+    const presetRow = document.createElement('div'); presetRow.className = 'top-row';
+    presetRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'PF preset' }));
+    const presetSel = document.createElement('select');
+    for (const p of PF_PRESETS) {
+        const o = document.createElement('option'); o.value = p.id; o.textContent = p.label;
+        presetSel.appendChild(o);
+    }
+    const presetBtn = document.createElement('button'); presetBtn.textContent = 'Load';
+    presetBtn.addEventListener('click', () => {
+        const preset = PF_PRESETS.find((p) => p.id === presetSel.value);
+        if (!preset) return;
+        const nextScene = preset.scene();
+        sceneStore.setScene(nextScene, {
+            path: 'scene.preset',
+            value: preset.label,
+        });
+        rebuildPanel();
+    });
+    presetRow.appendChild(presetSel); presetRow.appendChild(presetBtn);
+    section.appendChild(presetRow);
+
     state.statusEl = document.createElement('div');
     state.statusEl.className = 'status';
     state.statusEl.textContent = 'idle';
@@ -559,26 +626,102 @@ function renderTopSection() {
 // ─────────────────────────────────────────────────────────────────────
 
 let panelEl = null;
+let panelContentEl = null;
+
+const MIN_PANEL_WIDTH = 320;
+const MIN_RENDERER_WIDTH = 280;
+
+function clampPanelWidth(width) {
+    const max = Math.max(MIN_PANEL_WIDTH, window.innerWidth - MIN_RENDERER_WIDTH);
+    return Math.min(Math.max(width, MIN_PANEL_WIDTH), max);
+}
+
+function setPanelWidth(width) {
+    if (!panelEl) return;
+    panelEl.style.width = `${clampPanelWidth(width)}px`;
+}
+
+function mountResizeHandle() {
+    const handle = document.createElement('div');
+    handle.className = 'composer-resize-handle';
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('aria-orientation', 'vertical');
+    handle.setAttribute('aria-label', 'Resize composer panel');
+
+    handle.addEventListener('pointerdown', (event) => {
+        if (!panelEl) return;
+        event.preventDefault();
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add('dragging');
+        document.body.classList.add('composer-resizing');
+
+        const startX = event.clientX;
+        const startWidth = panelEl.getBoundingClientRect().width;
+
+        const onPointerMove = (moveEvent) => {
+            setPanelWidth(startWidth + startX - moveEvent.clientX);
+        };
+        const onPointerUp = (upEvent) => {
+            handle.releasePointerCapture(upEvent.pointerId);
+            handle.classList.remove('dragging');
+            document.body.classList.remove('composer-resizing');
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerUp);
+            handle.removeEventListener('pointercancel', onPointerUp);
+        };
+
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerUp);
+        handle.addEventListener('pointercancel', onPointerUp);
+    });
+
+    panelEl.appendChild(handle);
+}
 
 function rebuildPanel() {
-    if (!panelEl) return;
-    panelEl.innerHTML = '';
+    if (!panelContentEl) return;
+    panelContentEl.innerHTML = '';
     const title = document.createElement('h1');
     title.textContent = 'Composer';
-    panelEl.appendChild(title);
-    panelEl.appendChild(renderTopSection());
-    panelEl.appendChild(renderPatternSection());
-    panelEl.appendChild(renderTransformsSection());
+    panelContentEl.appendChild(title);
+    panelContentEl.appendChild(renderTopSection());
+    panelContentEl.appendChild(renderPatternSection());
+    panelContentEl.appendChild(renderTransformsSection());
 }
 
 function mountPanel() {
     panelEl = document.createElement('aside');
     panelEl.id = 'composer-panel';
+    mountResizeHandle();
+    panelContentEl = document.createElement('div');
+    panelContentEl.id = 'composer-panel-content';
+    panelEl.appendChild(panelContentEl);
     document.body.appendChild(panelEl);
+    setPanelWidth(window.innerWidth / 2);
+    window.addEventListener('resize', () => {
+        setPanelWidth(panelEl.getBoundingClientRect().width);
+    });
     mountDebugConsole();
     rebuildPanel();
+    rePushOnWorkerInit();
     // Push the initial scene once WASM is ready.
     sceneStore.notify({ path: 'scene.initial', value: sceneSummary(sceneStore.scene) });
+}
+
+// If the render worker activates AFTER the first scene was applied to the
+// main-thread module, that scene never reached the worker's module (which
+// owns the canvas), so the display keeps showing the C++ default. Re-push the
+// current scene once the worker comes up so it takes over rendering it.
+function rePushOnWorkerInit() {
+    const events = window.fastLEDEvents;
+    if (!events || typeof events.on !== 'function') {
+        setTimeout(rePushOnWorkerInit, 100);
+        return;
+    }
+    events.on('worker:initialized', () => {
+        logDebug('worker', 'render worker active — re-pushing scene');
+        schedulePush();
+    });
 }
 
 // Wait for FastLED's runtime to expose getFastLEDController() with our

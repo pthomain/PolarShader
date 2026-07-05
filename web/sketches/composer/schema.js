@@ -38,6 +38,7 @@ export const FLOWFIELD_MODES   = ['Lissajous', 'Dots', 'Both'];
 export const RD_PRESETS        = ['Spots', 'Stripes', 'Coral', 'Worms'];
 export const TILE_SHAPES       = ['SQUARE', 'TRIANGLE', 'HEXAGON'];
 export const WORLEY_ALIASING   = ['None', 'Fast', 'Precise'];
+export const PALETTE_CLIP_POWERS = ['None', 'Square', 'Quartic'];
 
 // ─────────────────────────────────────────────────────────────────────
 // Signal definitions. Tag values are SIG_* in SceneCodec.cpp.
@@ -231,6 +232,107 @@ export const PATTERNS = {
         ],
         signals: [],
     },
+
+    // ── PatternFlow bare field patterns (one entry per Variant) ──────────
+    // Adapted from engmung/Patternflow (CC-BY-SA-4.0). Global scale/rotation/
+    // fold/palette are NOT pattern params — add them as transforms, or load a
+    // ready-made recipe from PF_PRESETS below.
+    pfDualAxis: {
+        tag: 0x0D, label: 'PF — Dual Axis (0510)',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfCounterRibbons: {
+        tag: 0x0E, label: 'PF — Counter Ribbons (0515)',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfQuadDirectional: {
+        tag: 0x0F, label: 'PF — Quad Directional (0515-3)',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfPosterized: {
+        tag: 0x10, label: 'PF — Posterized (0531)',
+        config: [{ name: 'posterizeLevels', kind: 'u8', default: 5 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfCross: {
+        tag: 0x11, label: 'PF — Cross (0614-2)',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfPetals: {
+        tag: 0x12, label: 'PF — Petals (0512)',
+        config: [{ name: 'petalCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'fold' }, { name: 'thickness' }],
+    },
+    pfRipple: {
+        tag: 0x13, label: 'PF — Ripple (0524-2)',
+        config: [{ name: 'waveCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfOrganic: {
+        tag: 0x14, label: 'PF — Organic (0519-1)',
+        config: [
+            { name: 'contourLevels', kind: 'u8',   default: 10 },
+            { name: 'hardEdges',     kind: 'bool', default: 0 },
+        ],
+        signals: [{ name: 'phaseSpeed' }, { name: 'tension' }],
+    },
+    pfTopographic: {
+        tag: 0x15, label: 'PF — Topographic (0529)',
+        config: [
+            { name: 'contourLevels', kind: 'u8',   default: 8 },
+            { name: 'hardEdges',     kind: 'bool', default: 0 },
+        ],
+        signals: [{ name: 'phaseSpeed' }, { name: 'tension' }],
+    },
+    pfPlasma: {
+        tag: 0x16, label: 'PF — Plasma',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfTendrils: {
+        tag: 0x17, label: 'PF — Tendrils (0520)',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfLiquidGate: {
+        tag: 0x18, label: 'PF — Liquid Gate (0530)',
+        config: [],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfConcentricGrid: {
+        tag: 0x19, label: 'PF — Concentric Grid (Origin)',
+        config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfRowSegments: {
+        tag: 0x1A, label: 'PF — Row Segments (0511)',
+        config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfShapes: {
+        tag: 0x1B, label: 'PF — Shapes (0514)',
+        config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfDots: {
+        tag: 0x1C, label: 'PF — Dots (0528)',
+        config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfWaveMatrix: {
+        tag: 0x1D, label: 'PF — Wave Matrix (0601)',
+        config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
+    pfRadialPulse: {
+        tag: 0x1E, label: 'PF — Radial Pulse (0624)',
+        config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
+        signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
+    },
 };
 
 export const PATTERN_BY_TAG = (() => {
@@ -281,9 +383,22 @@ export const TRANSFORMS = {
         signals: [],
     },
     palette: {
-        tag: 0x06, label: 'Palette (offset)',
+        // Offset-only palette transform. Hidden from the composer's add menu
+        // because palette-clip already exposes an offset signal; kept in the
+        // schema so PatternFlow presets (pfPalette) and existing scenes that
+        // use tag 0x06 still encode, decode, and display correctly.
+        tag: 0x06, label: 'Palette (offset)', hidden: true,
         config: [],
         signals: [{ name: 'offset' }],
+    },
+    paletteClip: {
+        tag: 0x09, label: 'Palette (clip)',
+        config: [
+            { name: 'maxFeather',      kind: 'f16',  default: 32768, label: 'max feather (raw f16)' },
+            { name: 'clipPower',       kind: 'enum', options: PALETTE_CLIP_POWERS, default: 1 },
+            { name: 'useAsColourMask', kind: 'bool', default: 0, label: 'use as colour mask' },
+        ],
+        signals: [{ name: 'offset' }, { name: 'clip' }],
     },
     tiling: {
         tag: 0x07, label: 'Tiling',
@@ -308,6 +423,102 @@ export const TRANSFORM_BY_TAG = (() => {
     for (const [id, def] of Object.entries(TRANSFORMS)) m[def.tag] = id;
     return m;
 })();
+
+// ─────────────────────────────────────────────────────────────────────
+// PatternFlow ready-made presets.
+//
+// Each entry mirrors a pf*Preset recipe in
+// src/renderer/pipeline/patterns/patternflow/PatternFlowPresets.cpp — a
+// bare pf field pattern plus its transform stack (palette-offset, zoom,
+// rotation, vortex, kaleidoscope, tiling). The bare patterns expose only
+// intrinsic field controls; the "look" of an effect lives in these
+// recipes. scene() returns a FRESH model so loading one never mutates the
+// library. Palette defaults to Rainbow (id 0); the C++ presets take the
+// palette as an argument, so it is free to change after loading.
+// ─────────────────────────────────────────────────────────────────────
+
+const pfK    = (permille) => ({ id: 'constant', params: { permille } });
+const pfSine = (permille) => ({
+    id: 'sine', params: { phaseVelocity: pfK(permille), phaseOffset: 0 },
+});
+
+// Bare pf pattern model with schema defaults (matches the C++ factory
+// defaults the presets rely on).
+function pfPatternModel(id) {
+    const def = PATTERNS[id];
+    const config = {};
+    for (const c of def.config) config[c.name] = c.default ?? 0;
+    const signals = {};
+    for (const s of def.signals) signals[s.name] = DEFAULT_SIGNAL();
+    return { id, config, signals };
+}
+
+const pfPalette       = (n)   => ({ id: 'palette', config: {}, signals: { offset: pfSine(n) } });
+const pfZoom          = (n)   => ({ id: 'zoom', config: {}, signals: { scale: pfK(n) } });
+const pfRotate        = (n)   => ({ id: 'rotation', config: { isAngleTurn: 1 }, signals: { angle: pfK(n) } });
+const pfVortex        = (n)   => ({ id: 'vortex', config: {}, signals: { strength: pfK(n) } });
+const pfRadialKaleido = (div) => ({ id: 'radialKaleidoscope', config: { radialDivisions: div, isMirrored: 1 }, signals: {} });
+const pfTiling        = (n)   => ({ id: 'tiling', config: { mirrored: 0, shape: 0 }, signals: { cellSize: pfK(n) } });
+
+export const PF_PRESETS = [
+    { id: 'pfConcentricGrid', label: 'Concentric Grid (Origin)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfConcentricGrid'),
+                      transforms: [pfPalette(120), pfZoom(400), pfRotate(60)] }) },
+    { id: 'pfDualAxis', label: 'Dual Axis (0510)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfDualAxis'),
+                      transforms: [pfPalette(150), pfZoom(450)] }) },
+    { id: 'pfRowSegments', label: 'Row Segments (0511)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRowSegments'),
+                      transforms: [pfPalette(100), pfZoom(400)] }) },
+    { id: 'pfPetals', label: 'Petals (0512)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfPetals'),
+                      transforms: [pfPalette(140), pfRotate(80)] }) },
+    { id: 'pfShapes', label: 'Shapes (0514)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfShapes'),
+                      transforms: [pfPalette(130), pfZoom(450)] }) },
+    { id: 'pfCounterRibbons', label: 'Counter Ribbons (0515)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfCounterRibbons'),
+                      transforms: [pfPalette(160), pfZoom(450)] }) },
+    { id: 'pfQuadDirectional', label: 'Quad Directional (0515-3)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfQuadDirectional'),
+                      transforms: [pfPalette(150), pfZoom(450)] }) },
+    { id: 'pfOrganic', label: 'Organic (0519-1)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfOrganic'),
+                      transforms: [pfPalette(120), pfZoom(500)] }) },
+    { id: 'pfTendrils', label: 'Tendrils (0520)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfTendrils'),
+                      transforms: [pfPalette(140), pfZoom(500), pfRotate(50)] }) },
+    { id: 'pfRipple', label: 'Ripple (0524-2)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRipple'),
+                      transforms: [pfPalette(150), pfZoom(450), pfRotate(40)] }) },
+    { id: 'pfKaleidoVortex', label: 'Kaleido Vortex (0526)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRipple'),
+                      transforms: [pfPalette(160), pfZoom(450), pfVortex(500), pfRadialKaleido(6)] }) },
+    { id: 'pfDots', label: 'Dots (0528)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfDots'),
+                      transforms: [pfPalette(150), pfZoom(400)] }) },
+    { id: 'pfTopographic', label: 'Topographic (0529)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfTopographic'),
+                      transforms: [pfPalette(120), pfZoom(500)] }) },
+    { id: 'pfLiquidGate', label: 'Liquid Gate (0530)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfLiquidGate'),
+                      transforms: [pfPalette(170), pfZoom(500), pfRotate(45)] }) },
+    { id: 'pfPosterized', label: 'Posterized (0531)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfPosterized'),
+                      transforms: [pfPalette(160), pfZoom(450)] }) },
+    { id: 'pfWaveMatrix', label: 'Wave Matrix (0601)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfWaveMatrix'),
+                      transforms: [pfPalette(150), pfZoom(400)] }) },
+    { id: 'pfPlasma', label: 'Plasma',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfPlasma'),
+                      transforms: [pfPalette(140), pfZoom(500), pfRotate(40)] }) },
+    { id: 'pfCross', label: 'Cross (0614-2)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfCross'),
+                      transforms: [pfPalette(150), pfTiling(1000), pfZoom(355), pfRotate(30)] }) },
+    { id: 'pfRadialPulse', label: 'Radial Pulse (0624)',
+      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRadialPulse'),
+                      transforms: [pfPalette(160), pfZoom(450)] }) },
+];
 
 // Initial scene model the composer mounts with.
 export const DEFAULT_SCENE = () => ({
