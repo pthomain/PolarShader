@@ -173,6 +173,36 @@ function sceneSummary(scene) {
     };
 }
 
+function slugForFilename(value) {
+    return String(value ?? '')
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .trim()
+        .replace(/^pf\W+/i, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function timestampForFilename(date = new Date()) {
+    const parts = [
+        date.getFullYear().toString(),
+        (date.getMonth() + 1).toString().padStart(2, '0'),
+        date.getDate().toString().padStart(2, '0'),
+        '-',
+        date.getHours().toString().padStart(2, '0'),
+        date.getMinutes().toString().padStart(2, '0'),
+        date.getSeconds().toString().padStart(2, '0'),
+    ];
+    return parts.join('');
+}
+
+function pscDownloadFilename(scene) {
+    const patternId = scene.pattern?.id ?? '';
+    const patternName = PATTERNS[patternId]?.label ?? patternId;
+    const prefix = slugForFilename(patternName) || slugForFilename(patternId) || 'scene';
+    return `${prefix}-${timestampForFilename()}.psc`;
+}
+
 function persistBootSceneBytes(bytes) {
     try {
         state.lastGoodBootBytes = new Uint8Array(bytes);
@@ -878,7 +908,7 @@ function renderTopSection() {
             const blob = new Blob([bytes], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'composer.psc';
+            a.href = url; a.download = pscDownloadFilename(sceneStore.scene);
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (e) {
