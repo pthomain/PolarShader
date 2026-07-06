@@ -19,6 +19,7 @@
  */
 
 #include "display/SmartMatrixDisplay.h"
+#include "display/DisplayEntropy.h"
 
 #ifdef SMARTMATRIX_ENABLED
 
@@ -67,6 +68,8 @@ namespace PolarShader {
         renderer(spec.nbLeds(), [&spec](uint16_t pixelIndex) { return spec.toPolarCoords(pixelIndex); }),
         outputArray(new CRGB[spec.nbLeds()]),
         refreshRateInMillis(refreshRateInMillis) {
+        DisplayEntropy::addFloatingPinEntropy(DisplayEntropy::kTeensySmartMatrixFloatingPins);
+
         matrix.addLayer(&backgroundLayer);
         matrix.setRefreshRate(120);
         matrix.begin();
