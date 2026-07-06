@@ -173,6 +173,30 @@ body.composer-resizing {
     color: #8b95a0;
 }
 
+.composer-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.composer-tabs button {
+    width: 100%;
+}
+
+.composer-tabs button.active {
+    background: #39404a;
+    border-color: #56616f;
+    color: #ffffff;
+}
+
+.muted-note {
+    flex: 1;
+    min-width: 0;
+    color: #6a7480;
+    font-size: 12px;
+}
+
 input[type="number"], input[type="range"], select {
     background: #1d2026;
     border: 1px solid #2e333b;
