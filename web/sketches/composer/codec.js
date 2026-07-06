@@ -73,6 +73,7 @@ function writeParam(w, paramSchema, value) {
         case 'i32':      w.i32(value | 0); break;
         case 'bool':     w.u8(value ? 1 : 0); break;
         case 'enum':     w.u8(value | 0); break;
+        case 'tintMode': w.u8(value | 0); break;
         case 'permille': w.u16(value | 0); break;
         case 'f16':      w.u16(value | 0); break;
         case 'signal':   writeSignal(w, value); break;
@@ -88,6 +89,7 @@ function readParam(r, paramSchema) {
         case 'i32':      return r.i32();
         case 'bool':     return r.u8() !== 0 ? 1 : 0;
         case 'enum':     return r.u8();
+        case 'tintMode': return r.u8();
         case 'permille': return r.u16();
         case 'f16':      return r.u16();
         case 'signal':   return readSignal(r);

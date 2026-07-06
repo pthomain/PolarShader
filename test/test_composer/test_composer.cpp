@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 
+#include "composer/EmbeddedPscPlaylist.h"
 #include "composer/SceneCodec.h"
 #include "composer/PaletteTable.h"
 #include "renderer/scene/Scene.h"
@@ -56,28 +57,72 @@ namespace {
         SIG_CONSTANT          = 0x00,
         SIG_C_RANDOM          = 0x01,
         SIG_LINEAR            = 0x02,
+        SIG_QUADRATIC_IN      = 0x03,
+        SIG_QUADRATIC_OUT     = 0x04,
         SIG_QUADRATIC_IN_OUT  = 0x05,
         SIG_SINE              = 0x10,
+        SIG_SINE_BOUNDED      = 0x11,
+        SIG_SINE_BOUNDED_PH   = 0x12,
+        SIG_TRIANGLE          = 0x13,
+        SIG_TRIANGLE_BOUNDED  = 0x14,
+        SIG_TRIANGLE_BOUNDED_PH = 0x15,
+        SIG_SQUARE            = 0x16,
+        SIG_SQUARE_BOUNDED    = 0x17,
+        SIG_SQUARE_BOUNDED_PH = 0x18,
+        SIG_SAWTOOTH          = 0x19,
+        SIG_SAWTOOTH_BOUNDED  = 0x1A,
+        SIG_SAWTOOTH_BOUNDED_PH = 0x1B,
         SIG_NOISE             = 0x1C,
+        SIG_NOISE_BOUNDED     = 0x1D,
+        SIG_NOISE_BOUNDED_PH  = 0x1E,
         SIG_SMAP              = 0x1F,
+        SIG_SCALE             = 0x20,
     };
 
     enum : uint8_t {
         PAT_NOISE_BASIC       = 0x00,
         PAT_NOISE_FBM         = 0x01,
         PAT_NOISE_TURBULENCE  = 0x02,
+        PAT_NOISE_RIDGED      = 0x03,
         PAT_TILING            = 0x04,
+        PAT_REACTION_DIFFUSION= 0x05,
+        PAT_FLOW_FIELD        = 0x06,
         PAT_TRANSPORT         = 0x07,
+        PAT_SPIRAL            = 0x08,
         PAT_ANNULI            = 0x09,
+        PAT_FLURRY            = 0x0A,
+        PAT_WORLEY            = 0x0B,
+        PAT_VORONOI           = 0x0C,
+        PAT_PF_DUAL_AXIS      = 0x0D,
+        PAT_PF_COUNTER_RIBBONS= 0x0E,
+        PAT_PF_QUAD_DIRECTIONAL = 0x0F,
+        PAT_PF_POSTERIZED     = 0x10,
+        PAT_PF_CROSS          = 0x11,
+        PAT_PF_PETALS         = 0x12,
+        PAT_PF_RIPPLE         = 0x13,
+        PAT_PF_ORGANIC        = 0x14,
+        PAT_PF_TOPOGRAPHIC    = 0x15,
+        PAT_PF_PLASMA         = 0x16,
+        PAT_PF_TENDRILS       = 0x17,
+        PAT_PF_LIQUID_GATE    = 0x18,
         PAT_PF_CONCENTRIC_GRID= 0x19,
+        PAT_PF_ROW_SEGMENTS   = 0x1A,
+        PAT_PF_SHAPES         = 0x1B,
         PAT_PF_DOTS           = 0x1C,
+        PAT_PF_WAVE_MATRIX    = 0x1D,
+        PAT_PF_RADIAL_PULSE   = 0x1E,
     };
 
     enum : uint8_t {
         TFM_ROTATION          = 0x00,
+        TFM_TRANSLATION       = 0x01,
         TFM_ZOOM              = 0x02,
+        TFM_VORTEX            = 0x03,
         TFM_KALEIDOSCOPE      = 0x04,
+        TFM_RADIAL_KALEIDO    = 0x05,
         TFM_PALETTE           = 0x06,
+        TFM_TILING            = 0x07,
+        TFM_FLOW_FIELD        = 0x08,
         TFM_PALETTE_CLIP      = 0x09,
     };
 
@@ -122,6 +167,178 @@ namespace {
     private:
         std::vector<uint8_t> data_;
     };
+
+    void appendSignal(WireBuilder &w, uint8_t tag) {
+        switch (tag) {
+            case SIG_CONSTANT:
+                w.sigConstant(500);
+                return;
+            case SIG_C_RANDOM:
+                w.u8(SIG_C_RANDOM);
+                return;
+            case SIG_LINEAR:
+            case SIG_QUADRATIC_IN:
+            case SIG_QUADRATIC_OUT:
+            case SIG_QUADRATIC_IN_OUT:
+                w.u8(tag).u32(1000).u8(0);
+                return;
+            case SIG_SINE:
+            case SIG_TRIANGLE:
+            case SIG_SQUARE:
+            case SIG_SAWTOOTH:
+            case SIG_NOISE:
+                w.u8(tag).sigConstant(120).i32(0);
+                return;
+            case SIG_SINE_BOUNDED:
+            case SIG_TRIANGLE_BOUNDED:
+            case SIG_SQUARE_BOUNDED:
+            case SIG_SAWTOOTH_BOUNDED:
+            case SIG_NOISE_BOUNDED:
+                w.u8(tag).sigConstant(120).sigConstant(200).sigConstant(800);
+                return;
+            case SIG_SINE_BOUNDED_PH:
+            case SIG_TRIANGLE_BOUNDED_PH:
+            case SIG_SQUARE_BOUNDED_PH:
+            case SIG_SAWTOOTH_BOUNDED_PH:
+            case SIG_NOISE_BOUNDED_PH:
+                w.u8(tag).sigConstant(120).i32(0).sigConstant(200).sigConstant(800);
+                return;
+            case SIG_SMAP:
+                w.u8(SIG_SMAP).sigConstant(500).sigConstant(100).sigConstant(900);
+                return;
+            case SIG_SCALE:
+                w.u8(SIG_SCALE).sigConstant(500).u16(raw(perMil(500)));
+                return;
+            default:
+                TEST_FAIL_MESSAGE("unknown test signal tag");
+        }
+    }
+
+    void appendPattern(WireBuilder &w, uint8_t tag) {
+        w.u8(tag);
+        switch (tag) {
+            case PAT_NOISE_BASIC:
+                appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_NOISE_FBM:
+                w.u8(4);
+                return;
+            case PAT_NOISE_TURBULENCE:
+            case PAT_NOISE_RIDGED:
+                return;
+            case PAT_TILING:
+                w.u16(32).u8(4).u8(static_cast<uint8_t>(TilingPattern::TileShape::HEXAGON));
+                return;
+            case PAT_REACTION_DIFFUSION:
+                w.u8(static_cast<uint8_t>(ReactionDiffusionPattern::Preset::Coral))
+                 .u8(20).u8(20).u8(4);
+                return;
+            case PAT_FLOW_FIELD:
+                w.u8(32).u8(3).u8(static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both));
+                for (uint8_t i = 0; i < 8; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_TRANSPORT:
+                w.u8(16)
+                 .u8(static_cast<uint8_t>(TransportPattern::TransportMode::Shockwave))
+                 .u8(0);
+                for (uint8_t i = 0; i < 4; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_SPIRAL:
+                w.u8(2).u8(1);
+                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_ANNULI:
+                w.u8(8).u8(32).u8(0).u16(80).u16(800);
+                return;
+            case PAT_FLURRY:
+                w.u8(32).u8(1).u8(static_cast<uint8_t>(FlurryPattern::Shape::Line));
+                for (uint8_t i = 0; i < 6; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_WORLEY:
+            case PAT_VORONOI:
+                w.i32(256).u8(static_cast<uint8_t>(WorleyAliasing::Fast));
+                return;
+            case PAT_PF_DUAL_AXIS:
+            case PAT_PF_COUNTER_RIBBONS:
+            case PAT_PF_QUAD_DIRECTIONAL:
+            case PAT_PF_CROSS:
+            case PAT_PF_PLASMA:
+            case PAT_PF_TENDRILS:
+            case PAT_PF_LIQUID_GATE:
+                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_PF_POSTERIZED:
+                w.u8(5);
+                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_PF_PETALS:
+            case PAT_PF_RIPPLE:
+                w.u8(6);
+                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_PF_ORGANIC:
+            case PAT_PF_TOPOGRAPHIC:
+                w.u8(8).u8(0);
+                for (uint8_t i = 0; i < 2; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            case PAT_PF_CONCENTRIC_GRID:
+            case PAT_PF_ROW_SEGMENTS:
+            case PAT_PF_SHAPES:
+            case PAT_PF_DOTS:
+            case PAT_PF_WAVE_MATRIX:
+            case PAT_PF_RADIAL_PULSE:
+                w.u8(6);
+                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            default:
+                TEST_FAIL_MESSAGE("unknown test pattern tag");
+        }
+    }
+
+    void appendTransform(WireBuilder &w, uint8_t tag) {
+        w.u8(tag);
+        switch (tag) {
+            case TFM_TRANSLATION:
+                appendSignal(w, SIG_CONSTANT);
+                appendSignal(w, SIG_CONSTANT);
+                return;
+            case TFM_VORTEX:
+                appendSignal(w, SIG_CONSTANT);
+                return;
+            case TFM_RADIAL_KALEIDO:
+                w.u16(6).u8(1);
+                return;
+            case TFM_TILING:
+                w.u8(0).u8(static_cast<uint8_t>(TilingMaths::TileShape::HEXAGON));
+                appendSignal(w, SIG_CONSTANT);
+                return;
+            case TFM_FLOW_FIELD:
+                for (uint8_t i = 0; i < 4; ++i) appendSignal(w, SIG_CONSTANT);
+                return;
+            default:
+                TEST_FAIL_MESSAGE("unknown test transform tag");
+        }
+    }
+
+    void assertDecodeCompileSample(WireBuilder &w) {
+        DecodeStatus status;
+        auto decoded = decodeScene(w.data(), w.size(), &status);
+        TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+        TEST_ASSERT_NOT_NULL(decoded.get());
+        decoded->compile();
+        decoded->advanceFrame(f16(0xFFFFu), 1000);
+        ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
+        (void) sample;
+    }
+
+    void assertEveryPrefixRejected(WireBuilder &full) {
+        for (std::size_t prefix = 0; prefix < full.size(); ++prefix) {
+            DecodeStatus status = DecodeStatus::OK;
+            auto scene = decodeScene(full.data(), prefix, &status);
+            TEST_ASSERT_NULL(scene.get());
+            TEST_ASSERT_NOT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+        }
+    }
 
     // ───── Render-equality helper ─────────────────────────────────────
     //
@@ -226,8 +443,7 @@ namespace {
         b.addPaletteTransform(PaletteTransform(
             constant(100),
             constant(300),
-            perMil(250),
-            PipelineContext::PaletteClipPower::Quartic));
+            perMil(250)));
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(b.build()));
         return std::make_unique<Scene>(std::move(layers));
@@ -240,8 +456,7 @@ namespace {
             constant(100),
             constant(300),
             perMil(250),
-            PipelineContext::PaletteClipPower::Quartic,
-            true));  // colourMask
+            PipelineContext::PaletteTintMode::ColourMask));
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(b.build()));
         return std::make_unique<Scene>(std::move(layers));
@@ -346,9 +561,9 @@ void test_decode_determinism_nested_smap_signal() {
 }
 
 void test_decode_determinism_palette_clip_transform() {
-    // Wire format: AnnuliPattern + PaletteTransform(offset, clip, maxFeather, Quartic).
-    // Palette clip config bytes (maxFeather, clipPower, colourMask) are encoded
-    // before the offset/clip signal slots.
+    // Wire format: AnnuliPattern + PaletteTransform(offset, clip, maxFeather).
+    // Palette clip config bytes (maxFeather, tintMode) are encoded before the
+    // offset/clip signal slots.
     WireBuilder w;
     w.header(1)
      .u8(PAT_ANNULI)
@@ -356,7 +571,6 @@ void test_decode_determinism_palette_clip_transform() {
      .u8(1)
      .u8(TFM_PALETTE_CLIP)
        .u16(raw(perMil(250)))
-       .u8(2)
        .u8(0)
        .sigConstant(100)
        .sigConstant(300);
@@ -378,9 +592,9 @@ void test_decode_determinism_palette_clip_transform() {
 }
 
 void test_decode_determinism_palette_colour_mask() {
-    // Same wire layout as the palette-clip test but with the colourMask byte
-    // set to 1, so the decoded transform tints the scene via paletteOffset and
-    // uses the pattern value as alpha.
+    // Same wire layout as the palette-clip test but with the tintMode byte set
+    // to 1 (colour-mask), so the decoded transform tints the scene via
+    // paletteOffset and uses the pattern value as alpha.
     WireBuilder w;
     w.header(1)
      .u8(PAT_ANNULI)
@@ -388,7 +602,6 @@ void test_decode_determinism_palette_colour_mask() {
      .u8(1)
      .u8(TFM_PALETTE_CLIP)
        .u16(raw(perMil(250)))
-       .u8(2)
        .u8(1)
        .sigConstant(100)
        .sigConstant(300);
@@ -501,6 +714,165 @@ void test_decode_default_noise_succeeds() {
     TEST_ASSERT_NOT_NULL(decoded.get());
 }
 
+void test_decode_all_signal_tags_compile() {
+    static const uint8_t kSignalTags[] = {
+        SIG_CONSTANT,
+        SIG_C_RANDOM,
+        SIG_LINEAR,
+        SIG_QUADRATIC_IN,
+        SIG_QUADRATIC_OUT,
+        SIG_QUADRATIC_IN_OUT,
+        SIG_SINE,
+        SIG_SINE_BOUNDED,
+        SIG_SINE_BOUNDED_PH,
+        SIG_TRIANGLE,
+        SIG_TRIANGLE_BOUNDED,
+        SIG_TRIANGLE_BOUNDED_PH,
+        SIG_SQUARE,
+        SIG_SQUARE_BOUNDED,
+        SIG_SQUARE_BOUNDED_PH,
+        SIG_SAWTOOTH,
+        SIG_SAWTOOTH_BOUNDED,
+        SIG_SAWTOOTH_BOUNDED_PH,
+        SIG_NOISE,
+        SIG_NOISE_BOUNDED,
+        SIG_NOISE_BOUNDED_PH,
+        SIG_SMAP,
+        SIG_SCALE,
+    };
+
+    for (uint8_t tag : kSignalTags) {
+        WireBuilder w;
+        w.header(0).u8(PAT_NOISE_BASIC);
+        appendSignal(w, tag);
+        w.u8(0);
+        assertDecodeCompileSample(w);
+    }
+}
+
+void test_decode_all_pattern_tags_compile() {
+    static const uint8_t kPatternTags[] = {
+        PAT_NOISE_BASIC,
+        PAT_NOISE_FBM,
+        PAT_NOISE_TURBULENCE,
+        PAT_NOISE_RIDGED,
+        PAT_TILING,
+        PAT_REACTION_DIFFUSION,
+        PAT_FLOW_FIELD,
+        PAT_TRANSPORT,
+        PAT_SPIRAL,
+        PAT_ANNULI,
+        PAT_FLURRY,
+        PAT_WORLEY,
+        PAT_VORONOI,
+        PAT_PF_DUAL_AXIS,
+        PAT_PF_COUNTER_RIBBONS,
+        PAT_PF_QUAD_DIRECTIONAL,
+        PAT_PF_POSTERIZED,
+        PAT_PF_CROSS,
+        PAT_PF_PETALS,
+        PAT_PF_RIPPLE,
+        PAT_PF_ORGANIC,
+        PAT_PF_TOPOGRAPHIC,
+        PAT_PF_PLASMA,
+        PAT_PF_TENDRILS,
+        PAT_PF_LIQUID_GATE,
+        PAT_PF_CONCENTRIC_GRID,
+        PAT_PF_ROW_SEGMENTS,
+        PAT_PF_SHAPES,
+        PAT_PF_DOTS,
+        PAT_PF_WAVE_MATRIX,
+        PAT_PF_RADIAL_PULSE,
+    };
+
+    for (uint8_t tag : kPatternTags) {
+        WireBuilder w;
+        w.header(0);
+        appendPattern(w, tag);
+        w.u8(0);
+        assertDecodeCompileSample(w);
+    }
+}
+
+void test_decode_uncovered_transform_tags_compile() {
+    static const uint8_t kTransformTags[] = {
+        TFM_TRANSLATION,
+        TFM_VORTEX,
+        TFM_RADIAL_KALEIDO,
+        TFM_TILING,
+        TFM_FLOW_FIELD,
+    };
+
+    for (uint8_t tag : kTransformTags) {
+        WireBuilder w;
+        w.header(1);
+        appendPattern(w, PAT_ANNULI);
+        w.u8(1);
+        appendTransform(w, tag);
+        assertDecodeCompileSample(w);
+    }
+}
+
+void test_decode_scene_with_duration_overrides_default() {
+    WireBuilder w;
+    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+
+    DecodeStatus status;
+    auto decoded = decodeSceneWithDuration(w.data(), w.size(), 30000, &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(30000, decoded->getDuration());
+}
+
+void test_embedded_psc_playlist_provider_decodes_scene() {
+    WireBuilder w;
+    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+
+    EmbeddedPscScene scenes[] = {
+        {"test.psc", w.data(), w.size()},
+    };
+
+    EmbeddedPscPlaylistProvider provider(scenes, 1, 30000);
+    auto decoded = provider.nextScene();
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(30000, decoded->getDuration());
+}
+
+void test_embedded_psc_playlist_provider_falls_back_after_decode_fail() {
+    WireBuilder corrupt;
+    corrupt.header(0).u8(0xEE);
+
+    WireBuilder fallbackWire;
+    fallbackWire.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+
+    EmbeddedPscScene scenes[] = {
+        {"corrupt.psc", corrupt.data(), corrupt.size()},
+    };
+
+    auto fallbackProvider = std::make_unique<DefaultSceneProvider>([&fallbackWire]() {
+        return decodeScene(fallbackWire.data(), fallbackWire.size());
+    });
+
+    EmbeddedPscPlaylistProvider provider(scenes, 1, 30000, std::move(fallbackProvider));
+    auto decoded = provider.nextScene();
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, decoded->getDuration());
+}
+
+void test_embedded_psc_playlist_provider_has_builtin_fallback() {
+    WireBuilder corrupt;
+    corrupt.header(0).u8(0xEE);
+
+    EmbeddedPscScene scenes[] = {
+        {"corrupt.psc", corrupt.data(), corrupt.size()},
+    };
+
+    EmbeddedPscPlaylistProvider provider(scenes, 1, 30000);
+    auto decoded = provider.nextScene();
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, decoded->getDuration());
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // Group 3 — Cross-implementation golden fixture
 // ═════════════════════════════════════════════════════════════════════
@@ -551,8 +923,8 @@ void test_decode_compile_reported_pf_cross_fixture() {
         0x04, 0x01, 0x02, 0x1D, 0x00, 0xD9, 0x00, 0x00,
         0x00, 0x00, 0x00, 0xAE, 0x00, 0x00, 0x01, 0x1C,
         0x00, 0xB4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x09,
-        0x00, 0x80, 0x00, 0x01, 0x00, 0xF4, 0x01, 0x00,
-        0x00, 0x00,
+        0x00, 0x80, 0x01, 0x00, 0xF4, 0x01, 0x00, 0x00,
+        0x00,
     };
 
     DecodeStatus status;
@@ -584,6 +956,32 @@ void test_decode_truncated_at_every_prefix() {
         TEST_ASSERT_NULL(scene.get());
         TEST_ASSERT_NOT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
     }
+}
+
+void test_decode_complex_truncated_at_every_prefix() {
+    WireBuilder full;
+    full.header(1)
+     .u8(PAT_FLOW_FIELD)
+     .u8(32)
+     .u8(3)
+     .u8(static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both));
+    appendSignal(full, SIG_SINE_BOUNDED_PH);
+    appendSignal(full, SIG_TRIANGLE_BOUNDED);
+    appendSignal(full, SIG_SQUARE);
+    appendSignal(full, SIG_SAWTOOTH_BOUNDED_PH);
+    appendSignal(full, SIG_NOISE_BOUNDED_PH);
+    appendSignal(full, SIG_SMAP);
+    appendSignal(full, SIG_SCALE);
+    appendSignal(full, SIG_QUADRATIC_OUT);
+    full.u8(5);
+    appendTransform(full, TFM_TRANSLATION);
+    appendTransform(full, TFM_VORTEX);
+    appendTransform(full, TFM_RADIAL_KALEIDO);
+    appendTransform(full, TFM_TILING);
+    appendTransform(full, TFM_FLOW_FIELD);
+
+    assertDecodeCompileSample(full);
+    assertEveryPrefixRejected(full);
 }
 
 void test_decode_bad_magic() {
@@ -649,12 +1047,12 @@ void test_decode_bad_pattern_enum() {
     TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
 }
 
-void test_decode_bad_palette_clip_power() {
+void test_decode_bad_palette_tint_mode() {
     WireBuilder w;
     w.header(0)
      .u8(PAT_NOISE_BASIC).sigConstant(550)
      .u8(1)
-     .u8(TFM_PALETTE_CLIP).u16(raw(perMil(250))).u8(0xFF).u8(0);
+     .u8(TFM_PALETTE_CLIP).u16(raw(perMil(250))).u8(0xFF);
 
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
@@ -678,9 +1076,17 @@ void setup() {
     RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
+    RUN_TEST(test_decode_all_signal_tags_compile);
+    RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_uncovered_transform_tags_compile);
+    RUN_TEST(test_decode_scene_with_duration_overrides_default);
+    RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
+    RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
+    RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
+    RUN_TEST(test_decode_complex_truncated_at_every_prefix);
     RUN_TEST(test_decode_bad_magic);
     RUN_TEST(test_decode_bad_version);
     RUN_TEST(test_decode_bad_palette_id);
@@ -688,7 +1094,7 @@ void setup() {
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
     RUN_TEST(test_decode_bad_pattern_enum);
-    RUN_TEST(test_decode_bad_palette_clip_power);
+    RUN_TEST(test_decode_bad_palette_tint_mode);
     UNITY_END();
 }
 
@@ -705,9 +1111,17 @@ int main() {
     RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
+    RUN_TEST(test_decode_all_signal_tags_compile);
+    RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_uncovered_transform_tags_compile);
+    RUN_TEST(test_decode_scene_with_duration_overrides_default);
+    RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
+    RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
+    RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
+    RUN_TEST(test_decode_complex_truncated_at_every_prefix);
     RUN_TEST(test_decode_bad_magic);
     RUN_TEST(test_decode_bad_version);
     RUN_TEST(test_decode_bad_palette_id);
@@ -715,7 +1129,7 @@ int main() {
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
     RUN_TEST(test_decode_bad_pattern_enum);
-    RUN_TEST(test_decode_bad_palette_clip_power);
+    RUN_TEST(test_decode_bad_palette_tint_mode);
     return UNITY_END();
 }
 #endif

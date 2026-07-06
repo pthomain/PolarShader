@@ -99,13 +99,17 @@ namespace fl {
     }
 }
 
+struct CHSV;
+
 struct CRGB {
     uint8_t r;
     uint8_t g;
     uint8_t b;
     CRGB() : r(0), g(0), b(0) {}
     CRGB(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
-    
+    CRGB(const CHSV& rhs);
+    static CRGB CHSV_to_CRGB(const CHSV& hsv);
+
     static const CRGB Black;
 
     void nscale8_video(uint8_t scale) {
@@ -131,6 +135,35 @@ struct CRGB {
 };
 
 inline const CRGB CRGB::Black = CRGB(0, 0, 0);
+
+struct CHSV {
+    uint8_t h;
+    uint8_t s;
+    uint8_t v;
+    CHSV() : h(0), s(0), v(0) {}
+    CHSV(uint8_t h, uint8_t s, uint8_t v) : h(h), s(s), v(v) {}
+};
+
+// Standard 6-sextant HSV->RGB. The real FastLED uses hsv2rgb_rainbow; this
+// approximation is deterministic and honours the brightness (v) channel, so
+// native tests can assert Native-mode colour exactly.
+inline CRGB CRGB::CHSV_to_CRGB(const CHSV& hsv) {
+    const uint8_t region = hsv.h / 43;         // 0..5
+    const uint8_t rem = (hsv.h - region * 43) * 6;  // 0..255 within region
+    const uint8_t p = (hsv.v * (255 - hsv.s)) >> 8;
+    const uint8_t q = (hsv.v * (255 - ((hsv.s * rem) >> 8))) >> 8;
+    const uint8_t t = (hsv.v * (255 - ((hsv.s * (255 - rem)) >> 8))) >> 8;
+    switch (region) {
+        case 0:  return CRGB(hsv.v, t, p);
+        case 1:  return CRGB(q, hsv.v, p);
+        case 2:  return CRGB(p, hsv.v, t);
+        case 3:  return CRGB(p, q, hsv.v);
+        case 4:  return CRGB(t, p, hsv.v);
+        default: return CRGB(hsv.v, p, q);
+    }
+}
+
+inline CRGB::CRGB(const CHSV& rhs) { *this = CHSV_to_CRGB(rhs); }
 
 enum TBlendType { NOBLEND, LINEARBLEND };
 

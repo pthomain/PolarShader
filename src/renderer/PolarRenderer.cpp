@@ -25,15 +25,51 @@
 #include <renderer/scene/SceneManager.h>
 #include <renderer/layer/Layer.h>
 
+#if __has_include("PscPlaylistConfig.h")
+#include "PscPlaylistConfig.h"
+#endif
+
+#ifndef POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST
+#define POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST 0
+#endif
+
+#if POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST
+#include "composer/EmbeddedPscPlaylist.h"
+#endif
+
 namespace PolarShader {
+    namespace {
+        std::unique_ptr<SceneProvider> makeDefaultRendererProvider() {
+            return std::make_unique<DefaultSceneProvider>([]() {
+                fl::vector<std::shared_ptr<Layer> > layers;
+                layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
+                return std::make_unique<Scene>(std::move(layers));
+            });
+        }
+
+        std::unique_ptr<SceneProvider> makeInitialRendererProvider() {
+#if POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST
+            if (auto playlist = composer::makeEmbeddedPscPlaylistProvider(
+                composer::kDefaultEmbeddedPscDurationMs,
+                makeDefaultRendererProvider())) {
+                return playlist;
+            }
+#endif
+            return makeDefaultRendererProvider();
+        }
+    }
+
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
         const PolarCoordsMapper& coordsMapper
-    ) : sceneManager(std::make_unique<DefaultSceneProvider>([]() {
-            fl::vector<std::shared_ptr<Layer> > layers;
-            layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
-            return std::make_unique<Scene>(std::move(layers));
-        })),
+    ) : PolarRenderer(nbLeds, coordsMapper, makeInitialRendererProvider()) {
+    }
+
+    PolarRenderer::PolarRenderer(
+        uint16_t nbLeds,
+        const PolarCoordsMapper& coordsMapper,
+        std::unique_ptr<SceneProvider> provider
+    ) : sceneManager(provider ? std::move(provider) : makeDefaultRendererProvider()),
         nbLeds(nbLeds) {
         precomputedCoords.reserve(nbLeds);
         for (uint16_t i = 0; i < nbLeds; ++i) {

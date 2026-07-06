@@ -38,7 +38,6 @@ export const FLOWFIELD_MODES   = ['Lissajous', 'Dots', 'Both'];
 export const RD_PRESETS        = ['Spots', 'Stripes', 'Coral', 'Worms'];
 export const TILE_SHAPES       = ['SQUARE', 'TRIANGLE', 'HEXAGON'];
 export const WORLEY_ALIASING   = ['None', 'Fast', 'Precise'];
-export const PALETTE_CLIP_POWERS = ['None', 'Square', 'Quartic'];
 
 // ─────────────────────────────────────────────────────────────────────
 // Signal definitions. Tag values are SIG_* in SceneCodec.cpp.
@@ -394,9 +393,13 @@ export const TRANSFORMS = {
     paletteClip: {
         tag: 0x09, label: 'Palette (clip)',
         config: [
-            { name: 'maxFeather',      kind: 'f16',  default: 32768, label: 'max feather (raw f16)' },
-            { name: 'clipPower',       kind: 'enum', options: PALETTE_CLIP_POWERS, default: 1 },
-            { name: 'useAsColourMask', kind: 'bool', default: 0, label: 'use as colour mask' },
+            { name: 'maxFeather', kind: 'f16',  default: 32768, label: 'max feather (raw f16)' },
+            // Single wire byte as a 3-way tint mode:
+            //   0 = hue-remap (tint through palette, offset = phase)
+            //   1 = colour-mask (single colour at offset, value = alpha)
+            //   2 = native (effect's own hue via CHSV, palette bypassed)
+            // Rendered in the panel as two linked checkboxes.
+            { name: 'tintMode',   kind: 'tintMode', default: 0, label: 'tint' },
         ],
         signals: [{ name: 'offset' }, { name: 'clip' }],
     },

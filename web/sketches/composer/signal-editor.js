@@ -9,6 +9,7 @@
 // (composer.js) re-encodes and pushes to WASM.
 
 import { SIGNALS, DEFAULT_SIGNAL } from './schema.js';
+import { attachStepper } from './stepper.js';
 
 // Render param controls for a leaf or modulator. Mutates `signal.params`
 // in place; onChange() is invoked after every keystroke / dropdown change.
@@ -78,7 +79,7 @@ function renderParamControl(p, signal, onChange) {
             onChange();
         }
     });
-    wrap.appendChild(input);
+    wrap.appendChild(attachStepper(input));
 
     if (isSlider) {
         const readout = document.createElement('span');

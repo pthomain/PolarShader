@@ -167,7 +167,7 @@ void test_colour_mask_single_tint_with_value_alpha() {
     CRGBPalette16 pal = distinctPalette();
     Harness h = makeHarness(pal);
     auto cm = h.layer.compile();
-    h.pattern->seenCtx->paletteColourMask = true;
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::ColourMask;
     h.pattern->seenCtx->paletteOffset = 7;
 
     CRGB got = (*cm)(f16(0), f16(0x8000));
@@ -179,6 +179,39 @@ void test_colour_mask_single_tint_with_value_alpha() {
     assertEqualCRGB(got, expected, "colour-mask tint/alpha mismatch");
 }
 
+void test_native_mode_bypasses_palette_via_chsv() {
+    CRGBPalette16 pal = distinctPalette();
+    Harness h = makeHarness(pal);
+    auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::Native;
+    h.pattern->seenCtx->paletteOffset = 4;
+
+    CRGB got = (*cm)(f16(0), f16(0x8000));
+    // Native renders the emitted hue directly with offset as a hue phase; the
+    // palette is bypassed. The native stub honours the value->brightness map.
+    uint8_t hue8 = static_cast<uint8_t>(fl::map16_to_8(kHue) + 4);
+    uint8_t bright = fl::map16_to_8(kVal);
+    CRGB expected = CHSV(hue8, 255, bright);
+    assertEqualCRGB(got, expected, "native-mode CHSV mismatch");
+}
+
+void test_rainbow_hue_remap_renders_native() {
+    CRGBPalette16 pal = distinctPalette();
+    Harness h = makeHarness(pal);
+    auto cm = h.layer.compile();
+    // HueRemap is the default, but with a Rainbow palette it is redundant and
+    // must render natively (offset applied as a hue phase), NOT index the
+    // provided palette.
+    h.pattern->seenCtx->paletteIsRainbow = true;
+    h.pattern->seenCtx->paletteOffset = 3;
+
+    CRGB got = (*cm)(f16(0), f16(0x8000));
+    uint8_t hue8 = static_cast<uint8_t>(fl::map16_to_8(kHue) + 3);
+    uint8_t bright = fl::map16_to_8(kVal);
+    CRGB expected = CHSV(hue8, 255, bright);
+    assertEqualCRGB(got, expected, "rainbow hue-remap should render native");
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_normal_mode_exact_index);
@@ -186,5 +219,7 @@ int main(int, char **) {
     RUN_TEST(test_clip_below_value_passes_full_colour);
     RUN_TEST(test_clip_above_value_gates_to_black);
     RUN_TEST(test_colour_mask_single_tint_with_value_alpha);
+    RUN_TEST(test_native_mode_bypasses_palette_via_chsv);
+    RUN_TEST(test_rainbow_hue_remap_renders_native);
     return UNITY_END();
 }

@@ -75,23 +75,6 @@ namespace PolarShader {
         if (context->paletteClipInvert) {
             clip_input = static_cast<uint16_t>(F16_MAX - clip_input);
         }
-        switch (context->paletteClipPower) {
-            case PipelineContext::PaletteClipPower::Quartic: {
-                // Strong shaping: only the very top of the noise survives the threshold.
-                uint16_t n2 = scale16(clip_input, clip_input);
-                clip_input = scale16(n2, n2);
-                break;
-            }
-            case PipelineContext::PaletteClipPower::Square: {
-                // Moderate shaping: reduces mid values so fewer areas pass the threshold.
-                clip_input = scale16(clip_input, clip_input);
-                break;
-            }
-            case PipelineContext::PaletteClipPower::None:
-            default:
-                // No shaping; clip compares directly against the raw pattern value.
-                break;
-        }
 
         uint16_t clip = raw(context->paletteClip);
         uint16_t feather = raw(context->paletteClipFeather);
@@ -114,22 +97,35 @@ namespace PolarShader {
     ) {
         uint16_t hue_value = raw(value);
         uint16_t mask_value = computeClipMask(context, hue_value);
+        const PipelineContext::PaletteTintMode mode =
+            context ? context->paletteTintMode : PipelineContext::PaletteTintMode::HueRemap;
+        const uint8_t offset = context ? context->paletteOffset : 0;
 
-        if (context && context->paletteColourMask) {
+        if (mode == PipelineContext::PaletteTintMode::ColourMask) {
             // Colour-mask mode: paletteOffset selects a single tint colour for
             // the whole scene; the pattern value drives alpha (brightness),
             // further shaped by the clip mask. When the clip signal is 0 the
             // mask is fully open (F16_MAX), so alpha reduces to the raw value.
-            CRGB color = ColorFromPalette(palette, context->paletteOffset, 255, LINEARBLEND);
+            CRGB color = ColorFromPalette(palette, offset, 255, LINEARBLEND);
             uint16_t alpha = scale16(hue_value, mask_value);
             color.nscale8_video(static_cast<uint8_t>(alpha >> 8));
             return color;
         }
 
-        uint8_t index = fl::map16_to_8(hue_value);
-        if (context) {
-            index = static_cast<uint8_t>(index + context->paletteOffset);
+        if (mode == PipelineContext::PaletteTintMode::Native) {
+            // Scalar patterns emit no hue; native mode bypasses the palette and
+            // renders the intensity as greyscale. Rainbow-skip does not apply to
+            // scalar patterns — for them the palette IS the colour source.
+            uint8_t v = fl::map16_to_8(hue_value);
+            CRGB color = CRGB(v, v, v);
+            if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+                color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
+            }
+            return color;
         }
+
+        // HueRemap: intensity indexes the palette (offset = phase).
+        uint8_t index = static_cast<uint8_t>(fl::map16_to_8(hue_value) + offset);
 
         CRGB color = ColorFromPalette(palette, index, 255, LINEARBLEND);
         if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
@@ -147,26 +143,38 @@ namespace PolarShader {
         // Intensity channel gates clip/colour-mask, the same role the scalar
         // plays in mapPalette.
         uint16_t mask_value = computeClipMask(context, value_raw);
+        const PipelineContext::PaletteTintMode mode =
+            context ? context->paletteTintMode : PipelineContext::PaletteTintMode::HueRemap;
+        const uint8_t offset = context ? context->paletteOffset : 0;
+        const bool isRainbow = context && context->paletteIsRainbow;
 
-        if (context && context->paletteColourMask) {
+        if (mode == PipelineContext::PaletteTintMode::ColourMask) {
             // Colour-mask mode deliberately overrides the emitted hue: a single
             // paletteOffset tint for the whole scene, with the value channel
             // (shaped by the clip mask) driving alpha. Matches mapPalette.
-            CRGB color = ColorFromPalette(palette, context->paletteOffset, 255, LINEARBLEND);
+            CRGB color = ColorFromPalette(palette, offset, 255, LINEARBLEND);
             uint16_t alpha = scale16(value_raw, mask_value);
             color.nscale8_video(static_cast<uint8_t>(alpha >> 8));
             return color;
         }
 
-        // Normal mode: the emitted hue selects the palette entry (hue-remap
-        // tint) and the emitted value drives brightness.
-        uint8_t index = fl::map16_to_8(raw(sample.hue()));
-        if (context) {
-            index = static_cast<uint8_t>(index + context->paletteOffset);
-        }
         uint8_t bright = fl::map16_to_8(value_raw);
+        uint8_t hue8 = static_cast<uint8_t>(fl::map16_to_8(raw(sample.hue())) + offset);
 
-        CRGB color = ColorFromPalette(palette, index, bright, LINEARBLEND);
+        // Native mode renders the emitted hue directly (offset = hue phase),
+        // bypassing the palette. HueRemap onto the Rainbow palette is redundant
+        // (the palette already is the hue wheel), so it renders natively too.
+        if (mode == PipelineContext::PaletteTintMode::Native || isRainbow) {
+            CRGB color = CHSV(hue8, 255, bright);
+            if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+                color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
+            }
+            return color;
+        }
+
+        // HueRemap: the emitted hue selects the palette entry (offset = phase)
+        // and the emitted value drives brightness.
+        CRGB color = ColorFromPalette(palette, hue8, bright, LINEARBLEND);
         if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
         }

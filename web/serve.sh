@@ -27,15 +27,15 @@ fi
 
 PORT="${1:-8000}"
 
-if [[ "$BUILD" -eq 1 ]]; then
-    if [[ -n "${PYTHON:-}" ]]; then
-        PYTHON_BIN="$PYTHON"
-    elif [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
-        PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
-    else
-        PYTHON_BIN="python3"
-    fi
+if [[ -n "${PYTHON:-}" ]]; then
+    PYTHON_BIN="$PYTHON"
+elif [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
+    PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+else
+    PYTHON_BIN="python3"
+fi
 
+if [[ "$BUILD" -eq 1 ]]; then
     export POLARSHADER_SKETCHES_OVERRIDE="${POLARSHADER_SKETCHES_OVERRIDE:-composer}"
 
     echo "Rebuilding $DIST_DIR with $PYTHON_BIN ..."
@@ -50,16 +50,6 @@ if [[ ! -f "$DIST_DIR/index.html" ]]; then
 fi
 
 echo "Serving $DIST_DIR at http://localhost:$PORT/index.html (COOP/COEP enabled, Ctrl+C to stop)"
+echo "Local PSC playlist API writes to $REPO_ROOT/build/psc"
 
-exec python3 -c "
-import sys, http.server, socketserver
-port, directory = int(sys.argv[1]), sys.argv[2]
-class H(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
-        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
-        self.send_header('Cache-Control', 'no-store')
-        super().end_headers()
-socketserver.TCPServer.allow_reuse_address = True
-socketserver.TCPServer(('', port), lambda *a: H(*a, directory=directory)).serve_forever()
-" "$PORT" "$DIST_DIR"
+exec "$PYTHON_BIN" "$SCRIPT_DIR/local_server.py" "$PORT" "$DIST_DIR" "$REPO_ROOT" "$PYTHON_BIN"

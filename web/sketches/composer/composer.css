@@ -173,6 +173,82 @@ body.composer-resizing {
     color: #8b95a0;
 }
 
+.action-row {
+    flex-wrap: wrap;
+}
+
+.composer-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.composer-tabs button {
+    width: 100%;
+}
+
+.composer-tabs button.active {
+    background: #39404a;
+    border-color: #56616f;
+    color: #ffffff;
+}
+
+.muted-note {
+    flex: 1;
+    min-width: 0;
+    color: #6a7480;
+    font-size: 12px;
+}
+
+.deploy-status {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.brightness-value {
+    flex: 0 0 32px;
+    color: #6a7480;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.playlist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 2px 0 8px 68px;
+}
+
+.playlist-item {
+    display: flex;
+    min-width: 0;
+    gap: 4px;
+}
+
+.playlist-load-btn {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-delete-btn {
+    flex: 0 0 28px;
+    width: 28px;
+    padding: 2px 0;
+    text-align: center;
+}
+
+.playlist-item.active .playlist-load-btn {
+    background: #39404a;
+    border-color: #56616f;
+    color: #ffffff;
+}
+
 input[type="number"], input[type="range"], select {
     background: #1d2026;
     border: 1px solid #2e333b;
@@ -238,6 +314,23 @@ button:disabled {
     text-align: right;
     color: #6a7480;
     font-variant-numeric: tabular-nums;
+}
+
+.stepper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.stepper-btn {
+    flex: 0 0 22px;
+    width: 22px;
+    padding: 2px 0;
+    text-align: center;
+    line-height: 1;
+    font-size: 13px;
 }
 
 .signal-row {
@@ -324,6 +417,34 @@ button:disabled {
     opacity: 0.4;
 }
 
+.tint-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.tint-mode-check {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #c0c8d0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tint-mode-check input {
+    cursor: pointer;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.tint-mode-check input:disabled {
+    cursor: not-allowed;
+}
+
 .transform-list:empty::before {
     content: "(no transforms)";
     color: #5a626c;
@@ -387,3 +508,4 @@ button:disabled {
 .composer-debug-line.coalesce { color: #c9b56b; }
 .composer-debug-line.error { color: #e28b8b; }
 .composer-debug-line.system { color: #9aa4af; }
+.composer-debug-line.deploy { color: #cbd3dc; }

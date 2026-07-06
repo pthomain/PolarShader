@@ -126,7 +126,7 @@ namespace PolarShader::composer {
             TFM_PALETTE           = 0x06, // body: signal offset (offset-only PaletteTransform)
             TFM_TILING            = 0x07, // body: u8 mirrored + u8 shape + signal cellSize
             TFM_FLOW_FIELD        = 0x08, // body: 4 signals (phaseSpeed, flowStrength, fieldScale, maxOffset)
-            TFM_PALETTE_CLIP      = 0x09, // body: u16 maxFeather + u8 clipPower + u8 colourMask + signal offset + signal clip
+            TFM_PALETTE_CLIP      = 0x09, // body: u16 maxFeather + u8 tintMode(0 hue-remap/1 colour-mask/2 native) + signal offset + signal clip
         };
 
         // ───── Bounds-checked byte reader ─────────────────────────────
@@ -609,20 +609,21 @@ namespace PolarShader::composer {
                 }
                 case TFM_PALETTE_CLIP: {
                     uint16_t maxFeatherRaw = r.readU16();
-                    uint8_t clipPowerByte = r.readU8();
-                    uint8_t colourMaskByte = r.readU8();
+                    // Single byte: 0 = hue-remap, 1 = colour-mask,
+                    // 2 = native (bypass palette).
+                    uint8_t tintModeByte = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return false; }
 
-                    PipelineContext::PaletteClipPower clipPower;
-                    switch (clipPowerByte) {
+                    PipelineContext::PaletteTintMode tintMode;
+                    switch (tintModeByte) {
                         case 0:
-                            clipPower = PipelineContext::PaletteClipPower::None;
+                            tintMode = PipelineContext::PaletteTintMode::HueRemap;
                             break;
                         case 1:
-                            clipPower = PipelineContext::PaletteClipPower::Square;
+                            tintMode = PipelineContext::PaletteTintMode::ColourMask;
                             break;
                         case 2:
-                            clipPower = PipelineContext::PaletteClipPower::Quartic;
+                            tintMode = PipelineContext::PaletteTintMode::Native;
                             break;
                         default:
                             setStatusIfOk(status, DecodeStatus::BAD_ENUM);
@@ -633,8 +634,8 @@ namespace PolarShader::composer {
                     Sf16Signal clip = decodeSignal(r, status);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addPaletteTransform(PaletteTransform(
-                        std::move(offset), std::move(clip), f16(maxFeatherRaw), clipPower,
-                        colourMaskByte != 0));
+                        std::move(offset), std::move(clip), f16(maxFeatherRaw),
+                        tintMode));
                     return true;
                 }
                 case TFM_TILING: {
@@ -670,9 +671,10 @@ namespace PolarShader::composer {
 
     } // namespace (anonymous)
 
-    std::unique_ptr<Scene> decodeScene(const uint8_t *bytes,
-                                       std::size_t len,
-                                       DecodeStatus *statusOut) {
+    std::unique_ptr<Scene> decodeSceneWithDuration(const uint8_t *bytes,
+                                                   std::size_t len,
+                                                   TimeMillis durationMs,
+                                                   DecodeStatus *statusOut) {
         DecodeStatus localStatus = DecodeStatus::OK;
         DecodeStatus *status = &localStatus;
 
@@ -713,6 +715,9 @@ namespace PolarShader::composer {
         }
 
         LayerBuilder builder(std::move(pattern), *palette, "composer");
+        // Palette id 0 is Rainbow; a hue-remap onto it is redundant, so colour
+        // patterns render their emitted hue natively instead.
+        builder.setPaletteIsRainbow(paletteId == 0);
 
         // Transforms
         uint8_t transformCount = r.readU8();
@@ -724,12 +729,18 @@ namespace PolarShader::composer {
             }
         }
 
-        // Build the scene with default (infinite) duration so SceneManager
-        // never falls back to its provider after a replaceScene call.
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(builder.build()));
 
         if (statusOut) *statusOut = DecodeStatus::OK;
-        return std::make_unique<Scene>(std::move(layers));
+        return std::make_unique<Scene>(std::move(layers), durationMs);
+    }
+
+    std::unique_ptr<Scene> decodeScene(const uint8_t *bytes,
+                                       std::size_t len,
+                                       DecodeStatus *statusOut) {
+        // Live composer replacement scenes do not expire; otherwise the
+        // SceneManager would fall back to its provider after a replaceScene().
+        return decodeSceneWithDuration(bytes, len, UINT32_MAX, statusOut);
     }
 }

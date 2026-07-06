@@ -24,6 +24,7 @@
 #include "FastLED.h"
 #include <renderer/PolarRenderer.h>
 #include <type_traits>
+#include "display/DisplayEntropy.h"
 #include "PolarDisplaySpec.h"
 
 #ifdef RP2040_ENABLED
@@ -37,35 +38,12 @@ namespace PolarShader {
         PolarRenderer renderer;
         CRGB *outputArray;
         uint8_t refreshRateInMillis;
-        fl::vector<uint8_t> freePinsForEntropy = {2, 3, 4, 5, 6, 7, 8, 9, 10};
 
 #ifdef RP2040_ENABLED
         bool dualCore{false};
         semaphore_t startSem; // Core 0 releases to start Core 1's render
         semaphore_t doneSem; // Core 1 releases when its render is done
 #endif
-
-        void addEntropy() {
-            static bool seedSet = false;
-            uint8_t entropy = 0;
-
-            if (!seedSet) {
-                for (auto pin: freePinsForEntropy) {
-                    pinMode(pin, INPUT);
-                }
-            }
-
-            for (uint8_t i = 0; i < 16; i++) {
-                entropy = (entropy << 1) | (analogRead(freePinsForEntropy[i % freePinsForEntropy.size()]) & 1);
-            }
-
-            if (seedSet) {
-                random16_add_entropy(entropy);
-            } else {
-                random16_set_seed(entropy);
-                seedSet = true;
-            }
-        }
 
     public:
         explicit FastLedDisplay(
@@ -76,12 +54,10 @@ namespace PolarShader {
         ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toPolarCoords(pixelIndex); }),
             outputArray(new CRGB[spec.nbLeds()]),
             refreshRateInMillis(refreshRateInMillis) {
-            freePinsForEntropy.erase(
-                fl::remove(freePinsForEntropy.begin(), freePinsForEntropy.end(), SPEC::LED_PIN),
-                freePinsForEntropy.end()
+            DisplayEntropy::addFloatingPinEntropy(
+                DisplayEntropy::kXiaoFloatingPins,
+                SPEC::LED_PIN
             );
-
-            addEntropy();
 
             CFastLED::addLeds<WS2812, SPEC::LED_PIN, SPEC::RGB_ORDER>(outputArray, spec.nbLeds())
                     .setCorrection(TypicalLEDStrip);
