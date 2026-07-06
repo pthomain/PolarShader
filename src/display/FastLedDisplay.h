@@ -47,7 +47,7 @@ namespace PolarShader {
 
         void addEntropy() {
             static bool seedSet = false;
-            uint8_t entropy = 0;
+            uint16_t entropy = 0;
 
             if (!seedSet) {
                 for (auto pin: freePinsForEntropy) {

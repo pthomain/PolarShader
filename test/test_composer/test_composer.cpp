@@ -527,6 +527,27 @@ void test_embedded_psc_playlist_provider_decodes_scene() {
     TEST_ASSERT_EQUAL_UINT32(30000, decoded->getDuration());
 }
 
+void test_embedded_psc_playlist_provider_falls_back_after_decode_fail() {
+    WireBuilder corrupt;
+    corrupt.header(0).u8(0xEE);
+
+    WireBuilder fallbackWire;
+    fallbackWire.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+
+    EmbeddedPscScene scenes[] = {
+        {"corrupt.psc", corrupt.data(), corrupt.size()},
+    };
+
+    auto fallbackProvider = std::make_unique<DefaultSceneProvider>([&fallbackWire]() {
+        return decodeScene(fallbackWire.data(), fallbackWire.size());
+    });
+
+    EmbeddedPscPlaylistProvider provider(scenes, 1, 30000, std::move(fallbackProvider));
+    auto decoded = provider.nextScene();
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, decoded->getDuration());
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // Group 3 — Cross-implementation golden fixture
 // ═════════════════════════════════════════════════════════════════════
@@ -706,6 +727,7 @@ void setup() {
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_scene_with_duration_overrides_default);
     RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
+    RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
@@ -735,6 +757,7 @@ int main() {
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_scene_with_duration_overrides_default);
     RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
+    RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);

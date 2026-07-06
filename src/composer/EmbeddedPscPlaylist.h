@@ -23,13 +23,15 @@ namespace PolarShader::composer {
         const EmbeddedPscScene *scenes;
         std::size_t sceneCount;
         TimeMillis durationMs;
+        std::unique_ptr<SceneProvider> fallbackProvider;
         std::size_t lastIndex{0};
         bool hasLastIndex{false};
 
     public:
         EmbeddedPscPlaylistProvider(const EmbeddedPscScene *scenes,
                                     std::size_t sceneCount,
-                                    TimeMillis durationMs = kDefaultEmbeddedPscDurationMs);
+                                    TimeMillis durationMs = kDefaultEmbeddedPscDurationMs,
+                                    std::unique_ptr<SceneProvider> fallbackProvider = nullptr);
 
         std::unique_ptr<Scene> nextScene() override;
 
@@ -39,7 +41,8 @@ namespace PolarShader::composer {
     bool hasEmbeddedPscPlaylist();
 
     std::unique_ptr<SceneProvider> makeEmbeddedPscPlaylistProvider(
-        TimeMillis durationMs = kDefaultEmbeddedPscDurationMs);
+        TimeMillis durationMs = kDefaultEmbeddedPscDurationMs,
+        std::unique_ptr<SceneProvider> fallbackProvider = nullptr);
 }
 
 #endif // POLAR_SHADER_COMPOSER_EMBEDDED_PSC_PLAYLIST_H

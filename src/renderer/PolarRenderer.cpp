@@ -24,7 +24,18 @@
 #include <renderer/pipeline/patterns/Patterns.h>
 #include <renderer/scene/SceneManager.h>
 #include <renderer/layer/Layer.h>
+
+#if __has_include("PscPlaylistConfig.h")
+#include "PscPlaylistConfig.h"
+#endif
+
+#ifndef POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST
+#define POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST 0
+#endif
+
+#if POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST
 #include "composer/EmbeddedPscPlaylist.h"
+#endif
 
 namespace PolarShader {
     namespace {
@@ -37,9 +48,13 @@ namespace PolarShader {
         }
 
         std::unique_ptr<SceneProvider> makeInitialRendererProvider() {
-            if (auto playlist = composer::makeEmbeddedPscPlaylistProvider()) {
+#if POLAR_SHADER_HAS_EMBEDDED_PSC_PLAYLIST
+            if (auto playlist = composer::makeEmbeddedPscPlaylistProvider(
+                composer::kDefaultEmbeddedPscDurationMs,
+                makeDefaultRendererProvider())) {
                 return playlist;
             }
+#endif
             return makeDefaultRendererProvider();
         }
     }
