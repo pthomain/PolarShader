@@ -443,8 +443,7 @@ namespace {
         b.addPaletteTransform(PaletteTransform(
             constant(100),
             constant(300),
-            perMil(250),
-            PipelineContext::PaletteClipPower::Quartic));
+            perMil(250)));
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(b.build()));
         return std::make_unique<Scene>(std::move(layers));
@@ -457,8 +456,7 @@ namespace {
             constant(100),
             constant(300),
             perMil(250),
-            PipelineContext::PaletteClipPower::Quartic,
-            true));  // colourMask
+            PipelineContext::PaletteTintMode::ColourMask));
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(b.build()));
         return std::make_unique<Scene>(std::move(layers));
@@ -563,9 +561,9 @@ void test_decode_determinism_nested_smap_signal() {
 }
 
 void test_decode_determinism_palette_clip_transform() {
-    // Wire format: AnnuliPattern + PaletteTransform(offset, clip, maxFeather, Quartic).
-    // Palette clip config bytes (maxFeather, clipPower, colourMask) are encoded
-    // before the offset/clip signal slots.
+    // Wire format: AnnuliPattern + PaletteTransform(offset, clip, maxFeather).
+    // Palette clip config bytes (maxFeather, tintMode) are encoded before the
+    // offset/clip signal slots.
     WireBuilder w;
     w.header(1)
      .u8(PAT_ANNULI)
@@ -573,7 +571,6 @@ void test_decode_determinism_palette_clip_transform() {
      .u8(1)
      .u8(TFM_PALETTE_CLIP)
        .u16(raw(perMil(250)))
-       .u8(2)
        .u8(0)
        .sigConstant(100)
        .sigConstant(300);
@@ -595,9 +592,9 @@ void test_decode_determinism_palette_clip_transform() {
 }
 
 void test_decode_determinism_palette_colour_mask() {
-    // Same wire layout as the palette-clip test but with the colourMask byte
-    // set to 1, so the decoded transform tints the scene via paletteOffset and
-    // uses the pattern value as alpha.
+    // Same wire layout as the palette-clip test but with the tintMode byte set
+    // to 1 (colour-mask), so the decoded transform tints the scene via
+    // paletteOffset and uses the pattern value as alpha.
     WireBuilder w;
     w.header(1)
      .u8(PAT_ANNULI)
@@ -605,7 +602,6 @@ void test_decode_determinism_palette_colour_mask() {
      .u8(1)
      .u8(TFM_PALETTE_CLIP)
        .u16(raw(perMil(250)))
-       .u8(2)
        .u8(1)
        .sigConstant(100)
        .sigConstant(300);
@@ -927,8 +923,8 @@ void test_decode_compile_reported_pf_cross_fixture() {
         0x04, 0x01, 0x02, 0x1D, 0x00, 0xD9, 0x00, 0x00,
         0x00, 0x00, 0x00, 0xAE, 0x00, 0x00, 0x01, 0x1C,
         0x00, 0xB4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x09,
-        0x00, 0x80, 0x00, 0x01, 0x00, 0xF4, 0x01, 0x00,
-        0x00, 0x00,
+        0x00, 0x80, 0x01, 0x00, 0xF4, 0x01, 0x00, 0x00,
+        0x00,
     };
 
     DecodeStatus status;
@@ -1051,12 +1047,12 @@ void test_decode_bad_pattern_enum() {
     TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
 }
 
-void test_decode_bad_palette_clip_power() {
+void test_decode_bad_palette_tint_mode() {
     WireBuilder w;
     w.header(0)
      .u8(PAT_NOISE_BASIC).sigConstant(550)
      .u8(1)
-     .u8(TFM_PALETTE_CLIP).u16(raw(perMil(250))).u8(0xFF).u8(0);
+     .u8(TFM_PALETTE_CLIP).u16(raw(perMil(250))).u8(0xFF);
 
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
@@ -1098,7 +1094,7 @@ void setup() {
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
     RUN_TEST(test_decode_bad_pattern_enum);
-    RUN_TEST(test_decode_bad_palette_clip_power);
+    RUN_TEST(test_decode_bad_palette_tint_mode);
     UNITY_END();
 }
 
@@ -1133,7 +1129,7 @@ int main() {
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
     RUN_TEST(test_decode_bad_pattern_enum);
-    RUN_TEST(test_decode_bad_palette_clip_power);
+    RUN_TEST(test_decode_bad_palette_tint_mode);
     return UNITY_END();
 }
 #endif

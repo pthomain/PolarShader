@@ -25,13 +25,21 @@
 #include "Matrix128x128DisplaySpec.h"
 #include "display/SmartMatrixDisplay.h"
 
+#if __has_include("PscPlaylistConfig.h")
+#include "PscPlaylistConfig.h"
+#endif
+
+#ifndef POLAR_SHADER_DISPLAY_BRIGHTNESS
+#define POLAR_SHADER_DISPLAY_BRIGHTNESS 255
+#endif
+
 using namespace PolarShader;
 static SmartMatrixDisplay *display = nullptr;
 
 void setup() {
     static Matrix128x128DisplaySpec specInstance;
     Serial.begin(115200);
-    display = new SmartMatrixDisplay(specInstance, 255, 30);
+    display = new SmartMatrixDisplay(specInstance, POLAR_SHADER_DISPLAY_BRIGHTNESS, 30);
 }
 
 void loop() {

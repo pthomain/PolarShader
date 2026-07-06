@@ -36,25 +36,32 @@ namespace PolarShader {
         // Effective feather width for palette clipping after clip-proportional scaling.
         f16 paletteClipFeather = f16(0);
 
-        // Power curve applied to the clip input.
-        enum class PaletteClipPower : uint8_t {
-            // No shaping; palette clipping uses the raw pattern value.
-            None = 1,
-            // Square the clip input to emphasize peaks and thin out mid values.
-            Square = 2,
-            // Quartic (square twice) for very peaky, bubble-like masks.
-            Quartic = 4
-        };
-
-        PaletteClipPower paletteClipPower = PaletteClipPower::None;
         // When true, clip high values instead of low values.
         bool paletteClipInvert = false;
         // Whether palette clipping should be applied.
         bool paletteClipEnabled = false;
-        // Colour-mask mode: tint the whole scene with the single colour at
-        // paletteOffset and use the pattern value (shaped by the clip mask)
-        // as alpha, instead of mapping the pattern value to a palette index.
-        bool paletteColourMask = false;
+
+        // How the palette turns pattern output into colour.
+        enum class PaletteTintMode : uint8_t {
+            // Emitted hue (colour patterns) or intensity (scalar patterns)
+            // selects a palette entry; paletteOffset is a phase offset into the
+            // palette and the emitted value drives brightness.
+            HueRemap = 0,
+            // Tint the whole scene with the single colour at paletteOffset and
+            // use the pattern value (shaped by the clip mask) as alpha.
+            ColourMask = 1,
+            // Colour patterns render their own emitted hue directly (CHSV),
+            // bypassing the palette; paletteOffset shifts the hue. Scalar
+            // patterns have no hue and fall back to greyscale intensity.
+            Native = 2
+        };
+
+        PaletteTintMode paletteTintMode = PaletteTintMode::HueRemap;
+
+        // True when the active palette is the Rainbow palette. A HueRemap of a
+        // colour pattern's emitted hue onto the Rainbow palette is redundant
+        // (the palette already is the hue wheel), so it is rendered natively.
+        bool paletteIsRainbow = false;
 
         // Palette brightness is always full when mapping colors.
     };

@@ -142,7 +142,7 @@ if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
 # dir alongside the FastLED-built page and inject <link>/<script> tags.
 COMPOSER_PANEL_ASSETS = {
     "css":     ("composer.css",),
-    "modules": ("schema.js", "codec.js", "signal-editor.js", "composer.js"),
+    "modules": ("schema.js", "codec.js", "stepper.js", "signal-editor.js", "composer.js"),
 }
 SKETCHES_WITH_PANEL = {"composer": COMPOSER_PANEL_ASSETS}
 

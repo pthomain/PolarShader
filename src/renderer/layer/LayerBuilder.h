@@ -88,6 +88,16 @@ namespace PolarShader {
             return std::move(*this);
         }
 
+        LayerBuilder &setPaletteIsRainbow(bool isRainbow) & {
+            context->paletteIsRainbow = isRainbow;
+            return *this;
+        }
+
+        LayerBuilder &&setPaletteIsRainbow(bool isRainbow) && {
+            context->paletteIsRainbow = isRainbow;
+            return std::move(*this);
+        }
+
         template<typename T, typename = std::enable_if_t<std::is_base_of<UVTransform, T>::value> >
         LayerBuilder &addTransform(T transform) & {
             if (built) return *this;

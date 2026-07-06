@@ -54,9 +54,8 @@ namespace PolarShader {
         MagnitudeRange<uint8_t> offsetRange{0, 255};
         Sf16Signal clipSignal;
         f16 maxFeather = f16(0);
-        PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
-        bool colourMask = false;
+        PipelineContext::PaletteTintMode tintMode = PipelineContext::PaletteTintMode::HueRemap;
     };
 
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(Sf16Signal offset) {
@@ -69,17 +68,15 @@ namespace PolarShader {
         Sf16Signal offset,
         Sf16Signal clipSignal,
         f16 maxFeather,
-        PipelineContext::PaletteClipPower clipPower,
-        bool colourMask
+        PipelineContext::PaletteTintMode tintMode
     ) {
         return MappedInputs{
             std::move(offset),
             MagnitudeRange<uint8_t>(0, 255),
             std::move(clipSignal),
             maxFeather,
-            clipPower,
             true,
-            colourMask
+            tintMode
         };
     }
 
@@ -91,18 +88,16 @@ namespace PolarShader {
         PatternNormU16 clipValue = PatternNormU16(0);
         bool clipInvert = false;
         f16 maxFeather = f16(0);
-        PipelineContext::PaletteClipPower clipPower = PipelineContext::PaletteClipPower::None;
         bool hasClip = false;
-        bool colourMask = false;
+        PipelineContext::PaletteTintMode tintMode = PipelineContext::PaletteTintMode::HueRemap;
 
         explicit State(MappedInputs inputs)
             : offsetSignal(std::move(inputs.offsetSignal)),
               offsetRange(std::move(inputs.offsetRange)),
               clipSignal(std::move(inputs.clipSignal)),
               maxFeather(inputs.maxFeather),
-              clipPower(inputs.clipPower),
               hasClip(inputs.hasClip),
-              colourMask(inputs.colourMask) {
+              tintMode(inputs.tintMode) {
         }
     };
 
@@ -114,15 +109,13 @@ namespace PolarShader {
         Sf16Signal offset,
         Sf16Signal clipSignal,
         f16 maxFeather,
-        PipelineContext::PaletteClipPower clipPower,
-        bool colourMask
+        PipelineContext::PaletteTintMode tintMode
     ) {
         state = std::make_shared<State>(makeInputs(
             std::move(offset),
             std::move(clipSignal),
             maxFeather,
-            clipPower,
-            colourMask
+            tintMode
         ));
     }
 
@@ -137,13 +130,12 @@ namespace PolarShader {
                 state->clipValue = PatternNormU16(raw(clipRaw));
                 context->paletteClip = state->clipValue;
                 context->paletteClipFeather = clipFeather;
-                context->paletteClipPower = state->clipPower;
                 context->paletteClipInvert = state->clipInvert;
                 context->paletteClipEnabled = true;
-                context->paletteColourMask = state->colourMask;
+                context->paletteTintMode = state->tintMode;
             } else {
                 context->paletteClipEnabled = false;
-                context->paletteColourMask = false;
+                context->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
             }
         } else {
             Serial.println("PaletteTransform::advanceFrame context is null.");

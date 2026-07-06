@@ -87,7 +87,7 @@ function initialDisplayId() {
 }
 
 const state = {
-    pushFrame: null,             // animation-frame push handle
+    pushTimer: null,             // debounce timer handle for scene pushes
     latestEvent: null,           // most-recent scene-store emission
     statusEl: null,              // toast target
     debugLogEl: null,            // FastLED-side debug console
@@ -100,11 +100,17 @@ const state = {
     workerRendererReloading: false,
     resetRendererBtn: null,
     composerTab: 'new',
+    sceneSourceName: '',
     playlistApiChecked: false,
     playlistApiAvailable: false,
     playlistItems: [],
     playlistSelected: '',
     playlistBusy: false,
+    displayConfigApiAvailable: false,
+    displayBrightness: 255,
+    displayBrightnessSaved: false,
+    displayBrightnessBusy: false,
+    displayBrightnessSaveTimer: null,
     deployApiAvailable: false,
     deployTargets: [],
     deployDevices: [],
@@ -128,6 +134,7 @@ const DISPLAYS = [
 const DEPLOY_POLL_MS = 1000;
 const DEPLOY_DONE_STATUSES = new Set(['succeeded', 'failed', 'timed_out']);
 const DEBUG_LOG_LIMIT = 500;
+const BRIGHTNESS_SAVE_DEBOUNCE_MS = 250;
 
 function displayUrlValue(which) {
     return which === 1 ? 'round' : 'fabric';
@@ -225,6 +232,41 @@ function pscDownloadFilename(scene) {
     return `${prefix}-${timestampForFilename()}.psc`;
 }
 
+const PLAYLIST_FILENAME_PART_RE = /^[A-Za-z0-9][A-Za-z0-9._ -]*$/;
+
+function isSafePlaylistFilename(name) {
+    const trimmed = String(name ?? '').trim();
+    if (!trimmed || !/\.psc$/i.test(trimmed)) return false;
+    const parts = trimmed.split('/');
+    return parts.every((part) => part
+        && part !== '.'
+        && part !== '..'
+        && PLAYLIST_FILENAME_PART_RE.test(part));
+}
+
+function preferredPlaylistFilename() {
+    return isSafePlaylistFilename(state.sceneSourceName)
+        ? state.sceneSourceName.trim()
+        : pscDownloadFilename(sceneStore.scene);
+}
+
+function bytesEqual(left, right) {
+    if (!left || !right || left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+        if (left[i] !== right[i]) return false;
+    }
+    return true;
+}
+
+function readFileBytes(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(new Uint8Array(ev.target.result));
+        reader.onerror = () => reject(reader.error ?? new Error('file read failed'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 function playlistApiUrl(path, params = {}) {
     const url = new URL(path, window.location.origin);
     for (const [key, value] of Object.entries(params)) {
@@ -251,6 +293,74 @@ async function fetchPlaylistJson(path, options = {}) {
     return body;
 }
 
+function clampDisplayBrightness(value) {
+    const numeric = Number.parseInt(value, 10);
+    if (!Number.isFinite(numeric)) return 255;
+    return Math.max(0, Math.min(255, numeric));
+}
+
+async function refreshDisplayConfig({ rebuild = false } = {}) {
+    if (!state.displayConfigApiAvailable) return;
+    try {
+        const body = await fetchPlaylistJson('/api/display/config');
+        state.displayBrightness = clampDisplayBrightness(body.brightness);
+        state.displayBrightnessSaved = body.saved === true;
+    } catch (e) {
+        state.displayConfigApiAvailable = false;
+        logDebug('display', `display config unavailable: ${e.message}`);
+    } finally {
+        if (rebuild) rebuildPanel();
+    }
+}
+
+async function saveDisplayBrightness(value, { rebuild = true, notify = true } = {}) {
+    if (!state.displayConfigApiAvailable) return true;
+    const brightness = clampDisplayBrightness(value);
+    state.displayBrightness = brightness;
+    state.displayBrightnessBusy = true;
+    if (rebuild) rebuildPanel();
+    try {
+        const body = await fetchPlaylistJson('/api/display/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ brightness }),
+        });
+        state.displayBrightness = clampDisplayBrightness(body.brightness);
+        state.displayBrightnessSaved = true;
+        if (notify) {
+            showStatus(`brightness ${state.displayBrightness}`, false);
+            logDebug('display', `MCU brightness saved: ${state.displayBrightness}`);
+        }
+        return true;
+    } catch (e) {
+        if (notify) {
+            showStatus(`brightness save error: ${e.message}`, true);
+        }
+        logDebug('error', `brightness save failed: ${e.message}`);
+        return false;
+    } finally {
+        state.displayBrightnessBusy = false;
+        if (rebuild) rebuildPanel();
+    }
+}
+
+function scheduleDisplayBrightnessSave(value) {
+    state.displayBrightness = clampDisplayBrightness(value);
+    if (state.displayBrightnessSaveTimer !== null) {
+        clearTimeout(state.displayBrightnessSaveTimer);
+    }
+    state.displayBrightnessSaveTimer = setTimeout(() => {
+        state.displayBrightnessSaveTimer = null;
+        void saveDisplayBrightness(state.displayBrightness);
+    }, BRIGHTNESS_SAVE_DEBOUNCE_MS);
+}
+
+async function flushDisplayBrightnessSave() {
+    if (state.displayBrightnessSaveTimer === null) return true;
+    clearTimeout(state.displayBrightnessSaveTimer);
+    state.displayBrightnessSaveTimer = null;
+    return saveDisplayBrightness(state.displayBrightness, { rebuild: true, notify: false });
+}
 
 function deployTargetById(id) {
     return state.deployTargets.find((target) => target.id === id) ?? null;
@@ -358,9 +468,13 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
         const body = await fetchPlaylistJson('/api/capabilities');
         state.playlistApiAvailable = body.savePsc === true && body.playlist === true;
         state.deployApiAvailable = state.playlistApiAvailable && body.deploy === true;
+        state.displayConfigApiAvailable = body.displayConfig === true;
         state.playlistApiChecked = true;
         if (state.playlistApiAvailable) {
             await refreshPlaylistItems();
+        }
+        if (state.displayConfigApiAvailable) {
+            await refreshDisplayConfig();
         }
         if (state.deployApiAvailable && state.composerTab === 'playlist') {
             await refreshDeployData();
@@ -372,6 +486,7 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
     } catch {
         state.playlistApiAvailable = false;
         state.deployApiAvailable = false;
+        state.displayConfigApiAvailable = false;
         state.playlistApiChecked = true;
         state.playlistItems = [];
         state.playlistSelected = '';
@@ -403,6 +518,7 @@ async function loadPlaylistScene(name) {
             path: 'scene.playlist',
             value: name,
         });
+        state.sceneSourceName = name;
         statusText = `loaded ${name}`;
         logDebug('playlist', `loaded ${name} (${bytes.length} bytes)`);
     } catch (e) {
@@ -416,11 +532,33 @@ async function loadPlaylistScene(name) {
     }
 }
 
+async function fetchPlaylistFileBytes(name) {
+    const response = await fetch(playlistApiUrl('/api/playlist/file', { name }), {
+        headers: { Accept: 'application/octet-stream' },
+    });
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.error || `${response.status} ${response.statusText}`);
+    }
+    return new Uint8Array(await response.arrayBuffer());
+}
+
+async function fetchPlaylistByteEntries() {
+    const entries = [];
+    for (const file of state.playlistItems) {
+        entries.push({
+            name: file.name,
+            bytes: await fetchPlaylistFileBytes(file.name),
+        });
+    }
+    return entries;
+}
+
 async function saveCurrentSceneToPlaylist() {
     if (!state.playlistApiAvailable || state.playlistBusy || state.deployBusy) return;
-    const filename = (state.composerTab === 'playlist' && state.playlistSelected)
-        ? state.playlistSelected
-        : pscDownloadFilename(sceneStore.scene);
+    const sourceName = String(state.sceneSourceName ?? '').trim();
+    const filename = preferredPlaylistFilename();
+    const renamedFromSource = sourceName && filename !== sourceName;
     state.playlistBusy = true;
     rebuildPanel();
     let statusText = null;
@@ -435,9 +573,12 @@ async function saveCurrentSceneToPlaylist() {
         });
         const savedName = body.file?.name ?? filename;
         state.playlistSelected = savedName;
+        state.sceneSourceName = filename;
         await refreshPlaylistItems();
-        statusText = `saved ${savedName}`;
-        logDebug('playlist', `saved ${savedName} (${bytes.length} bytes)`);
+        statusText = renamedFromSource
+            ? `saved ${savedName} (renamed from ${sourceName})`
+            : `saved ${savedName}`;
+        logDebug('playlist', `${statusText} (${bytes.length} bytes)`);
     } catch (e) {
         statusText = `playlist save error: ${e.message}`;
         statusError = true;
@@ -449,6 +590,106 @@ async function saveCurrentSceneToPlaylist() {
     }
 }
 
+async function deletePlaylistScene(name) {
+    if (!name || state.playlistBusy || state.deployBusy) return;
+    if (!window.confirm(`Delete ${name} from the playlist?`)) return;
+
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    try {
+        const body = await fetchPlaylistJson('/api/playlist/delete', {
+            method: 'POST',
+            params: { name },
+        });
+        const deletedName = body.file?.name ?? name;
+        if (state.playlistSelected === deletedName) {
+            state.playlistSelected = '';
+        }
+        await refreshPlaylistItems();
+        statusText = `deleted ${deletedName}`;
+        logDebug('playlist', statusText);
+    } catch (e) {
+        statusText = `playlist delete error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist delete failed for ${name}: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+async function importFilesToPlaylist(fileList) {
+    if (!state.playlistApiAvailable || state.playlistBusy || state.deployBusy) return;
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return;
+
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    let imported = 0;
+    let skipped = 0;
+    let failed = 0;
+    try {
+        await refreshPlaylistItems();
+        const knownEntries = await fetchPlaylistByteEntries();
+
+        for (const file of files) {
+            let bytes;
+            let decoded;
+            try {
+                bytes = await readFileBytes(file);
+                decoded = decodeScene(bytes);
+            } catch (e) {
+                failed += 1;
+                logDebug('error', `playlist import skipped ${file.name}: ${e.message}`);
+                continue;
+            }
+
+            const duplicate = knownEntries.find((entry) => bytesEqual(entry.bytes, bytes));
+            if (duplicate) {
+                skipped += 1;
+                logDebug('playlist', `import skipped ${file.name}: already present as ${duplicate.name}`);
+                continue;
+            }
+
+            const sourceName = String(file.name ?? '').trim();
+            const filename = isSafePlaylistFilename(sourceName)
+                ? sourceName
+                : pscDownloadFilename(decoded);
+            const body = await fetchPlaylistJson('/api/playlist/save', {
+                method: 'POST',
+                params: { name: filename },
+                headers: { 'Content-Type': 'application/octet-stream' },
+                body: bytes,
+            });
+            const savedName = body.file?.name ?? filename;
+            knownEntries.push({ name: savedName, bytes });
+            state.playlistSelected = savedName;
+            imported += 1;
+            if (filename !== sourceName) {
+                logDebug('playlist', `imported ${sourceName || 'unnamed file'} as ${savedName}`);
+            } else {
+                logDebug('playlist', `imported ${savedName}`);
+            }
+        }
+
+        await refreshPlaylistItems();
+        statusText = `imported ${imported}, skipped ${skipped}${failed ? `, failed ${failed}` : ''}`;
+        statusError = failed > 0 && imported === 0;
+    } catch (e) {
+        statusText = `playlist import error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist import failed: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
 
 function appendDeployLog(logs) {
     const text = String(logs ?? '');
@@ -510,9 +751,17 @@ async function pollDeployStatus() {
 }
 
 async function startDeployToMcu() {
-    if (!state.deployApiAvailable || state.deployBusy || state.playlistBusy) return;
-    if (!state.playlistSelected) {
-        showStatus('choose a saved playlist composition first', true);
+    if (!state.deployApiAvailable
+        || state.deployBusy
+        || state.playlistBusy
+        || state.deployDetectBusy
+        || state.displayBrightnessBusy) return;
+    if (!(await flushDisplayBrightnessSave())) {
+        showStatus('save brightness before deploying', true);
+        return;
+    }
+    if (state.playlistItems.length === 0) {
+        showStatus('save at least one composition to the playlist first', true);
         return;
     }
     if (!state.deployTarget) {
@@ -907,19 +1156,25 @@ async function pushSceneNow(pushEvent, pushSeq) {
     }
 }
 
+// Debounce scene pushes so a continuous interaction (slider drag, held stepper)
+// only applies once the user settles. Each new emission resets the timer; the
+// trailing edge encodes + pushes the latest scene. Discrete edits (dropdowns,
+// checkboxes, a single stepper click) apply after one quiet interval.
+const PUSH_DEBOUNCE_MS = 160;
+
 function schedulePush(seq = nextRenderSeq()) {
     state.latestSceneSeq = seq;
     const event = state.latestEvent;
-    if (state.pushFrame !== null) {
-        logDebug('coalesce', `queued latest rev ${event?.revision ?? '?'} seq ${seq} before next frame`);
-        return;
+    if (state.pushTimer !== null) {
+        clearTimeout(state.pushTimer);
+        logDebug('coalesce', `debounced latest rev ${event?.revision ?? '?'} seq ${seq}`);
     }
-    state.pushFrame = requestAnimationFrame(async () => {
-        state.pushFrame = null;
+    state.pushTimer = setTimeout(() => {
+        state.pushTimer = null;
         const pushEvent = state.latestEvent;
         const pushSeq = state.latestSceneSeq;
-        await pushSceneNow(pushEvent, pushSeq);
-    });
+        void pushSceneNow(pushEvent, pushSeq);
+    }, PUSH_DEBOUNCE_MS);
 }
 
 sceneStore.subscribe((event) => {
@@ -968,6 +1223,47 @@ function renderConfigControl(c, configObj, setValue) {
             setValue(c.name, cb.checked ? 1 : 0);
         });
         wrap.appendChild(cb);
+        return wrap;
+    }
+
+    // Palette tint mode: one wire byte (0 hue-remap, 1 colour-mask, 2 native)
+    // surfaced as two linked checkboxes.
+    if (c.kind === 'tintMode') {
+        const mode = configObj[c.name] ?? c.default ?? 0;
+
+        const group = document.createElement('div');
+        group.className = 'tint-mode';
+
+        const tintLabel = document.createElement('label');
+        tintLabel.className = 'tint-mode-check';
+        const tintCb = document.createElement('input');
+        tintCb.type = 'checkbox';
+        tintCb.checked = mode !== 2;   // native (2) means "don't tint with palette"
+        tintLabel.appendChild(tintCb);
+        tintLabel.appendChild(document.createTextNode('Tint with palette'));
+
+        const maskLabel = document.createElement('label');
+        maskLabel.className = 'tint-mode-check';
+        const maskCb = document.createElement('input');
+        maskCb.type = 'checkbox';
+        maskCb.checked = mode === 1;   // colour-mask
+        maskCb.disabled = !tintCb.checked;
+        maskLabel.appendChild(maskCb);
+        maskLabel.appendChild(document.createTextNode('Use offset as colour mask'));
+
+        const commit = () => {
+            maskCb.disabled = !tintCb.checked;
+            let next;
+            if (!tintCb.checked) next = 2;            // native
+            else next = maskCb.checked ? 1 : 0;       // colour-mask : hue-remap
+            setValue(c.name, next);
+        };
+        tintCb.addEventListener('change', commit);
+        maskCb.addEventListener('change', commit);
+
+        group.appendChild(tintLabel);
+        group.appendChild(maskLabel);
+        wrap.appendChild(group);
         return wrap;
     }
 
@@ -1194,7 +1490,6 @@ function renderTransformsSection() {
 
 function renderTopSection() {
     const section = document.createElement('section'); section.className = 'panel-section';
-    const h = document.createElement('h2'); h.textContent = 'Scene'; section.appendChild(h);
 
     const palRow = document.createElement('div'); palRow.className = 'top-row';
     palRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Palette' }));
@@ -1238,6 +1533,166 @@ function renderTopSection() {
     dispRow.appendChild(dispSel);
     section.appendChild(dispRow);
 
+    const brightnessRow = document.createElement('div'); brightnessRow.className = 'top-row';
+    brightnessRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Brightness' }));
+    const brightnessSlider = document.createElement('input');
+    brightnessSlider.type = 'range';
+    brightnessSlider.min = '0';
+    brightnessSlider.max = '255';
+    brightnessSlider.step = '1';
+    brightnessSlider.value = String(state.displayBrightness);
+    brightnessSlider.disabled = !state.displayConfigApiAvailable || state.displayBrightnessBusy;
+    brightnessSlider.title = state.displayConfigApiAvailable
+        ? 'Saved into build/display_config.json and applied on the next MCU deploy'
+        : 'Run web/serve.sh locally to save MCU brightness';
+    const brightnessValue = document.createElement('span');
+    brightnessValue.className = 'brightness-value';
+    brightnessValue.textContent = String(state.displayBrightness);
+    brightnessSlider.addEventListener('input', () => {
+        const brightness = clampDisplayBrightness(brightnessSlider.value);
+        state.displayBrightness = brightness;
+        brightnessValue.textContent = String(brightness);
+        scheduleDisplayBrightnessSave(brightness);
+    });
+    brightnessRow.appendChild(brightnessSlider);
+    brightnessRow.appendChild(brightnessValue);
+    section.appendChild(brightnessRow);
+
+    const ioRow = document.createElement('div'); ioRow.className = 'top-row action-row';
+    const saveBtn = document.createElement('button'); saveBtn.textContent = 'Download .psc';
+    const savePlaylistBtn = document.createElement('button'); savePlaylistBtn.textContent = 'Add to playlist';
+    const importPlaylistBtn = document.createElement('button'); importPlaylistBtn.textContent = 'Import to playlist';
+    const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load .psc';
+    const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset renderer';
+    resetBtn.title = 'Reload the renderer from the last successfully applied scene';
+    state.resetRendererBtn = resetBtn;
+    if (state.workerRendererFatal) {
+        resetBtn.classList.add('attention');
+    }
+    const fileIn  = document.createElement('input');
+    fileIn.type = 'file'; fileIn.accept = '.psc,application/octet-stream';
+    fileIn.style.display = 'none';
+    const importIn = document.createElement('input');
+    importIn.type = 'file'; importIn.accept = '.psc,application/octet-stream';
+    importIn.multiple = true;
+    importIn.style.display = 'none';
+    saveBtn.addEventListener('click', () => {
+        try {
+            const bytes = encodeScene(sceneStore.scene);
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = pscDownloadFilename(sceneStore.scene);
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            showStatus(`save error: ${e.message}`, true);
+        }
+    });
+    savePlaylistBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
+    if (!state.playlistApiAvailable) {
+        savePlaylistBtn.title = state.playlistApiChecked
+            ? 'Run web/serve.sh locally to save directly into build/psc'
+            : 'Checking local playlist API';
+    } else if (state.deployBusy) {
+        savePlaylistBtn.title = 'Wait for deploy to finish before changing build/psc';
+    } else if (state.sceneSourceName && isSafePlaylistFilename(state.sceneSourceName)) {
+        savePlaylistBtn.title = `Add build/psc/${state.sceneSourceName}`;
+    } else if (state.sceneSourceName) {
+        savePlaylistBtn.title = 'Save with a generated build/psc filename';
+    } else {
+        savePlaylistBtn.title = 'Save a new .psc file into build/psc';
+    }
+    savePlaylistBtn.addEventListener('click', () => {
+        void saveCurrentSceneToPlaylist();
+    });
+    importPlaylistBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
+    if (!state.playlistApiAvailable) {
+        importPlaylistBtn.title = state.playlistApiChecked
+            ? 'Run web/serve.sh locally to import directly into build/psc'
+            : 'Checking local playlist API';
+    } else if (state.deployBusy) {
+        importPlaylistBtn.title = 'Wait for deploy to finish before changing build/psc';
+    } else {
+        importPlaylistBtn.title = 'Import one or more .psc files into build/psc';
+    }
+    importPlaylistBtn.addEventListener('click', () => importIn.click());
+    importIn.addEventListener('change', () => {
+        const files = Array.from(importIn.files ?? []);
+        importIn.value = '';
+        void importFilesToPlaylist(files);
+    });
+    loadBtn.addEventListener('click', () => fileIn.click());
+    fileIn.addEventListener('change', () => {
+        const f = fileIn.files?.[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            let bytes = null;
+            try {
+                bytes = new Uint8Array(ev.target.result);
+                const decoded = decodeScene(bytes);
+                sceneStore.setScene(decoded, {
+                    path: 'scene.load',
+                    value: sceneSummary(decoded),
+                });
+                state.sceneSourceName = f.name;
+                rebuildPanel();           // rerender the whole panel
+            } catch (e) {
+                showStatus(`load error: ${e.message}`, true);
+                const size = bytes ? bytes.length : (f.size ?? '?');
+                const hexHead = bytes
+                    ? Array.from(bytes.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join(' ')
+                    : '(unread)';
+                console.error(
+                    `[composer] failed to load .psc "${f.name}" (${size} bytes): ${e.message}\n` +
+                    `first bytes: ${hexHead}`,
+                    e
+                );
+            }
+        };
+        reader.onerror = () => {
+            const err = reader.error;
+            showStatus(`load error: ${err?.message ?? 'file read failed'}`, true);
+            console.error(`[composer] FileReader failed to read "${f.name}":`, err);
+        };
+        reader.readAsArrayBuffer(f);
+    });
+    resetBtn.addEventListener('click', resetRenderer);
+    // Bloom on/off: toggles the ThreeJS bloom post-processing pass in the render
+    // worker's graphics manager (see setWorkerBloom).
+    const bloomLabel = document.createElement('label');
+    bloomLabel.style.display = 'flex';
+    bloomLabel.style.alignItems = 'center';
+    bloomLabel.style.gap = '6px';
+    const bloomChk = document.createElement('input');
+    bloomChk.type = 'checkbox';
+    bloomChk.checked = bloomPreference;
+    bloomChk.addEventListener('change', () => {
+        setWorkerBloom(bloomChk.checked).then((res) => {
+            if (res && res.ok === false) {
+                showStatus(`bloom: ${res.reason || 'failed'}`, true);
+            } else {
+                showStatus(`bloom ${bloomChk.checked ? 'on' : 'off'}`, false);
+            }
+        });
+    });
+    bloomLabel.appendChild(bloomChk);
+    bloomLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Bloom' }));
+    ioRow.appendChild(loadBtn);
+    ioRow.appendChild(saveBtn);
+    ioRow.appendChild(savePlaylistBtn);
+    ioRow.appendChild(importPlaylistBtn);
+    ioRow.appendChild(resetBtn);
+    ioRow.appendChild(bloomLabel);
+    ioRow.appendChild(fileIn);
+    ioRow.appendChild(importIn);
+    section.appendChild(ioRow);
+
+    state.statusEl = document.createElement('div');
+    state.statusEl.className = 'status';
+    state.statusEl.textContent = 'idle';
+    section.appendChild(state.statusEl);
+
     const tabs = document.createElement('div');
     tabs.className = 'composer-tabs';
     for (const tab of [
@@ -1267,74 +1722,6 @@ function renderTopSection() {
     }
     section.appendChild(tabs);
 
-    const ioRow = document.createElement('div'); ioRow.className = 'top-row';
-    const saveBtn = document.createElement('button'); saveBtn.textContent = 'Save .psc';
-    const savePlaylistBtn = document.createElement('button'); savePlaylistBtn.textContent = 'Save to playlist';
-    const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load .psc';
-    const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset renderer';
-    resetBtn.title = 'Reload the renderer from the last successfully applied scene';
-    state.resetRendererBtn = resetBtn;
-    if (state.workerRendererFatal) {
-        resetBtn.classList.add('attention');
-    }
-    const fileIn  = document.createElement('input');
-    fileIn.type = 'file'; fileIn.accept = '.psc,application/octet-stream';
-    fileIn.style.display = 'none';
-    saveBtn.addEventListener('click', () => {
-        try {
-            const bytes = encodeScene(sceneStore.scene);
-            const blob = new Blob([bytes], { type: 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = pscDownloadFilename(sceneStore.scene);
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            showStatus(`save error: ${e.message}`, true);
-        }
-    });
-    savePlaylistBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
-    if (!state.playlistApiAvailable) {
-        savePlaylistBtn.title = state.playlistApiChecked
-            ? 'Run web/serve.sh locally to save directly into build/psc'
-            : 'Checking local playlist API';
-    } else if (state.deployBusy) {
-        savePlaylistBtn.title = 'Wait for deploy to finish before changing build/psc';
-    } else if (state.composerTab === 'playlist' && state.playlistSelected) {
-        savePlaylistBtn.title = `Overwrite build/psc/${state.playlistSelected}`;
-    } else {
-        savePlaylistBtn.title = 'Save a new .psc file into build/psc';
-    }
-    savePlaylistBtn.addEventListener('click', () => {
-        void saveCurrentSceneToPlaylist();
-    });
-    loadBtn.addEventListener('click', () => fileIn.click());
-    fileIn.addEventListener('change', () => {
-        const f = fileIn.files?.[0]; if (!f) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const bytes = new Uint8Array(ev.target.result);
-                const decoded = decodeScene(bytes);
-                sceneStore.setScene(decoded, {
-                    path: 'scene.load',
-                    value: sceneSummary(decoded),
-                });
-                rebuildPanel();           // rerender the whole panel
-            } catch (e) {
-                showStatus(`load error: ${e.message}`, true);
-            }
-        };
-        reader.readAsArrayBuffer(f);
-    });
-    resetBtn.addEventListener('click', resetRenderer);
-    ioRow.appendChild(saveBtn);
-    ioRow.appendChild(savePlaylistBtn);
-    ioRow.appendChild(loadBtn);
-    ioRow.appendChild(resetBtn);
-    ioRow.appendChild(fileIn);
-    section.appendChild(ioRow);
-
     if (state.composerTab === 'new') {
         // PatternFlow ready-made presets: load a bare pf pattern + its transform
         // stack in one click (mirrors the native pf*Preset recipes).
@@ -1354,6 +1741,7 @@ function renderTopSection() {
                 path: 'scene.preset',
                 value: preset.label,
             });
+            state.sceneSourceName = '';
             rebuildPanel();
         });
         presetRow.appendChild(presetSel); presetRow.appendChild(presetBtn);
@@ -1362,7 +1750,7 @@ function renderTopSection() {
 
     if (state.composerTab === 'playlist') {
         const playlistRow = document.createElement('div'); playlistRow.className = 'top-row';
-        playlistRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Saved' }));
+        playlistRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Files' }));
         if (!state.playlistApiChecked) {
             playlistRow.appendChild(Object.assign(document.createElement('span'), {
                 className: 'muted-note',
@@ -1379,23 +1767,10 @@ function renderTopSection() {
                 textContent: 'no saved compositions in build/psc',
             }));
         } else {
-            const playlistSel = document.createElement('select');
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = 'Choose saved composition';
-            playlistSel.appendChild(placeholder);
-            for (const file of state.playlistItems) {
-                const o = document.createElement('option');
-                o.value = file.name;
-                o.textContent = file.name;
-                playlistSel.appendChild(o);
-            }
-            playlistSel.value = state.playlistSelected;
-            playlistSel.disabled = state.playlistBusy;
-            playlistSel.addEventListener('change', () => {
-                if (playlistSel.value) void loadPlaylistScene(playlistSel.value);
-            });
-            playlistRow.appendChild(playlistSel);
+            playlistRow.appendChild(Object.assign(document.createElement('span'), {
+                className: 'muted-note',
+                textContent: `${state.playlistItems.length} composition${state.playlistItems.length === 1 ? '' : 's'} in build/psc`,
+            }));
         }
         const refreshBtn = document.createElement('button');
         refreshBtn.textContent = 'Refresh';
@@ -1406,6 +1781,39 @@ function renderTopSection() {
         playlistRow.appendChild(refreshBtn);
         section.appendChild(playlistRow);
 
+        if (state.playlistApiAvailable && state.playlistItems.length > 0) {
+            const playlistList = document.createElement('div');
+            playlistList.className = 'playlist-list';
+            for (const file of state.playlistItems) {
+                const item = document.createElement('div');
+                item.className = file.name === state.playlistSelected
+                    ? 'playlist-item active'
+                    : 'playlist-item';
+                const loadSavedBtn = document.createElement('button');
+                loadSavedBtn.type = 'button';
+                loadSavedBtn.textContent = file.name;
+                loadSavedBtn.title = `Load ${file.name}`;
+                loadSavedBtn.className = 'playlist-load-btn';
+                loadSavedBtn.disabled = state.playlistBusy || state.deployBusy;
+                loadSavedBtn.addEventListener('click', () => {
+                    void loadPlaylistScene(file.name);
+                });
+                const deleteSavedBtn = document.createElement('button');
+                deleteSavedBtn.type = 'button';
+                deleteSavedBtn.textContent = '×';
+                deleteSavedBtn.className = 'playlist-delete-btn';
+                deleteSavedBtn.title = `Delete ${file.name}`;
+                deleteSavedBtn.setAttribute('aria-label', `Delete ${file.name}`);
+                deleteSavedBtn.disabled = state.playlistBusy || state.deployBusy;
+                deleteSavedBtn.addEventListener('click', () => {
+                    void deletePlaylistScene(file.name);
+                });
+                item.appendChild(loadSavedBtn);
+                item.appendChild(deleteSavedBtn);
+                playlistList.appendChild(item);
+            }
+            section.appendChild(playlistList);
+        }
 
         const targetRow = document.createElement('div'); targetRow.className = 'top-row';
         targetRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'MCU' }));
@@ -1453,14 +1861,20 @@ function renderTopSection() {
         deployBtn.disabled = !state.deployApiAvailable
             || state.deployBusy
             || state.playlistBusy
-            || !state.playlistSelected
+            || state.deployDetectBusy
+            || state.displayBrightnessBusy
+            || state.playlistItems.length === 0
             || !state.deployTarget;
-        if (!state.playlistSelected) {
-            deployBtn.title = 'Choose a saved playlist composition first';
+        if (state.playlistItems.length === 0) {
+            deployBtn.title = 'Save at least one composition to build/psc first';
+        } else if (state.displayBrightnessBusy) {
+            deployBtn.title = 'Wait for brightness to save';
+        } else if (state.deployDetectBusy) {
+            deployBtn.title = 'Wait for device detection to finish';
         } else if (!state.deployTarget) {
             deployBtn.title = 'Choose an MCU target first';
         } else {
-            deployBtn.title = `Build and upload ${deployTargetLabel(state.deployTarget)}`;
+            deployBtn.title = `Build and upload ${state.playlistItems.length} playlist composition${state.playlistItems.length === 1 ? '' : 's'} to ${deployTargetLabel(state.deployTarget)}`;
         }
         deployBtn.addEventListener('click', () => {
             void startDeployToMcu();
@@ -1483,35 +1897,6 @@ function renderTopSection() {
         if (deployInfo.textContent) deployRow.appendChild(deployInfo);
         section.appendChild(deployRow);
     }
-
-    // Bloom on/off: toggles the ThreeJS bloom post-processing pass in the render
-    // worker's graphics manager (see setWorkerBloom).
-    const bloomRow = document.createElement('div'); bloomRow.className = 'top-row';
-    const bloomLabel = document.createElement('label');
-    bloomLabel.style.display = 'flex';
-    bloomLabel.style.alignItems = 'center';
-    bloomLabel.style.gap = '6px';
-    const bloomChk = document.createElement('input');
-    bloomChk.type = 'checkbox';
-    bloomChk.checked = bloomPreference;
-    bloomChk.addEventListener('change', () => {
-        setWorkerBloom(bloomChk.checked).then((res) => {
-            if (res && res.ok === false) {
-                showStatus(`bloom: ${res.reason || 'failed'}`, true);
-            } else {
-                showStatus(`bloom ${bloomChk.checked ? 'on' : 'off'}`, false);
-            }
-        });
-    });
-    bloomLabel.appendChild(bloomChk);
-    bloomLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Bloom' }));
-    bloomRow.appendChild(bloomLabel);
-    section.appendChild(bloomRow);
-
-    state.statusEl = document.createElement('div');
-    state.statusEl.className = 'status';
-    state.statusEl.textContent = 'idle';
-    section.appendChild(state.statusEl);
 
     return section;
 }

@@ -28,8 +28,18 @@
 
 #include "display/FastLedDisplay.h"
 
+#if __has_include("PscPlaylistConfig.h")
+#include "PscPlaylistConfig.h"
+#endif
+
 #ifndef POLAR_SHADER_RP2040_BRIGHTNESS
 #define POLAR_SHADER_RP2040_BRIGHTNESS 255
+#endif
+
+#ifdef POLAR_SHADER_DISPLAY_BRIGHTNESS
+#define POLAR_SHADER_EFFECTIVE_RP2040_BRIGHTNESS POLAR_SHADER_DISPLAY_BRIGHTNESS
+#else
+#define POLAR_SHADER_EFFECTIVE_RP2040_BRIGHTNESS POLAR_SHADER_RP2040_BRIGHTNESS
 #endif
 
 #ifndef POLAR_SHADER_RP2040_REFRESH_MS
@@ -52,7 +62,7 @@ namespace PolarShader {
             Serial.begin(115200);
             Display *createdDisplay = new Display(
                 specInstance,
-                POLAR_SHADER_RP2040_BRIGHTNESS,
+                POLAR_SHADER_EFFECTIVE_RP2040_BRIGHTNESS,
                 POLAR_SHADER_RP2040_REFRESH_MS,
                 POLAR_SHADER_RP2040_DUAL_CORE != 0
             );

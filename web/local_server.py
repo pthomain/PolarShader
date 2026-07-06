@@ -26,6 +26,7 @@ DEVICE_LIST_TIMEOUT_SECONDS = 8
 PROCESS_TERM_GRACE_SECONDS = 5
 JOB_HISTORY_LIMIT = 10
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]*$")
+DEFAULT_DISPLAY_BRIGHTNESS = 255
 
 DEPLOY_TARGETS = [
     {
@@ -66,6 +67,37 @@ def _validate_psc(data: bytes) -> str | None:
     return None
 
 
+def _coerce_display_brightness(value) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("brightness must be an integer")
+    if value < 0 or value > 255:
+        raise ValueError("brightness must be between 0 and 255")
+    return value
+
+
+def _read_display_config(path: Path) -> tuple[int, bool]:
+    if not path.is_file():
+        return DEFAULT_DISPLAY_BRIGHTNESS, False
+    try:
+        body = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DEFAULT_DISPLAY_BRIGHTNESS, False
+    if not isinstance(body, dict):
+        return DEFAULT_DISPLAY_BRIGHTNESS, False
+    try:
+        return _coerce_display_brightness(body.get("brightness")), True
+    except ValueError:
+        return DEFAULT_DISPLAY_BRIGHTNESS, False
+
+
+def _write_display_config(path: Path, brightness: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"brightness": brightness}, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _playlist_name(raw: str, playlist_dir: Path) -> tuple[str, Path]:
     name = unquote(raw).strip()
     if not name:
@@ -86,6 +118,22 @@ def _playlist_name(raw: str, playlist_dir: Path) -> tuple[str, Path]:
         raise ValueError("playlist filename escapes build/psc") from exc
 
     return candidate.as_posix(), resolved
+
+
+def _deduplicated_playlist_path(name: str, path: Path, playlist_dir: Path) -> tuple[str, Path]:
+    if not path.exists():
+        return name, path
+
+    requested = Path(name)
+    parent = requested.parent
+    stem = requested.stem
+    suffix = requested.suffix
+    for index in range(1, 10000):
+        candidate = parent / f"{stem}-{index}{suffix}"
+        candidate_name, candidate_path = _playlist_name(candidate.as_posix(), playlist_dir)
+        if not candidate_path.exists():
+            return candidate_name, candidate_path
+    raise ValueError("could not allocate a unique playlist filename")
 
 
 def _duration_label(seconds: int | float) -> str:
@@ -225,38 +273,40 @@ class DeployManager:
         return [*self._platformio_base_cmd(), *args]
 
     def list_devices(self) -> dict:
-        if self.is_deploy_active():
+        if not self.deploy_lock.acquire(blocking=False):
             raise ApiError(409, "deploy already in progress")
-
-        argv = self._platformio_argv(["device", "list", "--json-output"])
         try:
-            proc = subprocess.run(
-                argv,
-                cwd=self.repo_root,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                timeout=DEVICE_LIST_TIMEOUT_SECONDS,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            return {"devices": [], "error": "device detection timed out"}
-        except OSError as exc:
-            return {"devices": [], "error": str(exc)}
+            argv = self._platformio_argv(["device", "list", "--json-output"])
+            try:
+                proc = subprocess.run(
+                    argv,
+                    cwd=self.repo_root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    timeout=DEVICE_LIST_TIMEOUT_SECONDS,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired:
+                return {"devices": [], "error": "device detection timed out"}
+            except OSError as exc:
+                return {"devices": [], "error": str(exc)}
 
-        if proc.returncode != 0:
-            return {
-                "devices": [],
-                "error": proc.stdout.strip() or f"device detection failed with exit code {proc.returncode}",
-            }
+            if proc.returncode != 0:
+                return {
+                    "devices": [],
+                    "error": proc.stdout.strip() or f"device detection failed with exit code {proc.returncode}",
+                }
 
-        try:
-            devices = json.loads(proc.stdout or "[]")
-        except json.JSONDecodeError as exc:
-            return {"devices": [], "error": f"device detection returned invalid JSON: {exc}"}
-        if not isinstance(devices, list):
-            return {"devices": [], "error": "device detection returned unexpected JSON"}
-        return {"devices": devices}
+            try:
+                devices = json.loads(proc.stdout or "[]")
+            except json.JSONDecodeError as exc:
+                return {"devices": [], "error": f"device detection returned invalid JSON: {exc}"}
+            if not isinstance(devices, list):
+                return {"devices": [], "error": "device detection returned unexpected JSON"}
+            return {"devices": devices}
+        finally:
+            self.deploy_lock.release()
 
     def start_deploy(self, env: str) -> dict:
         if env not in DEPLOY_TARGET_IDS:
@@ -267,7 +317,7 @@ class DeployManager:
         job = DeployJob(uuid.uuid4().hex, env)
         try:
             self._remember_job(job)
-            thread = threading.Thread(target=self._run_deploy, args=(job,), daemon=True)
+            thread = threading.Thread(target=self._run_deploy, args=(job, True), daemon=True)
             thread.start()
         except Exception as exc:
             job.update(status="failed", error=str(exc), ended_at=time.time())
@@ -322,7 +372,7 @@ class DeployManager:
         except subprocess.TimeoutExpired:
             return
 
-    def _run_deploy(self, job: DeployJob) -> None:
+    def _run_deploy(self, job: DeployJob, release_deploy_lock: bool) -> None:
         proc: subprocess.Popen | None = None
         try:
             argv = self._platformio_argv(["run", "-e", job.env, "-t", "upload"])
@@ -351,6 +401,8 @@ class DeployManager:
                 job.append_log(f"\n[deploy {message}; terminating process group]\n")
                 self._kill_process_group(proc)
                 exit_code = proc.poll()
+                if exit_code is None:
+                    exit_code = -signal.SIGKILL
 
             reader.join(timeout=2)
             if job.snapshot()["status"] == "timed_out":
@@ -374,7 +426,7 @@ class DeployManager:
             with self.active_proc_lock:
                 if self.active_proc is proc:
                     self.active_proc = None
-            if self.deploy_lock.locked():
+            if release_deploy_lock:
                 self.deploy_lock.release()
 
     def shutdown(self) -> None:
@@ -392,6 +444,7 @@ class ThreadedLocalServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
     repo_root: Path
     playlist_dir: Path
+    display_config_path: Path
     deploy_manager: DeployManager
 
     def end_headers(self) -> None:
@@ -485,6 +538,7 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 "savePsc": True,
                 "playlist": True,
                 "deploy": True,
+                "displayConfig": True,
                 "playlistDir": "build/psc",
             })
             return
@@ -519,6 +573,17 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+            return
+
+        if parsed.path == "/api/display/config":
+            brightness, saved = _read_display_config(self.display_config_path)
+            self._send_json(200, {
+                "ok": True,
+                "brightness": brightness,
+                "saved": saved,
+                "min": 0,
+                "max": 255,
+            })
             return
 
         if parsed.path == "/api/deploy/targets":
@@ -572,6 +637,46 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             self._send_json(202, {"ok": True, "job": job})
             return
 
+        if parsed.path == "/api/display/config":
+            try:
+                body = self._read_json_body()
+                brightness = _coerce_display_brightness(body.get("brightness"))
+                _write_display_config(self.display_config_path, brightness)
+            except ValueError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            except OSError as exc:
+                self._send_error_json(500, f"failed to save display config: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+            self._send_json(200, {"ok": True, "brightness": brightness, "saved": True})
+            return
+
+        if parsed.path == "/api/playlist/delete":
+            self._drain_request_body()
+            try:
+                name, path = self._query_name()
+            except ValueError as exc:
+                self._send_error_json(400, str(exc))
+                return
+
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                self._send_error_json(404, "playlist file not found")
+                return
+            except IsADirectoryError:
+                self._send_error_json(400, "playlist path is not a file")
+                return
+            except OSError as exc:
+                self._send_error_json(500, f"failed to delete playlist file: {exc}")
+                return
+
+            self._send_json(200, {"ok": True, "file": {"name": name}})
+            return
+
         if parsed.path != "/api/playlist/save":
             self._reject_api_request(404, "unknown API endpoint", drain=True)
             return
@@ -600,6 +705,12 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
         error = _validate_psc(data)
         if error:
             self._send_error_json(400, error)
+            return
+
+        try:
+            name, path = _deduplicated_playlist_path(name, path, self.playlist_dir)
+        except ValueError as exc:
+            self._send_error_json(409, str(exc))
             return
 
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -634,6 +745,7 @@ def main() -> None:
 
     LocalComposerServer.repo_root = repo_root
     LocalComposerServer.playlist_dir = (repo_root / "build" / "psc").resolve()
+    LocalComposerServer.display_config_path = (repo_root / "build" / "display_config.json").resolve()
     LocalComposerServer.deploy_manager = DeployManager(repo_root, platformio_python)
     with ThreadedLocalServer(
         ("127.0.0.1", port),

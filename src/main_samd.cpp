@@ -28,6 +28,14 @@
 #include "FabricDisplaySpec.h"
 #include "display/FastLedDisplay.h"
 
+#if __has_include("PscPlaylistConfig.h")
+#include "PscPlaylistConfig.h"
+#endif
+
+#ifndef POLAR_SHADER_DISPLAY_BRIGHTNESS
+#define POLAR_SHADER_DISPLAY_BRIGHTNESS 255
+#endif
+
 using namespace PolarShader;
 using PolarDisplay = FastLedDisplay<FabricDisplaySpec>;
 
@@ -36,7 +44,7 @@ static PolarDisplay *display = nullptr;
 void setup() {
     static FabricDisplaySpec specInstance;
     Serial.begin(115200);
-    display = new PolarDisplay(specInstance, 255);
+    display = new PolarDisplay(specInstance, POLAR_SHADER_DISPLAY_BRIGHTNESS);
 }
 
 void loop() {

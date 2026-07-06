@@ -57,6 +57,7 @@ class LocalServerTest(unittest.TestCase):
         )
         local_server.LocalComposerServer.repo_root = self.repo_root
         local_server.LocalComposerServer.playlist_dir = (self.repo_root / "build" / "psc").resolve()
+        local_server.LocalComposerServer.display_config_path = (self.repo_root / "build" / "display_config.json").resolve()
         local_server.LocalComposerServer.deploy_manager = self.manager
         self.server = local_server.ThreadedLocalServer(
             ("127.0.0.1", 0),
@@ -117,6 +118,81 @@ class LocalServerTest(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertTrue((self.repo_root / "build" / "psc" / "ok.psc").is_file())
 
+    def test_playlist_save_collision_gets_incremented_name(self) -> None:
+        first_status, first_body = self.request(
+            "POST",
+            "/api/playlist/save?name=original.psc",
+            VALID_PSC,
+            {"Content-Type": "application/octet-stream"},
+        )
+        second_status, second_body = self.request(
+            "POST",
+            "/api/playlist/save?name=original.psc",
+            VALID_PSC,
+            {"Content-Type": "application/octet-stream"},
+        )
+        third_status, third_body = self.request(
+            "POST",
+            "/api/playlist/save?name=original.psc",
+            VALID_PSC,
+            {"Content-Type": "application/octet-stream"},
+        )
+        self.assertEqual(first_status, 200, first_body)
+        self.assertEqual(second_status, 200, second_body)
+        self.assertEqual(third_status, 200, third_body)
+        self.assertEqual(first_body["file"]["name"], "original.psc")
+        self.assertEqual(second_body["file"]["name"], "original-1.psc")
+        self.assertEqual(third_body["file"]["name"], "original-2.psc")
+        self.assertTrue((self.repo_root / "build" / "psc" / "original.psc").is_file())
+        self.assertTrue((self.repo_root / "build" / "psc" / "original-1.psc").is_file())
+        self.assertTrue((self.repo_root / "build" / "psc" / "original-2.psc").is_file())
+
+    def test_playlist_delete_removes_file(self) -> None:
+        path = self.repo_root / "build" / "psc" / "delete-me.psc"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(VALID_PSC)
+
+        status, body = self.request(
+            "POST",
+            "/api/playlist/delete?name=delete-me.psc",
+            headers={"Content-Type": "text/plain"},
+        )
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["file"]["name"], "delete-me.psc")
+        self.assertFalse(path.exists())
+
+    def test_display_config_default_and_save(self) -> None:
+        status, body = self.request("GET", "/api/display/config")
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["brightness"], 255)
+        self.assertFalse(body["saved"])
+
+        save_status, save_body = self.request(
+            "POST",
+            "/api/display/config",
+            json.dumps({"brightness": 42}).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+
+        self.assertEqual(save_status, 200, save_body)
+        self.assertEqual(save_body["brightness"], 42)
+        self.assertTrue((self.repo_root / "build" / "display_config.json").is_file())
+
+        next_status, next_body = self.request("GET", "/api/display/config")
+        self.assertEqual(next_status, 200, next_body)
+        self.assertEqual(next_body["brightness"], 42)
+        self.assertTrue(next_body["saved"])
+
+    def test_display_config_rejects_invalid_brightness(self) -> None:
+        status, body = self.request(
+            "POST",
+            "/api/display/config",
+            json.dumps({"brightness": 300}).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 400, body)
+
     def test_cross_origin_text_plain_save_is_rejected(self) -> None:
         status, body = self.request(
             "POST",
@@ -126,6 +202,31 @@ class LocalServerTest(unittest.TestCase):
         )
         self.assertEqual(status, 403, body)
         self.assertFalse((self.repo_root / "build" / "psc" / "evil.psc").exists())
+
+    def test_cross_origin_text_plain_delete_is_rejected(self) -> None:
+        path = self.repo_root / "build" / "psc" / "evil.psc"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(VALID_PSC)
+
+        status, body = self.request(
+            "POST",
+            "/api/playlist/delete?name=evil.psc",
+            b"ignored",
+            {"Content-Type": "text/plain", "Origin": "http://evil.example"},
+        )
+
+        self.assertEqual(status, 403, body)
+        self.assertTrue(path.exists())
+
+    def test_cross_origin_text_plain_display_config_is_rejected(self) -> None:
+        status, body = self.request(
+            "POST",
+            "/api/display/config",
+            json.dumps({"brightness": 42}).encode("utf-8"),
+            {"Content-Type": "text/plain", "Origin": "http://evil.example"},
+        )
+        self.assertEqual(status, 403, body)
+        self.assertFalse((self.repo_root / "build" / "display_config.json").exists())
 
     def test_cross_origin_text_plain_deploy_is_rejected(self) -> None:
         status, body = self.request(
@@ -207,6 +308,57 @@ class LocalServerTest(unittest.TestCase):
         self.assertEqual(device_status, 409, device_body)
         self.wait_job(body["job"]["id"])
 
+    def test_deploy_is_blocked_during_device_detection(self) -> None:
+        self.set_env("FAKE_PIO_DEVICE_SLEEP", "0.5")
+        result = {}
+
+        def run_detection() -> None:
+            result["device"] = self.request("POST", "/api/deploy/devices")
+
+        thread = threading.Thread(target=run_detection)
+        thread.start()
+        deadline = time.time() + 2
+        while not self.manager.is_deploy_active() and time.time() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(self.manager.is_deploy_active())
+
+        deploy_status, deploy_body = self.request(
+            "POST",
+            "/api/deploy",
+            json.dumps({"env": "teensy41_matrix"}).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(deploy_status, 409, deploy_body)
+
+        thread.join(timeout=3)
+        self.assertFalse(thread.is_alive())
+        device_status, device_body = result["device"]
+        self.assertEqual(device_status, 200, device_body)
+        self.assertIn("devices", device_body)
+
+    def test_concurrent_device_detection_is_rejected(self) -> None:
+        self.set_env("FAKE_PIO_DEVICE_SLEEP", "0.5")
+        result = {}
+
+        def run_detection() -> None:
+            result["device"] = self.request("POST", "/api/deploy/devices")
+
+        thread = threading.Thread(target=run_detection)
+        thread.start()
+        deadline = time.time() + 2
+        while not self.manager.is_deploy_active() and time.time() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(self.manager.is_deploy_active())
+
+        second_status, second_body = self.request("POST", "/api/deploy/devices")
+        self.assertEqual(second_status, 409, second_body)
+
+        thread.join(timeout=3)
+        self.assertFalse(thread.is_alive())
+        first_status, first_body = result["device"]
+        self.assertEqual(first_status, 200, first_body)
+        self.assertIn("devices", first_body)
+
     def test_deploy_timeout_reports_timeout_and_releases_lock(self) -> None:
         self.manager.deploy_timeout = 0.2
         self.set_env("FAKE_PIO_SLEEP", "5")
@@ -220,6 +372,7 @@ class LocalServerTest(unittest.TestCase):
         job = self.wait_job(body["job"]["id"])
         self.assertEqual(job["status"], "timed_out", job)
         self.assertIn("timed out", job["error"])
+        self.assertIsNotNone(job["exitCode"])
 
         self.manager.deploy_timeout = 2
         self.set_env("FAKE_PIO_SLEEP", "0")
