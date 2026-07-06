@@ -100,6 +100,7 @@ const state = {
     workerRendererReloading: false,
     resetRendererBtn: null,
     composerTab: 'new',
+    presetSelected: PF_PRESETS[0]?.id ?? '',
     sceneSourceName: '',
     playlistApiChecked: false,
     playlistApiAvailable: false,
@@ -135,6 +136,10 @@ const DEPLOY_POLL_MS = 1000;
 const DEPLOY_DONE_STATUSES = new Set(['succeeded', 'failed', 'timed_out']);
 const DEBUG_LOG_LIMIT = 500;
 const BRIGHTNESS_SAVE_DEBOUNCE_MS = 250;
+const BLOOM_BASE_BRIGHTNESS = 30;
+const BLOOM_MAX_BRIGHTNESS = 255;
+const BLOOM_BASE_MULTIPLIER = 1;
+const BLOOM_MAX_MULTIPLIER = 3;
 
 function displayUrlValue(which) {
     return which === 1 ? 'round' : 'fabric';
@@ -299,12 +304,32 @@ function clampDisplayBrightness(value) {
     return Math.max(0, Math.min(255, numeric));
 }
 
+function smap(value, inMin, inMax, outMin, outMax) {
+    if (inMax === inMin) return outMin;
+    const t = Math.max(0, Math.min(1, (value - inMin) / (inMax - inMin)));
+    return outMin + (outMax - outMin) * t;
+}
+
+function bloomStrengthMultiplierForBrightness(value) {
+    return smap(
+        clampDisplayBrightness(value),
+        BLOOM_BASE_BRIGHTNESS,
+        BLOOM_MAX_BRIGHTNESS,
+        BLOOM_BASE_MULTIPLIER,
+        BLOOM_MAX_MULTIPLIER
+    );
+}
+
 async function refreshDisplayConfig({ rebuild = false } = {}) {
     if (!state.displayConfigApiAvailable) return;
     try {
         const body = await fetchPlaylistJson('/api/display/config');
         state.displayBrightness = clampDisplayBrightness(body.brightness);
         state.displayBrightnessSaved = body.saved === true;
+        if (body.warning) {
+            logDebug('display', body.warning);
+        }
+        void setWorkerBloom(bloomPreference);
     } catch (e) {
         state.displayConfigApiAvailable = false;
         logDebug('display', `display config unavailable: ${e.message}`);
@@ -327,6 +352,7 @@ async function saveDisplayBrightness(value, { rebuild = true, notify = true } = 
         });
         state.displayBrightness = clampDisplayBrightness(body.brightness);
         state.displayBrightnessSaved = true;
+        void setWorkerBloom(bloomPreference);
         if (notify) {
             showStatus(`brightness ${state.displayBrightness}`, false);
             logDebug('display', `MCU brightness saved: ${state.displayBrightness}`);
@@ -564,7 +590,7 @@ async function saveCurrentSceneToPlaylist() {
     let statusText = null;
     let statusError = false;
     try {
-        const bytes = encodeScene(sceneStore.scene);
+        const bytes = encodeScene(sceneForRender(sceneStore.scene));
         const body = await fetchPlaylistJson('/api/playlist/save', {
             method: 'POST',
             params: { name: filename },
@@ -1083,17 +1109,18 @@ async function callApplyScene(bytes, seq) {
 // Bloom is a ThreeJS post-processing pass on the graphics manager that lives in
 // the render worker (it owns the OffscreenCanvas). The composer_set_bloom message
 // handler + graphics-manager setBloomEnabled() are injected by build_site.py
-// (patch_render_worker / patch_threejs_bloom_toggle). State is mirrored in
-// `state.bloomEnabled` so it can be replayed when the worker (re)activates.
+// (patch_render_worker / patch_threejs_bloom_toggle). The enabled flag and
+// brightness-derived strength multiplier are replayed when the worker activates.
 let bloomPreference = true;
 
 async function setWorkerBloom(enabled) {
     bloomPreference = !!enabled;
+    const strengthMultiplier = bloomStrengthMultiplierForBrightness(state.displayBrightness);
     const workerManager = getWorkerManager() ?? await waitForWorkerManager(2000);
     if (!workerManager) return { ok: false, reason: 'worker not active' };
     try {
         return await workerManager.sendMessageWithResponse(
-            { type: 'composer_set_bloom', payload: { enabled: bloomPreference } }
+            { type: 'composer_set_bloom', payload: { enabled: bloomPreference, strengthMultiplier } }
         );
     } catch (e) {
         return { ok: false, reason: e && e.message ? e.message : String(e) };
@@ -1541,8 +1568,10 @@ function renderTopSection() {
     brightnessSlider.max = '255';
     brightnessSlider.step = '1';
     brightnessSlider.value = String(state.displayBrightness);
-    brightnessSlider.disabled = !state.displayConfigApiAvailable || state.displayBrightnessBusy;
-    brightnessSlider.title = state.displayConfigApiAvailable
+    brightnessSlider.disabled = !state.displayConfigApiAvailable || state.displayBrightnessBusy || state.deployBusy;
+    brightnessSlider.title = state.deployBusy
+        ? 'Wait for deploy to finish before changing MCU brightness'
+        : state.displayConfigApiAvailable
         ? 'Saved into build/display_config.json and applied on the next MCU deploy'
         : 'Run web/serve.sh locally to save MCU brightness';
     const brightnessValue = document.createElement('span');
@@ -1552,6 +1581,7 @@ function renderTopSection() {
         const brightness = clampDisplayBrightness(brightnessSlider.value);
         state.displayBrightness = brightness;
         brightnessValue.textContent = String(brightness);
+        void setWorkerBloom(bloomPreference);
         scheduleDisplayBrightnessSave(brightness);
     });
     brightnessRow.appendChild(brightnessSlider);
@@ -1578,11 +1608,12 @@ function renderTopSection() {
     importIn.style.display = 'none';
     saveBtn.addEventListener('click', () => {
         try {
-            const bytes = encodeScene(sceneStore.scene);
+            const renderScene = sceneForRender(sceneStore.scene);
+            const bytes = encodeScene(renderScene);
             const blob = new Blob([bytes], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = pscDownloadFilename(sceneStore.scene);
+            a.href = url; a.download = pscDownloadFilename(renderScene);
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (e) {
@@ -1732,10 +1763,15 @@ function renderTopSection() {
             const o = document.createElement('option'); o.value = p.id; o.textContent = p.label;
             presetSel.appendChild(o);
         }
+        if (!PF_PRESETS.some((p) => p.id === state.presetSelected)) {
+            state.presetSelected = PF_PRESETS[0]?.id ?? '';
+        }
+        presetSel.value = state.presetSelected;
         const presetBtn = document.createElement('button'); presetBtn.textContent = 'Load';
-        presetBtn.addEventListener('click', () => {
+        const loadSelectedPreset = () => {
             const preset = PF_PRESETS.find((p) => p.id === presetSel.value);
             if (!preset) return;
+            state.presetSelected = preset.id;
             const nextScene = preset.scene();
             sceneStore.setScene(nextScene, {
                 path: 'scene.preset',
@@ -1743,7 +1779,9 @@ function renderTopSection() {
             });
             state.sceneSourceName = '';
             rebuildPanel();
-        });
+        };
+        presetSel.addEventListener('change', loadSelectedPreset);
+        presetBtn.addEventListener('click', loadSelectedPreset);
         presetRow.appendChild(presetSel); presetRow.appendChild(presetBtn);
         section.appendChild(presetRow);
     }
@@ -2027,6 +2065,7 @@ function rePushOnWorkerInit() {
         const sceneSeq = nextRenderSeq();
         state.latestSceneSeq = sceneSeq;
         await pushSceneNow(state.latestEvent, sceneSeq);
+        await setWorkerBloom(bloomPreference);
     };
 
     if (getWorkerManager()) {

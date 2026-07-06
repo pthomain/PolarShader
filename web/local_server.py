@@ -75,19 +75,21 @@ def _coerce_display_brightness(value) -> int:
     return value
 
 
-def _read_display_config(path: Path) -> tuple[int, bool]:
+def _read_display_config(path: Path) -> tuple[int, bool, str | None]:
     if not path.is_file():
-        return DEFAULT_DISPLAY_BRIGHTNESS, False
+        return DEFAULT_DISPLAY_BRIGHTNESS, False, None
     try:
         body = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return DEFAULT_DISPLAY_BRIGHTNESS, False
+    except json.JSONDecodeError:
+        return DEFAULT_DISPLAY_BRIGHTNESS, False, "ignoring display config: invalid JSON"
+    except OSError as exc:
+        return DEFAULT_DISPLAY_BRIGHTNESS, False, f"ignoring display config: {exc}"
     if not isinstance(body, dict):
-        return DEFAULT_DISPLAY_BRIGHTNESS, False
+        return DEFAULT_DISPLAY_BRIGHTNESS, False, "ignoring display config: display config must be a JSON object"
     try:
-        return _coerce_display_brightness(body.get("brightness")), True
-    except ValueError:
-        return DEFAULT_DISPLAY_BRIGHTNESS, False
+        return _coerce_display_brightness(body.get("brightness")), True, None
+    except ValueError as exc:
+        return DEFAULT_DISPLAY_BRIGHTNESS, False, f"ignoring display config: {exc}"
 
 
 def _write_display_config(path: Path, brightness: int) -> None:
@@ -203,6 +205,8 @@ class DeployManager:
         self.deploy_timeout = deploy_timeout
         self.platformio_base_override = platformio_base_override
         self.deploy_lock = threading.Lock()
+        self.deploy_lock_state_lock = threading.Lock()
+        self.deploy_lock_holder: str | None = None
         self.jobs_lock = threading.Lock()
         self.jobs: dict[str, DeployJob] = {}
         self.job_order: list[str] = []
@@ -211,6 +215,24 @@ class DeployManager:
 
     def is_deploy_active(self) -> bool:
         return self.deploy_lock.locked()
+
+    def _busy_message(self) -> str:
+        if self.deploy_lock_holder == "device_detection":
+            return "device detection in progress"
+        if self.deploy_lock_holder == "build_input":
+            return "build input update in progress"
+        return "deploy already in progress"
+
+    def _acquire_operation_lock(self, holder: str) -> None:
+        with self.deploy_lock_state_lock:
+            if not self.deploy_lock.acquire(blocking=False):
+                raise ApiError(409, self._busy_message())
+            self.deploy_lock_holder = holder
+
+    def _release_operation_lock(self) -> None:
+        with self.deploy_lock_state_lock:
+            self.deploy_lock_holder = None
+            self.deploy_lock.release()
 
     def targets(self) -> list[dict]:
         return [dict(target) for target in DEPLOY_TARGETS]
@@ -273,8 +295,7 @@ class DeployManager:
         return [*self._platformio_base_cmd(), *args]
 
     def list_devices(self) -> dict:
-        if not self.deploy_lock.acquire(blocking=False):
-            raise ApiError(409, "deploy already in progress")
+        self._acquire_operation_lock("device_detection")
         try:
             argv = self._platformio_argv(["device", "list", "--json-output"])
             try:
@@ -306,13 +327,18 @@ class DeployManager:
                 return {"devices": [], "error": "device detection returned unexpected JSON"}
             return {"devices": devices}
         finally:
-            self.deploy_lock.release()
+            self._release_operation_lock()
+
+    def acquire_build_input_lock(self) -> None:
+        self._acquire_operation_lock("build_input")
+
+    def release_build_input_lock(self) -> None:
+        self._release_operation_lock()
 
     def start_deploy(self, env: str) -> dict:
         if env not in DEPLOY_TARGET_IDS:
             raise ApiError(400, "unknown deploy target")
-        if not self.deploy_lock.acquire(blocking=False):
-            raise ApiError(409, "deploy already in progress")
+        self._acquire_operation_lock("deploy")
 
         job = DeployJob(uuid.uuid4().hex, env)
         try:
@@ -321,7 +347,7 @@ class DeployManager:
             thread.start()
         except Exception as exc:
             job.update(status="failed", error=str(exc), ended_at=time.time())
-            self.deploy_lock.release()
+            self._release_operation_lock()
             raise ApiError(500, f"failed to start deploy: {exc}") from exc
 
         return job.snapshot()
@@ -427,7 +453,7 @@ class DeployManager:
                 if self.active_proc is proc:
                     self.active_proc = None
             if release_deploy_lock:
-                self.deploy_lock.release()
+                self._release_operation_lock()
 
     def shutdown(self) -> None:
         with self.active_proc_lock:
@@ -576,14 +602,17 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             return
 
         if parsed.path == "/api/display/config":
-            brightness, saved = _read_display_config(self.display_config_path)
-            self._send_json(200, {
+            brightness, saved, warning = _read_display_config(self.display_config_path)
+            payload = {
                 "ok": True,
                 "brightness": brightness,
                 "saved": saved,
                 "min": 0,
                 "max": 255,
-            })
+            }
+            if warning:
+                payload["warning"] = warning
+            self._send_json(200, payload)
             return
 
         if parsed.path == "/api/deploy/targets":
@@ -641,7 +670,11 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             try:
                 body = self._read_json_body()
                 brightness = _coerce_display_brightness(body.get("brightness"))
-                _write_display_config(self.display_config_path, brightness)
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    _write_display_config(self.display_config_path, brightness)
+                finally:
+                    self.deploy_manager.release_build_input_lock()
             except ValueError as exc:
                 self._send_error_json(400, str(exc))
                 return
@@ -663,7 +696,11 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 return
 
             try:
-                path.unlink()
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    path.unlink()
+                finally:
+                    self.deploy_manager.release_build_input_lock()
             except FileNotFoundError:
                 self._send_error_json(404, "playlist file not found")
                 return
@@ -672,6 +709,9 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 return
             except OSError as exc:
                 self._send_error_json(500, f"failed to delete playlist file: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
                 return
 
             self._send_json(200, {"ok": True, "file": {"name": name}})
@@ -708,19 +748,31 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             return
 
         try:
-            name, path = _deduplicated_playlist_path(name, path, self.playlist_dir)
+            self.deploy_manager.acquire_build_input_lock()
+            try:
+                name, path = _deduplicated_playlist_path(name, path, self.playlist_dir)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+                saved_size = len(data)
+                saved_mtime = int(path.stat().st_mtime)
+            finally:
+                self.deploy_manager.release_build_input_lock()
         except ValueError as exc:
             self._send_error_json(409, str(exc))
             return
+        except OSError as exc:
+            self._send_error_json(500, f"failed to save playlist file: {exc}")
+            return
+        except ApiError as exc:
+            self._send_error_json(exc.status, exc.message)
+            return
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
         self._send_json(200, {
             "ok": True,
             "file": {
                 "name": name,
-                "size": len(data),
-                "mtime": int(path.stat().st_mtime),
+                "size": saved_size,
+                "mtime": saved_mtime,
             },
         })
 

@@ -193,6 +193,18 @@ class LocalServerTest(unittest.TestCase):
         )
         self.assertEqual(status, 400, body)
 
+    def test_display_config_invalid_file_returns_default_with_warning(self) -> None:
+        config = self.repo_root / "build" / "display_config.json"
+        config.parent.mkdir(parents=True)
+        config.write_text(json.dumps({"brightness": 300}), encoding="utf-8")
+
+        status, body = self.request("GET", "/api/display/config")
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["brightness"], 255)
+        self.assertFalse(body["saved"])
+        self.assertIn("brightness must be between 0 and 255", body["warning"])
+
     def test_cross_origin_text_plain_save_is_rejected(self) -> None:
         status, body = self.request(
             "POST",
@@ -306,6 +318,50 @@ class LocalServerTest(unittest.TestCase):
         self.assertEqual(status, 202, body)
         device_status, device_body = self.request("POST", "/api/deploy/devices")
         self.assertEqual(device_status, 409, device_body)
+        self.assertEqual(device_body["error"], "deploy already in progress")
+        self.wait_job(body["job"]["id"])
+
+    def test_build_input_mutations_are_blocked_during_deploy(self) -> None:
+        keep_path = self.repo_root / "build" / "psc" / "keep.psc"
+        keep_path.parent.mkdir(parents=True)
+        keep_path.write_bytes(VALID_PSC)
+
+        self.set_env("FAKE_PIO_SLEEP", "1")
+        status, body = self.request(
+            "POST",
+            "/api/deploy",
+            json.dumps({"env": "teensy41_matrix"}).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 202, body)
+        self.assertTrue(self.manager.is_deploy_active())
+
+        config_status, config_body = self.request(
+            "POST",
+            "/api/display/config",
+            json.dumps({"brightness": 42}).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(config_status, 409, config_body)
+        self.assertFalse((self.repo_root / "build" / "display_config.json").exists())
+
+        save_status, save_body = self.request(
+            "POST",
+            "/api/playlist/save?name=blocked.psc",
+            VALID_PSC,
+            {"Content-Type": "application/octet-stream"},
+        )
+        self.assertEqual(save_status, 409, save_body)
+        self.assertFalse((self.repo_root / "build" / "psc" / "blocked.psc").exists())
+
+        delete_status, delete_body = self.request(
+            "POST",
+            "/api/playlist/delete?name=keep.psc",
+            headers={"Content-Type": "text/plain"},
+        )
+        self.assertEqual(delete_status, 409, delete_body)
+        self.assertTrue(keep_path.exists())
+
         self.wait_job(body["job"]["id"])
 
     def test_deploy_is_blocked_during_device_detection(self) -> None:
@@ -329,6 +385,7 @@ class LocalServerTest(unittest.TestCase):
             {"Content-Type": "application/json"},
         )
         self.assertEqual(deploy_status, 409, deploy_body)
+        self.assertEqual(deploy_body["error"], "device detection in progress")
 
         thread.join(timeout=3)
         self.assertFalse(thread.is_alive())
@@ -352,6 +409,7 @@ class LocalServerTest(unittest.TestCase):
 
         second_status, second_body = self.request("POST", "/api/deploy/devices")
         self.assertEqual(second_status, 409, second_body)
+        self.assertEqual(second_body["error"], "device detection in progress")
 
         thread.join(timeout=3)
         self.assertFalse(thread.is_alive())

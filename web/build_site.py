@@ -548,10 +548,15 @@ _WORKER_GM_INIT_ANCHOR = (
     '    workerLog("LOG", "BACKGROUND_WORKER", "Graphics manager initialized", {'
 )
 _WORKER_GM_INIT_INJECT = (
-    "    if (workerState.graphicsManager"
-    " && workerState.composerBloomEnabled !== undefined"
+    "    if (workerState.graphicsManager) {\n"
+    "      if (workerState.composerBloomEnabled !== undefined"
     ' && typeof workerState.graphicsManager.setBloomEnabled === "function") {\n'
-    "      workerState.graphicsManager.setBloomEnabled(workerState.composerBloomEnabled);\n"
+    "        workerState.graphicsManager.setBloomEnabled(workerState.composerBloomEnabled);\n"
+    "      }\n"
+    "      if (workerState.composerBloomStrengthMultiplier !== undefined"
+    ' && typeof workerState.graphicsManager.setBloomStrengthMultiplier === "function") {\n'
+    "        workerState.graphicsManager.setBloomStrengthMultiplier(workerState.composerBloomStrengthMultiplier);\n"
+    "      }\n"
     "    }\n"
     + _WORKER_GM_INIT_ANCHOR
 )
@@ -791,15 +796,27 @@ function handleComposerSetDisplay(payload) {
 // desired state so it survives a graphics manager that is not ready yet.
 function handleComposerSetBloom(payload) {
   const enabled = !(payload && payload.enabled === false);
+  const rawMultiplier = payload && typeof payload.strengthMultiplier === "number"
+    ? payload.strengthMultiplier
+    : 1;
+  const strengthMultiplier = Number.isFinite(rawMultiplier) && rawMultiplier > 0
+    ? rawMultiplier
+    : 1;
   workerState.composerBloomEnabled = enabled;
+  workerState.composerBloomStrengthMultiplier = strengthMultiplier;
   const gm = workerState.graphicsManager;
-  if (!gm) return { ok: true, enabled, deferred: true };
+  if (!gm) return { ok: true, enabled, strengthMultiplier, deferred: true };
   if (typeof gm.setBloomEnabled === "function") {
     gm.setBloomEnabled(enabled);
   } else {
     gm.bloom_enabled = enabled;
   }
-  return { ok: true, enabled };
+  if (typeof gm.setBloomStrengthMultiplier === "function") {
+    gm.setBloomStrengthMultiplier(strengthMultiplier);
+  } else {
+    gm.bloom_strength_multiplier = strengthMultiplier;
+  }
+  return { ok: true, enabled, strengthMultiplier };
 }
 """
 
@@ -935,18 +952,27 @@ def patch_main_initial_display_hook(dist_sketch_dir: Path) -> None:
 
 
 _THREEJS_BLOOM_REPLACEMENTS = (
-    ("    this.bloom_stength = 1;\n", "    this.bloom_stength = 0.125;\n"),
+    (
+        "    this.bloom_stength = 1;\n",
+        "    this.bloom_stength = 0.25;\n"
+        "    this.bloom_strength_base = this.bloom_stength;\n"
+        "    this.bloom_strength_multiplier = 1;\n",
+    ),
     ("    this.bloom_radius = 16;\n", "    this.bloom_radius = 2;\n"),
-    ("    this.base_bloom_strength = 16;\n", "    this.base_bloom_strength = 2;\n"),
-    ("    this.max_bloom_strength = 20;\n", "    this.max_bloom_strength = 2.5;\n"),
-    ("    this.min_bloom_strength = 0.5;\n", "    this.min_bloom_strength = 0.0625;\n"),
-    ("      this.bloom_stength = 16;\n", "      this.bloom_stength = 2;\n"),
+    ("    this.base_bloom_strength = 16;\n", "    this.base_bloom_strength = 4;\n"),
+    ("    this.max_bloom_strength = 20;\n", "    this.max_bloom_strength = 5;\n"),
+    ("    this.min_bloom_strength = 0.5;\n", "    this.min_bloom_strength = 0.125;\n"),
+    (
+        "      this.bloom_stength = 16;\n",
+        "      this.bloom_stength = 4;\n"
+        "      this.bloom_strength_base = this.bloom_stength;\n",
+    ),
     ("      this.bloom_radius = 1;\n", "      this.bloom_radius = 0.125;\n"),
 )
 
 
 def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
-    """Reduce FastLED's generated ThreeJS bloom settings to 12.5% of default."""
+    """Reduce FastLED's generated ThreeJS bloom strength to 25% of default."""
     asset_dir = dist_sketch_dir / "assets"
     paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
     if not paths:
@@ -999,7 +1025,34 @@ _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
         "      }\n"
         "    }\n"
         "  }\n"
+        "  /**\n"
+        "   * Scales bloom strength from the composer brightness slider (PolarShader)\n"
+        "   * @param {number} multiplier - Multiplier applied to dynamic bloom strength\n"
+        "   */\n"
+        "  setBloomStrengthMultiplier(multiplier) {\n"
+        "    this.bloom_strength_multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;\n"
+        "    this._updateBloomStrength(this.bloom_strength_base);\n"
+        "  }\n"
         "  /**\n   * Updates the bloom pass strength dynamically\n",
+    ),
+    (
+        "  _updateBloomStrength(strength) {\n"
+        "    if (!this.composer || !this.composer.passes) {\n"
+        "      return;\n"
+        "    }\n",
+        "  _updateBloomStrength(strength) {\n"
+        "    this.bloom_strength_base = strength;\n"
+        "    const scaledStrength = strength * this.bloom_strength_multiplier;\n"
+        "    if (!this.composer || !this.composer.passes) {\n"
+        "      this.bloom_stength = scaledStrength;\n"
+        "      return;\n"
+        "    }\n",
+    ),
+    (
+        "        pass.strength = strength;\n"
+        "        this.bloom_stength = strength;\n",
+        "        pass.strength = scaledStrength;\n"
+        "        this.bloom_stength = scaledStrength;\n",
     ),
 )
 

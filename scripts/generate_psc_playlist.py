@@ -57,17 +57,25 @@ def _load_display_brightness(project_dir: Path) -> int | None:
     path = _display_config_path(project_dir)
     if not path.is_file():
         return None
+    error = None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{path}: invalid JSON") from exc
+    except json.JSONDecodeError:
+        error = "invalid JSON"
+        data = None
+    except OSError as exc:
+        error = f"could not read display config: {exc}"
+        data = None
     if not isinstance(data, dict):
-        raise ValueError(f"{path}: display config must be a JSON object")
-    brightness = data.get("brightness")
-    if isinstance(brightness, bool) or not isinstance(brightness, int):
-        raise ValueError(f"{path}: brightness must be an integer")
-    if brightness < 0 or brightness > 255:
-        raise ValueError(f"{path}: brightness must be between 0 and 255")
+        error = error or "display config must be a JSON object"
+    brightness = data.get("brightness") if isinstance(data, dict) else None
+    if error is None and (isinstance(brightness, bool) or not isinstance(brightness, int)):
+        error = "brightness must be an integer"
+    if error is None and (brightness < 0 or brightness > 255):
+        error = "brightness must be between 0 and 255"
+    if error is not None:
+        print(f"warning: ignoring {path}: {error}")
+        return None
     return brightness
 
 
@@ -181,5 +189,5 @@ def _run_platformio() -> None:
 
 if __name__ == "__main__":
     _run_cli()
-else:
+elif "Import" in globals():
     _run_platformio()
