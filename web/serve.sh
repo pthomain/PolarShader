@@ -27,15 +27,15 @@ fi
 
 PORT="${1:-8000}"
 
-if [[ "$BUILD" -eq 1 ]]; then
-    if [[ -n "${PYTHON:-}" ]]; then
-        PYTHON_BIN="$PYTHON"
-    elif [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
-        PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
-    else
-        PYTHON_BIN="python3"
-    fi
+if [[ -n "${PYTHON:-}" ]]; then
+    PYTHON_BIN="$PYTHON"
+elif [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
+    PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+else
+    PYTHON_BIN="python3"
+fi
 
+if [[ "$BUILD" -eq 1 ]]; then
     export POLARSHADER_SKETCHES_OVERRIDE="${POLARSHADER_SKETCHES_OVERRIDE:-composer}"
 
     echo "Rebuilding $DIST_DIR with $PYTHON_BIN ..."
@@ -52,4 +52,4 @@ fi
 echo "Serving $DIST_DIR at http://localhost:$PORT/index.html (COOP/COEP enabled, Ctrl+C to stop)"
 echo "Local PSC playlist API writes to $REPO_ROOT/build/psc"
 
-exec python3 "$SCRIPT_DIR/local_server.py" "$PORT" "$DIST_DIR" "$REPO_ROOT"
+exec "$PYTHON_BIN" "$SCRIPT_DIR/local_server.py" "$PORT" "$DIST_DIR" "$REPO_ROOT" "$PYTHON_BIN"

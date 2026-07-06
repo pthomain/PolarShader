@@ -105,6 +105,18 @@ const state = {
     playlistItems: [],
     playlistSelected: '',
     playlistBusy: false,
+    deployApiAvailable: false,
+    deployTargets: [],
+    deployDevices: [],
+    deployDeviceError: '',
+    deployTarget: '',
+    deployBusy: false,
+    deployDetectBusy: false,
+    deployJobId: '',
+    deployStatus: '',
+    deployError: '',
+    deployLogOffset: 0,
+    deployPollTimer: null,
 };
 
 // Display geometry tags — must match the display enum in composer.ino.
@@ -112,6 +124,10 @@ const DISPLAYS = [
     { id: 0, name: 'Fabric (20×20 matrix)' },
     { id: 1, name: 'Round (241-pixel radial)' },
 ];
+
+const DEPLOY_POLL_MS = 1000;
+const DEPLOY_DONE_STATUSES = new Set(['succeeded', 'failed', 'timed_out']);
+const DEBUG_LOG_LIMIT = 500;
 
 function displayUrlValue(which) {
     return which === 1 ? 'round' : 'fabric';
@@ -235,6 +251,98 @@ async function fetchPlaylistJson(path, options = {}) {
     return body;
 }
 
+
+function deployTargetById(id) {
+    return state.deployTargets.find((target) => target.id === id) ?? null;
+}
+
+function deployTargetLabel(id) {
+    return deployTargetById(id)?.label ?? id;
+}
+
+function deployDeviceSearchText(device) {
+    if (!device || typeof device !== 'object') return '';
+    return [
+        device.port,
+        device.description,
+        device.hwid,
+        device.manufacturer,
+        device.product,
+    ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function autoSelectDeployTarget() {
+    if (state.deployTarget || state.deployTargets.length === 0 || state.deployDevices.length === 0) return;
+    const deviceText = state.deployDevices.map(deployDeviceSearchText).join(' ');
+    let targetId = '';
+    if (deviceText.includes('teensy')) {
+        targetId = 'teensy41_matrix';
+    } else if (deviceText.includes('rp2040')) {
+        targetId = state.displayId === 1 ? 'seeed_xiao_rp2040_round' : 'seeed_xiao_rp2040_fabric';
+    } else if (deviceText.includes('samd') || deviceText.includes('atsamd')) {
+        targetId = 'seeed_xiao';
+    } else {
+        const matches = state.deployTargets.filter((target) => {
+            const hints = Array.isArray(target.matches) ? target.matches : [];
+            return hints.some((hint) => deviceText.includes(String(hint).toLowerCase()));
+        });
+        if (matches.length === 1) targetId = matches[0].id;
+    }
+    if (targetId && state.deployTargets.some((target) => target.id === targetId)) {
+        state.deployTarget = targetId;
+    }
+}
+
+async function refreshDeployTargets({ rebuild = false } = {}) {
+    if (!state.deployApiAvailable) return;
+    const body = await fetchPlaylistJson('/api/deploy/targets');
+    state.deployTargets = Array.isArray(body.targets) ? body.targets : [];
+    if (state.deployTarget && !state.deployTargets.some((target) => target.id === state.deployTarget)) {
+        state.deployTarget = '';
+    }
+    autoSelectDeployTarget();
+    if (rebuild) rebuildPanel();
+}
+
+async function refreshDeployDevices({ rebuild = false } = {}) {
+    if (!state.deployApiAvailable || state.deployBusy || state.deployDetectBusy) return;
+    state.deployDetectBusy = true;
+    state.deployDeviceError = '';
+    if (rebuild) rebuildPanel();
+    try {
+        const body = await fetchPlaylistJson('/api/deploy/devices', { method: 'POST' });
+        state.deployDevices = Array.isArray(body.devices) ? body.devices : [];
+        state.deployDeviceError = body.error ?? '';
+        autoSelectDeployTarget();
+        if (state.deployDeviceError) {
+            logDebug('deploy', `device detection: ${state.deployDeviceError}`);
+        } else {
+            logDebug('deploy', `device detection found ${state.deployDevices.length} device(s)`);
+        }
+    } catch (e) {
+        state.deployDevices = [];
+        state.deployDeviceError = e.message;
+        logDebug('deploy', `device detection failed: ${e.message}`);
+    } finally {
+        state.deployDetectBusy = false;
+        if (rebuild) rebuildPanel();
+    }
+}
+
+async function refreshDeployData({ rebuild = false } = {}) {
+    if (!state.deployApiAvailable) return;
+    try {
+        await refreshDeployTargets();
+        await refreshDeployDevices();
+    } catch (e) {
+        state.deployApiAvailable = false;
+        state.deployDeviceError = e.message;
+        logDebug('deploy', `deploy API unavailable: ${e.message}`);
+    } finally {
+        if (rebuild) rebuildPanel();
+    }
+}
+
 async function refreshPlaylistItems({ rebuild = false } = {}) {
     if (!state.playlistApiAvailable) return;
     const body = await fetchPlaylistJson('/api/playlist');
@@ -249,15 +357,27 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
     try {
         const body = await fetchPlaylistJson('/api/capabilities');
         state.playlistApiAvailable = body.savePsc === true && body.playlist === true;
+        state.deployApiAvailable = state.playlistApiAvailable && body.deploy === true;
         state.playlistApiChecked = true;
         if (state.playlistApiAvailable) {
             await refreshPlaylistItems();
         }
+        if (state.deployApiAvailable && state.composerTab === 'playlist') {
+            await refreshDeployData();
+        } else if (!state.deployApiAvailable) {
+            state.deployTargets = [];
+            state.deployDevices = [];
+            state.deployTarget = '';
+        }
     } catch {
         state.playlistApiAvailable = false;
+        state.deployApiAvailable = false;
         state.playlistApiChecked = true;
         state.playlistItems = [];
         state.playlistSelected = '';
+        state.deployTargets = [];
+        state.deployDevices = [];
+        state.deployTarget = '';
     }
     if (rebuild) rebuildPanel();
 }
@@ -297,7 +417,7 @@ async function loadPlaylistScene(name) {
 }
 
 async function saveCurrentSceneToPlaylist() {
-    if (!state.playlistApiAvailable || state.playlistBusy) return;
+    if (!state.playlistApiAvailable || state.playlistBusy || state.deployBusy) return;
     const filename = (state.composerTab === 'playlist' && state.playlistSelected)
         ? state.playlistSelected
         : pscDownloadFilename(sceneStore.scene);
@@ -326,6 +446,108 @@ async function saveCurrentSceneToPlaylist() {
         state.playlistBusy = false;
         rebuildPanel();
         if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+
+function appendDeployLog(logs) {
+    const text = String(logs ?? '');
+    if (text.length <= state.deployLogOffset) return;
+    const chunk = text.slice(state.deployLogOffset);
+    state.deployLogOffset = text.length;
+    for (const line of chunk.split(/\r?\n|\r/)) {
+        const cleaned = line.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '');
+        if (cleaned.trim()) logDebug('deploy', cleaned);
+    }
+}
+
+function clearDeployPollTimer() {
+    if (state.deployPollTimer === null) return;
+    clearTimeout(state.deployPollTimer);
+    state.deployPollTimer = null;
+}
+
+function handleDeployJobSnapshot(job) {
+    if (!job) return false;
+    state.deployStatus = job.status ?? '';
+    state.deployError = job.error ?? '';
+    appendDeployLog(job.logs ?? '');
+    const done = DEPLOY_DONE_STATUSES.has(state.deployStatus);
+    if (!done) return false;
+
+    state.deployBusy = false;
+    clearDeployPollTimer();
+    if (state.deployStatus === 'succeeded') {
+        showStatus(`deployed ${deployTargetLabel(job.env)}`, false);
+        logDebug('deploy', `deploy succeeded for ${deployTargetLabel(job.env)}`);
+    } else {
+        const detail = state.deployError || state.deployStatus || 'failed';
+        showStatus(`deploy ${detail}`, true);
+        logDebug('deploy', `deploy failed for ${deployTargetLabel(job.env)}: ${detail}`);
+    }
+    return true;
+}
+
+async function pollDeployStatus() {
+    if (!state.deployJobId) return;
+    state.deployPollTimer = null;
+    try {
+        const body = await fetchPlaylistJson('/api/deploy/status', {
+            params: { id: state.deployJobId },
+        });
+        if (!handleDeployJobSnapshot(body.job)) {
+            state.deployPollTimer = setTimeout(pollDeployStatus, DEPLOY_POLL_MS);
+        }
+    } catch (e) {
+        state.deployBusy = false;
+        clearDeployPollTimer();
+        state.deployError = e.message;
+        showStatus(`deploy status error: ${e.message}`, true);
+        logDebug('deploy', `status polling failed: ${e.message}`);
+    } finally {
+        rebuildPanel();
+    }
+}
+
+async function startDeployToMcu() {
+    if (!state.deployApiAvailable || state.deployBusy || state.playlistBusy) return;
+    if (!state.playlistSelected) {
+        showStatus('choose a saved playlist composition first', true);
+        return;
+    }
+    if (!state.deployTarget) {
+        showStatus('choose an MCU target first', true);
+        return;
+    }
+
+    state.deployBusy = true;
+    state.deployJobId = '';
+    state.deployStatus = 'starting';
+    state.deployError = '';
+    state.deployLogOffset = 0;
+    clearDeployPollTimer();
+    rebuildPanel();
+    try {
+        const body = await fetchPlaylistJson('/api/deploy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ env: state.deployTarget }),
+        });
+        state.deployJobId = body.job?.id ?? '';
+        if (!state.deployJobId) throw new Error('deploy response missing job id');
+        const done = handleDeployJobSnapshot(body.job);
+        showStatus(`deploying ${deployTargetLabel(state.deployTarget)}`, false);
+        logDebug('deploy', `started deploy ${state.deployJobId || '?'} for ${deployTargetLabel(state.deployTarget)}`);
+        if (!done) {
+            state.deployPollTimer = setTimeout(pollDeployStatus, DEPLOY_POLL_MS);
+        }
+    } catch (e) {
+        state.deployBusy = false;
+        state.deployError = e.message;
+        showStatus(`deploy error: ${e.message}`, true);
+        logDebug('deploy', `deploy start failed: ${e.message}`);
+    } finally {
+        rebuildPanel();
     }
 }
 
@@ -362,7 +584,7 @@ function logDebug(kind, detail) {
     ].join(':');
     row.textContent = `[${stamp}] ${detail}`;
     state.debugLogEl.appendChild(row);
-    while (state.debugLogEl.children.length > 80) {
+    while (state.debugLogEl.children.length > DEBUG_LOG_LIMIT) {
         state.debugLogEl.removeChild(state.debugLogEl.firstChild);
     }
     state.debugLogEl.scrollTop = state.debugLogEl.scrollHeight;
@@ -1036,6 +1258,9 @@ function renderTopSection() {
                 } else if (state.playlistApiAvailable) {
                     void refreshPlaylistItems({ rebuild: true });
                 }
+                if (state.deployApiAvailable) {
+                    void refreshDeployData({ rebuild: true });
+                }
             }
         });
         tabs.appendChild(btn);
@@ -1068,11 +1293,13 @@ function renderTopSection() {
             showStatus(`save error: ${e.message}`, true);
         }
     });
-    savePlaylistBtn.disabled = !state.playlistApiAvailable || state.playlistBusy;
+    savePlaylistBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
     if (!state.playlistApiAvailable) {
         savePlaylistBtn.title = state.playlistApiChecked
             ? 'Run web/serve.sh locally to save directly into build/psc'
             : 'Checking local playlist API';
+    } else if (state.deployBusy) {
+        savePlaylistBtn.title = 'Wait for deploy to finish before changing build/psc';
     } else if (state.composerTab === 'playlist' && state.playlistSelected) {
         savePlaylistBtn.title = `Overwrite build/psc/${state.playlistSelected}`;
     } else {
@@ -1172,12 +1399,89 @@ function renderTopSection() {
         }
         const refreshBtn = document.createElement('button');
         refreshBtn.textContent = 'Refresh';
-        refreshBtn.disabled = !state.playlistApiAvailable || state.playlistBusy;
+        refreshBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
         refreshBtn.addEventListener('click', () => {
             void refreshPlaylistItems({ rebuild: true });
         });
         playlistRow.appendChild(refreshBtn);
         section.appendChild(playlistRow);
+
+
+        const targetRow = document.createElement('div'); targetRow.className = 'top-row';
+        targetRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'MCU' }));
+        if (!state.deployApiAvailable) {
+            targetRow.appendChild(Object.assign(document.createElement('span'), {
+                className: 'muted-note',
+                textContent: state.playlistApiAvailable ? 'deploy unavailable' : 'available only from web/serve.sh',
+            }));
+        } else {
+            const targetSel = document.createElement('select');
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Choose MCU target';
+            targetSel.appendChild(placeholder);
+            for (const target of state.deployTargets) {
+                const o = document.createElement('option');
+                o.value = target.id;
+                o.textContent = target.label ?? target.id;
+                targetSel.appendChild(o);
+            }
+            targetSel.value = state.deployTarget;
+            targetSel.disabled = state.deployBusy || state.playlistBusy;
+            targetSel.addEventListener('change', () => {
+                state.deployTarget = targetSel.value;
+                rebuildPanel();
+            });
+            targetRow.appendChild(targetSel);
+        }
+        const detectBtn = document.createElement('button');
+        detectBtn.textContent = state.deployDetectBusy ? 'Detecting' : 'Detect';
+        detectBtn.disabled = !state.deployApiAvailable || state.deployBusy || state.playlistBusy || state.deployDetectBusy;
+        detectBtn.title = state.deployBusy
+            ? 'Device detection is disabled while deploying'
+            : 'Detect connected serial devices';
+        detectBtn.addEventListener('click', () => {
+            void refreshDeployDevices({ rebuild: true });
+        });
+        targetRow.appendChild(detectBtn);
+        section.appendChild(targetRow);
+
+        const deployRow = document.createElement('div'); deployRow.className = 'top-row';
+        deployRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Deploy' }));
+        const deployBtn = document.createElement('button');
+        deployBtn.textContent = state.deployBusy ? 'Deploying' : 'Deploy to MCU';
+        deployBtn.disabled = !state.deployApiAvailable
+            || state.deployBusy
+            || state.playlistBusy
+            || !state.playlistSelected
+            || !state.deployTarget;
+        if (!state.playlistSelected) {
+            deployBtn.title = 'Choose a saved playlist composition first';
+        } else if (!state.deployTarget) {
+            deployBtn.title = 'Choose an MCU target first';
+        } else {
+            deployBtn.title = `Build and upload ${deployTargetLabel(state.deployTarget)}`;
+        }
+        deployBtn.addEventListener('click', () => {
+            void startDeployToMcu();
+        });
+        deployRow.appendChild(deployBtn);
+
+        const deployInfo = document.createElement('span');
+        deployInfo.className = 'muted-note deploy-status';
+        if (state.deployBusy) {
+            deployInfo.textContent = state.deployStatus || 'deploying';
+        } else if (state.deployError) {
+            deployInfo.textContent = state.deployError;
+        } else if (state.deployDeviceError) {
+            deployInfo.textContent = state.deployDeviceError;
+        } else if (state.deployDevices.length > 0) {
+            deployInfo.textContent = `${state.deployDevices.length} device(s) detected`;
+        } else if (state.deployApiAvailable) {
+            deployInfo.textContent = 'manual target selection allowed';
+        }
+        if (deployInfo.textContent) deployRow.appendChild(deployInfo);
+        section.appendChild(deployRow);
     }
 
     // Bloom on/off: toggles the ThreeJS bloom post-processing pass in the render

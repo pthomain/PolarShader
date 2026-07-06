@@ -3,16 +3,53 @@
 from __future__ import annotations
 
 import http.server
+import codecs
 import json
+import os
 from pathlib import Path
 import re
+import shutil
+import signal
 import socketserver
+import subprocess
 import sys
+import threading
+import time
 from urllib.parse import parse_qs, unquote, urlparse
+import uuid
 
 
 MAX_PSC_BYTES = 1024 * 1024
+MAX_JSON_BYTES = 64 * 1024
+DEPLOY_TIMEOUT_SECONDS = 10 * 60
+DEVICE_LIST_TIMEOUT_SECONDS = 8
+PROCESS_TERM_GRACE_SECONDS = 5
+JOB_HISTORY_LIMIT = 10
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]*$")
+
+DEPLOY_TARGETS = [
+    {
+        "id": "seeed_xiao",
+        "label": "Seeeduino XIAO (SAMD21)",
+        "matches": ["seeed_xiao", "samd21", "atsamd21"],
+    },
+    {
+        "id": "seeed_xiao_rp2040_fabric",
+        "label": "Seeed XIAO RP2040 Fabric",
+        "matches": ["rp2040", "xiao rp2040", "seeed xiao rp2040"],
+    },
+    {
+        "id": "seeed_xiao_rp2040_round",
+        "label": "Seeed XIAO RP2040 Round",
+        "matches": ["rp2040", "xiao rp2040", "seeed xiao rp2040"],
+    },
+    {
+        "id": "teensy41_matrix",
+        "label": "Teensy 4.1 Matrix",
+        "matches": ["teensy", "teensyduino", "imxrt1062"],
+    },
+]
+DEPLOY_TARGET_IDS = {target["id"] for target in DEPLOY_TARGETS}
 
 
 def _json_bytes(payload: dict) -> bytes:
@@ -51,9 +88,311 @@ def _playlist_name(raw: str, playlist_dir: Path) -> tuple[str, Path]:
     return candidate.as_posix(), resolved
 
 
+def _duration_label(seconds: int | float) -> str:
+    if seconds % 60 == 0:
+        return f"{int(seconds // 60)}m"
+    return f"{seconds:g}s"
+
+
+class ApiError(Exception):
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
+class DeployJob:
+    def __init__(self, job_id: str, env: str):
+        now = time.time()
+        self.id = job_id
+        self.env = env
+        self.status = "starting"
+        self.logs = ""
+        self.exit_code: int | None = None
+        self.error: str | None = None
+        self.created_at = now
+        self.started_at: float | None = None
+        self.ended_at: float | None = None
+        self.lock = threading.Lock()
+
+    def append_log(self, text: str) -> None:
+        if not text:
+            return
+        with self.lock:
+            self.logs += text
+
+    def update(self, **fields) -> None:
+        with self.lock:
+            for key, value in fields.items():
+                setattr(self, key, value)
+
+    def snapshot(self) -> dict:
+        with self.lock:
+            return {
+                "id": self.id,
+                "env": self.env,
+                "status": self.status,
+                "logs": self.logs,
+                "exitCode": self.exit_code,
+                "error": self.error,
+                "createdAt": self.created_at,
+                "startedAt": self.started_at,
+                "endedAt": self.ended_at,
+            }
+
+
+class DeployManager:
+    def __init__(
+        self,
+        repo_root: Path,
+        platformio_python: str,
+        *,
+        deploy_timeout: int = DEPLOY_TIMEOUT_SECONDS,
+        platformio_base_override: list[str] | None = None,
+    ):
+        self.repo_root = repo_root
+        self.platformio_python = platformio_python
+        self.deploy_timeout = deploy_timeout
+        self.platformio_base_override = platformio_base_override
+        self.deploy_lock = threading.Lock()
+        self.jobs_lock = threading.Lock()
+        self.jobs: dict[str, DeployJob] = {}
+        self.job_order: list[str] = []
+        self.active_proc_lock = threading.Lock()
+        self.active_proc: subprocess.Popen | None = None
+
+    def is_deploy_active(self) -> bool:
+        return self.deploy_lock.locked()
+
+    def targets(self) -> list[dict]:
+        return [dict(target) for target in DEPLOY_TARGETS]
+
+    def _remember_job(self, job: DeployJob) -> None:
+        with self.jobs_lock:
+            self.jobs[job.id] = job
+            self.job_order.append(job.id)
+            while len(self.job_order) > JOB_HISTORY_LIMIT:
+                old_id = self.job_order.pop(0)
+                self.jobs.pop(old_id, None)
+
+    def job_snapshot(self, job_id: str) -> dict:
+        with self.jobs_lock:
+            job = self.jobs.get(job_id)
+        if not job:
+            raise ApiError(404, "deploy job not found")
+        return job.snapshot()
+
+    def _probe_platformio(self, base: list[str]) -> tuple[bool, str]:
+        try:
+            proc = subprocess.run(
+                [*base, "--version"],
+                cwd=self.repo_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return False, str(exc)
+        if proc.returncode == 0:
+            return True, proc.stdout.strip()
+        return False, proc.stdout.strip() or f"exit code {proc.returncode}"
+
+    def _platformio_base_cmd(self) -> list[str]:
+        if self.platformio_base_override is not None:
+            return list(self.platformio_base_override)
+
+        candidates: list[list[str]] = []
+        if self.platformio_python:
+            candidates.append([self.platformio_python, "-m", "platformio"])
+        for name in ("pio", "platformio"):
+            resolved = shutil.which(name)
+            if resolved:
+                candidates.append([resolved])
+
+        errors = []
+        for candidate in candidates:
+            ok, detail = self._probe_platformio(candidate)
+            if ok:
+                return candidate
+            errors.append(f"{' '.join(candidate)}: {detail}")
+
+        detail = "; ".join(errors) if errors else "no pio/platformio executable found"
+        raise ApiError(500, f"PlatformIO is not available ({detail})")
+
+    def _platformio_argv(self, args: list[str]) -> list[str]:
+        return [*self._platformio_base_cmd(), *args]
+
+    def list_devices(self) -> dict:
+        if self.is_deploy_active():
+            raise ApiError(409, "deploy already in progress")
+
+        argv = self._platformio_argv(["device", "list", "--json-output"])
+        try:
+            proc = subprocess.run(
+                argv,
+                cwd=self.repo_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=DEVICE_LIST_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return {"devices": [], "error": "device detection timed out"}
+        except OSError as exc:
+            return {"devices": [], "error": str(exc)}
+
+        if proc.returncode != 0:
+            return {
+                "devices": [],
+                "error": proc.stdout.strip() or f"device detection failed with exit code {proc.returncode}",
+            }
+
+        try:
+            devices = json.loads(proc.stdout or "[]")
+        except json.JSONDecodeError as exc:
+            return {"devices": [], "error": f"device detection returned invalid JSON: {exc}"}
+        if not isinstance(devices, list):
+            return {"devices": [], "error": "device detection returned unexpected JSON"}
+        return {"devices": devices}
+
+    def start_deploy(self, env: str) -> dict:
+        if env not in DEPLOY_TARGET_IDS:
+            raise ApiError(400, "unknown deploy target")
+        if not self.deploy_lock.acquire(blocking=False):
+            raise ApiError(409, "deploy already in progress")
+
+        job = DeployJob(uuid.uuid4().hex, env)
+        try:
+            self._remember_job(job)
+            thread = threading.Thread(target=self._run_deploy, args=(job,), daemon=True)
+            thread.start()
+        except Exception as exc:
+            job.update(status="failed", error=str(exc), ended_at=time.time())
+            self.deploy_lock.release()
+            raise ApiError(500, f"failed to start deploy: {exc}") from exc
+
+        return job.snapshot()
+
+    def _read_process_output(self, job: DeployJob, proc: subprocess.Popen) -> None:
+        stream = proc.stdout
+        if stream is None:
+            return
+        decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        try:
+            while True:
+                chunk = os.read(stream.fileno(), 4096)
+                if not chunk:
+                    break
+                job.append_log(decoder.decode(chunk))
+            tail = decoder.decode(b"", final=True)
+            if tail:
+                job.append_log(tail)
+        except Exception as exc:
+            job.append_log(f"\n[deploy log reader failed: {exc}]\n")
+        finally:
+            stream.close()
+
+    def _kill_process_group(self, proc: subprocess.Popen) -> None:
+        if proc.poll() is not None:
+            return
+        try:
+            pgid = os.getpgid(proc.pid)
+        except ProcessLookupError:
+            return
+
+        try:
+            os.killpg(pgid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+        try:
+            proc.wait(timeout=PROCESS_TERM_GRACE_SECONDS)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except ProcessLookupError:
+            return
+        try:
+            proc.wait(timeout=PROCESS_TERM_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            return
+
+    def _run_deploy(self, job: DeployJob) -> None:
+        proc: subprocess.Popen | None = None
+        try:
+            argv = self._platformio_argv(["run", "-e", job.env, "-t", "upload"])
+            job.update(status="running", started_at=time.time())
+            job.append_log(f"$ {' '.join(argv)}\n")
+            proc = subprocess.Popen(
+                argv,
+                cwd=self.repo_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=0,
+                shell=False,
+                start_new_session=True,
+            )
+            with self.active_proc_lock:
+                self.active_proc = proc
+
+            reader = threading.Thread(target=self._read_process_output, args=(job, proc), daemon=True)
+            reader.start()
+
+            try:
+                exit_code = proc.wait(timeout=self.deploy_timeout)
+            except subprocess.TimeoutExpired:
+                message = f"timed out after {_duration_label(self.deploy_timeout)}"
+                job.update(status="timed_out", error=message)
+                job.append_log(f"\n[deploy {message}; terminating process group]\n")
+                self._kill_process_group(proc)
+                exit_code = proc.poll()
+
+            reader.join(timeout=2)
+            if job.snapshot()["status"] == "timed_out":
+                job.update(exit_code=exit_code, ended_at=time.time())
+            elif exit_code == 0:
+                job.update(status="succeeded", exit_code=0, ended_at=time.time())
+            else:
+                job.update(
+                    status="failed",
+                    exit_code=exit_code,
+                    error=f"PlatformIO upload failed with exit code {exit_code}",
+                    ended_at=time.time(),
+                )
+        except ApiError as exc:
+            job.update(status="failed", error=exc.message, ended_at=time.time())
+            job.append_log(f"\n[{exc.message}]\n")
+        except Exception as exc:
+            job.update(status="failed", error=str(exc), ended_at=time.time())
+            job.append_log(f"\n[deploy failed: {exc}]\n")
+        finally:
+            with self.active_proc_lock:
+                if self.active_proc is proc:
+                    self.active_proc = None
+            if self.deploy_lock.locked():
+                self.deploy_lock.release()
+
+    def shutdown(self) -> None:
+        with self.active_proc_lock:
+            proc = self.active_proc
+        if proc and proc.poll() is None:
+            self._kill_process_group(proc)
+
+
+class ThreadedLocalServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
     repo_root: Path
     playlist_dir: Path
+    deploy_manager: DeployManager
 
     def end_headers(self) -> None:
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
@@ -72,18 +411,80 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
     def _send_error_json(self, status: int, message: str) -> None:
         self._send_json(status, {"ok": False, "error": message})
 
+    def _api_allowed_hosts(self) -> set[str]:
+        port = self.server.server_address[1]
+        return {f"127.0.0.1:{port}", f"localhost:{port}"}
+
+    def _drain_request_body(self) -> None:
+        length_raw = self.headers.get("Content-Length")
+        try:
+            remaining = int(length_raw or "0")
+        except ValueError:
+            return
+        while remaining > 0:
+            chunk = self.rfile.read(min(remaining, 64 * 1024))
+            if not chunk:
+                return
+            remaining -= len(chunk)
+
+    def _reject_api_request(self, status: int, message: str, *, drain: bool) -> bool:
+        if drain:
+            self._drain_request_body()
+        self._send_error_json(status, message)
+        return False
+
+    def _guard_api_request(self, *, drain_on_reject: bool = False) -> bool:
+        allowed_hosts = self._api_allowed_hosts()
+        host = (self.headers.get("Host") or "").lower()
+        if host not in allowed_hosts:
+            return self._reject_api_request(403, "forbidden API host", drain=drain_on_reject)
+
+        origin = self.headers.get("Origin")
+        if origin:
+            parsed = urlparse(origin)
+            if parsed.scheme != "http" or parsed.netloc.lower() not in allowed_hosts:
+                return self._reject_api_request(403, "forbidden API origin", drain=drain_on_reject)
+
+        return True
+
     def _query_name(self) -> tuple[str, Path]:
         parsed = urlparse(self.path)
         raw = parse_qs(parsed.query).get("name", [""])[0]
         return _playlist_name(raw, self.playlist_dir)
 
+    def _read_json_body(self) -> dict:
+        length_raw = self.headers.get("Content-Length")
+        try:
+            length = int(length_raw or "-1")
+        except ValueError as exc:
+            self._drain_request_body()
+            raise ApiError(411, "invalid Content-Length") from exc
+        if length < 0:
+            raise ApiError(411, "missing Content-Length")
+        if length > MAX_JSON_BYTES:
+            self._drain_request_body()
+            raise ApiError(413, "request body is too large")
+
+        data = self.rfile.read(length)
+        try:
+            body = json.loads(data.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ApiError(400, "invalid JSON body") from exc
+        if not isinstance(body, dict):
+            raise ApiError(400, "JSON body must be an object")
+        return body
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/") and not self._guard_api_request():
+            return
+
         if parsed.path == "/api/capabilities":
             self._send_json(200, {
                 "ok": True,
                 "savePsc": True,
                 "playlist": True,
+                "deploy": True,
                 "playlistDir": "build/psc",
             })
             return
@@ -120,18 +521,65 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(data)
             return
 
+        if parsed.path == "/api/deploy/targets":
+            self._send_json(200, {"ok": True, "targets": self.deploy_manager.targets()})
+            return
+
+        if parsed.path == "/api/deploy/status":
+            job_id = parse_qs(parsed.query).get("id", [""])[0]
+            if not job_id:
+                self._send_error_json(400, "missing deploy job id")
+                return
+            try:
+                job = self.deploy_manager.job_snapshot(job_id)
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+            self._send_json(200, {"ok": True, "job": job})
+            return
+
+        if parsed.path.startswith("/api/"):
+            self._send_error_json(404, "unknown API endpoint")
+            return
+
         super().do_GET()
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/") and not self._guard_api_request(drain_on_reject=True):
+            return
+
+        if parsed.path == "/api/deploy/devices":
+            self._drain_request_body()
+            try:
+                result = self.deploy_manager.list_devices()
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+            self._send_json(200, {"ok": True, **result})
+            return
+
+        if parsed.path == "/api/deploy":
+            try:
+                body = self._read_json_body()
+                env = body.get("env")
+                if not isinstance(env, str):
+                    raise ApiError(400, "missing deploy target")
+                job = self.deploy_manager.start_deploy(env)
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+            self._send_json(202, {"ok": True, "job": job})
+            return
+
         if parsed.path != "/api/playlist/save":
-            self._send_error_json(404, "unknown API endpoint")
+            self._reject_api_request(404, "unknown API endpoint", drain=True)
             return
 
         try:
             name, path = self._query_name()
         except ValueError as exc:
-            self._send_error_json(400, str(exc))
+            self._reject_api_request(400, str(exc), drain=True)
             return
 
         length_raw = self.headers.get("Content-Length")
@@ -145,7 +593,7 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             self._send_error_json(411, "missing Content-Length")
             return
         if length > MAX_PSC_BYTES:
-            self._send_error_json(413, f".psc file is too large ({length} bytes)")
+            self._reject_api_request(413, f".psc file is too large ({length} bytes)", drain=True)
             return
 
         data = self.rfile.read(length)
@@ -165,23 +613,36 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             },
         })
 
+    def do_OPTIONS(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/"):
+            if not self._guard_api_request(drain_on_reject=True):
+                return
+            self._send_error_json(405, "method not allowed")
+            return
+        self.send_error(501, "Unsupported method")
+
 
 def main() -> None:
-    if len(sys.argv) != 4:
-        raise SystemExit("usage: local_server.py PORT DIST_DIR REPO_ROOT")
+    if len(sys.argv) != 5:
+        raise SystemExit("usage: local_server.py PORT DIST_DIR REPO_ROOT PYTHON")
 
     port = int(sys.argv[1])
     directory = Path(sys.argv[2]).resolve()
     repo_root = Path(sys.argv[3]).resolve()
+    platformio_python = sys.argv[4]
 
     LocalComposerServer.repo_root = repo_root
     LocalComposerServer.playlist_dir = (repo_root / "build" / "psc").resolve()
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(
+    LocalComposerServer.deploy_manager = DeployManager(repo_root, platformio_python)
+    with ThreadedLocalServer(
         ("127.0.0.1", port),
         lambda *a: LocalComposerServer(*a, directory=directory),
     ) as server:
-        server.serve_forever()
+        try:
+            server.serve_forever()
+        finally:
+            LocalComposerServer.deploy_manager.shutdown()
 
 
 if __name__ == "__main__":

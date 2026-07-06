@@ -197,6 +197,12 @@ body.composer-resizing {
     font-size: 12px;
 }
 
+.deploy-status {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 input[type="number"], input[type="range"], select {
     background: #1d2026;
     border: 1px solid #2e333b;
@@ -411,3 +417,4 @@ button:disabled {
 .composer-debug-line.coalesce { color: #c9b56b; }
 .composer-debug-line.error { color: #e28b8b; }
 .composer-debug-line.system { color: #9aa4af; }
+.composer-debug-line.deploy { color: #cbd3dc; }
