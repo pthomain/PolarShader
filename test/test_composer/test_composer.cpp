@@ -548,6 +548,20 @@ void test_embedded_psc_playlist_provider_falls_back_after_decode_fail() {
     TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, decoded->getDuration());
 }
 
+void test_embedded_psc_playlist_provider_has_builtin_fallback() {
+    WireBuilder corrupt;
+    corrupt.header(0).u8(0xEE);
+
+    EmbeddedPscScene scenes[] = {
+        {"corrupt.psc", corrupt.data(), corrupt.size()},
+    };
+
+    EmbeddedPscPlaylistProvider provider(scenes, 1, 30000);
+    auto decoded = provider.nextScene();
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, decoded->getDuration());
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // Group 3 — Cross-implementation golden fixture
 // ═════════════════════════════════════════════════════════════════════
@@ -728,6 +742,7 @@ void setup() {
     RUN_TEST(test_decode_scene_with_duration_overrides_default);
     RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
     RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
+    RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
@@ -758,6 +773,7 @@ int main() {
     RUN_TEST(test_decode_scene_with_duration_overrides_default);
     RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
     RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
+    RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);

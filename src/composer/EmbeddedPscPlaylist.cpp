@@ -5,6 +5,10 @@
 
 #include <utility>
 
+#include "FastLED.h"
+#include "renderer/layer/Layer.h"
+#include "renderer/pipeline/presets/Presets.h"
+
 #if __has_include("PscPlaylistAssets.h")
 #include "PscPlaylistAssets.h"
 #define POLAR_SHADER_HAVE_PSC_PLAYLIST_ASSETS_HEADER 1
@@ -27,11 +31,27 @@ namespace PolarShader::composer {
 #endif
 
 #if POLAR_SHADER_COMPILE_EMBEDDED_PSC_DECODER
-#include "FastLED.h"
 #include "composer/SceneCodec.h"
 #endif
 
 namespace PolarShader::composer {
+    namespace {
+        std::unique_ptr<Scene> makeDefaultFallbackScene() {
+            fl::vector<std::shared_ptr<Layer>> layers;
+            layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
+            return std::make_unique<Scene>(std::move(layers));
+        }
+
+        std::unique_ptr<Scene> nextFallbackScene(SceneProvider *fallbackProvider) {
+            if (fallbackProvider) {
+                if (auto scene = fallbackProvider->nextScene()) {
+                    return scene;
+                }
+            }
+            return makeDefaultFallbackScene();
+        }
+    }
+
     EmbeddedPscPlaylistProvider::EmbeddedPscPlaylistProvider(
         const EmbeddedPscScene *scenes,
         std::size_t sceneCount,
@@ -46,7 +66,7 @@ namespace PolarShader::composer {
     std::unique_ptr<Scene> EmbeddedPscPlaylistProvider::nextScene() {
 #if POLAR_SHADER_COMPILE_EMBEDDED_PSC_DECODER
         if (!scenes || sceneCount == 0) {
-            return fallbackProvider ? fallbackProvider->nextScene() : nullptr;
+            return nextFallbackScene(fallbackProvider.get());
         }
 
         std::size_t start = random16(static_cast<uint16_t>(sceneCount));
@@ -71,9 +91,9 @@ namespace PolarShader::composer {
             }
         }
 
-        return fallbackProvider ? fallbackProvider->nextScene() : nullptr;
+        return nextFallbackScene(fallbackProvider.get());
 #else
-        return fallbackProvider ? fallbackProvider->nextScene() : nullptr;
+        return nextFallbackScene(fallbackProvider.get());
 #endif
     }
 
