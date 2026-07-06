@@ -69,6 +69,7 @@ namespace {
         PAT_TILING            = 0x04,
         PAT_TRANSPORT         = 0x07,
         PAT_ANNULI            = 0x09,
+        PAT_PF_CONCENTRIC_GRID= 0x19,
         PAT_PF_DOTS           = 0x1C,
     };
 
@@ -202,6 +203,18 @@ namespace {
         const ::CRGBPalette16 *p = paletteById(0);
         LayerBuilder b(pfDots(6, constant(500), constant(400), constant(600)),
                        *p, "ref");
+        fl::vector<std::shared_ptr<Layer>> layers;
+        layers.push_back(std::make_shared<Layer>(b.build()));
+        return std::make_unique<Scene>(std::move(layers));
+    }
+
+    std::unique_ptr<Scene> buildReferencePaletteChangedPfConcentricGrid() {
+        const ::CRGBPalette16 *p = paletteById(1);
+        LayerBuilder b(pfConcentricGrid(6, constant(500), constant(500), constant(500)),
+                       *p, "ref");
+        b.addPaletteTransform(PaletteTransform(sine(constant(120))));
+        b.addTransform(ZoomTransform(constant(400)));
+        b.addTransform(RotationTransform(constant(60), true));
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(b.build()));
         return std::make_unique<Scene>(std::move(layers));
@@ -424,6 +437,39 @@ void test_decode_determinism_pf_dots() {
     TEST_ASSERT_TRUE(renderEqual(outDecoded, outReference));
 }
 
+void test_decode_palette_changed_pf_concentric_grid_repro() {
+    // Repro from the WASM composer log: load Concentric Grid, then switch the
+    // global palette from Rainbow (0) to Cloud (1). The scene is colour-native
+    // and includes palette-offset, zoom, and rotation transforms.
+    WireBuilder w;
+    w.header(1)
+     .u8(PAT_PF_CONCENTRIC_GRID)
+     .u8(6)
+     .sigConstant(500)
+     .sigConstant(500)
+     .sigConstant(500)
+     .u8(3)
+     .u8(TFM_PALETTE)
+       .u8(SIG_SINE).sigConstant(120).i32(0)
+     .u8(TFM_ZOOM).sigConstant(400)
+     .u8(TFM_ROTATION).u8(1).sigConstant(60);
+
+    DecodeStatus status;
+    auto decoded = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+
+    auto reference = buildReferencePaletteChangedPfConcentricGrid();
+
+    ::CRGB outDecoded[16];
+    ::CRGB outReference[16];
+    const TimeMillis t = 1500;
+    runScene(*decoded, t, outDecoded);
+    runScene(*reference, t, outReference);
+
+    TEST_ASSERT_TRUE(renderEqual(outDecoded, outReference));
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // Group 2 — cRandom / noise existence-only (decode succeeds; non-deterministic)
 // ═════════════════════════════════════════════════════════════════════
@@ -489,6 +535,35 @@ void test_decode_golden_fixture() {
     decoded->advanceFrame(f16(0xFFFFu), 1000);
     ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
     (void) sample;  // value depends on noise sampler but call must not crash
+}
+
+void test_decode_compile_reported_pf_cross_fixture() {
+    // Captured from a browser PSC load that decoded successfully, then trapped
+    // in WASM during Scene::compile(). Native must at least decode, compile,
+    // advance, and sample it without crashing so sanitizer runs can localize
+    // any non-WASM memory issue.
+    static const uint8_t kReportedFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x00, 0x00, 0x11, 0x00,
+        0xF4, 0x01, 0x00, 0x29, 0x03, 0x00, 0x63, 0x00,
+        0x06, 0x07, 0x00, 0x00, 0x11, 0x00, 0xF4, 0x01,
+        0x00, 0x89, 0x01, 0x00, 0xE8, 0x03, 0x03, 0x1C,
+        0x00, 0xF4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x04,
+        0x04, 0x01, 0x02, 0x1D, 0x00, 0xD9, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0xAE, 0x00, 0x00, 0x01, 0x1C,
+        0x00, 0xB4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x09,
+        0x00, 0x80, 0x00, 0x01, 0x00, 0xF4, 0x01, 0x00,
+        0x00, 0x00,
+    };
+
+    DecodeStatus status;
+    auto decoded = decodeScene(kReportedFixture, sizeof(kReportedFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+
+    decoded->compile();
+    decoded->advanceFrame(f16(0xFFFFu), 1000);
+    ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
+    (void) sample;
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -600,9 +675,11 @@ void setup() {
     RUN_TEST(test_decode_determinism_palette_clip_transform);
     RUN_TEST(test_decode_determinism_palette_colour_mask);
     RUN_TEST(test_decode_determinism_pf_dots);
+    RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_golden_fixture);
+    RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
     RUN_TEST(test_decode_bad_magic);
     RUN_TEST(test_decode_bad_version);
@@ -625,9 +702,11 @@ int main() {
     RUN_TEST(test_decode_determinism_palette_clip_transform);
     RUN_TEST(test_decode_determinism_palette_colour_mask);
     RUN_TEST(test_decode_determinism_pf_dots);
+    RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_golden_fixture);
+    RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
     RUN_TEST(test_decode_bad_magic);
     RUN_TEST(test_decode_bad_version);

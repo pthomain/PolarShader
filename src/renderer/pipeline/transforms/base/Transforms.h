@@ -50,8 +50,27 @@ namespace PolarShader {
     public:
         UVTransform() = default;
 
-        /** @brief Transforms one UV map into another. */
+        /**
+         * @brief Composes this transform's coordinate warp under a leaf map.
+         *
+         * A transform is a pure coordinate warp; it never touches the sampled
+         * value. Two overloads let the SAME warp compose against either the
+         * scalar (UVMap) or colour (UVColourMap) leaf.
+         *
+         * DESIGN (see the WASM ABI NOTE on `UV` in Units.h): the warp is NOT
+         * exposed as an `fl::function<UV(UV)>` and composed generically in this
+         * base. Returning a two-field `UV` through fl::function's type-erased
+         * invoker traps `call_indirect` under the Emscripten ABI, and — worse —
+         * corrupts the module heap so a *later* recompile crashes. Instead each
+         * transform implements both overloads itself, applying its warp via a
+         * DIRECT static call (its private `warp(const State&, UV)`), capturing
+         * only its `state` shared_ptr and the leaf — the shape of the original
+         * pre-colour code. No `UV` ever flows through an fl::function.
+         */
         virtual UVMap operator()(const UVMap &layer) const = 0;
+
+        /** @brief Composes the warp under a colour leaf. */
+        virtual UVColourMap operator()(const UVColourMap &layer) const = 0;
     };
 }
 

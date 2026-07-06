@@ -70,26 +70,32 @@ namespace PolarShader {
         return state->cellSizeRaw;
     }
 
+    UV TilingTransform::warp(const State &state, UV uv) {
+        int32_t cellSizeRaw = state.cellSizeRaw;
+        if (cellSizeRaw <= 0) {
+            return uv;
+        }
+
+        fl::s24x8 cx = CartesianMaths::from_uv(uv.u);
+        fl::s24x8 cy = CartesianMaths::from_uv(uv.v);
+        int32_t x_raw = cx.raw();
+        int32_t y_raw = cy.raw();
+        TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cellSizeRaw, state.shape);
+        TilingMaths::applyMirror(tile, state.mirrored);
+
+        return UV(
+            CartesianMaths::to_uv(fl::s24x8::from_raw(tile.local_x)),
+            CartesianMaths::to_uv(fl::s24x8::from_raw(tile.local_y))
+        );
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
     UVMap TilingTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            int32_t cellSizeRaw = state->cellSizeRaw;
-            if (cellSizeRaw <= 0) {
-                return layer(uv);
-            }
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
 
-            fl::s24x8 cx = CartesianMaths::from_uv(uv.u);
-            fl::s24x8 cy = CartesianMaths::from_uv(uv.v);
-            int32_t x_raw = cx.raw();
-            int32_t y_raw = cy.raw();
-            TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cellSizeRaw, state->shape);
-            TilingMaths::applyMirror(tile, state->mirrored);
-
-            UV tiled_uv(
-                CartesianMaths::to_uv(fl::s24x8::from_raw(tile.local_x)),
-                CartesianMaths::to_uv(fl::s24x8::from_raw(tile.local_y))
-            );
-
-            return layer(tiled_uv);
-        };
+    UVColourMap TilingTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

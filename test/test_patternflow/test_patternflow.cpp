@@ -259,7 +259,11 @@ void test_pattern_deterministic_replay() {
 // Count distinct colours over a broad angle x radius display grid.
 static size_t distinctColours(ColourMap &cm) {
     std::set<uint32_t> colours;
-    for (uint32_t a = 0; a < 0x10000u; a += 0x1000u) {       // full turn
+    // Step is deliberately NOT a multiple of 0x100: colour-emitting effects
+    // whose hue tracks the raw display angle (e.g. Petals) would otherwise
+    // alias every sample onto palette index 0 (angle>>8 stepping by 16 -> all
+    // == 0 mod 16) under the brightness-blind native ColorFromPalette stub.
+    for (uint32_t a = 0; a < 0x10000u; a += 0x0EE7u) {       // full turn
         for (int r = 1; r <= 8; ++r) {                        // centre -> edge
             uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 8);
             CRGB c = cm(f16(static_cast<uint16_t>(a)), f16(radius));

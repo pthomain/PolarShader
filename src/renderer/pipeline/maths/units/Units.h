@@ -207,6 +207,27 @@ namespace PolarShader {
     constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
     constexpr uint16_t raw(PatternNormU16 n) { return n.raw(); }
 
+    /**
+     * @brief A colour-emitting pattern leaf: a (hue, value) pair.
+     *
+     * RGB-native patterns emit this instead of a bare scalar. `hue` selects the
+     * palette entry (hue-remap tint) and `value` drives brightness.
+     */
+    struct PaletteSample {
+        // Packed as a single scalar field (hue in the high 16 bits, value in the
+        // low 16 bits). A single-element aggregate returns in a register under the
+        // wasm ABI, matching the scalar leaf path; a two-field struct is lowered
+        // differently and traps `call_indirect` when returned through fl::function.
+        uint32_t packed;
+
+        PaletteSample() : packed(0) {}
+        PaletteSample(PatternNormU16 h, PatternNormU16 v)
+            : packed((static_cast<uint32_t>(h.raw()) << 16) | v.raw()) {}
+
+        PatternNormU16 hue() const { return PatternNormU16(static_cast<uint16_t>(packed >> 16)); }
+        PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
+    };
+
     // --- UV Units ---
 
     /**
@@ -230,6 +251,15 @@ namespace PolarShader {
         constexpr UV(fl::s16x16 u, fl::s16x16 v) : u(u), v(v) {
         }
     };
+
+    // WASM ABI NOTE: `UV` is a two-field struct. Returning it *through
+    // fl::function's type-erased invoker* traps `call_indirect` under the
+    // Emscripten ABI (multi-field struct returns are lowered to a signature the
+    // generic invoker trampoline does not match — observed as "function
+    // signature mismatch" / heap corruption on repeated compiles). Transforms
+    // therefore never wrap their warp in an `fl::function<UV(UV)>`; each applies
+    // its warp via a DIRECT static call (see UVTransform / *Transform.cpp). The
+    // same hazard is why PaletteSample below packs (hue,value) into one uint32.
 }
 
 #endif // POLAR_SHADER_PIPELINE_UNITS_UNITS_H

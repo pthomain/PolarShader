@@ -2,15 +2,93 @@
  * Copyright (C) 2025 Pierre Thomain
  *
  * Composer panel styling. The panel mounts as a fixed sidebar on the
- * right; FastLED's Three.js canvas keeps the rest of the viewport.
+ * right; the renderer and console share the remaining viewport.
  */
+
+:root {
+    --composer-panel-width: 50vw;
+    --composer-left-width: calc(100vw - var(--composer-panel-width));
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #05070a;
+}
+
+body {
+    display: block !important;
+    align-items: stretch !important;
+}
+
+#menu-bar,
+body > h1,
+#canvas-label,
+#record-btn,
+#fastled-async-controls,
+#ui-controls,
+#ui-controls-2,
+#container {
+    display: none !important;
+}
+
+#main-container,
+#content-grid {
+    width: 0 !important;
+    height: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+}
+
+#canvas-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: var(--composer-left-width) !important;
+    height: 75vh !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #05070a !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    transition: none !important;
+}
+
+#myCanvas {
+    flex: 0 0 auto !important;
+    aspect-ratio: 1 / 1 !important;
+    width: min(var(--composer-left-width), 75vh) !important;
+    height: min(var(--composer-left-width), 75vh) !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    background: #05070a !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
 
 #composer-panel {
     position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
-    width: 50vw;
+    width: var(--composer-panel-width);
     min-width: 320px;
     max-width: calc(100vw - 280px);
     overflow: hidden;
@@ -121,6 +199,11 @@ button {
 
 button:hover:not(:disabled) {
     background: #34393f;
+}
+
+button.attention:not(:disabled) {
+    border-color: #9b5b3b;
+    background: #3b2d28;
 }
 
 button:disabled {
@@ -259,29 +342,37 @@ button:disabled {
 .status.err { background: #2a1c1c; color: #d88a8a; }
 
 #composer-debug-console {
-    margin-top: 10px;
-    padding: 10px;
-    border: 1px solid #333941;
-    border-radius: 5px;
-    background: rgba(8, 10, 12, 0.78);
+    position: fixed;
+    top: 75vh;
+    left: 0;
+    width: var(--composer-left-width);
+    height: 25vh;
+    margin: 0;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border: 0;
+    border-top: 1px solid #252b32;
+    border-radius: 0;
+    background: #0a0d11;
     color: #cbd3dc;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 11px;
     line-height: 1.35;
-    max-height: 190px;
+    max-height: none;
     overflow: hidden;
+    z-index: 9000;
 }
 
 .composer-debug-title {
-    margin-bottom: 6px;
-    color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
+    display: none;
 }
 
 .composer-debug-log {
-    max-height: 155px;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;

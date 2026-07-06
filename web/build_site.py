@@ -109,15 +109,13 @@ class Sketch:
 
 
 SKETCHES = (
-    Sketch("fabric", SKETCH_ROOT / "fabric" / "fabric.ino"),
-    Sketch("round", SKETCH_ROOT / "round" / "round.ino"),
     Sketch("composer", SKETCH_ROOT / "composer" / "composer.ino"),
 )
 
 # POLARSHADER_SKETCHES_OVERRIDE filters SKETCHES to a comma-separated list of
-# names — useful when an orchestrator only needs one sketch (e.g. "composer",
-# which handles fabric/round switching at runtime via _composer_set_display).
-# Unknown names are rejected loudly rather than silently dropped.
+# names. The composer is the only shipped sketch; it renders every display and
+# selects fabric/round at startup via _composer_set_initial_display. The
+# override hook is kept for future sketches. Unknown names are rejected loudly.
 if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
     _requested_sketch_names = {
         name.strip()
@@ -531,7 +529,35 @@ _WORKER_CASE_INJECT = (
     '      case "composer_apply_scene":\n'
     "        response = handleComposerApplyScene(payload);\n"
     "        break;\n"
+    '      case "composer_set_display":\n'
+    "        response = handleComposerSetDisplay(payload);\n"
+    "        break;\n"
+    '      case "composer_set_bloom":\n'
+    "        response = handleComposerSetBloom(payload);\n"
+    "        break;\n"
     + _WORKER_CASE_ANCHOR
+)
+_WORKER_START_ANCHOR = (
+    "    workerState.externFunctions.externSetup();\n"
+    '    workerLog("LOG", "BACKGROUND_WORKER", "FastLED setup completed");'
+)
+# The graphics manager is created lazily; a bloom toggle sent before then is
+# stashed on workerState.composerBloomEnabled. Replay it onto the freshly built
+# manager so an early toggle is not lost.
+_WORKER_GM_INIT_ANCHOR = (
+    '    workerLog("LOG", "BACKGROUND_WORKER", "Graphics manager initialized", {'
+)
+_WORKER_GM_INIT_INJECT = (
+    "    if (workerState.graphicsManager"
+    " && workerState.composerBloomEnabled !== undefined"
+    ' && typeof workerState.graphicsManager.setBloomEnabled === "function") {\n'
+    "      workerState.graphicsManager.setBloomEnabled(workerState.composerBloomEnabled);\n"
+    "    }\n"
+    + _WORKER_GM_INIT_ANCHOR
+)
+_WORKER_START_INJECT = (
+    "    applyComposerInitialDisplayFromUrl(workerState.fastledModule);\n"
+    + _WORKER_START_ANCHOR
 )
 _WORKER_HANDLER = """
 
@@ -540,17 +566,240 @@ _WORKER_HANDLER = """
 // worker uses `workerState.fastledModule` as its Module; `_composer_apply_scene`
 // is an EMSCRIPTEN_KEEPALIVE export of the composer sketch. Returns { status }
 // where status is 0 on success or a non-zero composer::DecodeStatus.
-function handleComposerApplyScene(payload) {
-  const Module = workerState.fastledModule;
-  if (!Module || !Module._composer_apply_scene || !Module._malloc || !Module.HEAPU8) {
-    return { status: -1 };
+function composerCommandSeq(payload) {
+  const raw = payload && typeof payload.seq === 'number' ? payload.seq : 0;
+  if (!Number.isFinite(raw) || raw < 0) return 0;
+  return raw >>> 0;
+}
+
+function composerPhase(seq, phase, data) {
+  workerLog("LOG", "COMPOSER", "seq " + seq + " " + phase, {
+    seq,
+    phase,
+    ...(data || {})
+  });
+}
+
+function enterComposerCommand(seq, command) {
+  const latest = workerState.composerLatestSeq || 0;
+  if (seq !== 0 && latest !== 0 && seq < latest) {
+    composerPhase(seq, command + "-stale", { latest });
+    return {
+      ok: false,
+      stale: true,
+      seq,
+      reason: "stale " + command + " seq " + seq + "; latest is " + latest
+    };
   }
+  if (seq !== 0) workerState.composerLatestSeq = seq;
+  composerPhase(seq, command + "-accepted", { latest: workerState.composerLatestSeq || latest });
+  return { ok: true, seq };
+}
+
+function composerDisplayFromUrlParams(params) {
+  const raw = params && (params.display || params.ps_display);
+  if (raw === "1" || raw === "round" || raw === "polar") return 1;
+  return 0;
+}
+
+function applyComposerInitialDisplayFromUrl(Module) {
+  if (!Module || typeof Module._composer_set_initial_display !== "function") return;
+  const which = composerDisplayFromUrlParams(workerState.urlParams || {});
+  Module._composer_set_initial_display(which);
+  composerPhase(0, "initial-display", { which });
+}
+
+function handleComposerApplyScene(payload) {
+  const seq = composerCommandSeq(payload);
+  const gate = enterComposerCommand(seq, "apply");
+  if (!gate.ok) return { status: -1, stale: true, seq, reason: gate.reason };
+
+  const Module = workerState.fastledModule;
+  composerPhase(seq, "worker-apply-enter");
+  // Granular guards: a bare {status:-1} can't be told apart from a dropped
+  // response on the composer side, so each failure carries a `reason`.
+  if (!Module) return { status: -1, seq, reason: 'worker module not ready' };
+  if (!Module._composer_apply_scene) return { status: -1, seq, reason: 'missing _composer_apply_scene export' };
+  if (!Module._malloc || !Module._free || !Module.HEAPU8) return { status: -1, seq, reason: 'missing _malloc/_free/HEAPU8' };
   const bytes = new Uint8Array(payload && payload.bytes ? payload.bytes : []);
-  const ptr = Module._malloc(bytes.length);
-  Module.HEAPU8.set(bytes, ptr);
-  const status = Module._composer_apply_scene(ptr, bytes.length);
-  Module._free(ptr);
-  return { status };
+  let ptr = 0;
+  let enteredApply = false;
+  let applyReturned = false;
+  let result;
+  try {
+    composerPhase(seq, "worker-apply-malloc-start", { byteLength: bytes.length });
+    ptr = Module._malloc(bytes.length);
+    if (bytes.length > 0 && !ptr) return { status: -1, seq, reason: 'malloc returned null' };
+    composerPhase(seq, "worker-apply-copy-start", { byteLength: bytes.length });
+    Module.HEAPU8.set(bytes, ptr);
+    // status is 0 on success or a non-zero composer::DecodeStatus.
+    composerPhase(seq, "wasm-apply-start", { byteLength: bytes.length });
+    enteredApply = true;
+    const status = typeof Module._composer_apply_scene_seq === "function"
+      ? Module._composer_apply_scene_seq(ptr, bytes.length, seq)
+      : Module._composer_apply_scene(ptr, bytes.length);
+    applyReturned = true;
+    composerPhase(seq, "wasm-apply-end", { status });
+    result = { status, seq };
+  } catch (e) {
+    // A wasm trap here would otherwise reject the message and surface as an
+    // opaque failure; report it as a -1 with the trap message instead.
+    result = { status: -1, seq, reason: 'apply threw in worker: ' + (e && e.message ? e.message : e) };
+  }
+
+  if (ptr && (!enteredApply || applyReturned)) {
+    try {
+      Module._free(ptr);
+    } catch (e) {
+      const reason = 'free after worker apply failed: ' + (e && e.message ? e.message : e);
+      if (result.status === 0) return { status: -1, seq, reason };
+      result.reason = result.reason ? result.reason + '; ' + reason : reason;
+    }
+  }
+  return result;
+}
+
+function ensureWorkerWasmFunctions(seq) {
+  composerPhase(seq, "screenmap-bind-start");
+  const Module = workerState.fastledModule;
+  if (!Module) return { ok: false, reason: 'worker module not ready' };
+  if (!Module.cwrap) return { ok: false, reason: 'missing cwrap' };
+  if (!Module._malloc || !Module._free || !Module.getValue || !Module.UTF8ToString) {
+    return { ok: false, reason: 'missing screenmap memory helpers' };
+  }
+
+  try {
+    const fns = workerState.wasmFunctions || {};
+    if (!fns.getFrameData) fns.getFrameData = Module.cwrap("getFrameData", "number", ["number"]);
+    if (!fns.getScreenMapData) fns.getScreenMapData = Module.cwrap("getScreenMapData", "number", ["number"]);
+    if (!fns.getStripPixelData) fns.getStripPixelData = Module.cwrap("getStripPixelData", "number", ["number", "number"]);
+    if (!fns.freeFrameData) fns.freeFrameData = Module.cwrap("freeFrameData", null, ["number"]);
+    workerState.wasmFunctions = fns;
+    composerPhase(seq, "screenmap-bind-ok");
+    return { ok: true, Module, fns };
+  } catch (e) {
+    return { ok: false, reason: 'wasm function bind failed: ' + (e && e.message ? e.message : e) };
+  }
+}
+
+// Injected by PolarShader build_site.py (patch_render_worker): re-fetch the
+// active screenmap from the wasm module and push it to the graphics manager.
+// The worker only fetches the screenmap once (in handleStart), so after a
+// runtime display switch the renderer would keep the previous geometry's
+// layout. GraphicsManagerThreeJS.updateScreenMap() flags a scene rebuild, so
+// pushing the new map here re-lays the pixels (grid ↔ round).
+function refreshWorkerScreenMap(seq) {
+  const binding = ensureWorkerWasmFunctions(seq);
+  if (!binding.ok) return binding;
+  const { Module, fns } = binding;
+  composerPhase(seq, "screenmap-size-malloc-start");
+  const sizePtr = Module._malloc(4);
+  let dataPtr = 0;
+  try {
+    composerPhase(seq, "screenmap-fetch-start");
+    dataPtr = fns.getScreenMapData(sizePtr);
+    if (dataPtr === 0) {
+      return { ok: false, reason: 'no screenmap data available after display switch' };
+    }
+
+    composerPhase(seq, "screenmap-parse-start");
+    const size = Module.getValue(sizePtr, "i32");
+    const screenMapData = JSON.parse(Module.UTF8ToString(dataPtr, size));
+    workerState.screenMaps = screenMapData;
+    if (workerState.graphicsManager && workerState.graphicsManager.updateScreenMap) {
+      composerPhase(seq, "screenmap-update-start");
+      workerState.graphicsManager.updateScreenMap(screenMapData);
+      if (typeof workerState.graphicsManager.clearTexture === "function") {
+        composerPhase(seq, "screenmap-clear-start");
+        workerState.graphicsManager.clearTexture();
+      }
+      if (typeof workerState.graphicsManager.render === "function") {
+        composerPhase(seq, "screenmap-render-start");
+        workerState.graphicsManager.render();
+      }
+    }
+    composerPhase(seq, "screenmap-ok", { screenMapCount: Object.keys(screenMapData || {}).length });
+    return { ok: true, screenMapCount: Object.keys(screenMapData || {}).length };
+  } catch (e) {
+    workerLog("ERROR", "BACKGROUND_WORKER", "Failed to refresh screenmap after display switch", e);
+    return { ok: false, reason: 'screenmap refresh failed: ' + (e && e.message ? e.message : e) };
+  } finally {
+    if (dataPtr !== 0 && fns.freeFrameData) fns.freeFrameData(dataPtr);
+    Module._free(sizePtr);
+  }
+}
+
+// Injected by PolarShader build_site.py (patch_render_worker): switch the active
+// display geometry on this worker's module (0 = fabric, 1 = round). The C++ side
+// rebuilds the display and replays the last-applied scene, so the pipeline is
+// preserved. The new geometry's screenmap must then be pushed to the renderer so
+// the canvas re-lays out (round for polar displays). Returns { ok } so the
+// composer can report success/failure.
+function handleComposerSetDisplay(payload) {
+  const seq = composerCommandSeq(payload);
+  const gate = enterComposerCommand(seq, "display");
+  if (!gate.ok) return { ok: false, stale: true, seq, reason: gate.reason };
+
+  const Module = workerState.fastledModule;
+  composerPhase(seq, "worker-display-enter");
+  if (!Module) return { ok: false, seq, reason: 'worker module not ready' };
+  if (!Module._composer_set_display) return { ok: false, seq, reason: 'missing _composer_set_display export' };
+  const which = payload && typeof payload.which === 'number' ? payload.which : 0;
+  let displayApplied = false;
+  try {
+    composerPhase(seq, "wasm-display-start", { which });
+    if (typeof Module._composer_set_display_seq === "function") {
+      Module._composer_set_display_seq(which, seq);
+    } else {
+      Module._composer_set_display(which);
+    }
+    displayApplied = true;
+    composerPhase(seq, "wasm-display-end", { which });
+    const refresh = refreshWorkerScreenMap(seq);
+    if (!refresh.ok) {
+      return {
+        ok: false,
+        seq,
+        displayApplied: true,
+        screenMapOk: false,
+        reason: 'display switched, but screenmap refresh failed: ' + refresh.reason
+      };
+    }
+    composerPhase(seq, "worker-display-ok", { screenMapCount: refresh.screenMapCount });
+    return {
+      ok: true,
+      seq,
+      displayApplied: true,
+      screenMapOk: true,
+      screenMapCount: refresh.screenMapCount
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      seq,
+      displayApplied,
+      screenMapOk: false,
+      reason: 'set_display threw in worker: ' + (e && e.message ? e.message : e)
+    };
+  }
+}
+
+// Injected by PolarShader build_site.py (patch_render_worker): toggle the ThreeJS
+// bloom post-processing pass on the graphics manager that owns the OffscreenCanvas
+// in this worker. The graphics manager is patched (patch_threejs_bloom_toggle) to
+// expose setBloomEnabled + honour bloom_enabled across scene rebuilds. Store the
+// desired state so it survives a graphics manager that is not ready yet.
+function handleComposerSetBloom(payload) {
+  const enabled = !(payload && payload.enabled === false);
+  workerState.composerBloomEnabled = enabled;
+  const gm = workerState.graphicsManager;
+  if (!gm) return { ok: true, enabled, deferred: true };
+  if (typeof gm.setBloomEnabled === "function") {
+    gm.setBloomEnabled(enabled);
+  } else {
+    gm.bloom_enabled = enabled;
+  }
+  return { ok: true, enabled };
 }
 """
 
@@ -568,17 +817,214 @@ def patch_render_worker(dist_sketch_dir: Path) -> None:
             "worker-routed scene apply needs revisiting."
         )
     text = worker_path.read_text(encoding="utf-8")
-    if "handleComposerApplyScene" in text:
-        return
-    if _WORKER_CASE_ANCHOR not in text:
-        raise RuntimeError(
-            f"Cannot patch {worker_path}: onmessage switch anchor not found. "
-            "The FastLED worker's message dispatch changed; update "
-            "patch_render_worker."
-        )
-    text = text.replace(_WORKER_CASE_ANCHOR, _WORKER_CASE_INJECT, 1)
-    text = text + _WORKER_HANDLER
+    if "handleComposerApplyScene" not in text:
+        if _WORKER_CASE_ANCHOR not in text:
+            raise RuntimeError(
+                f"Cannot patch {worker_path}: onmessage switch anchor not found. "
+                "The FastLED worker's message dispatch changed; update "
+                "patch_render_worker."
+            )
+        text = text.replace(_WORKER_CASE_ANCHOR, _WORKER_CASE_INJECT, 1)
+        text = text + _WORKER_HANDLER
+    if "applyComposerInitialDisplayFromUrl(workerState.fastledModule);" not in text:
+        if _WORKER_START_ANCHOR not in text:
+            raise RuntimeError(
+                f"Cannot patch {worker_path}: worker start anchor not found. "
+                "FastLED's worker setup changed; update patch_render_worker."
+            )
+        text = text.replace(_WORKER_START_ANCHOR, _WORKER_START_INJECT, 1)
+    if "workerState.composerBloomEnabled" not in text.split(_WORKER_GM_INIT_ANCHOR, 1)[0]:
+        if _WORKER_GM_INIT_ANCHOR not in text:
+            raise RuntimeError(
+                f"Cannot patch {worker_path}: graphics-manager-init anchor not found. "
+                "FastLED's worker graphics init changed; update patch_render_worker."
+            )
+        text = text.replace(_WORKER_GM_INIT_ANCHOR, _WORKER_GM_INIT_INJECT, 1)
     worker_path.write_text(text, encoding="utf-8")
+
+
+_MAIN_WORKER_READY_ANCHOR = (
+    '    console.log("FastLED running in Web Worker mode (background thread)");'
+)
+_MAIN_WORKER_READY_INJECT = (
+    _MAIN_WORKER_READY_ANCHOR
+    + """
+    if (typeof window !== "undefined") {
+      window.__polarComposerWorkerManager = fastLEDWorkerManager;
+      window.__polarComposerWorkerReady = true;
+      window.dispatchEvent(new CustomEvent("polar:worker-ready", {
+        detail: { mode: "background_worker" }
+      }));
+      (async () => {
+        try {
+          const raw = window.sessionStorage && window.sessionStorage.getItem("polarComposerBootScene:v1");
+          const saved = raw ? JSON.parse(raw) : null;
+          if (saved?.verified !== true || !Array.isArray(saved.bytes) || saved.bytes.length === 0) return;
+          const bytes = new Uint8Array(saved.bytes);
+          const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+          await fastLEDWorkerManager.sendMessageWithResponse({
+            type: "composer_apply_scene",
+            payload: { bytes: buffer, seq: 0 }
+          }, [buffer], 2000);
+        } catch (error) {
+          console.warn("Polar composer boot scene replay failed:", error);
+        }
+      })();
+    }"""
+)
+
+_MAIN_SETUP_ANCHOR = (
+    "      fastLEDController.setup();\n"
+    '      console.log("🔧 fastLEDController.setup() completed successfully");'
+)
+_MAIN_SETUP_INJECT = (
+    """      if (typeof moduleInstance._composer_set_initial_display === "function") {
+        const rawDisplay = urlParams.get("display") || urlParams.get("ps_display");
+        const composerDisplay = (rawDisplay === "1" || rawDisplay === "round" || rawDisplay === "polar") ? 1 : 0;
+        moduleInstance._composer_set_initial_display(composerDisplay);
+      }
+"""
+    + _MAIN_SETUP_ANCHOR
+)
+
+
+def patch_main_worker_ready_hook(dist_sketch_dir: Path) -> None:
+    """Expose a reliable worker-ready marker for the composer panel.
+
+    FastLED emits its own worker event while the generated app is booting; on a
+    full gfx-mode reload the composer module can miss that one-shot event and
+    then incorrectly fall back to the main module. Publish a tiny stable hook
+    after worker start so composer can detect/replay into the worker-owned
+    canvas.
+    """
+    index_path = dist_sketch_dir / "index.js"
+    if not index_path.exists():
+        raise FileNotFoundError(f"Generated index.js not found: {index_path}")
+    text = index_path.read_text(encoding="utf-8")
+    if "__polarComposerWorkerReady" in text:
+        return
+    if _MAIN_WORKER_READY_ANCHOR not in text:
+        raise RuntimeError(
+            f"Cannot patch {index_path}: worker-ready anchor not found. "
+            "FastLED's startup logging changed; update patch_main_worker_ready_hook."
+        )
+    text = text.replace(_MAIN_WORKER_READY_ANCHOR, _MAIN_WORKER_READY_INJECT, 1)
+    index_path.write_text(text, encoding="utf-8")
+
+
+def patch_main_initial_display_hook(dist_sketch_dir: Path) -> None:
+    """Select the composer display before main-thread FastLED setup.
+
+    On GitHub Pages or worker-disabled browsers, the visible renderer is the
+    main module. Its screenmap is captured during fastLEDController.setup(), so
+    the startup display must be selected before that call.
+    """
+    index_path = dist_sketch_dir / "index.js"
+    if not index_path.exists():
+        raise FileNotFoundError(f"Generated index.js not found: {index_path}")
+    text = index_path.read_text(encoding="utf-8")
+    if "_composer_set_initial_display(composerDisplay)" in text:
+        return
+    if _MAIN_SETUP_ANCHOR not in text:
+        raise RuntimeError(
+            f"Cannot patch {index_path}: main setup anchor not found. "
+            "FastLED's setup flow changed; update patch_main_initial_display_hook."
+        )
+    text = text.replace(_MAIN_SETUP_ANCHOR, _MAIN_SETUP_INJECT, 1)
+    index_path.write_text(text, encoding="utf-8")
+
+
+_THREEJS_BLOOM_REPLACEMENTS = (
+    ("    this.bloom_stength = 1;\n", "    this.bloom_stength = 0.125;\n"),
+    ("    this.bloom_radius = 16;\n", "    this.bloom_radius = 2;\n"),
+    ("    this.base_bloom_strength = 16;\n", "    this.base_bloom_strength = 2;\n"),
+    ("    this.max_bloom_strength = 20;\n", "    this.max_bloom_strength = 2.5;\n"),
+    ("    this.min_bloom_strength = 0.5;\n", "    this.min_bloom_strength = 0.0625;\n"),
+    ("      this.bloom_stength = 16;\n", "      this.bloom_stength = 2;\n"),
+    ("      this.bloom_radius = 1;\n", "      this.bloom_radius = 0.125;\n"),
+)
+
+
+def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
+    """Reduce FastLED's generated ThreeJS bloom settings to 12.5% of default."""
+    asset_dir = dist_sketch_dir / "assets"
+    paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
+    if not paths:
+        raise FileNotFoundError(
+            f"ThreeJS graphics manager not found under {asset_dir}. "
+            "The bloom patch needs updating for FastLED's generated output."
+        )
+
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        for old, new in _THREEJS_BLOOM_REPLACEMENTS:
+            if old not in text:
+                raise RuntimeError(
+                    f"Cannot patch bloom in {path}: expected snippet not found: {old.strip()}"
+                )
+            text = text.replace(old, new, 1)
+        path.write_text(text, encoding="utf-8")
+
+
+# Add a runtime bloom on/off switch to FastLED's generated ThreeJS graphics
+# manager (driven from the composer panel via the worker's composer_set_bloom
+# message). The pass itself is still created; we flip its `.enabled` flag, which
+# EffectComposer honours per-frame, and stash the desired state in
+# `this.bloom_enabled` so it survives scene rebuilds (_setupRenderPasses reapplies
+# it to the freshly created pass).
+_THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
+    (
+        "    this.auto_bloom_enabled = true;\n",
+        "    this.auto_bloom_enabled = true;\n    this.bloom_enabled = true;\n",
+    ),
+    (
+        "      this.composer.addPass(bloomPass);\n",
+        "      bloomPass.enabled = this.bloom_enabled;\n"
+        "      this.composer.addPass(bloomPass);\n",
+    ),
+    (
+        "  /**\n   * Updates the bloom pass strength dynamically\n",
+        "  /**\n"
+        "   * Enables or disables the bloom pass at runtime (PolarShader)\n"
+        "   * @param {boolean} enabled - Whether bloom should render\n"
+        "   */\n"
+        "  setBloomEnabled(enabled) {\n"
+        "    this.bloom_enabled = !!enabled;\n"
+        "    if (!this.composer || !this.composer.passes) {\n"
+        "      return;\n"
+        "    }\n"
+        "    for (const pass of this.composer.passes) {\n"
+        '      if (pass.constructor.name === "UnrealBloomPass") {\n'
+        "        pass.enabled = this.bloom_enabled;\n"
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "  /**\n   * Updates the bloom pass strength dynamically\n",
+    ),
+)
+
+
+def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
+    """Add a runtime setBloomEnabled() switch to the ThreeJS graphics manager."""
+    asset_dir = dist_sketch_dir / "assets"
+    paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
+    if not paths:
+        raise FileNotFoundError(
+            f"ThreeJS graphics manager not found under {asset_dir}. "
+            "The bloom toggle patch needs updating for FastLED's generated output."
+        )
+
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        if "setBloomEnabled(enabled)" in text:
+            continue
+        for old, new in _THREEJS_BLOOM_TOGGLE_REPLACEMENTS:
+            if old not in text:
+                raise RuntimeError(
+                    f"Cannot patch bloom toggle in {path}: expected snippet not found: {old.strip()}"
+                )
+            text = text.replace(old, new, 1)
+        path.write_text(text, encoding="utf-8")
 
 
 def build_site() -> None:
@@ -595,6 +1041,10 @@ def build_site() -> None:
         if sketch.name in SKETCHES_WITH_PANEL:
             inject_panel_assets(sketch, dist_sketch_dir, SKETCHES_WITH_PANEL[sketch.name])
             patch_render_worker(dist_sketch_dir)
+            patch_main_initial_display_hook(dist_sketch_dir)
+            patch_main_worker_ready_hook(dist_sketch_dir)
+            patch_threejs_bloom(dist_sketch_dir)
+            patch_threejs_bloom_toggle(dist_sketch_dir)
 
     shutil.copy2(LANDING_PAGE, DIST_ROOT / "index.html")
 

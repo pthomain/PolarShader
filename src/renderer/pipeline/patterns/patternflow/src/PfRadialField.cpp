@@ -41,7 +41,7 @@ namespace PolarShader {
     struct PfRadialField::Functor {
         const State *state;
 
-        PatternNormU16 petals(UV uv) const {
+        PaletteSample petals(UV uv) const {
             UV polar = cartesianToPolarUV(uv);
             int32_t angleTurns = raw(polar.u);   // f16 turns (0..65535)
             int32_t radiusQ16 = raw(polar.v);    // [0, 65536]
@@ -61,10 +61,12 @@ namespace PolarShader {
 
             int32_t diff = radiusQ16 - target;
             uint16_t band = PfMath::pfBump(diff, state->halfBandRaw);
-            return PatternNormU16(band);
+            // Hue: the polar angle sweeps colour around the flower.
+            PatternNormU16 hue = PatternNormU16(static_cast<uint16_t>(angleTurns));
+            return PaletteSample{hue, PatternNormU16(band)};
         }
 
-        PatternNormU16 rippleField(UV uv) const {
+        PaletteSample rippleField(UV uv) const {
             UV polar = cartesianToPolarUV(uv);
             int32_t angleTurns = raw(polar.u);
             int32_t radiusQ16 = raw(polar.v);
@@ -86,15 +88,21 @@ namespace PolarShader {
             uint32_t base = static_cast<uint32_t>(raw(PfMath::pfSignedToNorm(wave, SF16_ONE))) >> 2;
             uint32_t out = static_cast<uint32_t>(crest) + base;
             if (out > F16_MAX) out = F16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(out));
+            // Hue: the signed ripple wave in [-1, 1] tints crest vs trough.
+            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(out))};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PaletteSample sample(UV uv) const {
             switch (state->variant) {
                 case Variant::Petals: return petals(uv);
                 case Variant::Ripple: return rippleField(uv);
             }
-            return PatternNormU16(0);
+            return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
+        }
+
+        PatternNormU16 operator()(UV uv) const {
+            return sample(uv).value();
         }
     };
 
@@ -147,5 +155,14 @@ namespace PolarShader {
     UVMap PfRadialField::layer(const std::shared_ptr<PipelineContext> &context) const {
         (void)context;
         return Functor{state.get()};
+    }
+
+    bool PfRadialField::emitsColour() const {
+        return true;
+    }
+
+    UVColourMap PfRadialField::colourLayer(const std::shared_ptr<PipelineContext> &context) const {
+        (void)context;
+        return [f = Functor{state.get()}](UV uv) { return f.sample(uv); };
     }
 }

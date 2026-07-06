@@ -83,28 +83,34 @@ namespace PolarShader {
         }
     }
 
+    UV ZoomTransform::warp(const State &state, UV uv) {
+        // Map from [0, 1] to [-1, 1] (relative to center)
+        int64_t x = (static_cast<int64_t>(uv.u.raw()) << 1) - 0x00010000;
+        int64_t y = (static_cast<int64_t>(uv.v.raw()) << 1) - 0x00010000;
+        int32_t scale = raw(state.scaleValue);
+
+        // Apply f16/sf16 scale
+        int64_t sx = x * static_cast<int64_t>(scale);
+        int64_t sy = y * static_cast<int64_t>(scale);
+
+        // Shift back down
+        int32_t fx = static_cast<int32_t>(sx >> 16);
+        int32_t fy = static_cast<int32_t>(sy >> 16);
+
+        // Map from [-1, 1] to [0, 1]
+        return UV(
+            fl::s16x16::from_raw((fx + 0x00010000) >> 1),
+            fl::s16x16::from_raw((fy + 0x00010000) >> 1)
+        );
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
     UVMap ZoomTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            // Map from [0, 1] to [-1, 1] (relative to center)
-            int64_t x = (static_cast<int64_t>(uv.u.raw()) << 1) - 0x00010000;
-            int64_t y = (static_cast<int64_t>(uv.v.raw()) << 1) - 0x00010000;
-            int32_t scale = raw(state->scaleValue);
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
 
-            // Apply f16/sf16 scale
-            int64_t sx = x * static_cast<int64_t>(scale);
-            int64_t sy = y * static_cast<int64_t>(scale);
-
-            // Shift back down
-            int32_t fx = static_cast<int32_t>(sx >> 16);
-            int32_t fy = static_cast<int32_t>(sy >> 16);
-
-            // Map from [-1, 1] to [0, 1]
-            UV scaled_uv(
-                fl::s16x16::from_raw((fx + 0x00010000) >> 1),
-                fl::s16x16::from_raw((fy + 0x00010000) >> 1)
-            );
-
-            return layer(scaled_uv);
-        };
+    UVColourMap ZoomTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

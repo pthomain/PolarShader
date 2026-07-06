@@ -45,17 +45,20 @@ namespace PolarShader {
 
         // --- individual variant fields ---
 
-        PatternNormU16 dualAxis(int32_t X, int32_t Y) const {
+        PaletteSample dualAxis(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             // Domain-warp waves (scaled by warp).
             sf16 dy = scaleSf16(PfMath::pfSinTurns(2 * Y + PfMath::pfCoefT(t, 4, 5)), state->warpF16);
             sf16 dx = scaleSf16(PfMath::pfCosTurns(2 * X - PfMath::pfCoefT(t, 9, 10)), state->warpF16);
             int32_t s1 = raw(PfMath::pfSinTurns(3 * X + raw(dy) + t));
             int32_t s2 = raw(PfMath::pfCosTurns(3 * Y - PfMath::pfCoefT(t, 6, 5) + raw(dx)));
-            return PfMath::pfSignedToNorm(s1 + s2, 2 * SF16_ONE);
+            PatternNormU16 value = PfMath::pfSignedToNorm(s1 + s2, 2 * SF16_ONE);
+            // Hue: the orthogonal wave difference gives an independent phase.
+            PatternNormU16 hue = PfMath::pfSignedToNorm(s1 - s2, 2 * SF16_ONE);
+            return PaletteSample{hue, value};
         }
 
-        PatternNormU16 counterRibbons(int32_t X, int32_t Y) const {
+        PaletteSample counterRibbons(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             // Two counter-travelling layers with cross-axis phase modulation.
             sf16 inner1 = scaleSf16(PfMath::pfSinTurns(1 * Y + t), perMil(500));
@@ -76,10 +79,12 @@ namespace PolarShader {
             if (m1 && m2) intensity = F16_MAX;                 // overlap highlight
             else if (m1) intensity = static_cast<uint32_t>(F16_MAX * 6 / 10);
             else if (m2) intensity = static_cast<uint32_t>(F16_MAX * 4 / 10);
-            return PatternNormU16(static_cast<uint16_t>(intensity));
+            // Hue: the mean of the two ribbon textures shifts colour along the weave.
+            PatternNormU16 hue = PfMath::pfUnitToNorm(static_cast<int32_t>((v1 + v2) >> 1));
+            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(intensity))};
         }
 
-        PatternNormU16 quadDirectional(int32_t X, int32_t Y) const {
+        PaletteSample quadDirectional(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             int32_t s1 = raw(PfMath::pfSinTurns(4 * X + t));
             int32_t s2 = raw(PfMath::pfSinTurns(5 * Y - PfMath::pfCoefT(t, 11, 10)));
@@ -97,19 +102,23 @@ namespace PolarShader {
             int64_t c2 = (static_cast<int64_t>(inner) * inner) >> 16;
             int64_t c3 = (c2 * inner) >> 16;
             if (c3 > F16_MAX) c3 = F16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(c3));
+            // Hue: the signed directional sum in [-4, 4] tracks the interference phase.
+            PatternNormU16 hue = PfMath::pfSignedToNorm(sum, 4 * SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(c3))};
         }
 
-        PatternNormU16 posterized(int32_t X, int32_t Y) const {
+        PaletteSample posterized(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             int32_t s1 = raw(PfMath::pfSinTurns(4 * X + PfMath::pfCoefT(t, 7, 10)));
             int32_t s2 = raw(PfMath::pfCosTurns(4 * Y - PfMath::pfCoefT(t, 1, 2)));
             int32_t s3 = raw(PfMath::pfSinTurns(2 * (X + Y) + t));
             PatternNormU16 composite = PfMath::pfSignedToNorm(s1 + s2 + s3, 3 * SF16_ONE);
-            return PatternNormU16(PfMath::pfPosterize(raw(composite), state->levels));
+            // Hue: the smooth pre-posterized composite drives continuous colour.
+            return PaletteSample{composite,
+                                 PatternNormU16(PfMath::pfPosterize(raw(composite), state->levels))};
         }
 
-        PatternNormU16 cross(int32_t X, int32_t Y) const {
+        PaletteSample cross(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             // Warp drifts the bar centres; breathing modulates their width.
             int32_t driftX = raw(scaleSf16(PfMath::pfSinTurns(PfMath::pfCoefT(t, 1, 1)), state->warpF16)) / 4;
@@ -124,10 +133,12 @@ namespace PolarShader {
             constexpr int32_t kCentre = SF16_ONE >> 1;
             uint16_t barV = PfMath::pfBump(X - kCentre + driftX, hw); // vertical bar
             uint16_t barH = PfMath::pfBump(Y - kCentre + driftY, hw); // horizontal bar
-            return PatternNormU16(barV > barH ? barV : barH);
+            // Hue: a diagonal position gradient tints the two arms differently.
+            PatternNormU16 hue = PfMath::pfSignedToNorm(X + Y - SF16_ONE, SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(barV > barH ? barV : barH)};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PaletteSample sample(UV uv) const {
             int32_t X = raw(uv.u);
             int32_t Y = raw(uv.v);
             switch (state->variant) {
@@ -137,7 +148,11 @@ namespace PolarShader {
                 case Variant::Posterized:      return posterized(X, Y);
                 case Variant::Cross:           return cross(X, Y);
             }
-            return PatternNormU16(0);
+            return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
+        }
+
+        PatternNormU16 operator()(UV uv) const {
+            return sample(uv).value();
         }
     };
 
@@ -186,5 +201,14 @@ namespace PolarShader {
     UVMap PfInterferenceField::layer(const std::shared_ptr<PipelineContext> &context) const {
         (void)context;
         return Functor{state.get()};
+    }
+
+    bool PfInterferenceField::emitsColour() const {
+        return true;
+    }
+
+    UVColourMap PfInterferenceField::colourLayer(const std::shared_ptr<PipelineContext> &context) const {
+        (void)context;
+        return [f = Functor{state.get()}](UV uv) { return f.sample(uv); };
     }
 }

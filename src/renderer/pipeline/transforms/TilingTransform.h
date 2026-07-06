@@ -47,9 +47,14 @@ namespace PolarShader {
         int32_t getCellSizeRaw() const;
 
         UVMap operator()(const UVMap &layer) const override;
+        UVColourMap operator()(const UVColourMap &layer) const override;
 
     private:
         struct State;
+        // Pure coordinate warp, applied via a DIRECT static call from each
+        // operator() overload (never wrapped in an fl::function<UV(UV)> — see
+        // the WASM ABI NOTE in Units.h).
+        static UV warp(const State &state, UV uv);
         std::shared_ptr<State> state;
     };
 }

@@ -123,13 +123,20 @@ namespace PolarShader {
         state->offset.v = fl::s16x16::from_raw(static_cast<int32_t>(static_cast<int64_t>(state->offset.v.raw()) + dv));
     }
 
+    UV TranslationTransform::warp(const State &state, UV uv) {
+        return UV(
+            uv.u + state.offset.u,
+            uv.v + state.offset.v
+        );
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
     UVMap TranslationTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            UV translated_uv(
-                uv.u + state->offset.u,
-                uv.v + state->offset.v
-            );
-            return layer(translated_uv);
-        };
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
+
+    UVColourMap TranslationTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

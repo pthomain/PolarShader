@@ -62,9 +62,20 @@ namespace PolarShader {
 
         static std::unique_ptr<ColourMap> blackLayer(const char *reason);
 
+        static uint16_t computeClipMask(
+            const std::shared_ptr<PipelineContext> &context,
+            uint16_t clip_input
+        );
+
         static CRGB mapPalette(
             const CRGBPalette16 &palette,
             PatternNormU16 value,
+            const std::shared_ptr<PipelineContext> &context
+        );
+
+        static CRGB tintPalette(
+            const CRGBPalette16 &palette,
+            PaletteSample sample,
             const std::shared_ptr<PipelineContext> &context
         );
 

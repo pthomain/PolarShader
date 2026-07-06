@@ -88,13 +88,21 @@ namespace PolarShader {
         // Pass-through to PolarRenderer::replaceScene. Used by the composer
         // sketch to swap the active Scene live without rebuilding the display.
         void replaceScene(std::unique_ptr<Scene> scene) {
-            renderer.replaceScene(std::move(scene), millis());
+            replaceSceneWithoutRender(std::move(scene));
             renderNow();
         }
 
         void replaceScenePreservingElapsed(std::unique_ptr<Scene> scene) {
-            renderer.replaceScenePreservingElapsed(std::move(scene));
+            replaceScenePreservingElapsedWithoutRender(std::move(scene));
             renderNow();
+        }
+
+        void replaceSceneWithoutRender(std::unique_ptr<Scene> scene) {
+            renderer.replaceScene(std::move(scene), millis());
+        }
+
+        void replaceScenePreservingElapsedWithoutRender(std::unique_ptr<Scene> scene) {
+            renderer.replaceScenePreservingElapsed(std::move(scene));
         }
 
         void renderNow() {

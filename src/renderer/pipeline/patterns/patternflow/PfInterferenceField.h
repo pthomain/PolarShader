@@ -77,6 +77,10 @@ namespace PolarShader {
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
+        bool emitsColour() const override;
+
+        UVColourMap colourLayer(const std::shared_ptr<PipelineContext> &context) const override;
+
     private:
         struct State;
         struct Functor;

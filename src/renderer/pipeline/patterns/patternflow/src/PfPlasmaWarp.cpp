@@ -41,7 +41,7 @@ namespace PolarShader {
     struct PfPlasmaWarp::Functor {
         const State *state;
 
-        PatternNormU16 plasma(int32_t X, int32_t Y) const {
+        PaletteSample plasma(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             int32_t v1 = raw(PfMath::pfSinTurns(3 * X + t));
             int32_t v2 = raw(PfMath::pfCosTurns(3 * Y - PfMath::pfCoefT(t, 4, 5)));
@@ -58,10 +58,12 @@ namespace PolarShader {
             int64_t c3 = (c2 * inner) >> 16;
             c3 = (c3 * 5) / 2;                       // *2.5 gain
             if (c3 > F16_MAX) c3 = F16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(c3));
+            // Hue: the two base waves give a cheap phase proxy in [-2, 2].
+            PatternNormU16 hue = PfMath::pfSignedToNorm(v1 + v2, 2 * SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(c3))};
         }
 
-        PatternNormU16 tendrils(int32_t X, int32_t Y) const {
+        PaletteSample tendrils(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             sf16 f1 = mulSf16Sat(PfMath::pfSinTurns(3 * X + t),
                                  PfMath::pfCosTurns(3 * Y + PfMath::pfCoefT(t, 1, 2)));
@@ -75,10 +77,12 @@ namespace PolarShader {
             // Filament ridge where the centre-field crosses ~0.4.
             int32_t d = a - (SF16_ONE * 2 / 5);
             uint16_t val = PfMath::pfBump(d, state->halfWidthRaw);
-            return PatternNormU16(val);
+            // Hue: the signed centre-field in [-2, 2] varies along filaments.
+            PatternNormU16 hue = PfMath::pfSignedToNorm(cf, 2 * SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(val)};
         }
 
-        PatternNormU16 liquidGate(int32_t X, int32_t Y) const {
+        PaletteSample liquidGate(int32_t X, int32_t Y) const {
             const int32_t t = state->tTurns;
             // Self-warp offsets fed from lower-frequency waves.
             int32_t wx = raw(scaleSf16(PfMath::pfSinTurns(2 * Y + PfMath::pfCoefT(t, 3, 5)), state->warpF16));
@@ -95,12 +99,14 @@ namespace PolarShader {
             int32_t hw = state->gateHalfRaw;
             int32_t e0 = mid - hw; if (e0 < 0) e0 = 0;
             int32_t e1 = mid + hw; if (e1 > static_cast<int32_t>(F16_MAX)) e1 = F16_MAX;
-            return patternSmoothstepU16(static_cast<uint16_t>(e0),
-                                        static_cast<uint16_t>(e1),
-                                        static_cast<uint16_t>(norm));
+            PatternNormU16 value = patternSmoothstepU16(static_cast<uint16_t>(e0),
+                                                        static_cast<uint16_t>(e1),
+                                                        static_cast<uint16_t>(norm));
+            // Hue: the pre-gate metaball field is already a [0, 65535] proxy.
+            return PaletteSample{PatternNormU16(static_cast<uint16_t>(norm)), value};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PaletteSample sample(UV uv) const {
             int32_t X = raw(uv.u);
             int32_t Y = raw(uv.v);
             switch (state->variant) {
@@ -108,7 +114,11 @@ namespace PolarShader {
                 case Variant::Tendrils:   return tendrils(X, Y);
                 case Variant::LiquidGate: return liquidGate(X, Y);
             }
-            return PatternNormU16(0);
+            return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
+        }
+
+        PatternNormU16 operator()(UV uv) const {
+            return sample(uv).value();
         }
     };
 
@@ -166,5 +176,14 @@ namespace PolarShader {
     UVMap PfPlasmaWarp::layer(const std::shared_ptr<PipelineContext> &context) const {
         (void)context;
         return Functor{state.get()};
+    }
+
+    bool PfPlasmaWarp::emitsColour() const {
+        return true;
+    }
+
+    UVColourMap PfPlasmaWarp::colourLayer(const std::shared_ptr<PipelineContext> &context) const {
+        (void)context;
+        return [f = Functor{state.get()}](UV uv) { return f.sample(uv); };
     }
 }

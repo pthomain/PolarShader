@@ -207,38 +207,45 @@ namespace PolarShader {
         }
     }
 
-    UVMap FlowFieldTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            uint32_t uRaw = clampUvRaw(uv.u.raw());
-            uint32_t vRaw = clampUvRaw(uv.v.raw());
-            uint32_t scaledU = uRaw * (FLOW_GRID_W - 1u);
-            uint32_t scaledV = vRaw * (FLOW_GRID_H - 1u);
-            uint32_t gx0 = scaledU >> 16;
-            uint32_t gy0 = scaledV >> 16;
-            uint32_t tx = scaledU & 0xFFFFu;
-            uint32_t ty = scaledV & 0xFFFFu;
-            uint32_t gx1 = (gx0 + 1u < FLOW_GRID_W) ? (gx0 + 1u) : gx0;
-            uint32_t gy1 = (gy0 + 1u < FLOW_GRID_H) ? (gy0 + 1u) : gy0;
+    UV FlowFieldTransform::warp(const State &state, UV uv) {
+        uint32_t uRaw = clampUvRaw(uv.u.raw());
+        uint32_t vRaw = clampUvRaw(uv.v.raw());
+        uint32_t scaledU = uRaw * (FLOW_GRID_W - 1u);
+        uint32_t scaledV = vRaw * (FLOW_GRID_H - 1u);
+        uint32_t gx0 = scaledU >> 16;
+        uint32_t gy0 = scaledV >> 16;
+        uint32_t tx = scaledU & 0xFFFFu;
+        uint32_t ty = scaledV & 0xFFFFu;
+        uint32_t gx1 = (gx0 + 1u < FLOW_GRID_W) ? (gx0 + 1u) : gx0;
+        uint32_t gy1 = (gy0 + 1u < FLOW_GRID_H) ? (gy0 + 1u) : gy0;
 
-            const v32 &f00 = state->grid[gy0 * FLOW_GRID_W + gx0];
-            const v32 &f10 = state->grid[gy0 * FLOW_GRID_W + gx1];
-            const v32 &f01 = state->grid[gy1 * FLOW_GRID_W + gx0];
-            const v32 &f11 = state->grid[gy1 * FLOW_GRID_W + gx1];
+        const v32 &f00 = state.grid[gy0 * FLOW_GRID_W + gx0];
+        const v32 &f10 = state.grid[gy0 * FLOW_GRID_W + gx1];
+        const v32 &f01 = state.grid[gy1 * FLOW_GRID_W + gx0];
+        const v32 &f11 = state.grid[gy1 * FLOW_GRID_W + gx1];
 
-            int32_t topX = lerpRaw(f00.x, f10.x, tx);
-            int32_t topY = lerpRaw(f00.y, f10.y, tx);
-            int32_t bottomX = lerpRaw(f01.x, f11.x, tx);
-            int32_t bottomY = lerpRaw(f01.y, f11.y, tx);
-            v32 flow{
-                lerpRaw(topX, bottomX, ty),
-                lerpRaw(topY, bottomY, ty)
-            };
-
-            UV flowedUv(
-                fl::s16x16::from_raw(uv.u.raw() + (flow.x << 8)),
-                fl::s16x16::from_raw(uv.v.raw() + (flow.y << 8))
-            );
-            return layer(flowedUv);
+        int32_t topX = lerpRaw(f00.x, f10.x, tx);
+        int32_t topY = lerpRaw(f00.y, f10.y, tx);
+        int32_t bottomX = lerpRaw(f01.x, f11.x, tx);
+        int32_t bottomY = lerpRaw(f01.y, f11.y, tx);
+        v32 flow{
+            lerpRaw(topX, bottomX, ty),
+            lerpRaw(topY, bottomY, ty)
         };
+
+        return UV(
+            fl::s16x16::from_raw(uv.u.raw() + (flow.x << 8)),
+            fl::s16x16::from_raw(uv.v.raw() + (flow.y << 8))
+        );
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
+    UVMap FlowFieldTransform::operator()(const UVMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
+
+    UVColourMap FlowFieldTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

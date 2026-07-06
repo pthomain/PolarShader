@@ -76,19 +76,26 @@ namespace PolarShader {
         }
     }
 
-    UVMap RotationTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            // Convert to Polar UV (Angle=U, Radius=V)
-            UV polar_uv = cartesianToPolarUV(uv);
-            
-            // Apply rotation to U (angle)
-            uint16_t angle_raw = static_cast<uint16_t>(polar_uv.u.raw());
-            uint16_t offset_raw = raw(state->angleOffset);
-            polar_uv.u = fl::s16x16::from_raw(static_cast<uint16_t>(angle_raw + offset_raw));
+    UV RotationTransform::warp(const State &state, UV uv) {
+        // Convert to Polar UV (Angle=U, Radius=V)
+        UV polar_uv = cartesianToPolarUV(uv);
 
-            // Convert back to Cartesian UV
-            UV rotated_uv = polarToCartesianUV(polar_uv);
-            return layer(rotated_uv);
-        };
+        // Apply rotation to U (angle)
+        uint16_t angle_raw = static_cast<uint16_t>(polar_uv.u.raw());
+        uint16_t offset_raw = raw(state.angleOffset);
+        polar_uv.u = fl::s16x16::from_raw(static_cast<uint16_t>(angle_raw + offset_raw));
+
+        // Convert back to Cartesian UV
+        return polarToCartesianUV(polar_uv);
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
+    UVMap RotationTransform::operator()(const UVMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
+
+    UVColourMap RotationTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

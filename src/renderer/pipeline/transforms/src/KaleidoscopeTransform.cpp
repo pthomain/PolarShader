@@ -33,29 +33,37 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{nbFacets, isMirrored})) {
     }
 
-    UVMap KaleidoscopeTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            UV polar_uv = cartesianToPolarUV(mirrorUv(uv));
-            
-            uint8_t facets = state->facets;
-            if (facets > 1u) {
-                uint32_t full_turn = ANGLE_FULL_TURN_U32;
-                uint32_t sector = full_turn / facets;
-                if (sector != 0u) {
-                    uint32_t angle_u32 = static_cast<uint32_t>(polar_uv.u.raw());
-                    uint32_t index = angle_u32 / sector;
-                    uint32_t local = angle_u32 - (index * sector);
+    UV KaleidoscopeTransform::warp(const State &state, UV uv) {
+        UV polar_uv = cartesianToPolarUV(mirrorUv(uv));
 
-                    if (state->mirrored && (index & 1u)) {
-                        local = (sector - 1u) - local;
-                    }
+        uint8_t facets = state.facets;
+        if (facets > 1u) {
+            uint32_t full_turn = ANGLE_FULL_TURN_U32;
+            uint32_t sector = full_turn / facets;
+            if (sector != 0u) {
+                uint32_t angle_u32 = static_cast<uint32_t>(polar_uv.u.raw());
+                uint32_t index = angle_u32 / sector;
+                uint32_t local = angle_u32 - (index * sector);
 
-                    uint32_t scaled = local * facets;
-                    polar_uv.u = fl::s16x16::from_raw(static_cast<int32_t>(scaled & 0xFFFFu));
+                if (state.mirrored && (index & 1u)) {
+                    local = (sector - 1u) - local;
                 }
-            }
 
-            return layer(polarToCartesianUV(polar_uv));
-        };
+                uint32_t scaled = local * facets;
+                polar_uv.u = fl::s16x16::from_raw(static_cast<int32_t>(scaled & 0xFFFFu));
+            }
+        }
+
+        return polarToCartesianUV(polar_uv);
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
+    UVMap KaleidoscopeTransform::operator()(const UVMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
+
+    UVColourMap KaleidoscopeTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

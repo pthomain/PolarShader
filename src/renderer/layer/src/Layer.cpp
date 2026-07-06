@@ -65,50 +65,55 @@ namespace PolarShader {
         });
     }
 
+    uint16_t Layer::computeClipMask(
+        const std::shared_ptr<PipelineContext> &context,
+        uint16_t clip_input
+    ) {
+        if (!(context && context->paletteClipEnabled)) {
+            return F16_MAX;
+        }
+        if (context->paletteClipInvert) {
+            clip_input = static_cast<uint16_t>(F16_MAX - clip_input);
+        }
+        switch (context->paletteClipPower) {
+            case PipelineContext::PaletteClipPower::Quartic: {
+                // Strong shaping: only the very top of the noise survives the threshold.
+                uint16_t n2 = scale16(clip_input, clip_input);
+                clip_input = scale16(n2, n2);
+                break;
+            }
+            case PipelineContext::PaletteClipPower::Square: {
+                // Moderate shaping: reduces mid values so fewer areas pass the threshold.
+                clip_input = scale16(clip_input, clip_input);
+                break;
+            }
+            case PipelineContext::PaletteClipPower::None:
+            default:
+                // No shaping; clip compares directly against the raw pattern value.
+                break;
+        }
+
+        uint16_t clip = raw(context->paletteClip);
+        uint16_t feather = raw(context->paletteClipFeather);
+        if (feather == 0) {
+            return (clip_input < clip) ? 0 : F16_MAX;
+        }
+        uint32_t edge1 = static_cast<uint32_t>(clip) + feather;
+        if (edge1 > F16_MAX) edge1 = F16_MAX;
+        return raw(patternSmoothstepU16(
+            clip,
+            static_cast<uint16_t>(edge1),
+            clip_input
+        ));
+    }
+
     CRGB Layer::mapPalette(
         const CRGBPalette16 &palette,
         PatternNormU16 value,
         const std::shared_ptr<PipelineContext> &context
     ) {
         uint16_t hue_value = raw(value);
-        uint16_t mask_value = F16_MAX;
-        if (context && context->paletteClipEnabled) {
-            uint16_t clip_input = hue_value;
-            if (context->paletteClipInvert) {
-                clip_input = static_cast<uint16_t>(F16_MAX - clip_input);
-            }
-            switch (context->paletteClipPower) {
-                case PipelineContext::PaletteClipPower::Quartic: {
-                    // Strong shaping: only the very top of the noise survives the threshold.
-                    uint16_t n2 = scale16(clip_input, clip_input);
-                    clip_input = scale16(n2, n2);
-                    break;
-                }
-                case PipelineContext::PaletteClipPower::Square: {
-                    // Moderate shaping: reduces mid values so fewer areas pass the threshold.
-                    clip_input = scale16(clip_input, clip_input);
-                    break;
-                }
-                case PipelineContext::PaletteClipPower::None:
-                default:
-                    // No shaping; clip compares directly against the raw pattern value.
-                    break;
-            }
-
-            uint16_t clip = raw(context->paletteClip);
-            uint16_t feather = raw(context->paletteClipFeather);
-            if (feather == 0) {
-                mask_value = (clip_input < clip) ? 0 : F16_MAX;
-            } else {
-                uint32_t edge1 = static_cast<uint32_t>(clip) + feather;
-                if (edge1 > F16_MAX) edge1 = F16_MAX;
-                mask_value = raw(patternSmoothstepU16(
-                    clip,
-                    static_cast<uint16_t>(edge1),
-                    clip_input
-                ));
-            }
-        }
+        uint16_t mask_value = computeClipMask(context, hue_value);
 
         if (context && context->paletteColourMask) {
             // Colour-mask mode: paletteOffset selects a single tint colour for
@@ -127,6 +132,41 @@ namespace PolarShader {
         }
 
         CRGB color = ColorFromPalette(palette, index, 255, LINEARBLEND);
+        if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+            color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
+        }
+        return color;
+    }
+
+    CRGB Layer::tintPalette(
+        const CRGBPalette16 &palette,
+        PaletteSample sample,
+        const std::shared_ptr<PipelineContext> &context
+    ) {
+        uint16_t value_raw = raw(sample.value());
+        // Intensity channel gates clip/colour-mask, the same role the scalar
+        // plays in mapPalette.
+        uint16_t mask_value = computeClipMask(context, value_raw);
+
+        if (context && context->paletteColourMask) {
+            // Colour-mask mode deliberately overrides the emitted hue: a single
+            // paletteOffset tint for the whole scene, with the value channel
+            // (shaped by the clip mask) driving alpha. Matches mapPalette.
+            CRGB color = ColorFromPalette(palette, context->paletteOffset, 255, LINEARBLEND);
+            uint16_t alpha = scale16(value_raw, mask_value);
+            color.nscale8_video(static_cast<uint8_t>(alpha >> 8));
+            return color;
+        }
+
+        // Normal mode: the emitted hue selects the palette entry (hue-remap
+        // tint) and the emitted value drives brightness.
+        uint8_t index = fl::map16_to_8(raw(sample.hue()));
+        if (context) {
+            index = static_cast<uint8_t>(index + context->paletteOffset);
+        }
+        uint8_t bright = fl::map16_to_8(value_raw);
+
+        CRGB color = ColorFromPalette(palette, index, bright, LINEARBLEND);
         if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
         }
@@ -157,6 +197,34 @@ namespace PolarShader {
     std::unique_ptr<ColourMap> Layer::compile() const {
         if (!pattern) return blackLayer("Layer::compile has no base pattern.");
 
+        // Colour-native patterns emit a (hue, value) pair: compose the colour
+        // leaf through the same transform warps and tint through the palette as
+        // a hue-remap. Empty leaf -> fall back to the scalar path below.
+        if (pattern->emitsColour()) {
+            UVColourMap currentColour = pattern->colourLayer(context);
+            if (currentColour) {
+                for (const auto &step: steps) {
+                    if (step.kind == PipelineStepKind::UV) {
+                        if (!step.uvTransform) return blackLayer("UV step missing transform.");
+                        currentColour = (*step.uvTransform)(currentColour);
+                    }
+                }
+
+                return std::make_unique<ColourMap>([palette = palette, layer = std::move(currentColour), context = context](
+                    f16 angle,
+                    f16 radius
+                ) {
+                    UV input = polarToCartesianUV(UV(
+                        fl::s16x16::from_raw(raw(angle)),
+                        fl::s16x16::from_raw(raw(radius))
+                    ));
+
+                    PaletteSample sample = layer(input);
+                    return tintPalette(palette, sample, context);
+                });
+            }
+        }
+
         UVMap currentUV = pattern->layer(context);
 
         // Apply transforms in order
@@ -167,7 +235,7 @@ namespace PolarShader {
             }
         }
 
-        // Final stage: map UV back to Polar domain for the display, 
+        // Final stage: map UV back to Polar domain for the display,
         // then map pattern value to a color from the palette.
         return std::make_unique<ColourMap>([palette = palette, layer = std::move(currentUV), context = context](
             f16 angle,

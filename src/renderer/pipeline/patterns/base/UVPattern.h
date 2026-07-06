@@ -42,6 +42,21 @@ namespace PolarShader {
 
         virtual UVMap layer(const std::shared_ptr<PipelineContext> &context) const;
 
+        /** @brief Whether this pattern emits its own colour (a hue,value pair) rather than a bare scalar. */
+        virtual bool emitsColour() const { return false; }
+
+        /**
+         * @brief Colour-emitting leaf for RGB-native patterns.
+         *
+         * Returns an empty map by default; only patterns whose emitsColour()
+         * returns true supply a real UVColourMap. compile() falls back to the
+         * scalar layer() when this is empty.
+         */
+        virtual UVColourMap colourLayer(const std::shared_ptr<PipelineContext> &context) const {
+            (void)context;
+            return {};
+        }
+
     protected:
         UVPattern();
 

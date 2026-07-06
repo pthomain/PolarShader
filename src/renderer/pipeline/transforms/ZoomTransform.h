@@ -41,12 +41,15 @@ namespace PolarShader {
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
         UVMap operator()(const UVMap &layer) const override;
+        UVColourMap operator()(const UVColourMap &layer) const override;
 
     private:
         struct MappedInputs;
         static MappedInputs makeInputs(Sf16Signal scale);
 
         struct State;
+        // Pure warp applied via a DIRECT static call (see WASM ABI NOTE in Units.h).
+        static UV warp(const State &state, UV uv);
         std::shared_ptr<State> state;
     };
 }

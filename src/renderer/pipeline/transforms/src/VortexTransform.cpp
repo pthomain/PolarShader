@@ -64,17 +64,25 @@ namespace PolarShader {
         state->strengthValue = state->strengthSignal.sample(state->strengthRange, elapsedMs);
     }
 
-    UVMap VortexTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            UV polar_uv = cartesianToPolarUV(uv);
-            
-            int32_t strength_raw = raw(state->strengthValue);
-            uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());
-            int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
-            int32_t new_angle = polar_uv.u.raw() + scaled;
-            polar_uv.u = fl::s16x16::from_raw(static_cast<uint16_t>(new_angle));
+    UV VortexTransform::warp(const State &state, UV uv) {
+        UV polar_uv = cartesianToPolarUV(uv);
 
-            return layer(polarToCartesianUV(polar_uv));
-        };
+        int32_t strength_raw = raw(state.strengthValue);
+        uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());
+        int32_t scaled = static_cast<int32_t>((static_cast<int64_t>(strength_raw) * radius_raw) >> 16);
+        int32_t new_angle = polar_uv.u.raw() + scaled;
+        polar_uv.u = fl::s16x16::from_raw(static_cast<uint16_t>(new_angle));
+
+        return polarToCartesianUV(polar_uv);
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
+    UVMap VortexTransform::operator()(const UVMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
+
+    UVColourMap VortexTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

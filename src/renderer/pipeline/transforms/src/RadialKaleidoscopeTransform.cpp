@@ -32,31 +32,39 @@ namespace PolarShader {
         : state(std::make_shared<State>(State{radialDivisions, isMirrored})) {
     }
 
-    UVMap RadialKaleidoscopeTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) {
-            UV polar_uv = cartesianToPolarUV(mirrorUv(uv));
-            
-            uint32_t divisions = state->divisions;
-            if (divisions > 1u) {
-                uint32_t full_radius = static_cast<uint32_t>(SF16_MAX) + 1u;
-                uint32_t segment = full_radius / divisions;
-                if (segment != 0u) {
-                    uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());
-                    uint32_t index = radius_raw / segment;
-                    if (index >= divisions) index = divisions - 1u;
+    UV RadialKaleidoscopeTransform::warp(const State &state, UV uv) {
+        UV polar_uv = cartesianToPolarUV(mirrorUv(uv));
 
-                    uint32_t local = radius_raw - (index * segment);
-                    if (state->mirrored && (index & 1u)) {
-                        local = (segment - 1u) - local;
-                    }
+        uint32_t divisions = state.divisions;
+        if (divisions > 1u) {
+            uint32_t full_radius = static_cast<uint32_t>(SF16_MAX) + 1u;
+            uint32_t segment = full_radius / divisions;
+            if (segment != 0u) {
+                uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());
+                uint32_t index = radius_raw / segment;
+                if (index >= divisions) index = divisions - 1u;
 
-                    uint32_t scaled = (local * full_radius) / segment;
-                    if (scaled >= full_radius) scaled = full_radius - 1u;
-                    polar_uv.v = fl::s16x16::from_raw(static_cast<int32_t>(scaled));
+                uint32_t local = radius_raw - (index * segment);
+                if (state.mirrored && (index & 1u)) {
+                    local = (segment - 1u) - local;
                 }
-            }
 
-            return layer(polarToCartesianUV(polar_uv));
-        };
+                uint32_t scaled = (local * full_radius) / segment;
+                if (scaled >= full_radius) scaled = full_radius - 1u;
+                polar_uv.v = fl::s16x16::from_raw(static_cast<int32_t>(scaled));
+            }
+        }
+
+        return polarToCartesianUV(polar_uv);
+    }
+
+    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
+    // static call; no UV ever flows through an fl::function.
+    UVMap RadialKaleidoscopeTransform::operator()(const UVMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    }
+
+    UVColourMap RadialKaleidoscopeTransform::operator()(const UVColourMap &layer) const {
+        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
     }
 }

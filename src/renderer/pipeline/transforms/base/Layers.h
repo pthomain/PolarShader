@@ -33,6 +33,9 @@ namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */
     using UVMap = fl::function<PatternNormU16(UV)>;
 
+    /** @brief Colour-emitting sampling interface: RGB-native patterns emit a (hue, value) pair. */
+    using UVColourMap = fl::function<PaletteSample(UV)>;
+
     // THREAD-SAFETY: ColourMap is called concurrently from multiple cores.
     // All functions in its call chain must be pure (no mutable static locals, no global writes).
     using ColourMap = fl::function<CRGB(f16, f16)>;

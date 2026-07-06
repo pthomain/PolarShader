@@ -30,12 +30,15 @@ namespace PolarShader {
      */
     class KaleidoscopeTransform : public UVTransform {
         struct State;
+        // Pure warp applied via a DIRECT static call (see WASM ABI NOTE in Units.h).
+        static UV warp(const State &state, UV uv);
         std::shared_ptr<State> state;
 
     public:
         KaleidoscopeTransform(uint8_t nbFacets, bool isMirrored);
 
         UVMap operator()(const UVMap &layer) const override;
+        UVColourMap operator()(const UVColourMap &layer) const override;
     };
 }
 
