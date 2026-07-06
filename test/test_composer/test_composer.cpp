@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 
+#include "composer/EmbeddedPscPlaylist.h"
 #include "composer/SceneCodec.h"
 #include "composer/PaletteTable.h"
 #include "renderer/scene/Scene.h"
@@ -501,6 +502,31 @@ void test_decode_default_noise_succeeds() {
     TEST_ASSERT_NOT_NULL(decoded.get());
 }
 
+void test_decode_scene_with_duration_overrides_default() {
+    WireBuilder w;
+    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+
+    DecodeStatus status;
+    auto decoded = decodeSceneWithDuration(w.data(), w.size(), 30000, &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(30000, decoded->getDuration());
+}
+
+void test_embedded_psc_playlist_provider_decodes_scene() {
+    WireBuilder w;
+    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+
+    EmbeddedPscScene scenes[] = {
+        {"test.psc", w.data(), w.size()},
+    };
+
+    EmbeddedPscPlaylistProvider provider(scenes, 1, 30000);
+    auto decoded = provider.nextScene();
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT32(30000, decoded->getDuration());
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // Group 3 — Cross-implementation golden fixture
 // ═════════════════════════════════════════════════════════════════════
@@ -678,6 +704,8 @@ void setup() {
     RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
+    RUN_TEST(test_decode_scene_with_duration_overrides_default);
+    RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
@@ -705,6 +733,8 @@ int main() {
     RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
+    RUN_TEST(test_decode_scene_with_duration_overrides_default);
+    RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);

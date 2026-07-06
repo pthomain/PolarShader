@@ -43,6 +43,12 @@ namespace PolarShader {
             const PolarCoordsMapper& coordsMapper
         );
 
+        explicit PolarRenderer(
+            uint16_t nbLeds,
+            const PolarCoordsMapper& coordsMapper,
+            std::unique_ptr<SceneProvider> provider
+        );
+
         void render(
             CRGB *outputArray,
             TimeMillis timeInMillis

@@ -670,9 +670,10 @@ namespace PolarShader::composer {
 
     } // namespace (anonymous)
 
-    std::unique_ptr<Scene> decodeScene(const uint8_t *bytes,
-                                       std::size_t len,
-                                       DecodeStatus *statusOut) {
+    std::unique_ptr<Scene> decodeSceneWithDuration(const uint8_t *bytes,
+                                                   std::size_t len,
+                                                   TimeMillis durationMs,
+                                                   DecodeStatus *statusOut) {
         DecodeStatus localStatus = DecodeStatus::OK;
         DecodeStatus *status = &localStatus;
 
@@ -724,12 +725,18 @@ namespace PolarShader::composer {
             }
         }
 
-        // Build the scene with default (infinite) duration so SceneManager
-        // never falls back to its provider after a replaceScene call.
         fl::vector<std::shared_ptr<Layer>> layers;
         layers.push_back(std::make_shared<Layer>(builder.build()));
 
         if (statusOut) *statusOut = DecodeStatus::OK;
-        return std::make_unique<Scene>(std::move(layers));
+        return std::make_unique<Scene>(std::move(layers), durationMs);
+    }
+
+    std::unique_ptr<Scene> decodeScene(const uint8_t *bytes,
+                                       std::size_t len,
+                                       DecodeStatus *statusOut) {
+        // Live composer replacement scenes do not expire; otherwise the
+        // SceneManager would fall back to its provider after a replaceScene().
+        return decodeSceneWithDuration(bytes, len, UINT32_MAX, statusOut);
     }
 }

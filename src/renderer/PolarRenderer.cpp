@@ -24,16 +24,37 @@
 #include <renderer/pipeline/patterns/Patterns.h>
 #include <renderer/scene/SceneManager.h>
 #include <renderer/layer/Layer.h>
+#include "composer/EmbeddedPscPlaylist.h"
 
 namespace PolarShader {
+    namespace {
+        std::unique_ptr<SceneProvider> makeDefaultRendererProvider() {
+            return std::make_unique<DefaultSceneProvider>([]() {
+                fl::vector<std::shared_ptr<Layer> > layers;
+                layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
+                return std::make_unique<Scene>(std::move(layers));
+            });
+        }
+
+        std::unique_ptr<SceneProvider> makeInitialRendererProvider() {
+            if (auto playlist = composer::makeEmbeddedPscPlaylistProvider()) {
+                return playlist;
+            }
+            return makeDefaultRendererProvider();
+        }
+    }
+
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
         const PolarCoordsMapper& coordsMapper
-    ) : sceneManager(std::make_unique<DefaultSceneProvider>([]() {
-            fl::vector<std::shared_ptr<Layer> > layers;
-            layers.push_back(std::make_shared<Layer>(defaultPreset(Rainbow_gp).build()));
-            return std::make_unique<Scene>(std::move(layers));
-        })),
+    ) : PolarRenderer(nbLeds, coordsMapper, makeInitialRendererProvider()) {
+    }
+
+    PolarRenderer::PolarRenderer(
+        uint16_t nbLeds,
+        const PolarCoordsMapper& coordsMapper,
+        std::unique_ptr<SceneProvider> provider
+    ) : sceneManager(provider ? std::move(provider) : makeDefaultRendererProvider()),
         nbLeds(nbLeds) {
         precomputedCoords.reserve(nbLeds);
         for (uint16_t i = 0; i < nbLeds; ++i) {

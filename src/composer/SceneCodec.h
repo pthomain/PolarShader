@@ -68,6 +68,14 @@ namespace PolarShader::composer {
     std::unique_ptr<Scene> decodeScene(const uint8_t *bytes,
                                        std::size_t len,
                                        DecodeStatus *statusOut = nullptr);
+
+    // Decode the same .psc wire format but override the Scene duration.
+    // Intended for embedded playlists where a decoded scene must expire so
+    // SceneManager asks the provider for another entry.
+    std::unique_ptr<Scene> decodeSceneWithDuration(const uint8_t *bytes,
+                                                   std::size_t len,
+                                                   TimeMillis durationMs,
+                                                   DecodeStatus *statusOut = nullptr);
 }
 
 #endif // POLAR_SHADER_COMPOSER_SCENE_CODEC_H
