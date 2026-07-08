@@ -98,7 +98,7 @@ namespace PolarShader {
     /**
      * @brief Animated noise signal driven by a phase velocity signal.
      * @param phaseVelocity Magnitude-domain rate where `constant(1000)` = 1.0 and `constant(500)` = 0.5.
-     * @param phaseOffset Signed turn offset wrapped into the internal phase domain.
+     * @param phaseOffset Signed turn offset wrapped into the internal phase domain; zero selects a random offset.
      */
     Sf16Signal noise(
         Sf16Signal phaseVelocity = constant(550),

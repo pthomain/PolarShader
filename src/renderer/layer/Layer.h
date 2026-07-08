@@ -92,6 +92,8 @@ namespace PolarShader {
         friend class LayerBuilder;
 
     public:
+        void setRasterDisplayInfo(const RasterDisplayInfo &rasterDisplay);
+
         void advanceFrame(f16 progress, TimeMillis elapsedMs);
 
         std::unique_ptr<ColourMap> compile() const;

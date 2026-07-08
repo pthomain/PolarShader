@@ -25,6 +25,8 @@
 #include "renderer/pipeline/patterns/NoisePattern.h"
 #include "renderer/pipeline/patterns/TilingPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
+#include "renderer/pipeline/patterns/ConwayPattern.h"
+#include "renderer/pipeline/patterns/XORPattern.h"
 #include "renderer/pipeline/patterns/SpiralPattern.h"
 #include "renderer/pipeline/patterns/AnnuliPattern.h"
 
@@ -78,6 +80,21 @@ namespace PolarShader {
         uint8_t stepsPerFrame
     ) {
         return std::make_unique<ReactionDiffusionPattern>(preset, width, height, stepsPerFrame);
+    }
+
+    std::unique_ptr<UVPattern> conwayPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t densityPermille
+    ) {
+        return std::make_unique<ConwayPattern>(stepIntervalMs, seed, densityPermille);
+    }
+
+    std::unique_ptr<UVPattern> xorPattern(
+        uint8_t gridSize,
+        uint16_t speed
+    ) {
+        return std::make_unique<XORPattern>(gridSize, speed);
     }
 
     std::unique_ptr<UVPattern> flowFieldPattern(

@@ -111,6 +111,8 @@ namespace {
         PAT_PF_DOTS           = 0x1C,
         PAT_PF_WAVE_MATRIX    = 0x1D,
         PAT_PF_RADIAL_PULSE   = 0x1E,
+        PAT_XOR               = 0x22,
+        PAT_RASTER_CONWAY     = 0x2B,
     };
 
     enum : uint8_t {
@@ -120,11 +122,12 @@ namespace {
         TFM_VORTEX            = 0x03,
         TFM_KALEIDOSCOPE      = 0x04,
         TFM_RADIAL_KALEIDO    = 0x05,
-        TFM_PALETTE           = 0x06,
         TFM_TILING            = 0x07,
         TFM_FLOW_FIELD        = 0x08,
         TFM_PALETTE_CLIP      = 0x09,
     };
+
+    constexpr uint8_t LEGACY_TFM_PALETTE = 0x06;
 
     class WireBuilder {
     public:
@@ -132,7 +135,7 @@ namespace {
 
         WireBuilder &header(uint8_t paletteId) {
             u8('P'); u8('S'); u8('C'); u8(0);
-            u8(0);             // version
+            u8(1);             // version
             u8(paletteId);
             return *this;
         }
@@ -155,10 +158,23 @@ namespace {
             std::memcpy(&u, &v, sizeof(u));
             return u32(u);
         }
+        WireBuilder &append(const WireBuilder &other) {
+            data_.insert(data_.end(), other.data_.begin(), other.data_.end());
+            return *this;
+        }
+        template <typename Fn>
+        WireBuilder &record(uint8_t tag, Fn fillBody) {
+            WireBuilder body;
+            fillBody(body);
+            u8(tag).u16(static_cast<uint16_t>(body.size()));
+            return append(body);
+        }
 
         // Convenience for the most common signal: constant(permille)
         WireBuilder &sigConstant(uint16_t permille) {
-            return u8(SIG_CONSTANT).u16(permille);
+            return record(SIG_CONSTANT, [permille](WireBuilder &body) {
+                body.u16(permille);
+            });
         }
 
         const uint8_t *data() const { return data_.data(); }
@@ -174,150 +190,182 @@ namespace {
                 w.sigConstant(500);
                 return;
             case SIG_C_RANDOM:
-                w.u8(SIG_C_RANDOM);
+                w.record(SIG_C_RANDOM, [](WireBuilder &) {});
                 return;
             case SIG_LINEAR:
             case SIG_QUADRATIC_IN:
             case SIG_QUADRATIC_OUT:
             case SIG_QUADRATIC_IN_OUT:
-                w.u8(tag).u32(1000).u8(0);
+                w.record(tag, [](WireBuilder &body) {
+                    body.u32(1000).u8(0);
+                });
                 return;
             case SIG_SINE:
             case SIG_TRIANGLE:
             case SIG_SQUARE:
             case SIG_SAWTOOTH:
             case SIG_NOISE:
-                w.u8(tag).sigConstant(120).i32(0);
+                w.record(tag, [](WireBuilder &body) {
+                    body.sigConstant(120).i32(0);
+                });
                 return;
             case SIG_SINE_BOUNDED:
             case SIG_TRIANGLE_BOUNDED:
             case SIG_SQUARE_BOUNDED:
             case SIG_SAWTOOTH_BOUNDED:
             case SIG_NOISE_BOUNDED:
-                w.u8(tag).sigConstant(120).sigConstant(200).sigConstant(800);
+                w.record(tag, [](WireBuilder &body) {
+                    body.sigConstant(120).sigConstant(200).sigConstant(800);
+                });
                 return;
             case SIG_SINE_BOUNDED_PH:
             case SIG_TRIANGLE_BOUNDED_PH:
             case SIG_SQUARE_BOUNDED_PH:
             case SIG_SAWTOOTH_BOUNDED_PH:
             case SIG_NOISE_BOUNDED_PH:
-                w.u8(tag).sigConstant(120).i32(0).sigConstant(200).sigConstant(800);
+                w.record(tag, [](WireBuilder &body) {
+                    body.sigConstant(120).i32(0).sigConstant(200).sigConstant(800);
+                });
                 return;
             case SIG_SMAP:
-                w.u8(SIG_SMAP).sigConstant(500).sigConstant(100).sigConstant(900);
+                w.record(SIG_SMAP, [](WireBuilder &body) {
+                    body.sigConstant(500).sigConstant(100).sigConstant(900);
+                });
                 return;
             case SIG_SCALE:
-                w.u8(SIG_SCALE).sigConstant(500).u16(raw(perMil(500)));
+                w.record(SIG_SCALE, [](WireBuilder &body) {
+                    body.sigConstant(500).u16(raw(perMil(500)));
+                });
                 return;
             default:
                 TEST_FAIL_MESSAGE("unknown test signal tag");
         }
     }
 
-    void appendPattern(WireBuilder &w, uint8_t tag) {
-        w.u8(tag);
-        switch (tag) {
-            case PAT_NOISE_BASIC:
-                appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_NOISE_FBM:
-                w.u8(4);
-                return;
-            case PAT_NOISE_TURBULENCE:
-            case PAT_NOISE_RIDGED:
-                return;
-            case PAT_TILING:
-                w.u16(32).u8(4).u8(static_cast<uint8_t>(TilingPattern::TileShape::HEXAGON));
-                return;
-            case PAT_REACTION_DIFFUSION:
-                w.u8(static_cast<uint8_t>(ReactionDiffusionPattern::Preset::Coral))
-                 .u8(20).u8(20).u8(4);
-                return;
-            case PAT_FLOW_FIELD:
-                w.u8(32).u8(3).u8(static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both));
-                for (uint8_t i = 0; i < 8; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_TRANSPORT:
-                w.u8(16)
-                 .u8(static_cast<uint8_t>(TransportPattern::TransportMode::Shockwave))
-                 .u8(0);
-                for (uint8_t i = 0; i < 4; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_SPIRAL:
-                w.u8(2).u8(1);
-                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_ANNULI:
-                w.u8(8).u8(32).u8(0).u16(80).u16(800);
-                return;
-            case PAT_FLURRY:
-                w.u8(32).u8(1).u8(static_cast<uint8_t>(FlurryPattern::Shape::Line));
-                for (uint8_t i = 0; i < 6; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_WORLEY:
-            case PAT_VORONOI:
-                w.i32(256).u8(static_cast<uint8_t>(WorleyAliasing::Fast));
-                return;
-            case PAT_PF_DUAL_AXIS:
-            case PAT_PF_COUNTER_RIBBONS:
-            case PAT_PF_QUAD_DIRECTIONAL:
-            case PAT_PF_CROSS:
-            case PAT_PF_PLASMA:
-            case PAT_PF_TENDRILS:
-            case PAT_PF_LIQUID_GATE:
-                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_PF_POSTERIZED:
-                w.u8(5);
-                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_PF_PETALS:
-            case PAT_PF_RIPPLE:
-                w.u8(6);
-                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_PF_ORGANIC:
-            case PAT_PF_TOPOGRAPHIC:
-                w.u8(8).u8(0);
-                for (uint8_t i = 0; i < 2; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            case PAT_PF_CONCENTRIC_GRID:
-            case PAT_PF_ROW_SEGMENTS:
-            case PAT_PF_SHAPES:
-            case PAT_PF_DOTS:
-            case PAT_PF_WAVE_MATRIX:
-            case PAT_PF_RADIAL_PULSE:
-                w.u8(6);
-                for (uint8_t i = 0; i < 3; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            default:
-                TEST_FAIL_MESSAGE("unknown test pattern tag");
+    void appendNestedSmapSignal(WireBuilder &w, uint8_t depth) {
+        if (depth == 0) {
+            w.sigConstant(500);
+            return;
         }
+        w.record(SIG_SMAP, [depth](WireBuilder &body) {
+            appendNestedSmapSignal(body, static_cast<uint8_t>(depth - 1));
+            body.sigConstant(0);
+            body.sigConstant(1000);
+        });
+    }
+
+    void appendPattern(WireBuilder &w, uint8_t tag) {
+        w.record(tag, [tag](WireBuilder &body) {
+            switch (tag) {
+                case PAT_NOISE_BASIC:
+                    appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_NOISE_FBM:
+                    body.u8(4);
+                    return;
+                case PAT_NOISE_TURBULENCE:
+                case PAT_NOISE_RIDGED:
+                    return;
+                case PAT_TILING:
+                    body.u16(32).u8(4).u8(static_cast<uint8_t>(TilingPattern::TileShape::HEXAGON));
+                    return;
+                case PAT_REACTION_DIFFUSION:
+                    body.u8(static_cast<uint8_t>(ReactionDiffusionPattern::Preset::Coral))
+                     .u8(20).u8(20).u8(4);
+                    return;
+                case PAT_FLOW_FIELD:
+                    body.u8(32).u8(3).u8(static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both));
+                    for (uint8_t i = 0; i < 8; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_TRANSPORT:
+                    body.u8(16)
+                     .u8(static_cast<uint8_t>(TransportPattern::TransportMode::Shockwave))
+                     .u8(0);
+                    for (uint8_t i = 0; i < 4; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_SPIRAL:
+                    body.u8(2).u8(1);
+                    for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_ANNULI:
+                    body.u8(8).u8(32).u8(0).u16(80).u16(800);
+                    return;
+                case PAT_FLURRY:
+                    body.u8(32).u8(1).u8(static_cast<uint8_t>(FlurryPattern::Shape::Line));
+                    for (uint8_t i = 0; i < 6; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_WORLEY:
+                case PAT_VORONOI:
+                    body.i32(256).u8(static_cast<uint8_t>(WorleyAliasing::Fast));
+                    return;
+                case PAT_PF_DUAL_AXIS:
+                case PAT_PF_COUNTER_RIBBONS:
+                case PAT_PF_QUAD_DIRECTIONAL:
+                case PAT_PF_CROSS:
+                case PAT_PF_PLASMA:
+                case PAT_PF_TENDRILS:
+                case PAT_PF_LIQUID_GATE:
+                    for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_PF_POSTERIZED:
+                    body.u8(5);
+                    for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_PF_PETALS:
+                case PAT_PF_RIPPLE:
+                    body.u8(6);
+                    for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_PF_ORGANIC:
+                case PAT_PF_TOPOGRAPHIC:
+                    body.u8(8).u8(0);
+                    for (uint8_t i = 0; i < 2; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_PF_CONCENTRIC_GRID:
+                case PAT_PF_ROW_SEGMENTS:
+                case PAT_PF_SHAPES:
+                case PAT_PF_DOTS:
+                case PAT_PF_WAVE_MATRIX:
+                case PAT_PF_RADIAL_PULSE:
+                    body.u8(6);
+                    for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_XOR:
+                    body.u8(16).u16(40);
+                    return;
+                case PAT_RASTER_CONWAY:
+                    body.u16(250).u16(1).u16(350);
+                    return;
+                default:
+                    TEST_FAIL_MESSAGE("unknown test pattern tag");
+            }
+        });
     }
 
     void appendTransform(WireBuilder &w, uint8_t tag) {
-        w.u8(tag);
-        switch (tag) {
-            case TFM_TRANSLATION:
-                appendSignal(w, SIG_CONSTANT);
-                appendSignal(w, SIG_CONSTANT);
-                return;
-            case TFM_VORTEX:
-                appendSignal(w, SIG_CONSTANT);
-                return;
-            case TFM_RADIAL_KALEIDO:
-                w.u16(6).u8(1);
-                return;
-            case TFM_TILING:
-                w.u8(0).u8(static_cast<uint8_t>(TilingMaths::TileShape::HEXAGON));
-                appendSignal(w, SIG_CONSTANT);
-                return;
-            case TFM_FLOW_FIELD:
-                for (uint8_t i = 0; i < 4; ++i) appendSignal(w, SIG_CONSTANT);
-                return;
-            default:
-                TEST_FAIL_MESSAGE("unknown test transform tag");
-        }
+        w.record(tag, [tag](WireBuilder &body) {
+            switch (tag) {
+                case TFM_TRANSLATION:
+                    appendSignal(body, SIG_CONSTANT);
+                    appendSignal(body, SIG_CONSTANT);
+                    return;
+                case TFM_VORTEX:
+                    appendSignal(body, SIG_CONSTANT);
+                    return;
+                case TFM_RADIAL_KALEIDO:
+                    body.u16(6).u8(1);
+                    return;
+                case TFM_TILING:
+                    body.u8(0).u8(static_cast<uint8_t>(TilingMaths::TileShape::HEXAGON));
+                    appendSignal(body, SIG_CONSTANT);
+                    return;
+                case TFM_FLOW_FIELD:
+                    for (uint8_t i = 0; i < 4; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                default:
+                    TEST_FAIL_MESSAGE("unknown test transform tag");
+            }
+        });
     }
 
     void assertDecodeCompileSample(WireBuilder &w) {
@@ -329,6 +377,33 @@ namespace {
         decoded->advanceFrame(f16(0xFFFFu), 1000);
         ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
         (void) sample;
+    }
+
+    void assertDecodeCompileSampleBytes(
+        const char *fixtureName,
+        const uint8_t *data,
+        std::size_t size,
+        bool rasterDisplay = false
+    ) {
+        DecodeStatus status = DecodeStatus::OK;
+        auto decoded = decodeScene(data, size, &status);
+        TEST_ASSERT_EQUAL_MESSAGE(static_cast<int>(DecodeStatus::OK), static_cast<int>(status), fixtureName);
+        TEST_ASSERT_NOT_NULL_MESSAGE(decoded.get(), fixtureName);
+        if (rasterDisplay) {
+            decoded->compile(RasterDisplayInfo{true, 4, 4, 16});
+            const RenderPoint point{
+                f16(0x4000u),
+                f16(0x4000u),
+                RasterPoint{true, 5, 1, 1, 4, 4}
+            };
+            ::CRGB sample = decoded->sample(0, point);
+            (void) sample;
+        } else {
+            decoded->compile();
+            decoded->advanceFrame(f16(0xFFFFu), 1000);
+            ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
+            (void) sample;
+        }
     }
 
     void assertEveryPrefixRejected(WireBuilder &full) {
@@ -389,7 +464,11 @@ namespace {
                            constant(300), constant(400), constant(650), constant(500),
                            false),
                        *p, "ref");
-        b.addPaletteTransform(PaletteTransform(constant(100)));
+        b.addPaletteTransform(PaletteTransform(
+            constant(100),
+            constant(0),
+            f16(32768),
+            PipelineContext::PaletteTintMode::HueRemap));
         b.addTransform(ZoomTransform(constant(200)));
         b.addTransform(RotationTransform(constant(50), true));
         b.addTransform(KaleidoscopeTransform(4, true));
@@ -429,7 +508,11 @@ namespace {
         const ::CRGBPalette16 *p = paletteById(1);
         LayerBuilder b(pfConcentricGrid(6, constant(500), constant(500), constant(500)),
                        *p, "ref");
-        b.addPaletteTransform(PaletteTransform(sine(constant(120))));
+        b.addPaletteTransform(PaletteTransform(
+            sine(constant(120)),
+            constant(0),
+            f16(32768),
+            PipelineContext::PaletteTintMode::HueRemap));
         b.addTransform(ZoomTransform(constant(400)));
         b.addTransform(RotationTransform(constant(60), true));
         fl::vector<std::shared_ptr<Layer>> layers;
@@ -472,10 +555,11 @@ void test_decode_determinism_minimal() {
     // Wire format: minimal scene = AnnuliPattern (deterministic, no signals).
     // ringCount=8, slicesPerRing=32, reverse=false, stepIntervalMs=80, holdMs=800.
     WireBuilder w;
-    w.header(0)
-     .u8(PAT_ANNULI)
-     .u8(8).u8(32).u8(0).u16(80).u16(800)
-     .u8(0);  // 0 transforms
+    w.header(0);
+    w.record(PAT_ANNULI, [](WireBuilder &body) {
+        body.u8(8).u8(32).u8(0).u16(80).u16(800);
+    });
+    w.u8(0);  // 0 transforms
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -496,24 +580,29 @@ void test_decode_determinism_minimal() {
 void test_decode_determinism_full_transform_stack() {
     // Wire format: TransportPattern (Shockwave) + 4 transforms.
     WireBuilder w;
-    w.header(1)
-     .u8(PAT_TRANSPORT)
-     .u8(16)                             // gridSize
-     .u8(static_cast<uint8_t>(TransportPattern::TransportMode::Shockwave))
-     .u8(0)                              // velocityGlow = false
-     .sigConstant(300)                   // radial
-     .sigConstant(400)                   // angular
-     .sigConstant(650)                   // halfLife
-     .sigConstant(500)                   // emitter
-     .u8(4)                              // 4 transforms
-     // 1: PaletteTransform(constant(100))
-     .u8(TFM_PALETTE).sigConstant(100)
-     // 2: ZoomTransform(constant(200))
-     .u8(TFM_ZOOM).sigConstant(200)
-     // 3: RotationTransform(constant(50), isAngleTurn=true)
-     .u8(TFM_ROTATION).u8(1).sigConstant(50)
-     // 4: KaleidoscopeTransform(4, true)
-     .u8(TFM_KALEIDOSCOPE).u8(4).u8(1);
+    w.header(1);
+    w.record(PAT_TRANSPORT, [](WireBuilder &body) {
+        body.u8(16)                             // gridSize
+            .u8(static_cast<uint8_t>(TransportPattern::TransportMode::Shockwave))
+            .u8(0)                              // velocityGlow = false
+            .sigConstant(300)                   // radial
+            .sigConstant(400)                   // angular
+            .sigConstant(650)                   // halfLife
+            .sigConstant(500);                  // emitter
+    });
+    w.u8(4);                                    // 4 transforms
+    w.record(TFM_PALETTE_CLIP, [](WireBuilder &body) {
+        body.u16(32768).u8(0).sigConstant(100).sigConstant(0);
+    });
+    w.record(TFM_ZOOM, [](WireBuilder &body) {
+        body.sigConstant(200);
+    });
+    w.record(TFM_ROTATION, [](WireBuilder &body) {
+        body.u8(1).sigConstant(50);
+    });
+    w.record(TFM_KALEIDOSCOPE, [](WireBuilder &body) {
+        body.u8(4).u8(1);
+    });
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -535,14 +624,19 @@ void test_decode_determinism_nested_smap_signal() {
     // Wire format: tilingPattern + ZoomTransform whose scale is
     // smap(sine(constant(50), 0), constant(100), constant(900)).
     WireBuilder w;
-    w.header(2)
-     .u8(PAT_TILING).u16(32).u8(4).u8(static_cast<uint8_t>(TilingPattern::TileShape::HEXAGON))
-     .u8(1)                              // 1 transform
-     .u8(TFM_ZOOM)
-       .u8(SIG_SMAP)
-         .u8(SIG_SINE).sigConstant(50).i32(0)        // sine(constant(50), sf16(0))
-         .sigConstant(100)
-         .sigConstant(900);
+    w.header(2);
+    w.record(PAT_TILING, [](WireBuilder &body) {
+        body.u16(32).u8(4).u8(static_cast<uint8_t>(TilingPattern::TileShape::HEXAGON));
+    });
+    w.u8(1);                              // 1 transform
+    w.record(TFM_ZOOM, [](WireBuilder &body) {
+        body.record(SIG_SMAP, [](WireBuilder &signalBody) {
+            signalBody.record(SIG_SINE, [](WireBuilder &sineBody) {
+                sineBody.sigConstant(50).i32(0);
+            });
+            signalBody.sigConstant(100).sigConstant(900);
+        });
+    });
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -565,15 +659,14 @@ void test_decode_determinism_palette_clip_transform() {
     // Palette clip config bytes (maxFeather, tintMode) are encoded before the
     // offset/clip signal slots.
     WireBuilder w;
-    w.header(1)
-     .u8(PAT_ANNULI)
-     .u8(8).u8(32).u8(0).u16(80).u16(800)
-     .u8(1)
-     .u8(TFM_PALETTE_CLIP)
-       .u16(raw(perMil(250)))
-       .u8(0)
-       .sigConstant(100)
-       .sigConstant(300);
+    w.header(1);
+    w.record(PAT_ANNULI, [](WireBuilder &body) {
+        body.u8(8).u8(32).u8(0).u16(80).u16(800);
+    });
+    w.u8(1);
+    w.record(TFM_PALETTE_CLIP, [](WireBuilder &body) {
+        body.u16(raw(perMil(250))).u8(0).sigConstant(100).sigConstant(300);
+    });
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -596,15 +689,14 @@ void test_decode_determinism_palette_colour_mask() {
     // to 1 (colour-mask), so the decoded transform tints the scene via
     // paletteOffset and uses the pattern value as alpha.
     WireBuilder w;
-    w.header(1)
-     .u8(PAT_ANNULI)
-     .u8(8).u8(32).u8(0).u16(80).u16(800)
-     .u8(1)
-     .u8(TFM_PALETTE_CLIP)
-       .u16(raw(perMil(250)))
-       .u8(1)
-       .sigConstant(100)
-       .sigConstant(300);
+    w.header(1);
+    w.record(PAT_ANNULI, [](WireBuilder &body) {
+        body.u8(8).u8(32).u8(0).u16(80).u16(800);
+    });
+    w.u8(1);
+    w.record(TFM_PALETTE_CLIP, [](WireBuilder &body) {
+        body.u16(raw(perMil(250))).u8(1).sigConstant(100).sigConstant(300);
+    });
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -626,13 +718,14 @@ void test_decode_determinism_pf_dots() {
     // Wire format: pfDots (PatternFlow cellular field, tag 0x1C).
     // Body: u8 cellCount THEN 3 signals (phaseSpeed, warp, thickness).
     WireBuilder w;
-    w.header(0)
-     .u8(PAT_PF_DOTS)
-     .u8(6)                    // cellCount
-     .sigConstant(500)         // phaseSpeed
-     .sigConstant(400)         // warp
-     .sigConstant(600)         // thickness
-     .u8(0);                   // 0 transforms
+    w.header(0);
+    w.record(PAT_PF_DOTS, [](WireBuilder &body) {
+        body.u8(6)                    // cellCount
+            .sigConstant(500)         // phaseSpeed
+            .sigConstant(400)         // warp
+            .sigConstant(600);        // thickness
+    });
+    w.u8(0);                   // 0 transforms
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -655,17 +748,24 @@ void test_decode_palette_changed_pf_concentric_grid_repro() {
     // global palette from Rainbow (0) to Cloud (1). The scene is colour-native
     // and includes palette-offset, zoom, and rotation transforms.
     WireBuilder w;
-    w.header(1)
-     .u8(PAT_PF_CONCENTRIC_GRID)
-     .u8(6)
-     .sigConstant(500)
-     .sigConstant(500)
-     .sigConstant(500)
-     .u8(3)
-     .u8(TFM_PALETTE)
-       .u8(SIG_SINE).sigConstant(120).i32(0)
-     .u8(TFM_ZOOM).sigConstant(400)
-     .u8(TFM_ROTATION).u8(1).sigConstant(60);
+    w.header(1);
+    w.record(PAT_PF_CONCENTRIC_GRID, [](WireBuilder &body) {
+        body.u8(6).sigConstant(500).sigConstant(500).sigConstant(500);
+    });
+    w.u8(3);
+    w.record(TFM_PALETTE_CLIP, [](WireBuilder &body) {
+        body.u16(32768).u8(0);
+        body.record(SIG_SINE, [](WireBuilder &signalBody) {
+            signalBody.sigConstant(120).i32(0);
+        });
+        body.sigConstant(0);
+    });
+    w.record(TFM_ZOOM, [](WireBuilder &body) {
+        body.sigConstant(400);
+    });
+    w.record(TFM_ROTATION, [](WireBuilder &body) {
+        body.u8(1).sigConstant(60);
+    });
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -692,7 +792,11 @@ void test_decode_crandom_succeeds() {
     // so we just assert the decoder accepts the scene and produces a
     // non-null Scene. This guards the cRandom path against silent regression.
     WireBuilder w;
-    w.header(0).u8(PAT_NOISE_BASIC).u8(SIG_C_RANDOM).u8(0);
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.record(SIG_C_RANDOM, [](WireBuilder &) {});
+    });
+    w.u8(0);
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -701,12 +805,15 @@ void test_decode_crandom_succeeds() {
 }
 
 void test_decode_default_noise_succeeds() {
-    // Use noise() with explicit 0 phase to keep it deterministic at the
-    // signal level (still pulls in noise sampler though).
+    // Explicit 0 phase is accepted and resolved to a random noise phase.
     WireBuilder w;
-    w.header(0).u8(PAT_NOISE_BASIC)
-     .u8(SIG_NOISE).sigConstant(550).i32(0)
-     .u8(0);
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.record(SIG_NOISE, [](WireBuilder &signalBody) {
+            signalBody.sigConstant(550).i32(0);
+        });
+    });
+    w.u8(0);
 
     DecodeStatus status;
     auto decoded = decodeScene(w.data(), w.size(), &status);
@@ -743,8 +850,10 @@ void test_decode_all_signal_tags_compile() {
 
     for (uint8_t tag : kSignalTags) {
         WireBuilder w;
-        w.header(0).u8(PAT_NOISE_BASIC);
-        appendSignal(w, tag);
+        w.header(0);
+        w.record(PAT_NOISE_BASIC, [tag](WireBuilder &body) {
+            appendSignal(body, tag);
+        });
         w.u8(0);
         assertDecodeCompileSample(w);
     }
@@ -783,6 +892,8 @@ void test_decode_all_pattern_tags_compile() {
         PAT_PF_DOTS,
         PAT_PF_WAVE_MATRIX,
         PAT_PF_RADIAL_PULSE,
+        PAT_XOR,
+        PAT_RASTER_CONWAY,
     };
 
     for (uint8_t tag : kPatternTags) {
@@ -813,9 +924,62 @@ void test_decode_uncovered_transform_tags_compile() {
     }
 }
 
+void test_decode_raster_conway_allows_palette_transform() {
+    WireBuilder w;
+    w.header(0);
+    appendPattern(w, PAT_RASTER_CONWAY);
+    w.u8(1);
+    w.record(TFM_PALETTE_CLIP, [](WireBuilder &body) {
+        body.u16(32768).u8(0);
+        appendSignal(body, SIG_CONSTANT);
+        body.sigConstant(0);
+    });
+    assertDecodeCompileSample(w);
+}
+
+void test_decode_raster_conway_compiles_with_raster_display() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_RASTER_CONWAY, [](WireBuilder &body) {
+        body.u16(250).u16(1).u16(1000);
+    });
+    w.u8(0);
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+
+    decoded->compile(RasterDisplayInfo{true, 3, 3, 9});
+    const RenderPoint center{
+        f16(0),
+        f16(0),
+        RasterPoint{true, 4, 1, 1, 3, 3}
+    };
+    const ::CRGB sample = decoded->sample(0, center);
+    TEST_ASSERT_TRUE(sample.r != 0 || sample.g != 0 || sample.b != 0);
+}
+
+void test_decode_raster_conway_rejects_uv_transform() {
+    WireBuilder w;
+    w.header(0);
+    appendPattern(w, PAT_RASTER_CONWAY);
+    w.u8(1);
+    appendTransform(w, TFM_TILING);
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
+}
+
 void test_decode_scene_with_duration_overrides_default() {
     WireBuilder w;
-    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    w.u8(0);
 
     DecodeStatus status;
     auto decoded = decodeSceneWithDuration(w.data(), w.size(), 30000, &status);
@@ -826,7 +990,11 @@ void test_decode_scene_with_duration_overrides_default() {
 
 void test_embedded_psc_playlist_provider_decodes_scene() {
     WireBuilder w;
-    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    w.u8(0);
 
     EmbeddedPscScene scenes[] = {
         {"test.psc", w.data(), w.size()},
@@ -840,10 +1008,14 @@ void test_embedded_psc_playlist_provider_decodes_scene() {
 
 void test_embedded_psc_playlist_provider_falls_back_after_decode_fail() {
     WireBuilder corrupt;
-    corrupt.header(0).u8(0xEE);
+    corrupt.header(0).record(0xEE, [](WireBuilder &) {});
 
     WireBuilder fallbackWire;
-    fallbackWire.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+    fallbackWire.header(0);
+    fallbackWire.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    fallbackWire.u8(0);
 
     EmbeddedPscScene scenes[] = {
         {"corrupt.psc", corrupt.data(), corrupt.size()},
@@ -861,7 +1033,7 @@ void test_embedded_psc_playlist_provider_falls_back_after_decode_fail() {
 
 void test_embedded_psc_playlist_provider_has_builtin_fallback() {
     WireBuilder corrupt;
-    corrupt.header(0).u8(0xEE);
+    corrupt.header(0).record(0xEE, [](WireBuilder &) {});
 
     EmbeddedPscScene scenes[] = {
         {"corrupt.psc", corrupt.data(), corrupt.size()},
@@ -886,15 +1058,15 @@ void test_decode_golden_fixture() {
     static const uint8_t kGoldenFixture[] = {
         // header
         0x50, 0x53, 0x43, 0x00,   // magic "PSC\0"
-        0x00,                      // version 0
+        0x01,                      // version 1
         0x00,                      // palette 0 (Rainbow / test palette 0)
         // pattern: NoiseBasic with constant(550)
-        0x00,                      // PAT_NOISE_BASIC
-        0x00, 0x26, 0x02,          // SIG_CONSTANT, permille = 0x0226 = 550 (LE)
+        0x00, 0x05, 0x00,          // PAT_NOISE_BASIC, body length 5
+        0x00, 0x02, 0x00, 0x26, 0x02, // SIG_CONSTANT, body length 2, 550
         // 1 transform: Zoom with constant(200)
         0x01,                      // transform count
-        0x02,                      // TFM_ZOOM
-        0x00, 0xC8, 0x00,          // SIG_CONSTANT, permille = 0x00C8 = 200 (LE)
+        0x02, 0x05, 0x00,          // TFM_ZOOM, body length 5
+        0x00, 0x02, 0x00, 0xC8, 0x00, // SIG_CONSTANT, body length 2, 200
     };
 
     DecodeStatus status;
@@ -909,11 +1081,244 @@ void test_decode_golden_fixture() {
     (void) sample;  // value depends on noise sampler but call must not crash
 }
 
-void test_decode_compile_reported_pf_cross_fixture() {
-    // Captured from a browser PSC load that decoded successfully, then trapped
-    // in WASM during Scene::compile(). Native must at least decode, compile,
-    // advance, and sample it without crashing so sanitizer runs can localize
-    // any non-WASM memory issue.
+void test_decode_v1_length_prefixed_fixture() {
+    static const uint8_t kV1Fixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x01,                     // version 1
+        0x00,                     // palette 0
+        0x00, 0x05, 0x00,         // PAT_NOISE_BASIC, body length 5
+        0x00, 0x02, 0x00, 0x26, 0x02, // SIG_CONSTANT, body length 2, 550
+        0x01,                     // transform count
+        0x02, 0x05, 0x00,         // TFM_ZOOM, body length 5
+        0x00, 0x02, 0x00, 0xC8, 0x00, // SIG_CONSTANT, body length 2, 200
+    };
+
+    DecodeStatus status;
+    auto decoded = decodeScene(kV1Fixture, sizeof(kV1Fixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    decoded->compile();
+}
+
+void test_decode_js_generated_lockstep_fixtures() {
+    // These byte arrays were generated by web/sketches/composer/codec.js from
+    // the web schema. They intentionally do not use WireBuilder, so they catch
+    // JS/C++ tag or body-layout drift for newer codec surface area.
+    static const uint8_t kJsXorFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x22, 0x03, 0x00, 0x10, 0x28, 0x00,
+        0x00,
+    };
+    static const uint8_t kJsConwayPaletteFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x2b, 0x06, 0x00, 0xfa, 0x00, 0x01,
+        0x00, 0x5e, 0x01, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x80, 0x02, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
+    static const uint8_t kJsNestedSignalsPaletteClipFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x02, 0x00, 0x19, 0x00, 0x1f, 0x16, 0x00,
+        0x10, 0x09, 0x00, 0x00, 0x02, 0x00, 0x32, 0x00, 0xd2, 0x04, 0x00, 0x00,
+        0x00, 0x02, 0x00, 0x64, 0x00, 0x00, 0x02, 0x00, 0x84, 0x03, 0x02, 0x09,
+        0x21, 0x00, 0x00, 0x40, 0x01, 0x10, 0x09, 0x00, 0x00, 0x02, 0x00, 0x78,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x1d, 0x0f, 0x00, 0x00, 0x02, 0x00, 0xd9,
+        0x00, 0x00, 0x02, 0x00, 0x64, 0x00, 0x00, 0x02, 0x00, 0x20, 0x03, 0x02,
+        0x1b, 0x00, 0x20, 0x18, 0x00, 0x1b, 0x13, 0x00, 0x00, 0x02, 0x00, 0x4d,
+        0x01, 0x4d, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x96, 0x00, 0x00, 0x02,
+        0x00, 0x52, 0x03, 0x00, 0x80,
+    };
+    static const uint8_t kJsPfDualAxisFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x0d, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfCounterRibbonsFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x0e, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfQuadDirectionalFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x0f, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfPosterizedFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x10, 0x10, 0x00, 0x05, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfCrossFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x11, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfPetalsFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x12, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfRippleFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x13, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfOrganicFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x14, 0x0c, 0x00, 0x0a, 0x00, 0x00,
+        0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00,
+    };
+    static const uint8_t kJsPfTopographicFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x15, 0x0c, 0x00, 0x08, 0x00, 0x00,
+        0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00,
+    };
+    static const uint8_t kJsPfPlasmaFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x16, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfTendrilsFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x17, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfLiquidGateFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x18, 0x0f, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01,
+        0x00,
+    };
+    static const uint8_t kJsPfConcentricGridFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x19, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfRowSegmentsFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x1a, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfShapesFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x1b, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfDotsFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x1c, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfWaveMatrixFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x1d, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+    static const uint8_t kJsPfRadialPulseFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x1e, 0x10, 0x00, 0x06, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
+        0x01, 0x00,
+    };
+
+    struct Fixture {
+        const char *name;
+        const uint8_t *data;
+        std::size_t size;
+        bool raster;
+    };
+
+    static const Fixture kFixtures[] = {
+        {"js xor", kJsXorFixture, sizeof(kJsXorFixture), false},
+        {"js conway paletteClip", kJsConwayPaletteFixture, sizeof(kJsConwayPaletteFixture), true},
+        {"js nested signals paletteClip", kJsNestedSignalsPaletteClipFixture, sizeof(kJsNestedSignalsPaletteClipFixture), false},
+        {"js pfDualAxis", kJsPfDualAxisFixture, sizeof(kJsPfDualAxisFixture), false},
+        {"js pfCounterRibbons", kJsPfCounterRibbonsFixture, sizeof(kJsPfCounterRibbonsFixture), false},
+        {"js pfQuadDirectional", kJsPfQuadDirectionalFixture, sizeof(kJsPfQuadDirectionalFixture), false},
+        {"js pfPosterized", kJsPfPosterizedFixture, sizeof(kJsPfPosterizedFixture), false},
+        {"js pfCross", kJsPfCrossFixture, sizeof(kJsPfCrossFixture), false},
+        {"js pfPetals", kJsPfPetalsFixture, sizeof(kJsPfPetalsFixture), false},
+        {"js pfRipple", kJsPfRippleFixture, sizeof(kJsPfRippleFixture), false},
+        {"js pfOrganic", kJsPfOrganicFixture, sizeof(kJsPfOrganicFixture), false},
+        {"js pfTopographic", kJsPfTopographicFixture, sizeof(kJsPfTopographicFixture), false},
+        {"js pfPlasma", kJsPfPlasmaFixture, sizeof(kJsPfPlasmaFixture), false},
+        {"js pfTendrils", kJsPfTendrilsFixture, sizeof(kJsPfTendrilsFixture), false},
+        {"js pfLiquidGate", kJsPfLiquidGateFixture, sizeof(kJsPfLiquidGateFixture), false},
+        {"js pfConcentricGrid", kJsPfConcentricGridFixture, sizeof(kJsPfConcentricGridFixture), false},
+        {"js pfRowSegments", kJsPfRowSegmentsFixture, sizeof(kJsPfRowSegmentsFixture), false},
+        {"js pfShapes", kJsPfShapesFixture, sizeof(kJsPfShapesFixture), false},
+        {"js pfDots", kJsPfDotsFixture, sizeof(kJsPfDotsFixture), false},
+        {"js pfWaveMatrix", kJsPfWaveMatrixFixture, sizeof(kJsPfWaveMatrixFixture), false},
+        {"js pfRadialPulse", kJsPfRadialPulseFixture, sizeof(kJsPfRadialPulseFixture), false},
+    };
+
+    for (const Fixture &fixture : kFixtures) {
+        assertDecodeCompileSampleBytes(fixture.name, fixture.data, fixture.size, fixture.raster);
+    }
+}
+
+void test_decode_v1_rejects_trailing_pattern_body_bytes() {
+    static const uint8_t kBadV1Fixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x01,
+        0x00,
+        0x00, 0x06, 0x00,         // one extra byte in pattern body
+        0x00, 0x02, 0x00, 0x26, 0x02, 0x00,
+        0x00,
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kBadV1Fixture, sizeof(kBadV1Fixture), &status);
+    TEST_ASSERT_NULL(decoded.get());
+    TEST_ASSERT_NOT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+}
+
+void test_decode_v1_rejects_trailing_signal_body_bytes() {
+    static const uint8_t kBadV1Fixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x01,
+        0x00,
+        0x00, 0x06, 0x00,         // NoiseBasic pattern body length 6
+        0x00, 0x03, 0x00, 0x26, 0x02, 0x00, // constant signal with one extra body byte
+        0x00,
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kBadV1Fixture, sizeof(kBadV1Fixture), &status);
+    TEST_ASSERT_NULL(decoded.get());
+    TEST_ASSERT_NOT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+}
+
+void test_decode_v1_rejects_trailing_transform_body_bytes() {
+    static const uint8_t kBadV1Fixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x01,
+        0x00,
+        0x00, 0x05, 0x00,
+        0x00, 0x02, 0x00, 0x26, 0x02,
+        0x01,
+        0x02, 0x06, 0x00,         // Zoom transform body length 6
+        0x00, 0x02, 0x00, 0xc8, 0x00, 0x00, // constant signal + one extra transform byte
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kBadV1Fixture, sizeof(kBadV1Fixture), &status);
+    TEST_ASSERT_NULL(decoded.get());
+    TEST_ASSERT_NOT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+}
+
+void test_decode_v1_rejects_trailing_scene_bytes() {
+    static const uint8_t kBadV1Fixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x01,
+        0x00,
+        0x00, 0x05, 0x00,
+        0x00, 0x02, 0x00, 0x26, 0x02,
+        0x00,
+        0x00,
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kBadV1Fixture, sizeof(kBadV1Fixture), &status);
+    TEST_ASSERT_NULL(decoded.get());
+    TEST_ASSERT_NOT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+}
+
+void test_decode_rejects_legacy_reported_fixture() {
+    // Captured before PSC v1 length-prefixing. Legacy v0 PSC is intentionally
+    // rejected at runtime after the playlist has been migrated.
     static const uint8_t kReportedFixture[] = {
         0x50, 0x53, 0x43, 0x00, 0x00, 0x00, 0x11, 0x00,
         0xF4, 0x01, 0x00, 0x29, 0x03, 0x00, 0x63, 0x00,
@@ -927,15 +1332,10 @@ void test_decode_compile_reported_pf_cross_fixture() {
         0x00,
     };
 
-    DecodeStatus status;
+    DecodeStatus status = DecodeStatus::OK;
     auto decoded = decodeScene(kReportedFixture, sizeof(kReportedFixture), &status);
-    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
-    TEST_ASSERT_NOT_NULL(decoded.get());
-
-    decoded->compile();
-    decoded->advanceFrame(f16(0xFFFFu), 1000);
-    ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
-    (void) sample;
+    TEST_ASSERT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_VERSION), static_cast<int>(status));
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -944,7 +1344,11 @@ void test_decode_compile_reported_pf_cross_fixture() {
 
 void test_decode_truncated_at_every_prefix() {
     WireBuilder full;
-    full.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+    full.header(0);
+    full.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    full.u8(0);
 
     // Every prefix shorter than the full blob must be rejected without
     // crashing. We don't assert the exact status for every prefix (some
@@ -960,19 +1364,20 @@ void test_decode_truncated_at_every_prefix() {
 
 void test_decode_complex_truncated_at_every_prefix() {
     WireBuilder full;
-    full.header(1)
-     .u8(PAT_FLOW_FIELD)
-     .u8(32)
-     .u8(3)
-     .u8(static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both));
-    appendSignal(full, SIG_SINE_BOUNDED_PH);
-    appendSignal(full, SIG_TRIANGLE_BOUNDED);
-    appendSignal(full, SIG_SQUARE);
-    appendSignal(full, SIG_SAWTOOTH_BOUNDED_PH);
-    appendSignal(full, SIG_NOISE_BOUNDED_PH);
-    appendSignal(full, SIG_SMAP);
-    appendSignal(full, SIG_SCALE);
-    appendSignal(full, SIG_QUADRATIC_OUT);
+    full.header(1);
+    full.record(PAT_FLOW_FIELD, [](WireBuilder &body) {
+        body.u8(32)
+            .u8(3)
+            .u8(static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both));
+        appendSignal(body, SIG_SINE_BOUNDED_PH);
+        appendSignal(body, SIG_TRIANGLE_BOUNDED);
+        appendSignal(body, SIG_SQUARE);
+        appendSignal(body, SIG_SAWTOOTH_BOUNDED_PH);
+        appendSignal(body, SIG_NOISE_BOUNDED_PH);
+        appendSignal(body, SIG_SMAP);
+        appendSignal(body, SIG_SCALE);
+        appendSignal(body, SIG_QUADRATIC_OUT);
+    });
     full.u8(5);
     appendTransform(full, TFM_TRANSLATION);
     appendTransform(full, TFM_VORTEX);
@@ -1002,8 +1407,11 @@ void test_decode_bad_version() {
 
 void test_decode_bad_palette_id() {
     WireBuilder w;
-    w.header(0xFE)    // unknown palette
-     .u8(PAT_NOISE_BASIC).sigConstant(550).u8(0);
+    w.header(0xFE);    // unknown palette
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    w.u8(0);
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
     TEST_ASSERT_NULL(s.get());
@@ -1012,7 +1420,7 @@ void test_decode_bad_palette_id() {
 
 void test_decode_unknown_pattern_tag() {
     WireBuilder w;
-    w.header(0).u8(0xEE).u8(0);   // tag 0xEE is not a defined pattern
+    w.header(0).record(0xEE, [](WireBuilder &) {});   // tag 0xEE is not a defined pattern
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
     TEST_ASSERT_NULL(s.get());
@@ -1021,7 +1429,11 @@ void test_decode_unknown_pattern_tag() {
 
 void test_decode_unknown_signal_tag() {
     WireBuilder w;
-    w.header(0).u8(PAT_NOISE_BASIC).u8(0xCC).u8(0);   // 0xCC is not a defined signal
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.record(0xCC, [](WireBuilder &) {});   // 0xCC is not a defined signal
+    });
+    w.u8(0);
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
     TEST_ASSERT_NULL(s.get());
@@ -1030,17 +1442,56 @@ void test_decode_unknown_signal_tag() {
 
 void test_decode_unknown_transform_tag() {
     WireBuilder w;
-    w.header(0).u8(PAT_NOISE_BASIC).sigConstant(550).u8(1).u8(0xDD);
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    w.u8(1).record(0xDD, [](WireBuilder &) {});
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
     TEST_ASSERT_NULL(s.get());
     TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::UNKNOWN_TAG), static_cast<int>(status));
 }
 
+void test_decode_rejects_legacy_palette_transform_tag() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    w.u8(1);
+    w.record(LEGACY_TFM_PALETTE, [](WireBuilder &body) {
+        body.sigConstant(100);
+    });
+
+    DecodeStatus status;
+    auto s = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_NULL(s.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::UNKNOWN_TAG), static_cast<int>(status));
+}
+
+void test_decode_rejects_excessive_signal_nesting() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        appendNestedSmapSignal(body, 65);
+    });
+    w.u8(0);
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto s = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_NULL(s.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
+}
+
 void test_decode_bad_pattern_enum() {
     // TilingPattern with shape byte > HEXAGON (= 2) → BAD_ENUM.
     WireBuilder w;
-    w.header(0).u8(PAT_TILING).u16(32).u8(4).u8(0xFF).u8(0);
+    w.header(0);
+    w.record(PAT_TILING, [](WireBuilder &body) {
+        body.u16(32).u8(4).u8(0xFF);
+    });
+    w.u8(0);
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
     TEST_ASSERT_NULL(s.get());
@@ -1049,10 +1500,14 @@ void test_decode_bad_pattern_enum() {
 
 void test_decode_bad_palette_tint_mode() {
     WireBuilder w;
-    w.header(0)
-     .u8(PAT_NOISE_BASIC).sigConstant(550)
-     .u8(1)
-     .u8(TFM_PALETTE_CLIP).u16(raw(perMil(250))).u8(0xFF);
+    w.header(0);
+    w.record(PAT_NOISE_BASIC, [](WireBuilder &body) {
+        body.sigConstant(550);
+    });
+    w.u8(1);
+    w.record(TFM_PALETTE_CLIP, [](WireBuilder &body) {
+        body.u16(raw(perMil(250))).u8(0xFF);
+    });
 
     DecodeStatus status;
     auto s = decodeScene(w.data(), w.size(), &status);
@@ -1079,12 +1534,21 @@ void setup() {
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
+    RUN_TEST(test_decode_raster_conway_allows_palette_transform);
+    RUN_TEST(test_decode_raster_conway_compiles_with_raster_display);
+    RUN_TEST(test_decode_raster_conway_rejects_uv_transform);
     RUN_TEST(test_decode_scene_with_duration_overrides_default);
     RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
     RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
     RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
-    RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
+    RUN_TEST(test_decode_v1_length_prefixed_fixture);
+    RUN_TEST(test_decode_js_generated_lockstep_fixtures);
+    RUN_TEST(test_decode_v1_rejects_trailing_pattern_body_bytes);
+    RUN_TEST(test_decode_v1_rejects_trailing_signal_body_bytes);
+    RUN_TEST(test_decode_v1_rejects_trailing_transform_body_bytes);
+    RUN_TEST(test_decode_v1_rejects_trailing_scene_bytes);
+    RUN_TEST(test_decode_rejects_legacy_reported_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
     RUN_TEST(test_decode_complex_truncated_at_every_prefix);
     RUN_TEST(test_decode_bad_magic);
@@ -1093,6 +1557,8 @@ void setup() {
     RUN_TEST(test_decode_unknown_pattern_tag);
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
+    RUN_TEST(test_decode_rejects_legacy_palette_transform_tag);
+    RUN_TEST(test_decode_rejects_excessive_signal_nesting);
     RUN_TEST(test_decode_bad_pattern_enum);
     RUN_TEST(test_decode_bad_palette_tint_mode);
     UNITY_END();
@@ -1114,12 +1580,21 @@ int main() {
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
+    RUN_TEST(test_decode_raster_conway_allows_palette_transform);
+    RUN_TEST(test_decode_raster_conway_compiles_with_raster_display);
+    RUN_TEST(test_decode_raster_conway_rejects_uv_transform);
     RUN_TEST(test_decode_scene_with_duration_overrides_default);
     RUN_TEST(test_embedded_psc_playlist_provider_decodes_scene);
     RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
     RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
-    RUN_TEST(test_decode_compile_reported_pf_cross_fixture);
+    RUN_TEST(test_decode_v1_length_prefixed_fixture);
+    RUN_TEST(test_decode_js_generated_lockstep_fixtures);
+    RUN_TEST(test_decode_v1_rejects_trailing_pattern_body_bytes);
+    RUN_TEST(test_decode_v1_rejects_trailing_signal_body_bytes);
+    RUN_TEST(test_decode_v1_rejects_trailing_transform_body_bytes);
+    RUN_TEST(test_decode_v1_rejects_trailing_scene_bytes);
+    RUN_TEST(test_decode_rejects_legacy_reported_fixture);
     RUN_TEST(test_decode_truncated_at_every_prefix);
     RUN_TEST(test_decode_complex_truncated_at_every_prefix);
     RUN_TEST(test_decode_bad_magic);
@@ -1128,6 +1603,8 @@ int main() {
     RUN_TEST(test_decode_unknown_pattern_tag);
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
+    RUN_TEST(test_decode_rejects_legacy_palette_transform_tag);
+    RUN_TEST(test_decode_rejects_excessive_signal_nesting);
     RUN_TEST(test_decode_bad_pattern_enum);
     RUN_TEST(test_decode_bad_palette_tint_mode);
     return UNITY_END();

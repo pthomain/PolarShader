@@ -51,7 +51,7 @@ namespace PolarShader {
             uint8_t brightness = 20,
             uint8_t refreshRateInMillis = 30,
             bool dualCore = false
-        ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toPolarCoords(pixelIndex); }),
+        ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toRenderPoint(pixelIndex); }),
             outputArray(new CRGB[spec.nbLeds()]),
             refreshRateInMillis(refreshRateInMillis) {
             DisplayEntropy::addFloatingPinEntropy(

@@ -26,6 +26,11 @@
 #include <memory>
 
 namespace PolarShader {
+    enum class PatternDomain : uint8_t {
+        ContinuousUV,
+        RasterGrid
+    };
+
     /**
      * @brief Standard interface for all spatial patterns in the unified UV pipeline.
      */
@@ -41,6 +46,18 @@ namespace PolarShader {
         }
 
         virtual UVMap layer(const std::shared_ptr<PipelineContext> &context) const;
+
+        virtual PatternDomain domain() const { return PatternDomain::ContinuousUV; }
+
+        virtual RasterMap rasterLayer(const std::shared_ptr<PipelineContext> &context) const {
+            (void)context;
+            return {};
+        }
+
+        virtual RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext> &context) const {
+            (void)context;
+            return {};
+        }
 
         /** @brief Whether this pattern emits its own colour (a hue,value pair) rather than a bare scalar. */
         virtual bool emitsColour() const { return false; }

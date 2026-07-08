@@ -61,20 +61,28 @@ namespace PolarShader {
 
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
-        const PolarCoordsMapper& coordsMapper
-    ) : PolarRenderer(nbLeds, coordsMapper, makeInitialRendererProvider()) {
+        const RenderPointMapper& pointMapper
+    ) : PolarRenderer(nbLeds, pointMapper, makeInitialRendererProvider()) {
     }
 
     PolarRenderer::PolarRenderer(
         uint16_t nbLeds,
-        const PolarCoordsMapper& coordsMapper,
+        const RenderPointMapper& pointMapper,
         std::unique_ptr<SceneProvider> provider
     ) : sceneManager(provider ? std::move(provider) : makeDefaultRendererProvider()),
         nbLeds(nbLeds) {
-        precomputedCoords.reserve(nbLeds);
+        precomputedPoints.reserve(nbLeds);
         for (uint16_t i = 0; i < nbLeds; ++i) {
-            precomputedCoords.push_back(coordsMapper(i));
+            RenderPoint point = pointMapper(i);
+            if (point.raster.valid && !rasterDisplay.valid) {
+                rasterDisplay.valid = true;
+                rasterDisplay.width = point.raster.width;
+                rasterDisplay.height = point.raster.height;
+                rasterDisplay.cellCount = static_cast<uint32_t>(point.raster.width) * point.raster.height;
+            }
+            precomputedPoints.push_back(point);
         }
+        sceneManager.setRasterDisplayInfo(rasterDisplay);
     }
 
     void PolarRenderer::prepareFrame(TimeMillis timeInMillis) {
@@ -104,8 +112,7 @@ namespace PolarShader {
         uint8_t coreIndex
     ) const {
         for (uint16_t i = start; i < nbLeds; i += stride) {
-            auto [angle, radius] = precomputedCoords[i];
-            outputArray[i] = sceneManager.sample(coreIndex, angle, radius);
+            outputArray[i] = sceneManager.sample(coreIndex, precomputedPoints[i]);
         }
     }
 }

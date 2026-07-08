@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025 Pierre Thomain
 //
-// PSC v0 schema — mirrors src/composer/SceneCodec.cpp byte-for-byte.
+// PSC v1 schema — mirrors src/composer/SceneCodec.cpp byte-for-byte.
 // Drift between this file and the C++ tag tables is caught by the
 // cross-implementation golden fixture in test/test_composer.
 
@@ -53,6 +53,10 @@ const periodicBaseParams = [
     { name: 'phaseOffset',   kind: 'i32',    default: 0, label: 'phase (raw sf16)' },
 ];
 
+const noiseBaseParams = [
+    { name: 'phaseVelocity', kind: 'signal' },
+];
+
 const periodicBoundedParams = [
     { name: 'phaseVelocity', kind: 'signal' },
     { name: 'floor',         kind: 'signal' },
@@ -87,9 +91,11 @@ export const SIGNALS = {
     sawtooth:           { tag: 0x19, label: 'sawtooth',        kind: 'modulator', params: periodicBaseParams },
     sawtoothBounded:    { tag: 0x1A, label: 'sawtooth (b)',    kind: 'modulator', params: periodicBoundedParams },
     sawtoothBoundedPh:  { tag: 0x1B, label: 'sawtooth (b+ph)', kind: 'modulator', params: periodicBoundedPhaseParams },
-    noise:              { tag: 0x1C, label: 'noise',           kind: 'modulator', params: periodicBaseParams },
+    noise:              { tag: 0x1C, label: 'noise',           kind: 'modulator',
+                          params: noiseBaseParams, wireParams: periodicBaseParams },
     noiseBounded:       { tag: 0x1D, label: 'noise (b)',       kind: 'modulator', params: periodicBoundedParams },
-    noiseBoundedPhase:  { tag: 0x1E, label: 'noise (b+ph)',    kind: 'modulator', params: periodicBoundedPhaseParams },
+    noiseBoundedPhase:  { tag: 0x1E, label: 'noise (b+ph)',    kind: 'modulator',
+                          params: periodicBoundedPhaseParams, hidden: true },
     smap:               { tag: 0x1F, label: 'smap',            kind: 'modulator',
                           params: [
                               { name: 'signal',  kind: 'signal' },
@@ -237,37 +243,37 @@ export const PATTERNS = {
     // fold/palette are NOT pattern params — add them as transforms, or load a
     // ready-made recipe from PF_PRESETS below.
     pfDualAxis: {
-        tag: 0x0D, label: 'PF — Dual Axis (0510)',
+        tag: 0x0D, label: 'PF — Dual Axis (0510)', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfCounterRibbons: {
-        tag: 0x0E, label: 'PF — Counter Ribbons (0515)',
+        tag: 0x0E, label: 'PF — Counter Ribbons (0515)', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfQuadDirectional: {
-        tag: 0x0F, label: 'PF — Quad Directional (0515-3)',
+        tag: 0x0F, label: 'PF — Quad Directional (0515-3)', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfPosterized: {
-        tag: 0x10, label: 'PF — Posterized (0531)',
+        tag: 0x10, label: 'PF — Posterized (0531)', output: 'rgb',
         config: [{ name: 'posterizeLevels', kind: 'u8', default: 5 }],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfCross: {
-        tag: 0x11, label: 'PF — Cross (0614-2)',
+        tag: 0x11, label: 'PF — Cross (0614-2)', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfPetals: {
-        tag: 0x12, label: 'PF — Petals (0512)',
+        tag: 0x12, label: 'PF — Petals (0512)', output: 'rgb',
         config: [{ name: 'petalCount', kind: 'u8', default: 6 }],
         signals: [{ name: 'phaseSpeed' }, { name: 'fold' }, { name: 'thickness' }],
     },
     pfRipple: {
-        tag: 0x13, label: 'PF — Ripple (0524-2)',
+        tag: 0x13, label: 'PF — Ripple (0524-2)', output: 'rgb',
         config: [{ name: 'waveCount', kind: 'u8', default: 6 }],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
@@ -288,17 +294,17 @@ export const PATTERNS = {
         signals: [{ name: 'phaseSpeed' }, { name: 'tension' }],
     },
     pfPlasma: {
-        tag: 0x16, label: 'PF — Plasma',
+        tag: 0x16, label: 'PF — Plasma', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfTendrils: {
-        tag: 0x17, label: 'PF — Tendrils (0520)',
+        tag: 0x17, label: 'PF — Tendrils (0520)', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
     pfLiquidGate: {
-        tag: 0x18, label: 'PF — Liquid Gate (0530)',
+        tag: 0x18, label: 'PF — Liquid Gate (0530)', output: 'rgb',
         config: [],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
@@ -332,7 +338,31 @@ export const PATTERNS = {
         config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
+    xor: {
+        tag: 0x22, label: 'XOR — Munching Squares',
+        config: [
+            { name: 'gridSize', kind: 'u8', default: 16 },
+            { name: 'speed', kind: 'u16', default: 40 },
+        ],
+        signals: [],
+    },
+    rasterConway: {
+        tag: 0x2B, label: 'Pixel Grid — Conway',
+        domain: 'raster',
+        output: 'rgb',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 250, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'densityPermille', kind: 'permille', default: 350, label: 'density' },
+        ],
+        signals: [],
+    },
 };
+
+for (const def of Object.values(PATTERNS)) {
+    if (!def.domain) def.domain = 'uv';
+    if (!def.output) def.output = 'greyscale';
+}
 
 export const PATTERN_BY_TAG = (() => {
     const m = {};
@@ -381,17 +411,8 @@ export const TRANSFORMS = {
         ],
         signals: [],
     },
-    palette: {
-        // Offset-only palette transform. Hidden from the composer's add menu
-        // because palette-clip already exposes an offset signal; kept in the
-        // schema so PatternFlow presets (pfPalette) and existing scenes that
-        // use tag 0x06 still encode, decode, and display correctly.
-        tag: 0x06, label: 'Palette (offset)', hidden: true,
-        config: [],
-        signals: [{ name: 'offset' }],
-    },
     paletteClip: {
-        tag: 0x09, label: 'Palette (clip)',
+        tag: 0x09, label: 'Palette', transformDomain: 'palette',
         config: [
             { name: 'maxFeather', kind: 'f16',  default: 32768, label: 'max feather (raw f16)' },
             // Single wire byte as a 3-way tint mode:
@@ -421,11 +442,25 @@ export const TRANSFORMS = {
     },
 };
 
+for (const def of Object.values(TRANSFORMS)) {
+    if (!def.transformDomain) def.transformDomain = 'uv';
+}
+
 export const TRANSFORM_BY_TAG = (() => {
     const m = {};
     for (const [id, def] of Object.entries(TRANSFORMS)) m[def.tag] = id;
     return m;
 })();
+
+export const DEFAULT_PALETTE_TRANSFORM = () => ({
+    id: 'paletteClip',
+    config: { maxFeather: 32768, tintMode: 0 },
+    signals: {
+        offset: DEFAULT_SIGNAL(),
+        clip: { id: 'constant', params: { permille: 0 } },
+    },
+    enabled: true,
+});
 
 // ─────────────────────────────────────────────────────────────────────
 // PatternFlow ready-made presets.
@@ -456,7 +491,11 @@ function pfPatternModel(id) {
     return { id, config, signals };
 }
 
-const pfPalette       = (n)   => ({ id: 'palette', config: {}, signals: { offset: pfSine(n) } });
+const pfPalette       = (n)   => ({
+    id: 'paletteClip',
+    config: { maxFeather: 32768, tintMode: 0 },
+    signals: { offset: pfSine(n), clip: pfK(0) },
+});
 const pfZoom          = (n)   => ({ id: 'zoom', config: {}, signals: { scale: pfK(n) } });
 const pfRotate        = (n)   => ({ id: 'rotation', config: { isAngleTurn: 1 }, signals: { angle: pfK(n) } });
 const pfVortex        = (n)   => ({ id: 'vortex', config: {}, signals: { strength: pfK(n) } });
@@ -531,5 +570,5 @@ export const DEFAULT_SCENE = () => ({
         config: {},
         signals: { depthSpeed: DEFAULT_SIGNAL() },
     },
-    transforms: [],
+    transforms: [DEFAULT_PALETTE_TRANSFORM()],
 });

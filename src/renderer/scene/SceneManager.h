@@ -39,9 +39,12 @@ namespace PolarShader {
         std::unique_ptr<SceneProvider> provider;
         std::unique_ptr<Scene> currentScene;
         TimeMillis currentSceneStartTimeMs{0};
+        RasterDisplayInfo rasterDisplay{};
 
     public:
         explicit SceneManager(std::unique_ptr<SceneProvider> provider);
+
+        void setRasterDisplayInfo(const RasterDisplayInfo &info);
 
         void advanceFrame(TimeMillis currentTimeMs);
 
@@ -56,7 +59,11 @@ namespace PolarShader {
         // update the current frame instead of restarting the animation at t=0.
         void replaceScenePreservingElapsed(std::unique_ptr<Scene> scene);
 
-        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const;
+        CRGB sample(uint8_t coreIndex, const RenderPoint &point) const;
+
+        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+            return sample(coreIndex, RenderPoint{angle, radius, RasterPoint{}});
+        }
     };
 }
 

@@ -18,6 +18,9 @@ import time
 from urllib.parse import parse_qs, unquote, urlparse
 import uuid
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from psc_v1 import PscValidationError, raw_pattern_tag, validate_psc_scene  # noqa: E402
+
 
 MAX_PSC_BYTES = 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
@@ -57,14 +60,31 @@ def _json_bytes(payload: dict) -> bytes:
     return json.dumps(payload, separators=(",", ":")).encode("utf-8")
 
 
-def _validate_psc(data: bytes) -> str | None:
-    if len(data) < 6:
-        return f".psc file is too short ({len(data)} bytes)"
-    if data[:4] != b"PSC\0":
-        return "bad .psc magic"
-    if data[4] != 0:
-        return f"unsupported .psc version {data[4]}"
-    return None
+def _psc_pattern_tag(data: bytes) -> tuple[int | None, str | None]:
+    try:
+        info = validate_psc_scene(data)
+    except PscValidationError as exc:
+        return raw_pattern_tag(data), str(exc)
+    return info.pattern_tag, None
+
+
+def _psc_file_metadata(path: Path) -> dict:
+    metadata: dict = {"supported": False, "patternTag": None}
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        metadata["error"] = f"could not read .psc file: {exc}"
+        return metadata
+    if len(data) > MAX_PSC_BYTES:
+        metadata["error"] = f".psc file is too large ({len(data)} bytes)"
+        return metadata
+
+    tag, error = _psc_pattern_tag(data)
+    metadata["patternTag"] = tag
+    metadata["supported"] = error is None
+    if error:
+        metadata["error"] = error
+    return metadata
 
 
 def _coerce_display_brightness(value) -> int:
@@ -340,13 +360,15 @@ class DeployManager:
             raise ApiError(400, "unknown deploy target")
         self._acquire_operation_lock("deploy")
 
-        job = DeployJob(uuid.uuid4().hex, env)
+        job: DeployJob | None = None
         try:
+            job = DeployJob(uuid.uuid4().hex, env)
             self._remember_job(job)
             thread = threading.Thread(target=self._run_deploy, args=(job, True), daemon=True)
             thread.start()
         except Exception as exc:
-            job.update(status="failed", error=str(exc), ended_at=time.time())
+            if job is not None:
+                job.update(status="failed", error=str(exc), ended_at=time.time())
             self._release_operation_lock()
             raise ApiError(500, f"failed to start deploy: {exc}") from exc
 
@@ -574,10 +596,12 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             if self.playlist_dir.is_dir():
                 for path in sorted(self.playlist_dir.rglob("*.psc")):
                     rel = path.relative_to(self.playlist_dir).as_posix()
+                    stat = path.stat()
                     files.append({
                         "name": rel,
-                        "size": path.stat().st_size,
-                        "mtime": int(path.stat().st_mtime),
+                        "size": stat.st_size,
+                        "mtime": int(stat.st_mtime),
+                        **_psc_file_metadata(path),
                     })
             self._send_json(200, {"ok": True, "files": files})
             return
@@ -726,6 +750,7 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
         except ValueError as exc:
             self._reject_api_request(400, str(exc), drain=True)
             return
+        overwrite = parse_qs(parsed.query).get("overwrite", ["0"])[0] in {"1", "true", "yes"}
 
         length_raw = self.headers.get("Content-Length")
         try:
@@ -742,7 +767,7 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
             return
 
         data = self.rfile.read(length)
-        error = _validate_psc(data)
+        tag, error = _psc_pattern_tag(data)
         if error:
             self._send_error_json(400, error)
             return
@@ -750,7 +775,15 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
         try:
             self.deploy_manager.acquire_build_input_lock()
             try:
-                name, path = _deduplicated_playlist_path(name, path, self.playlist_dir)
+                if overwrite:
+                    if not path.exists():
+                        self._send_error_json(404, "playlist file not found")
+                        return
+                    if not path.is_file():
+                        self._send_error_json(400, "playlist path is not a file")
+                        return
+                else:
+                    name, path = _deduplicated_playlist_path(name, path, self.playlist_dir)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(data)
                 saved_size = len(data)
@@ -773,6 +806,8 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 "name": name,
                 "size": saved_size,
                 "mtime": saved_mtime,
+                "patternTag": tag,
+                "supported": True,
             },
         })
 

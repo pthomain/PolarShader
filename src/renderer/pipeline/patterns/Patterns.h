@@ -29,6 +29,8 @@
 #include <renderer/pipeline/patterns/TransportPattern.h>
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
+#include <renderer/pipeline/patterns/ConwayPattern.h>
+#include <renderer/pipeline/patterns/XORPattern.h>
 #include <renderer/pipeline/patterns/SpiralPattern.h>
 #include <renderer/pipeline/patterns/AnnuliPattern.h>
 #include <renderer/pipeline/patterns/patternflow/PatternFlow.h>
@@ -79,6 +81,19 @@ namespace PolarShader {
         uint8_t width = 20,
         uint8_t height = 20,
         uint8_t stepsPerFrame = 4
+    );
+
+    // Display-native Conway's Game of Life. Uses logical raster x/y.
+    std::unique_ptr<UVPattern> conwayPattern(
+        uint16_t stepIntervalMs = 250,
+        uint16_t seed = 0,
+        uint16_t densityPermille = 350
+    );
+
+    // Animated (x XOR y) "munching squares" texture.
+    std::unique_ptr<UVPattern> xorPattern(
+        uint8_t gridSize = 16,
+        uint16_t speed = 40
     );
 
     // Persistent advected trail field with orbital dots, noise punch, and half-life fade.

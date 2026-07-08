@@ -21,18 +21,18 @@
 #ifndef POLAR_SHADER_POLAREFFECT_H
 #define POLAR_SHADER_POLAREFFECT_H
 
-#include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/RenderPoint.h"
 #include "renderer/scene/SceneManager.h"
 
 namespace PolarShader {
-    using PolarCoords = fl::pair<f16, f16>;
-    using PolarCoordsMapper = fl::function<PolarCoords(uint16_t pixelIndex)>;
+    using RenderPointMapper = fl::function<RenderPoint(uint16_t pixelIndex)>;
 
     /**
      * PolarRenderer uses a SceneManager to render complex multi-layered scenes.
      */
     class PolarRenderer {
-        fl::vector<PolarCoords> precomputedCoords;
+        fl::vector<RenderPoint> precomputedPoints;
+        RasterDisplayInfo rasterDisplay{};
         SceneManager sceneManager;
 
     public:
@@ -40,12 +40,12 @@ namespace PolarShader {
 
         explicit PolarRenderer(
             uint16_t nbLeds,
-            const PolarCoordsMapper& coordsMapper
+            const RenderPointMapper& pointMapper
         );
 
         explicit PolarRenderer(
             uint16_t nbLeds,
-            const PolarCoordsMapper& coordsMapper,
+            const RenderPointMapper& pointMapper,
             std::unique_ptr<SceneProvider> provider
         );
 
