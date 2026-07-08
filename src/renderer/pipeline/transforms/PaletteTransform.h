@@ -39,8 +39,6 @@ namespace PolarShader {
      */
     class PaletteTransform : public FrameTransform {
     public:
-        explicit PaletteTransform(Sf16Signal offset);
-
         PaletteTransform(
             Sf16Signal offset,
             Sf16Signal clipSignal,
@@ -54,8 +52,6 @@ namespace PolarShader {
 
     private:
         struct MappedInputs;
-
-        static MappedInputs makeInputs(Sf16Signal offset);
 
         static MappedInputs makeInputs(
             Sf16Signal offset,

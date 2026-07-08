@@ -224,6 +224,7 @@ static inline int16_t cos16(uint16_t theta) {
 
 // Simple linear congruent generator or just return 0 for now
 static inline uint16_t inoise16(uint32_t x) {
+    x ^= x >> 16;
     return (uint16_t)((x * 2053u) + 13849u);
 }
 

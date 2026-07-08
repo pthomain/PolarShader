@@ -80,7 +80,11 @@ namespace PolarShader {
         }
     }
 
-    void Scene::compile() {
+    void Scene::compile(const RasterDisplayInfo &rasterDisplay) {
+        for (const auto &layer: layers) {
+            if (layer) layer->setRasterDisplayInfo(rasterDisplay);
+        }
+
         for (auto &coreLayers: compiledLayers) {
             coreLayers.clear();
             coreLayers.reserve(layers.size());
@@ -97,7 +101,7 @@ namespace PolarShader {
         }
     }
 
-    CRGB Scene::sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+    CRGB Scene::sample(uint8_t coreIndex, const RenderPoint &point) const {
         if (layers.empty()) {
             return CRGB::Black;
         }
@@ -106,7 +110,7 @@ namespace PolarShader {
         CRGB result = CRGB::Black;
         for (const auto &entry: coreLayers) {
             if (!entry.map) continue;
-            CRGB layerColor = (*entry.map)(angle, radius);
+            CRGB layerColor = (*entry.map)(point);
             result = blend(result, layerColor, entry.alpha, entry.blendMode);
         }
         return result;

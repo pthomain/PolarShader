@@ -11,6 +11,7 @@
 
 import {
     PALETTES, PATTERNS, TRANSFORMS, PF_PRESETS, DEFAULT_SCENE, DEFAULT_SIGNAL,
+    DEFAULT_PALETTE_TRANSFORM,
 } from './schema.js';
 import { encodeScene, decodeScene } from './codec.js';
 import { renderSignalSlot } from './signal-editor.js';
@@ -89,7 +90,6 @@ function initialDisplayId() {
 const state = {
     pushTimer: null,             // debounce timer handle for scene pushes
     latestEvent: null,           // most-recent scene-store emission
-    statusEl: null,              // toast target
     debugLogEl: null,            // FastLED-side debug console
     displayId: initialDisplayId(), // active display geometry (0 = fabric, 1 = round)
     renderSeq: 0,                // monotonic command generation for scene pushes / reloads
@@ -106,6 +106,10 @@ const state = {
     playlistApiAvailable: false,
     playlistItems: [],
     playlistSelected: '',
+    playlistActiveName: '',
+    playlistBaselineName: '',
+    playlistBaselineBytes: null,
+    playlistDirty: false,
     playlistBusy: false,
     displayConfigApiAvailable: false,
     displayBrightness: 255,
@@ -128,8 +132,8 @@ const state = {
 
 // Display geometry tags — must match the display enum in composer.ino.
 const DISPLAYS = [
-    { id: 0, name: 'Fabric (20×20 matrix)' },
-    { id: 1, name: 'Round (241-pixel radial)' },
+    { id: 0, name: 'Fabric (20×20 matrix)', matrix: true },
+    { id: 1, name: 'Round (241-pixel radial)', matrix: false },
 ];
 
 const DEPLOY_POLL_MS = 1000;
@@ -183,6 +187,164 @@ function sceneForRender(scene) {
         ...scene,
         transforms: (scene.transforms ?? []).filter((t) => t.enabled !== false),
     };
+}
+
+function patternDomain(patternId) {
+    return PATTERNS[patternId]?.domain ?? 'uv';
+}
+
+const PATTERN_DOMAIN_LABELS = {
+    uv: 'UV',
+    raster: 'Raster Grid',
+};
+
+function displaySupportsGrid(displayId) {
+    return DISPLAYS.find((display) => display.id === displayId)?.matrix === true;
+}
+
+function availablePatternDomainsForDisplay(displayId) {
+    const domains = ['uv'];
+    if (displaySupportsGrid(displayId)) domains.push('raster');
+    return domains;
+}
+
+function patternEntriesForDomain(domain) {
+    return Object.entries(PATTERNS).filter(([, def]) => !def.hidden && (def.domain ?? 'uv') === domain);
+}
+
+function patternDropdownLabel(id, def, { includeOutput = true } = {}) {
+    let label = def.label ?? id;
+    if (id.startsWith('pf')) {
+        label = label
+            .replace(/^PF\s*[—-]\s*/i, '')
+            .replace(/\s*\([^)]*\)\s*$/u, '')
+            .trim();
+    }
+    if (!includeOutput) return label;
+    const output = def.output === 'rgb' ? 'RGB' : 'Greyscale';
+    return `${label} [${output}]`;
+}
+
+function comparePatternEntries([leftId, leftDef], [rightId, rightDef]) {
+    return patternDropdownLabel(leftId, leftDef, { includeOutput: false })
+        .localeCompare(
+            patternDropdownLabel(rightId, rightDef, { includeOutput: false }),
+            undefined,
+            { sensitivity: 'base' }
+        );
+}
+
+function sortedPatternEntriesForOutput(entries, output) {
+    return entries
+        .filter(([id]) => patternOutput(id) === output)
+        .sort(comparePatternEntries);
+}
+
+function appendPatternDropdownOptions(select, domain) {
+    const entries = patternEntriesForDomain(domain);
+    for (const group of [
+        { output: 'greyscale', label: 'Greyscale' },
+        { output: 'rgb', label: 'RGB' },
+    ]) {
+        const groupEntries = sortedPatternEntriesForOutput(entries, group.output);
+        if (groupEntries.length === 0) continue;
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = group.label;
+        for (const [id, def] of groupEntries) {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = patternDropdownLabel(id, def);
+            optgroup.appendChild(opt);
+        }
+        select.appendChild(optgroup);
+    }
+}
+
+function firstPatternIdForDomain(domain) {
+    const entries = patternEntriesForDomain(domain);
+    for (const output of ['greyscale', 'rgb']) {
+        const first = sortedPatternEntriesForOutput(entries, output)[0];
+        if (first) return first[0];
+    }
+    return Object.keys(PATTERNS)[0];
+}
+
+function setScenePattern(scene, patternId) {
+    scene.pattern = { id: patternId, config: {}, signals: {} };
+    removeIncompatibleTransforms(scene);
+    ensureGreyscalePaletteTransform(scene);
+}
+
+function ensurePatternTypeAvailableForDisplay() {
+    const currentPatternId = sceneStore.scene.pattern?.id;
+    const currentDef = PATTERNS[currentPatternId];
+    const availableDomains = availablePatternDomainsForDisplay(state.displayId);
+    if (currentDef && availableDomains.includes(currentDef.domain ?? 'uv')) return;
+
+    const fallbackDomain = availableDomains[0];
+    const fallbackPatternId = firstPatternIdForDomain(fallbackDomain);
+    mutateScene('pattern.domain', fallbackDomain, (scene) => {
+        setScenePattern(scene, fallbackPatternId);
+    });
+}
+
+function currentPatternDomainIsAvailable() {
+    return availablePatternDomainsForDisplay(state.displayId).includes(
+        patternDomain(sceneStore.scene.pattern?.id)
+    );
+}
+
+function transformDomain(transformId) {
+    return TRANSFORMS[transformId]?.transformDomain ?? 'uv';
+}
+
+function patternOutput(patternId) {
+    return PATTERNS[patternId]?.output ?? 'greyscale';
+}
+
+function isGreyscalePattern(patternId) {
+    return patternOutput(patternId) !== 'rgb';
+}
+
+function isTransformCompatible(patternId, transformId) {
+    return patternDomain(patternId) !== 'raster' || transformDomain(transformId) === 'palette';
+}
+
+function hasPaletteTransform(scene) {
+    return (scene.transforms ?? []).some((transform) => transformDomain(transform.id) === 'palette');
+}
+
+function isTransformAddable(scene, transformId) {
+    if (!isTransformCompatible(scene.pattern?.id, transformId)) return false;
+    return transformDomain(transformId) !== 'palette' || !hasPaletteTransform(scene);
+}
+
+function ensurePaletteTransformFirst(scene) {
+    const transforms = scene.transforms ?? [];
+    const paletteIndex = transforms.findIndex((transform) => (
+        transformDomain(transform.id) === 'palette'
+    ));
+
+    if (paletteIndex < 0) {
+        scene.transforms = [DEFAULT_PALETTE_TRANSFORM(), ...transforms];
+        return;
+    }
+
+    const [paletteTransform] = transforms.splice(paletteIndex, 1);
+    paletteTransform.enabled = true;
+    scene.transforms = [paletteTransform, ...transforms];
+}
+
+function ensureGreyscalePaletteTransform(scene) {
+    if (!isGreyscalePattern(scene.pattern?.id)) return;
+    ensurePaletteTransformFirst(scene);
+}
+
+function removeIncompatibleTransforms(scene) {
+    const patternId = scene.pattern?.id;
+    const before = scene.transforms?.length ?? 0;
+    scene.transforms = (scene.transforms ?? []).filter((t) => isTransformCompatible(patternId, t.id));
+    return before - scene.transforms.length;
 }
 
 function sceneSummary(scene) {
@@ -261,6 +423,143 @@ function bytesEqual(left, right) {
         if (left[i] !== right[i]) return false;
     }
     return true;
+}
+
+function playlistFileSupported(file) {
+    return file?.supported !== false;
+}
+
+function playlistFileIssue(file) {
+    if (!file) return 'playlist file is unavailable';
+    if (file.error) return file.error;
+    if (Number.isInteger(file.patternTag)) {
+        return `unsupported pattern tag 0x${file.patternTag.toString(16).padStart(2, '0')}`;
+    }
+    return 'unsupported .psc file';
+}
+
+function playlistFileByName(name) {
+    return state.playlistItems.find((file) => file.name === name) ?? null;
+}
+
+function supportedPlaylistItems() {
+    return state.playlistItems.filter(playlistFileSupported);
+}
+
+function setPlaylistBaseline(name, bytes) {
+    state.playlistSelected = name;
+    state.playlistBaselineName = name;
+    state.playlistBaselineBytes = bytes ? new Uint8Array(bytes) : null;
+    state.playlistDirty = false;
+    state.sceneSourceName = name;
+}
+
+function hasSelectedPlaylistScene() {
+    return Boolean(
+        state.playlistSelected
+        && state.playlistBaselineName === state.playlistSelected
+        && state.playlistBaselineBytes
+    );
+}
+
+function shouldShowSceneEditor() {
+    return state.composerTab !== 'playlist' || hasSelectedPlaylistScene();
+}
+
+function clearPlaylistBaseline({ clearSelection = false } = {}) {
+    if (clearSelection) {
+        state.playlistSelected = '';
+        state.playlistActiveName = '';
+    }
+    state.playlistBaselineName = '';
+    state.playlistBaselineBytes = null;
+    state.playlistDirty = false;
+}
+
+function deactivatePlaylistRow({ rebuild = true } = {}) {
+    if (!state.playlistActiveName) return;
+    state.playlistActiveName = '';
+    if (rebuild && state.composerTab === 'playlist') {
+        rebuildPanel();
+    }
+}
+
+function playlistLoadButtonFromTarget(target) {
+    return target instanceof Element ? target.closest('.playlist-load-btn') : null;
+}
+
+function handlePlaylistDocumentClick(event) {
+    if (!state.playlistActiveName) return;
+    if (playlistLoadButtonFromTarget(event.target)) return;
+    deactivatePlaylistRow();
+}
+
+function handlePlaylistDocumentFocus(event) {
+    if (!state.playlistActiveName) return;
+    const button = playlistLoadButtonFromTarget(event.target);
+    if (button?.dataset.playlistName === state.playlistActiveName) return;
+    deactivatePlaylistRow();
+}
+
+function isTextEditingTarget(target) {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
+function moveActivePlaylistSelection(delta) {
+    if (
+        state.composerTab !== 'playlist'
+        || !state.playlistActiveName
+        || state.playlistBusy
+        || state.deployBusy
+        || state.playlistItems.length === 0
+    ) return;
+
+    const currentIndex = state.playlistItems.findIndex((file) => file.name === state.playlistActiveName);
+    if (currentIndex < 0) {
+        state.playlistActiveName = '';
+        rebuildPanel();
+        return;
+    }
+
+    let nextIndex = currentIndex + delta;
+    while (nextIndex >= 0 && nextIndex < state.playlistItems.length) {
+        const nextFile = state.playlistItems[nextIndex];
+        if (playlistFileSupported(nextFile)) {
+            void loadPlaylistScene(nextFile.name, { activate: true });
+            return;
+        }
+        nextIndex += delta;
+    }
+}
+
+function handlePlaylistKeydown(event) {
+    if (event.defaultPrevented || !state.playlistActiveName || isTextEditingTarget(event.target)) return;
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveActivePlaylistSelection(-1);
+    } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveActivePlaylistSelection(1);
+    }
+}
+
+function refreshPlaylistDirtyState({ rebuild = false } = {}) {
+    let dirty = false;
+    if (state.playlistBaselineName && state.playlistBaselineBytes) {
+        try {
+            dirty = !bytesEqual(encodeScene(sceneForRender(sceneStore.scene)), state.playlistBaselineBytes);
+        } catch {
+            dirty = true;
+        }
+    }
+
+    if (dirty === state.playlistDirty) return;
+    state.playlistDirty = dirty;
+    if (rebuild && state.composerTab === 'playlist') {
+        rebuildPanel();
+    }
 }
 
 function readFileBytes(file) {
@@ -483,8 +782,13 @@ async function refreshPlaylistItems({ rebuild = false } = {}) {
     if (!state.playlistApiAvailable) return;
     const body = await fetchPlaylistJson('/api/playlist');
     state.playlistItems = Array.isArray(body.files) ? body.files : [];
-    if (state.playlistSelected && !state.playlistItems.some((file) => file.name === state.playlistSelected)) {
-        state.playlistSelected = '';
+    const selectedFile = state.playlistSelected ? playlistFileByName(state.playlistSelected) : null;
+    if (state.playlistSelected && (!selectedFile || !playlistFileSupported(selectedFile))) {
+        clearPlaylistBaseline({ clearSelection: true });
+    }
+    const activeFile = state.playlistActiveName ? playlistFileByName(state.playlistActiveName) : null;
+    if (state.playlistActiveName && (!activeFile || !playlistFileSupported(activeFile))) {
+        state.playlistActiveName = '';
     }
     if (rebuild) rebuildPanel();
 }
@@ -515,7 +819,7 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
         state.displayConfigApiAvailable = false;
         state.playlistApiChecked = true;
         state.playlistItems = [];
-        state.playlistSelected = '';
+        clearPlaylistBaseline({ clearSelection: true });
         state.deployTargets = [];
         state.deployDevices = [];
         state.deployTarget = '';
@@ -523,10 +827,16 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
     if (rebuild) rebuildPanel();
 }
 
-async function loadPlaylistScene(name) {
+async function loadPlaylistScene(name, { activate = false } = {}) {
     if (!name || state.playlistBusy) return;
+    const file = playlistFileByName(name);
+    if (file && !playlistFileSupported(file)) {
+        const issue = playlistFileIssue(file);
+        logDebug('playlist', `playlist load skipped for ${name}: ${issue}`);
+        showStatus(`playlist load error: ${issue}`, true);
+        return;
+    }
     state.playlistBusy = true;
-    state.playlistSelected = name;
     rebuildPanel();
     let statusText = null;
     let statusError = false;
@@ -540,11 +850,12 @@ async function loadPlaylistScene(name) {
         }
         const bytes = new Uint8Array(await response.arrayBuffer());
         const decoded = decodeScene(bytes);
+        setPlaylistBaseline(name, bytes);
+        state.playlistActiveName = activate ? name : '';
         sceneStore.setScene(decoded, {
             path: 'scene.playlist',
             value: name,
         });
-        state.sceneSourceName = name;
         statusText = `loaded ${name}`;
         logDebug('playlist', `loaded ${name} (${bytes.length} bytes)`);
     } catch (e) {
@@ -572,6 +883,7 @@ async function fetchPlaylistFileBytes(name) {
 async function fetchPlaylistByteEntries() {
     const entries = [];
     for (const file of state.playlistItems) {
+        if (!playlistFileSupported(file)) continue;
         entries.push({
             name: file.name,
             bytes: await fetchPlaylistFileBytes(file.name),
@@ -598,8 +910,7 @@ async function saveCurrentSceneToPlaylist() {
             body: bytes,
         });
         const savedName = body.file?.name ?? filename;
-        state.playlistSelected = savedName;
-        state.sceneSourceName = filename;
+        setPlaylistBaseline(savedName, bytes);
         await refreshPlaylistItems();
         statusText = renamedFromSource
             ? `saved ${savedName} (renamed from ${sourceName})`
@@ -614,6 +925,78 @@ async function saveCurrentSceneToPlaylist() {
         rebuildPanel();
         if (statusText) showStatus(statusText, statusError);
     }
+}
+
+async function updateSelectedPlaylistScene() {
+    const name = state.playlistBaselineName || state.playlistSelected;
+    if (!name || !state.playlistApiAvailable || state.playlistBusy || state.deployBusy) return;
+
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    try {
+        const bytes = encodeScene(sceneForRender(sceneStore.scene));
+        const body = await fetchPlaylistJson('/api/playlist/save', {
+            method: 'POST',
+            params: { name, overwrite: '1' },
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: bytes,
+        });
+        const savedName = body.file?.name ?? name;
+        setPlaylistBaseline(savedName, bytes);
+        await refreshPlaylistItems();
+        statusText = `updated ${savedName}`;
+        logDebug('playlist', `${statusText} (${bytes.length} bytes)`);
+    } catch (e) {
+        statusText = `playlist update error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist update failed for ${name}: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+async function saveSelectedPlaylistSceneAsNew() {
+    const sourceName = state.playlistBaselineName || state.playlistSelected || preferredPlaylistFilename();
+    if (!sourceName || !state.playlistApiAvailable || state.playlistBusy || state.deployBusy) return;
+
+    const keepRowActive = Boolean(state.playlistActiveName);
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    try {
+        const bytes = encodeScene(sceneForRender(sceneStore.scene));
+        const body = await fetchPlaylistJson('/api/playlist/save', {
+            method: 'POST',
+            params: { name: sourceName },
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: bytes,
+        });
+        const savedName = body.file?.name ?? sourceName;
+        setPlaylistBaseline(savedName, bytes);
+        state.playlistActiveName = keepRowActive ? savedName : '';
+        await refreshPlaylistItems();
+        statusText = `saved ${savedName}`;
+        logDebug('playlist', `${statusText} (${bytes.length} bytes)`);
+    } catch (e) {
+        statusText = `playlist save-as-new error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist save-as-new failed for ${sourceName}: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+function discardSelectedPlaylistChanges() {
+    const name = state.playlistBaselineName || state.playlistSelected;
+    if (!name || state.playlistBusy || state.deployBusy) return;
+    void loadPlaylistScene(name);
 }
 
 async function deletePlaylistScene(name) {
@@ -631,7 +1014,9 @@ async function deletePlaylistScene(name) {
         });
         const deletedName = body.file?.name ?? name;
         if (state.playlistSelected === deletedName) {
-            state.playlistSelected = '';
+            clearPlaylistBaseline({ clearSelection: true });
+        } else if (state.playlistActiveName === deletedName) {
+            state.playlistActiveName = '';
         }
         await refreshPlaylistItems();
         statusText = `deleted ${deletedName}`;
@@ -694,7 +1079,6 @@ async function importFilesToPlaylist(fileList) {
             });
             const savedName = body.file?.name ?? filename;
             knownEntries.push({ name: savedName, bytes });
-            state.playlistSelected = savedName;
             imported += 1;
             if (filename !== sourceName) {
                 logDebug('playlist', `imported ${sourceName || 'unnamed file'} as ${savedName}`);
@@ -786,8 +1170,9 @@ async function startDeployToMcu() {
         showStatus('save brightness before deploying', true);
         return;
     }
-    if (state.playlistItems.length === 0) {
-        showStatus('save at least one composition to the playlist first', true);
+    const deployableCount = supportedPlaylistItems().length;
+    if (deployableCount === 0) {
+        showStatus('save at least one compatible composition to the playlist first', true);
         return;
     }
     if (!state.deployTarget) {
@@ -1132,9 +1517,7 @@ const STATUS_LABELS = [
 ];
 
 function showStatus(text, isError) {
-    if (!state.statusEl) return;
-    state.statusEl.textContent = text;
-    state.statusEl.className = isError ? 'status err' : 'status ok';
+    logDebug(isError ? 'error' : 'status', text);
 }
 
 // Encode + push on the next animation frame. This keeps drag interactions
@@ -1145,7 +1528,8 @@ async function pushSceneNow(pushEvent, pushSeq) {
         return;
     }
     try {
-        const bytes = encodeScene(sceneForRender(sceneStore.scene));
+        const renderScene = sceneForRender(sceneStore.scene);
+        const bytes = encodeScene(renderScene);
         const result = await callApplyScene(bytes, pushSeq);
         if (isStaleCommandResult(pushSeq, result)) {
             logDebug('stale', `ignored stale scene response rev ${pushEvent?.revision ?? '?'} seq ${pushSeq} via ${result.target}`);
@@ -1208,6 +1592,7 @@ sceneStore.subscribe((event) => {
     const seq = nextRenderSeq();
     state.latestEvent = event;
     state.latestSceneSeq = seq;
+    refreshPlaylistDirtyState({ rebuild: true });
     logDebug(
         'emit',
         `emit rev ${event.revision} seq ${seq}: ${event.change.path} = ${formatValue(event.change.value)}`
@@ -1334,6 +1719,32 @@ function renderSignalsForm(signalsSchema, signalsObj, setSignal) {
     return form;
 }
 
+function renderPaletteSelector() {
+    const wrap = document.createElement('label');
+    wrap.className = 'param';
+    const labelText = document.createElement('span');
+    labelText.className = 'param-label';
+    labelText.textContent = 'Palette';
+    wrap.appendChild(labelText);
+
+    const sel = document.createElement('select');
+    for (const palette of PALETTES) {
+        const opt = document.createElement('option');
+        opt.value = palette.id;
+        opt.textContent = palette.name;
+        sel.appendChild(opt);
+    }
+    sel.value = sceneStore.scene.paletteId;
+    sel.addEventListener('change', () => {
+        const paletteId = parseInt(sel.value, 10);
+        mutateScene('paletteId', paletteId, (scene) => {
+            scene.paletteId = paletteId;
+        });
+    });
+    wrap.appendChild(sel);
+    return wrap;
+}
+
 // Ensure pattern.config / .signals contain entries for every schema slot
 // (defaults applied) so encoding never silently uses fall-back values.
 function hydrateConfig(schemaConfig, configObj) {
@@ -1355,16 +1766,48 @@ function hydrateSignals(schemaSignals, signalsObj) {
 function renderPatternSection() {
     const section = document.createElement('section');
     section.className = 'panel-section';
-    const h = document.createElement('h2'); h.textContent = 'Pattern'; section.appendChild(h);
+
+    const availableDomains = availablePatternDomainsForDisplay(state.displayId);
+    const selectedDomain = patternDomain(sceneStore.scene.pattern?.id);
+    const selectedDomainAvailable = currentPatternDomainIsAvailable();
+    const header = document.createElement('div');
+    header.className = 'pattern-header';
+    const h = document.createElement('h2');
+    h.textContent = 'Pattern';
+    header.appendChild(h);
+    if (availableDomains.length > 1) {
+        const typeSel = document.createElement('select');
+        typeSel.className = 'pattern-type-select';
+        for (const domain of availableDomains) {
+            const opt = document.createElement('option');
+            opt.value = domain;
+            opt.textContent = PATTERN_DOMAIN_LABELS[domain] ?? domain;
+            typeSel.appendChild(opt);
+        }
+        typeSel.value = selectedDomain;
+        typeSel.addEventListener('change', () => {
+            const nextDomain = typeSel.value;
+            const nextPatternId = firstPatternIdForDomain(nextDomain);
+            mutateScene('pattern.domain', nextDomain, (scene) => {
+                setScenePattern(scene, nextPatternId);
+            });
+            rebuildPanel();
+        });
+        header.appendChild(typeSel);
+    }
+    section.appendChild(header);
+
+    if (!selectedDomainAvailable) {
+        const warning = document.createElement('div');
+        warning.className = 'inline-warning';
+        warning.textContent = `${PATTERN_DOMAIN_LABELS[selectedDomain] ?? selectedDomain} patterns need a matrix display.`;
+        section.appendChild(warning);
+    }
 
     const row = document.createElement('div');
     row.className = 'pattern-picker-row';
     const sel = document.createElement('select');
-    for (const [id, def] of Object.entries(PATTERNS)) {
-        const opt = document.createElement('option');
-        opt.value = id; opt.textContent = def.label;
-        sel.appendChild(opt);
-    }
+    appendPatternDropdownOptions(sel, selectedDomain);
     sel.value = sceneStore.scene.pattern.id;
     row.appendChild(sel);
     section.appendChild(row);
@@ -1392,9 +1835,9 @@ function renderPatternSection() {
 
     sel.addEventListener('change', () => {
         mutateScene('pattern.id', sel.value, (scene) => {
-            scene.pattern = { id: sel.value, config: {}, signals: {} };
+            setScenePattern(scene, sel.value);
         });
-        rebuildBody();
+        rebuildPanel();
     });
 
     rebuildBody();
@@ -1415,15 +1858,20 @@ function renderTransformsSection() {
 
     const addRow = document.createElement('div'); addRow.className = 'add-row';
     const addSel = document.createElement('select');
-    for (const [id, def] of Object.entries(TRANSFORMS)) {
-        if (def.hidden) continue;
-        const opt = document.createElement('option');
-        opt.value = id; opt.textContent = def.label;
-        addSel.appendChild(opt);
-    }
     const addBtn = document.createElement('button'); addBtn.textContent = 'Add';
     addRow.appendChild(addSel); addRow.appendChild(addBtn);
     section.appendChild(addRow);
+
+    function rebuildAddOptions() {
+        addSel.innerHTML = '';
+        for (const [id, def] of Object.entries(TRANSFORMS)) {
+            if (def.hidden || !isTransformAddable(sceneStore.scene, id)) continue;
+            const opt = document.createElement('option');
+            opt.value = id; opt.textContent = def.label;
+            addSel.appendChild(opt);
+        }
+        addBtn.disabled = addSel.options.length === 0;
+    }
 
     function rebuildList() {
         list.innerHTML = '';
@@ -1434,6 +1882,12 @@ function renderTransformsSection() {
 
             const card = document.createElement('div'); card.className = 'transform-card';
             if (t.enabled === false) card.classList.add('transform-disabled');
+            const isPaletteTransform = transformDomain(t.id) === 'palette';
+            const isFixedGreyscalePalette = isPaletteTransform && isGreyscalePattern(sceneStore.scene.pattern?.id);
+            if (isFixedGreyscalePalette) {
+                t.enabled = true;
+                card.classList.remove('transform-disabled');
+            }
             const header = document.createElement('div'); header.className = 'transform-header';
             const title = document.createElement('span'); title.className = 'transform-title';
             title.textContent = `${i + 1}. ${def.label}`;
@@ -1442,49 +1896,70 @@ function renderTransformsSection() {
             // Enabled toggle: unchecking drops this transform from the render
             // push (sceneForRender) without touching its params, so its effect
             // can be compared on/off instantly.
-            const enableWrap = document.createElement('label');
-            enableWrap.className = 'transform-enable';
-            const enableCb = document.createElement('input');
-            enableCb.type = 'checkbox';
-            enableCb.checked = t.enabled !== false;
-            enableCb.addEventListener('change', () => {
-                mutateScene(`transforms.${i}.${t.id}.enabled`, enableCb.checked, () => {
-                    t.enabled = enableCb.checked;
+            if (!isFixedGreyscalePalette) {
+                const enableWrap = document.createElement('label');
+                enableWrap.className = 'transform-enable';
+                const enableCb = document.createElement('input');
+                enableCb.type = 'checkbox';
+                enableCb.checked = t.enabled !== false;
+                enableCb.addEventListener('change', () => {
+                    mutateScene(`transforms.${i}.${t.id}.enabled`, enableCb.checked, () => {
+                        t.enabled = enableCb.checked;
+                    });
+                    card.classList.toggle('transform-disabled', !enableCb.checked);
                 });
-                card.classList.toggle('transform-disabled', !enableCb.checked);
-            });
-            enableWrap.appendChild(enableCb);
-            enableWrap.appendChild(Object.assign(
-                document.createElement('span'), { textContent: 'Enabled' }));
-            header.appendChild(enableWrap);
+                enableWrap.appendChild(enableCb);
+                enableWrap.appendChild(Object.assign(
+                    document.createElement('span'), { textContent: 'Enabled' }));
+                header.appendChild(enableWrap);
+            }
 
-            const btnUp   = document.createElement('button'); btnUp.textContent   = '↑';
-            const btnDown = document.createElement('button'); btnDown.textContent = '↓';
             const btnRm   = document.createElement('button'); btnRm.textContent   = '✕';
-            btnUp.disabled   = (i === 0);
-            btnDown.disabled = (i === sceneStore.scene.transforms.length - 1);
-            btnUp.addEventListener('click', () => {
-                mutateScene('transforms.reorder', `up:${i}`, (scene) => {
-                    [scene.transforms[i - 1], scene.transforms[i]] =
-                        [scene.transforms[i], scene.transforms[i - 1]];
+            if (!isPaletteTransform) {
+                const btnUp   = document.createElement('button'); btnUp.textContent   = '↑';
+                const btnDown = document.createElement('button'); btnDown.textContent = '↓';
+                btnUp.disabled = (
+                    i === 0 ||
+                    transformDomain(sceneStore.scene.transforms[i - 1]?.id) === 'palette'
+                );
+                btnDown.disabled = (i === sceneStore.scene.transforms.length - 1);
+                btnUp.addEventListener('click', () => {
+                    mutateScene('transforms.reorder', `up:${i}`, (scene) => {
+                        if (transformDomain(scene.transforms[i - 1]?.id) === 'palette') return;
+                        [scene.transforms[i - 1], scene.transforms[i]] =
+                            [scene.transforms[i], scene.transforms[i - 1]];
+                    });
+                    rebuildList();
                 });
-                rebuildList();
-            });
-            btnDown.addEventListener('click', () => {
-                mutateScene('transforms.reorder', `down:${i}`, (scene) => {
-                    [scene.transforms[i + 1], scene.transforms[i]] =
-                        [scene.transforms[i], scene.transforms[i + 1]];
+                btnDown.addEventListener('click', () => {
+                    mutateScene('transforms.reorder', `down:${i}`, (scene) => {
+                        if (transformDomain(scene.transforms[i]?.id) === 'palette') return;
+                        [scene.transforms[i + 1], scene.transforms[i]] =
+                            [scene.transforms[i], scene.transforms[i + 1]];
+                    });
+                    rebuildList();
                 });
-                rebuildList();
-            });
-            btnRm.addEventListener('click', () => {
-                mutateScene('transforms.remove', `${i}:${t.id}`, (scene) => {
-                    scene.transforms.splice(i, 1);
+                header.appendChild(btnUp);
+                header.appendChild(btnDown);
+            }
+            if (!isFixedGreyscalePalette) {
+                btnRm.addEventListener('click', () => {
+                    mutateScene('transforms.remove', `${i}:${t.id}`, (scene) => {
+                        scene.transforms.splice(i, 1);
+                    });
+                    rebuildAddOptions();
+                    rebuildList();
                 });
-                rebuildList();
-            });
-            header.appendChild(btnUp); header.appendChild(btnDown); header.appendChild(btnRm);
+                header.appendChild(btnRm);
+            }
             card.appendChild(header);
+
+            if (isPaletteTransform) {
+                const paletteForm = document.createElement('div');
+                paletteForm.className = 'config-form';
+                paletteForm.appendChild(renderPaletteSelector());
+                card.appendChild(paletteForm);
+            }
 
             card.appendChild(renderConfigForm(def.config, t.config, (name, value) => {
                 mutateScene(`transforms.${i}.${t.id}.config.${name}`, value, () => {
@@ -1501,39 +1976,33 @@ function renderTransformsSection() {
     }
 
     addBtn.addEventListener('click', () => {
+        if (!addSel.value) return;
         mutateScene('transforms.add', addSel.value, (scene) => {
-            scene.transforms.push({ id: addSel.value, config: {}, signals: {} });
+            if (!isTransformAddable(scene, addSel.value)) return;
+            const transform = transformDomain(addSel.value) === 'palette'
+                ? DEFAULT_PALETTE_TRANSFORM()
+                : { id: addSel.value, config: {}, signals: {} };
+            if (transformDomain(transform.id) === 'palette') {
+                scene.transforms.unshift(transform);
+            } else {
+                scene.transforms.push(transform);
+            }
         });
+        rebuildAddOptions();
         rebuildList();
     });
 
+    rebuildAddOptions();
     rebuildList();
     return section;
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Palette + save/load + status
+// Save/load + status
 // ─────────────────────────────────────────────────────────────────────
 
 function renderTopSection() {
     const section = document.createElement('section'); section.className = 'panel-section';
-
-    const palRow = document.createElement('div'); palRow.className = 'top-row';
-    palRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Palette' }));
-    const palSel = document.createElement('select');
-    for (const p of PALETTES) {
-        const o = document.createElement('option'); o.value = p.id; o.textContent = p.name;
-        palSel.appendChild(o);
-    }
-    palSel.value = sceneStore.scene.paletteId;
-    palSel.addEventListener('change', () => {
-        const paletteId = parseInt(palSel.value, 10);
-        mutateScene('paletteId', paletteId, (scene) => {
-            scene.paletteId = paletteId;
-        });
-    });
-    palRow.appendChild(palSel);
-    section.appendChild(palRow);
 
     // Display geometry is selected at WASM startup. Runtime display rebuilds
     // can leave the generated FastLED worker with stale display/screenmap
@@ -1591,7 +2060,7 @@ function renderTopSection() {
     const ioRow = document.createElement('div'); ioRow.className = 'top-row action-row';
     const saveBtn = document.createElement('button'); saveBtn.textContent = 'Download .psc';
     const savePlaylistBtn = document.createElement('button'); savePlaylistBtn.textContent = 'Add to playlist';
-    const importPlaylistBtn = document.createElement('button'); importPlaylistBtn.textContent = 'Import to playlist';
+    const importPlaylistBtn = document.createElement('button'); importPlaylistBtn.textContent = 'Import';
     const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load .psc';
     const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset renderer';
     resetBtn.title = 'Reload the renderer from the last successfully applied scene';
@@ -1662,6 +2131,7 @@ function renderTopSection() {
             try {
                 bytes = new Uint8Array(ev.target.result);
                 const decoded = decodeScene(bytes);
+                clearPlaylistBaseline({ clearSelection: true });
                 sceneStore.setScene(decoded, {
                     path: 'scene.load',
                     value: sceneSummary(decoded),
@@ -1711,18 +2181,17 @@ function renderTopSection() {
     bloomLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Bloom' }));
     ioRow.appendChild(loadBtn);
     ioRow.appendChild(saveBtn);
-    ioRow.appendChild(savePlaylistBtn);
-    ioRow.appendChild(importPlaylistBtn);
+    if (state.composerTab === 'new') {
+        ioRow.appendChild(savePlaylistBtn);
+    }
+    if (state.composerTab === 'playlist') {
+        ioRow.appendChild(importPlaylistBtn);
+    }
     ioRow.appendChild(resetBtn);
     ioRow.appendChild(bloomLabel);
     ioRow.appendChild(fileIn);
     ioRow.appendChild(importIn);
     section.appendChild(ioRow);
-
-    state.statusEl = document.createElement('div');
-    state.statusEl.className = 'status';
-    state.statusEl.textContent = 'idle';
-    section.appendChild(state.statusEl);
 
     const tabs = document.createElement('div');
     tabs.className = 'composer-tabs';
@@ -1773,6 +2242,7 @@ function renderTopSection() {
             if (!preset) return;
             state.presetSelected = preset.id;
             const nextScene = preset.scene();
+            clearPlaylistBaseline({ clearSelection: true });
             sceneStore.setScene(nextScene, {
                 path: 'scene.preset',
                 value: preset.label,
@@ -1787,72 +2257,7 @@ function renderTopSection() {
     }
 
     if (state.composerTab === 'playlist') {
-        const playlistRow = document.createElement('div'); playlistRow.className = 'top-row';
-        playlistRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Files' }));
-        if (!state.playlistApiChecked) {
-            playlistRow.appendChild(Object.assign(document.createElement('span'), {
-                className: 'muted-note',
-                textContent: 'checking local playlist API',
-            }));
-        } else if (!state.playlistApiAvailable) {
-            playlistRow.appendChild(Object.assign(document.createElement('span'), {
-                className: 'muted-note',
-                textContent: 'available only from web/serve.sh',
-            }));
-        } else if (state.playlistItems.length === 0) {
-            playlistRow.appendChild(Object.assign(document.createElement('span'), {
-                className: 'muted-note',
-                textContent: 'no saved compositions in build/psc',
-            }));
-        } else {
-            playlistRow.appendChild(Object.assign(document.createElement('span'), {
-                className: 'muted-note',
-                textContent: `${state.playlistItems.length} composition${state.playlistItems.length === 1 ? '' : 's'} in build/psc`,
-            }));
-        }
-        const refreshBtn = document.createElement('button');
-        refreshBtn.textContent = 'Refresh';
-        refreshBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
-        refreshBtn.addEventListener('click', () => {
-            void refreshPlaylistItems({ rebuild: true });
-        });
-        playlistRow.appendChild(refreshBtn);
-        section.appendChild(playlistRow);
-
-        if (state.playlistApiAvailable && state.playlistItems.length > 0) {
-            const playlistList = document.createElement('div');
-            playlistList.className = 'playlist-list';
-            for (const file of state.playlistItems) {
-                const item = document.createElement('div');
-                item.className = file.name === state.playlistSelected
-                    ? 'playlist-item active'
-                    : 'playlist-item';
-                const loadSavedBtn = document.createElement('button');
-                loadSavedBtn.type = 'button';
-                loadSavedBtn.textContent = file.name;
-                loadSavedBtn.title = `Load ${file.name}`;
-                loadSavedBtn.className = 'playlist-load-btn';
-                loadSavedBtn.disabled = state.playlistBusy || state.deployBusy;
-                loadSavedBtn.addEventListener('click', () => {
-                    void loadPlaylistScene(file.name);
-                });
-                const deleteSavedBtn = document.createElement('button');
-                deleteSavedBtn.type = 'button';
-                deleteSavedBtn.textContent = '×';
-                deleteSavedBtn.className = 'playlist-delete-btn';
-                deleteSavedBtn.title = `Delete ${file.name}`;
-                deleteSavedBtn.setAttribute('aria-label', `Delete ${file.name}`);
-                deleteSavedBtn.disabled = state.playlistBusy || state.deployBusy;
-                deleteSavedBtn.addEventListener('click', () => {
-                    void deletePlaylistScene(file.name);
-                });
-                item.appendChild(loadSavedBtn);
-                item.appendChild(deleteSavedBtn);
-                playlistList.appendChild(item);
-            }
-            section.appendChild(playlistList);
-        }
-
+        const compatiblePlaylistItems = supportedPlaylistItems();
         const targetRow = document.createElement('div'); targetRow.className = 'top-row';
         targetRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'MCU' }));
         if (!state.deployApiAvailable) {
@@ -1901,10 +2306,10 @@ function renderTopSection() {
             || state.playlistBusy
             || state.deployDetectBusy
             || state.displayBrightnessBusy
-            || state.playlistItems.length === 0
+            || compatiblePlaylistItems.length === 0
             || !state.deployTarget;
-        if (state.playlistItems.length === 0) {
-            deployBtn.title = 'Save at least one composition to build/psc first';
+        if (compatiblePlaylistItems.length === 0) {
+            deployBtn.title = 'Save at least one compatible composition to build/psc first';
         } else if (state.displayBrightnessBusy) {
             deployBtn.title = 'Wait for brightness to save';
         } else if (state.deployDetectBusy) {
@@ -1912,7 +2317,7 @@ function renderTopSection() {
         } else if (!state.deployTarget) {
             deployBtn.title = 'Choose an MCU target first';
         } else {
-            deployBtn.title = `Build and upload ${state.playlistItems.length} playlist composition${state.playlistItems.length === 1 ? '' : 's'} to ${deployTargetLabel(state.deployTarget)}`;
+            deployBtn.title = `Build and upload ${compatiblePlaylistItems.length} playlist composition${compatiblePlaylistItems.length === 1 ? '' : 's'} to ${deployTargetLabel(state.deployTarget)}`;
         }
         deployBtn.addEventListener('click', () => {
             void startDeployToMcu();
@@ -1934,6 +2339,116 @@ function renderTopSection() {
         }
         if (deployInfo.textContent) deployRow.appendChild(deployInfo);
         section.appendChild(deployRow);
+
+        const playlistRow = document.createElement('div'); playlistRow.className = 'top-row';
+        playlistRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Files' }));
+        if (!state.playlistApiChecked) {
+            playlistRow.appendChild(Object.assign(document.createElement('span'), {
+                className: 'muted-note',
+                textContent: 'checking local playlist API',
+            }));
+        } else if (!state.playlistApiAvailable) {
+            playlistRow.appendChild(Object.assign(document.createElement('span'), {
+                className: 'muted-note',
+                textContent: 'available only from web/serve.sh',
+            }));
+        } else if (state.playlistItems.length === 0) {
+            playlistRow.appendChild(Object.assign(document.createElement('span'), {
+                className: 'muted-note',
+                textContent: 'no saved compositions in build/psc',
+            }));
+        } else {
+            const incompatibleCount = state.playlistItems.length - compatiblePlaylistItems.length;
+            const compatibilitySuffix = incompatibleCount > 0 ? `, ${incompatibleCount} incompatible` : '';
+            playlistRow.appendChild(Object.assign(document.createElement('span'), {
+                className: 'muted-note',
+                textContent: `${compatiblePlaylistItems.length}/${state.playlistItems.length} compatible composition${compatiblePlaylistItems.length === 1 ? '' : 's'} in build/psc${compatibilitySuffix}`,
+            }));
+        }
+        const refreshBtn = document.createElement('button');
+        refreshBtn.textContent = 'Refresh';
+        refreshBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
+        refreshBtn.addEventListener('click', () => {
+            void refreshPlaylistItems({ rebuild: true });
+        });
+        playlistRow.appendChild(refreshBtn);
+        section.appendChild(playlistRow);
+
+        if (state.playlistApiAvailable && state.playlistItems.length > 0) {
+            const playlistList = document.createElement('div');
+            playlistList.className = 'playlist-list';
+            for (const file of state.playlistItems) {
+                const item = document.createElement('div');
+                const itemClasses = ['playlist-item'];
+                const isSelected = file.name === state.playlistSelected;
+                const isKeyboardActive = isSelected && file.name === state.playlistActiveName;
+                const isSupported = playlistFileSupported(file);
+                if (isSelected) itemClasses.push('selected');
+                if (isKeyboardActive) itemClasses.push('active');
+                if (!isSupported) itemClasses.push('unsupported');
+                item.className = itemClasses.join(' ');
+                const loadSavedBtn = document.createElement('button');
+                loadSavedBtn.type = 'button';
+                loadSavedBtn.textContent = file.name;
+                loadSavedBtn.title = isSupported
+                    ? `Load ${file.name}`
+                    : `${file.name}: ${playlistFileIssue(file)}`;
+                loadSavedBtn.className = 'playlist-load-btn';
+                loadSavedBtn.dataset.playlistName = file.name;
+                loadSavedBtn.disabled = !isSupported || state.playlistBusy || state.deployBusy;
+                loadSavedBtn.addEventListener('click', () => {
+                    void loadPlaylistScene(file.name, { activate: true });
+                });
+                const deleteSavedBtn = document.createElement('button');
+                deleteSavedBtn.type = 'button';
+                deleteSavedBtn.textContent = '×';
+                deleteSavedBtn.className = 'playlist-delete-btn';
+                deleteSavedBtn.title = `Delete ${file.name}`;
+                deleteSavedBtn.setAttribute('aria-label', `Delete ${file.name}`);
+                deleteSavedBtn.disabled = state.playlistBusy || state.deployBusy;
+                deleteSavedBtn.addEventListener('click', () => {
+                    void deletePlaylistScene(file.name);
+                });
+                item.appendChild(loadSavedBtn);
+                if (file.name === state.playlistSelected && file.name === state.playlistBaselineName && state.playlistDirty) {
+                    const dirtyActions = document.createElement('div');
+                    dirtyActions.className = 'playlist-dirty-actions';
+
+                    const updateBtn = document.createElement('button');
+                    updateBtn.type = 'button';
+                    updateBtn.textContent = 'Update';
+                    updateBtn.title = `Overwrite ${file.name}`;
+                    updateBtn.disabled = state.playlistBusy || state.deployBusy;
+                    updateBtn.addEventListener('click', () => {
+                        void updateSelectedPlaylistScene();
+                    });
+                    dirtyActions.appendChild(updateBtn);
+
+                    const saveNewBtn = document.createElement('button');
+                    saveNewBtn.type = 'button';
+                    saveNewBtn.textContent = 'Save as new';
+                    saveNewBtn.title = `Save a new copy based on ${file.name}`;
+                    saveNewBtn.disabled = state.playlistBusy || state.deployBusy;
+                    saveNewBtn.addEventListener('click', () => {
+                        void saveSelectedPlaylistSceneAsNew();
+                    });
+                    dirtyActions.appendChild(saveNewBtn);
+
+                    const discardBtn = document.createElement('button');
+                    discardBtn.type = 'button';
+                    discardBtn.textContent = 'Discard';
+                    discardBtn.title = `Reload ${file.name}`;
+                    discardBtn.disabled = state.playlistBusy || state.deployBusy;
+                    discardBtn.addEventListener('click', discardSelectedPlaylistChanges);
+                    dirtyActions.appendChild(discardBtn);
+
+                    item.appendChild(dirtyActions);
+                }
+                item.appendChild(deleteSavedBtn);
+                playlistList.appendChild(item);
+            }
+            section.appendChild(playlistList);
+        }
     }
 
     return section;
@@ -2011,13 +2526,17 @@ function mountResizeHandle() {
 
 function rebuildPanel() {
     if (!panelContentEl) return;
+    const showSceneEditor = shouldShowSceneEditor();
+    if (showSceneEditor) ensurePatternTypeAvailableForDisplay();
     panelContentEl.innerHTML = '';
     const title = document.createElement('h1');
     title.textContent = 'Composer';
     panelContentEl.appendChild(title);
     panelContentEl.appendChild(renderTopSection());
-    panelContentEl.appendChild(renderPatternSection());
-    panelContentEl.appendChild(renderTransformsSection());
+    if (showSceneEditor) {
+        panelContentEl.appendChild(renderPatternSection());
+        panelContentEl.appendChild(renderTransformsSection());
+    }
 }
 
 function mountPanel() {
@@ -2032,6 +2551,9 @@ function mountPanel() {
     window.addEventListener('resize', () => {
         setPanelWidth(panelEl.getBoundingClientRect().width);
     });
+    document.addEventListener('click', handlePlaylistDocumentClick);
+    document.addEventListener('focusin', handlePlaylistDocumentFocus);
+    document.addEventListener('keydown', handlePlaylistKeydown);
     mountDebugConsole();
     rebuildPanel();
     void refreshPlaylistCapability({ rebuild: true });

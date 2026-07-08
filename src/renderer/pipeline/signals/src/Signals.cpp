@@ -48,6 +48,10 @@ namespace PolarShader {
             return f16(static_cast<uint16_t>(raw(phaseOffset)));
         }
 
+        sf16 resolveNoisePhaseOffset(sf16 phaseOffset) {
+            return raw(phaseOffset) == 0 ? randomPhaseOffset() : phaseOffset;
+        }
+
         f16 timeToProgress(TimeMillis t, TimeMillis duration) {
             if (duration == 0) return f16(0);
             if (t >= duration) t = duration;
@@ -158,6 +162,7 @@ namespace PolarShader {
         Sf16Signal phaseVelocity,
         sf16 phaseOffset
     ) {
+        phaseOffset = resolveNoisePhaseOffset(phaseOffset);
         const uint32_t phaseOffsetRaw = static_cast<uint32_t>(raw(wrapPhaseOffset(phaseOffset))) << 16;
 
         return Sf16Signal(

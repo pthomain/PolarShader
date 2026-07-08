@@ -40,6 +40,14 @@ namespace PolarShader {
         ) {
             return {std::move(pattern), palette, name};
         }
+
+        PaletteTransform presetPaletteTransform(Sf16Signal offset) {
+            return PaletteTransform(
+                std::move(offset),
+                constant(0),
+                f16(32768),
+                PipelineContext::PaletteTintMode::HueRemap);
+        }
     }
 
     LayerBuilder defaultPreset(
@@ -152,7 +160,7 @@ namespace PolarShader {
                     palette,
                     "kaleidoscope"
                 )
-                .addPaletteTransform(PaletteTransform(noise(constant(600))))
+                .addPaletteTransform(presetPaletteTransform(noise(constant(600))))
                 .addTransform(TranslationTransform(
                     noise(constant(550)),
                     noise(constant(550), constant(350), constant(650))
@@ -319,9 +327,7 @@ namespace PolarShader {
                     "flowFieldKaleidoscope"
                 )
                 .addPaletteTransform(
-                    PaletteTransform(
-                        noise(constant(600))
-                    )
+                    presetPaletteTransform(noise(constant(600)))
                 )
                 .addTransform(TranslationTransform(
                     noise(constant(550)),
@@ -356,7 +362,7 @@ namespace PolarShader {
                     "spiralSink"
                 )
                 .addPaletteTransform(
-                    PaletteTransform(noise())
+                    presetPaletteTransform(noise())
                 )
                 .addTransform(KaleidoscopeTransform(4, true))
                 .addTransform(
@@ -418,9 +424,7 @@ namespace PolarShader {
                     "shockwave"
                 )
                 .addPaletteTransform(
-                    PaletteTransform(
-                        noise(constant(600))
-                    )
+                    presetPaletteTransform(noise(constant(600)))
                 )
                 .addTransform(
                     RotationTransform(
@@ -513,7 +517,7 @@ namespace PolarShader {
                     "spiral"
                 )
                 .addPaletteTransform(
-                    PaletteTransform(noise(constant(200)))
+                    presetPaletteTransform(noise(constant(200)))
                 )
                 .addTransform(
                     RotationTransform(

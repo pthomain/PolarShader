@@ -25,12 +25,16 @@ namespace PolarShader {
         : provider(std::move(provider)) {
     }
 
+    void SceneManager::setRasterDisplayInfo(const RasterDisplayInfo &info) {
+        rasterDisplay = info;
+    }
+
     void SceneManager::advanceFrame(TimeMillis currentTimeMs) {
         if (!currentScene || currentScene->isExpired(currentTimeMs - currentSceneStartTimeMs)) {
             currentScene = provider->nextScene();
             if (currentScene) {
                 currentSceneStartTimeMs = currentTimeMs;
-                currentScene->compile();
+                currentScene->compile(rasterDisplay);
             }
         }
 
@@ -56,7 +60,7 @@ namespace PolarShader {
         }
         currentScene = std::move(scene);
         currentSceneStartTimeMs = currentTimeMs;
-        currentScene->compile();
+        currentScene->compile(rasterDisplay);
     }
 
     void SceneManager::replaceScenePreservingElapsed(std::unique_ptr<Scene> scene) {
@@ -64,13 +68,13 @@ namespace PolarShader {
             return;
         }
         currentScene = std::move(scene);
-        currentScene->compile();
+        currentScene->compile(rasterDisplay);
     }
 
-    CRGB SceneManager::sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+    CRGB SceneManager::sample(uint8_t coreIndex, const RenderPoint &point) const {
         if (!currentScene) {
             return CRGB::Black;
         }
-        return currentScene->sample(coreIndex, angle, radius);
+        return currentScene->sample(coreIndex, point);
     }
 }

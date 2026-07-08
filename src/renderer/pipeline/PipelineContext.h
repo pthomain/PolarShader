@@ -22,6 +22,7 @@
 #define POLAR_SHADER_PIPELINE_PIPELINECONTEXT_H
 
 #include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/RenderPoint.h"
 
 namespace PolarShader {
     struct PipelineContext {
@@ -56,12 +57,19 @@ namespace PolarShader {
             Native = 2
         };
 
-        PaletteTintMode paletteTintMode = PaletteTintMode::HueRemap;
+        // Default is Native: patterns render their own RGB (colour patterns
+        // their emitted hue, scalar patterns greyscale). The palette is only
+        // applied when a palette transform opts in by switching this to
+        // HueRemap or ColourMask.
+        PaletteTintMode paletteTintMode = PaletteTintMode::Native;
 
         // True when the active palette is the Rainbow palette. A HueRemap of a
         // colour pattern's emitted hue onto the Rainbow palette is redundant
         // (the palette already is the hue wheel), so it is rendered natively.
         bool paletteIsRainbow = false;
+
+        // Logical raster geometry for display-native pixel-grid patterns.
+        RasterDisplayInfo rasterDisplay{};
 
         // Palette brightness is always full when mapping colors.
     };

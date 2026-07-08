@@ -48,6 +48,27 @@ namespace PolarShader {
             uint16_t linearIndex = row * WIDTH + col;
             return MatrixDisplaySpec::toPolarCoords(linearIndex);
         }
+
+        RenderPoint toRenderPoint(uint16_t pixelIndex) const override {
+            uint16_t row = pixelIndex / WIDTH;
+            uint16_t col = pixelIndex % WIDTH;
+
+            // Serpentine: odd rows are wired right-to-left. Raster patterns
+            // need visual x/y, so invert the same physical mapping used above.
+            if (row & 1) {
+                col = (WIDTH - 1) - col;
+            }
+
+            uint16_t linearIndex = row * WIDTH + col;
+            RenderPoint point = makePolarRenderPoint(MatrixDisplaySpec::toPolarCoords(linearIndex));
+            point.raster.valid = true;
+            point.raster.index = linearIndex;
+            point.raster.x = col;
+            point.raster.y = row;
+            point.raster.width = WIDTH;
+            point.raster.height = HEIGHT;
+            return point;
+        }
     };
 }
 #endif //POLARSHADER_FABRICDISPLAYSPEC_H

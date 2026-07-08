@@ -86,6 +86,21 @@ namespace PolarShader {
                 f16(static_cast<uint16_t>(polar.v.raw()))
             };
         }
+
+        RenderPoint toRenderPoint(uint16_t pixelIndex) const override {
+            RenderPoint point = makePolarRenderPoint(toPolarCoords(pixelIndex));
+            const uint16_t mWidth = matrixWidth();
+            const uint16_t mHeight = matrixHeight();
+            if (pixelIndex < nbLeds() && mWidth > 0 && mHeight > 0) {
+                point.raster.valid = true;
+                point.raster.index = pixelIndex;
+                point.raster.x = pixelIndex % mWidth;
+                point.raster.y = pixelIndex / mWidth;
+                point.raster.width = mWidth;
+                point.raster.height = mHeight;
+            }
+            return point;
+        }
     };
 }
 #endif //POLARSHADER_MATRIXDISPLAYSPEC_H

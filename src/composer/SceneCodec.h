@@ -27,20 +27,20 @@
 #include "renderer/scene/Scene.h"
 
 namespace PolarShader::composer {
-    // Wire format (.psc v0):
+    // Wire format:
     //
     //   offset  size  field
     //   ─────── ────  ──────────────────────────────────────────────
     //   0       4     magic        "PSC\0"  (0x50 0x53 0x43 0x00)
-    //   4       1     version      0x00
+    //   4       1     version      0x01
     //   5       1     palette_id   composer palette ID (PaletteTable)
     //   6       1     pattern_tag  see PATTERN_TAGS in SceneCodec.cpp
-    //   7       …     pattern_body static-config bytes + signal slots
+    //   7       2     pattern_len  little-endian body length
+    //   …       …     pattern_body static-config bytes + signal slots
     //   …       1     transform_n  transform count
-    //   …       …     transform[i] tag(1) + static-config + signal slots
+    //   …       …     transform[i] tag(1) + length(2) + static-config + signal slots
     //
-    // A Signal blob is recursive: 1 byte signal_tag followed by a
-    // tag-specific body. Modulator tags embed nested Signal blobs.
+    // A Signal blob is recursive: signal_tag(1) + body_len(2) + body.
     //
     // Little-endian throughout. The format is display-agnostic — nothing
     // in the file ties a scene to fabric vs round.

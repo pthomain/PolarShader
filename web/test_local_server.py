@@ -11,11 +11,117 @@ import threading
 import time
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+WEB_DIR = Path(__file__).resolve().parent
+REPO_ROOT = WEB_DIR.parent
+sys.path.insert(0, str(WEB_DIR))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
 import local_server  # noqa: E402
+import psc_v1  # noqa: E402
 
 
-VALID_PSC = b"PSC\0\0\0"
+VALID_PSC = bytes([
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x00, 0x05, 0x00,
+    0x00, 0x02, 0x00, 0xF4, 0x01,
+    0x00,
+])
+VALID_PSC_ALT = bytes([
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x00, 0x05, 0x00,
+    0x00, 0x02, 0x00, 0xF5, 0x01,
+    0x00,
+])
+LEGACY_PALETTE_TRANSFORM_PSC = bytes([
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x00, 0x05, 0x00,
+    0x00, 0x02, 0x00, 0xF4, 0x01,
+    0x01,
+    0x06, 0x05, 0x00,
+    0x00, 0x02, 0x00, 0x64, 0x00,
+])
+JS_XOR_FIXTURE = bytes([
+    0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x22, 0x03, 0x00, 0x10, 0x28, 0x00,
+    0x00,
+])
+JS_CONWAY_PALETTE_FIXTURE = bytes([
+    0x50, 0x53, 0x43, 0x00, 0x01, 0x00, 0x2B, 0x06, 0x00, 0xFA, 0x00, 0x01,
+    0x00, 0x5E, 0x01, 0x01, 0x09, 0x0D, 0x00, 0x00, 0x80, 0x02, 0x00, 0x02,
+    0x00, 0xF4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+])
+JS_NESTED_SIGNALS_PALETTE_CLIP_FIXTURE = bytes([
+    0x50, 0x53, 0x43, 0x00, 0x01, 0x02, 0x00, 0x19, 0x00, 0x1F, 0x16, 0x00,
+    0x10, 0x09, 0x00, 0x00, 0x02, 0x00, 0x32, 0x00, 0xD2, 0x04, 0x00, 0x00,
+    0x00, 0x02, 0x00, 0x64, 0x00, 0x00, 0x02, 0x00, 0x84, 0x03, 0x02, 0x09,
+    0x21, 0x00, 0x00, 0x40, 0x01, 0x10, 0x09, 0x00, 0x00, 0x02, 0x00, 0x78,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x1D, 0x0F, 0x00, 0x00, 0x02, 0x00, 0xD9,
+    0x00, 0x00, 0x02, 0x00, 0x64, 0x00, 0x00, 0x02, 0x00, 0x20, 0x03, 0x02,
+    0x1B, 0x00, 0x20, 0x18, 0x00, 0x1B, 0x13, 0x00, 0x00, 0x02, 0x00, 0x4D,
+    0x01, 0x4D, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x96, 0x00, 0x00, 0x02,
+    0x00, 0x52, 0x03, 0x00, 0x80,
+])
+
+
+class PscValidationTest(unittest.TestCase):
+    def test_validator_accepts_current_cross_impl_fixtures(self) -> None:
+        fixtures = [
+            ("simple", VALID_PSC, 0x00),
+            ("xor", JS_XOR_FIXTURE, 0x22),
+            ("conway", JS_CONWAY_PALETTE_FIXTURE, 0x2B),
+            ("nested paletteClip", JS_NESTED_SIGNALS_PALETTE_CLIP_FIXTURE, 0x00),
+        ]
+
+        for name, payload, expected_tag in fixtures:
+            with self.subTest(name=name):
+                info = psc_v1.validate_psc_scene(payload)
+                self.assertEqual(info.pattern_tag, expected_tag)
+                tag, error = local_server._psc_pattern_tag(payload)
+                self.assertEqual(tag, expected_tag)
+                self.assertIsNone(error)
+
+    def test_validator_rejects_legacy_palette_transform(self) -> None:
+        tag, error = local_server._psc_pattern_tag(LEGACY_PALETTE_TRANSFORM_PSC)
+        self.assertEqual(tag, 0)
+        self.assertEqual(error, "unknown transform tag 0x06")
+
+    def test_playlist_metadata_reads_full_psc_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.psc"
+            path.write_bytes(LEGACY_PALETTE_TRANSFORM_PSC)
+
+            metadata = local_server._psc_file_metadata(path)
+
+        self.assertFalse(metadata["supported"])
+        self.assertEqual(metadata["patternTag"], 0)
+        self.assertEqual(metadata["error"], "unknown transform tag 0x06")
+
+    def test_deploy_start_releases_lock_when_job_creation_fails(self) -> None:
+        original_job_class = local_server.DeployJob
+
+        class BrokenDeployJob:
+            def __init__(self, *_args, **_kwargs):
+                raise RuntimeError("job creation failed")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = local_server.DeployManager(
+                Path(tmp),
+                sys.executable,
+                platformio_base_override=[sys.executable],
+            )
+            local_server.DeployJob = BrokenDeployJob
+            try:
+                with self.assertRaises(local_server.ApiError) as caught:
+                    manager.start_deploy("teensy41_matrix")
+            finally:
+                local_server.DeployJob = original_job_class
+
+        self.assertEqual(caught.exception.status, 500)
+        self.assertFalse(manager.is_deploy_active())
 
 
 class LocalServerTest(unittest.TestCase):
@@ -146,6 +252,34 @@ class LocalServerTest(unittest.TestCase):
         self.assertTrue((self.repo_root / "build" / "psc" / "original.psc").is_file())
         self.assertTrue((self.repo_root / "build" / "psc" / "original-1.psc").is_file())
         self.assertTrue((self.repo_root / "build" / "psc" / "original-2.psc").is_file())
+
+    def test_playlist_save_overwrite_updates_existing_file(self) -> None:
+        path = self.repo_root / "build" / "psc" / "existing.psc"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"PSC\0\0old")
+
+        status, body = self.request(
+            "POST",
+            "/api/playlist/save?name=existing.psc&overwrite=1",
+            VALID_PSC_ALT,
+            {"Content-Type": "application/octet-stream"},
+        )
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["file"]["name"], "existing.psc")
+        self.assertEqual(path.read_bytes(), VALID_PSC_ALT)
+        self.assertFalse((self.repo_root / "build" / "psc" / "existing-1.psc").exists())
+
+    def test_playlist_save_overwrite_missing_file_is_404(self) -> None:
+        status, body = self.request(
+            "POST",
+            "/api/playlist/save?name=missing.psc&overwrite=1",
+            VALID_PSC,
+            {"Content-Type": "application/octet-stream"},
+        )
+
+        self.assertEqual(status, 404, body)
+        self.assertFalse((self.repo_root / "build" / "psc" / "missing.psc").exists())
 
     def test_playlist_delete_removes_file(self) -> None:
         path = self.repo_root / "build" / "psc" / "delete-me.psc"

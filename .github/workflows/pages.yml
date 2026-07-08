@@ -28,8 +28,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install FastLED WASM CLI
         run: python -m pip install -r web/requirements.txt
+
+      - name: Test Python PSC validator
+        run: python -m unittest web.test_local_server.PscValidationTest
+
+      - name: Test composer codec
+        run: node --test web/test_codec.mjs
 
       - name: Build static site
         run: python web/build_site.py

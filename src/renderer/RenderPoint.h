@@ -18,28 +18,39 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLARSHADER_POLARDISPLAYSPEC_H
-#define POLARSHADER_POLARDISPLAYSPEC_H
+#ifndef POLAR_SHADER_RENDER_POINT_H
+#define POLAR_SHADER_RENDER_POINT_H
 
-#include "FastLED.h"
-#include "renderer/RenderPoint.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-    class PolarDisplaySpec {
-    public:
-        virtual uint16_t numSegments() const = 0;
+    using PolarCoords = fl::pair<f16, f16>;
 
-        virtual uint16_t nbLeds() const = 0;
-
-        virtual uint16_t segmentSize(uint16_t segmentIndex) const = 0;
-
-        virtual PolarCoords toPolarCoords(uint16_t pixelIndex) const = 0;
-
-        virtual RenderPoint toRenderPoint(uint16_t pixelIndex) const {
-            return makePolarRenderPoint(toPolarCoords(pixelIndex));
-        }
-
-        virtual ~PolarDisplaySpec() = default;
+    struct RasterDisplayInfo {
+        bool valid{false};
+        uint16_t width{0};
+        uint16_t height{0};
+        uint32_t cellCount{0};
     };
+
+    struct RasterPoint {
+        bool valid{false};
+        uint16_t index{0};
+        uint16_t x{0};
+        uint16_t y{0};
+        uint16_t width{0};
+        uint16_t height{0};
+    };
+
+    struct RenderPoint {
+        f16 angle{0};
+        f16 radius{0};
+        RasterPoint raster{};
+    };
+
+    inline RenderPoint makePolarRenderPoint(PolarCoords coords) {
+        return RenderPoint{coords.first, coords.second, RasterPoint{}};
+    }
 }
-#endif //POLARSHADER_POLARDISPLAYSPEC_H
+
+#endif // POLAR_SHADER_RENDER_POINT_H

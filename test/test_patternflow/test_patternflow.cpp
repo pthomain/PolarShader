@@ -266,7 +266,7 @@ static size_t distinctColours(ColourMap &cm) {
     for (uint32_t a = 0; a < 0x10000u; a += 0x0EE7u) {       // full turn
         for (int r = 1; r <= 8; ++r) {                        // centre -> edge
             uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 8);
-            CRGB c = cm(f16(static_cast<uint16_t>(a)), f16(radius));
+            CRGB c = cm(RenderPoint{f16(static_cast<uint16_t>(a)), f16(radius), RasterPoint{}});
             colours.insert((static_cast<uint32_t>(c.r) << 16) |
                            (static_cast<uint32_t>(c.g) << 8) | c.b);
         }
@@ -309,8 +309,9 @@ void test_alias_matches_canonical_first_frame() {
         for (uint32_t a = 0; a < 0x10000u && identical; a += 0x2000u) {
             for (int r = 1; r <= 6; ++r) {
                 uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 6);
-                CRGB c1 = (*cc)(f16(static_cast<uint16_t>(a)), f16(radius));
-                CRGB c2 = (*ac)(f16(static_cast<uint16_t>(a)), f16(radius));
+                RenderPoint point{f16(static_cast<uint16_t>(a)), f16(radius), RasterPoint{}};
+                CRGB c1 = (*cc)(point);
+                CRGB c2 = (*ac)(point);
                 if (c1.r != c2.r || c1.g != c2.g || c1.b != c2.b) { identical = false; break; }
             }
         }

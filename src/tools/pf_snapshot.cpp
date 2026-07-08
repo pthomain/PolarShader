@@ -189,7 +189,7 @@ void dumpPresetPpm(const PfEffect &effect, const CRGBPalette16 &palette) {
             if (turns < 0.0) turns += 1.0;              // [0, 1)
             f16 angle(static_cast<uint16_t>(turns * 65535.0));
             f16 radius(static_cast<uint16_t>(r * 65535.0));
-            CRGB c = (*cm)(angle, radius);
+            CRGB c = (*cm)(RenderPoint{angle, radius, RasterPoint{}});
             rgb[idx + 0] = c.r;
             rgb[idx + 1] = c.g;
             rgb[idx + 2] = c.b;

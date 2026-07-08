@@ -49,9 +49,13 @@ namespace PolarShader {
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs);
 
-        void compile();
+        void compile(const RasterDisplayInfo &rasterDisplay = RasterDisplayInfo{});
 
-        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const;
+        CRGB sample(uint8_t coreIndex, const RenderPoint &point) const;
+
+        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+            return sample(coreIndex, RenderPoint{angle, radius, RasterPoint{}});
+        }
 
         TimeMillis getDuration() const { return durationMs; }
         

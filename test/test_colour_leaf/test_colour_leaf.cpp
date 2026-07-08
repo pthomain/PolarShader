@@ -76,6 +76,23 @@ public:
     }
 };
 
+// A scalar pattern (no emitted hue) that returns a fixed intensity for every
+// UV. Used to assert the scalar mapPalette path: greyscale by default and a
+// brightness-preserving hue-remap when a palette transform opts in.
+class TestScalarPattern : public UVPattern {
+public:
+    PatternNormU16 valValue;
+    mutable std::shared_ptr<PipelineContext> seenCtx;
+
+    explicit TestScalarPattern(uint16_t v) : valValue(v) {}
+
+    UVMap layer(const std::shared_ptr<PipelineContext> &context) const override {
+        seenCtx = context;
+        PatternNormU16 v = valValue;
+        return [v](UV) { return v; };
+    }
+};
+
 static CRGBPalette16 distinctPalette() {
     CRGBPalette16 p;
     for (int i = 0; i < 16; ++i) {
@@ -110,14 +127,73 @@ static Harness makeHarness(const CRGBPalette16 &pal) {
     return Harness{std::move(l), raw};
 }
 
-void test_normal_mode_exact_index() {
+static RenderPoint testPoint() {
+    return RenderPoint{f16(0), f16(0x8000), RasterPoint{}};
+}
+
+struct ScalarHarness {
+    Layer layer;
+    TestScalarPattern *pattern;
+};
+
+static ScalarHarness makeScalarHarness(const CRGBPalette16 &pal, uint16_t value) {
+    auto up = std::make_unique<TestScalarPattern>(value);
+    TestScalarPattern *raw = up.get();
+    Layer l = LayerBuilder(std::move(up), pal, "scalar-leaf-test").build();
+    return ScalarHarness{std::move(l), raw};
+}
+
+// Default (Native) mode: a scalar pattern renders greyscale, so its intensity
+// maps straight to an (v,v,v) RGB and value 0 stays black. The palette is not
+// applied unless a palette transform opts in.
+void test_scalar_default_is_greyscale() {
     CRGBPalette16 pal = distinctPalette();
-    Harness h = makeHarness(pal);
-    // Default context: offset 0, clip disabled, colour-mask off.
+    ScalarHarness h = makeScalarHarness(pal, kVal);
     auto cm = h.layer.compile();
     TEST_ASSERT_NOT_NULL(cm.get());
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
+    uint8_t v = fl::map16_to_8(kVal);
+    assertEqualCRGB(got, CRGB(v, v, v), "scalar default should be greyscale");
+}
+
+void test_scalar_zero_value_stays_black() {
+    CRGBPalette16 pal = distinctPalette();
+    ScalarHarness h = makeScalarHarness(pal, 0);
+    auto cm = h.layer.compile();
+
+    // Native (default): greyscale black.
+    assertEqualCRGB((*cm)(testPoint()), CRGB::Black, "scalar zero should be black (native)");
+
+    // Colour-mask: single tint with value-driven alpha; alpha 0 -> black.
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::ColourMask;
+    assertEqualCRGB((*cm)(testPoint()), CRGB::Black, "scalar zero should be black (colour-mask)");
+}
+
+// HueRemap: intensity selects the palette index (offset = phase). The native
+// ColorFromPalette stub ignores brightness, so index selection is asserted
+// here; value->brightness is proven on WASM/hardware.
+void test_scalar_hue_remap_indexes_palette() {
+    CRGBPalette16 pal = distinctPalette();
+    ScalarHarness h = makeScalarHarness(pal, kVal);
+    auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+    h.pattern->seenCtx->paletteOffset = 6;
+
+    CRGB got = (*cm)(testPoint());
+    uint8_t index = static_cast<uint8_t>(fl::map16_to_8(kVal) + 6);
+    assertEqualCRGB(got, pal.entries[index % 16], "scalar hue-remap index mismatch");
+}
+
+void test_normal_mode_exact_index() {
+    CRGBPalette16 pal = distinctPalette();
+    Harness h = makeHarness(pal);
+    // HueRemap: offset 0, clip disabled, colour-mask off.
+    auto cm = h.layer.compile();
+    TEST_ASSERT_NOT_NULL(cm.get());
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+
+    CRGB got = (*cm)(testPoint());
     uint8_t index = fl::map16_to_8(kHue); // + offset 0
     CRGB expected = pal.entries[index % 16];
     assertEqualCRGB(got, expected, "normal-mode index mismatch");
@@ -127,9 +203,10 @@ void test_normal_mode_offset_shifts_index() {
     CRGBPalette16 pal = distinctPalette();
     Harness h = makeHarness(pal);
     auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteOffset = 5;
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
     uint8_t index = static_cast<uint8_t>(fl::map16_to_8(kHue) + 5);
     CRGB expected = pal.entries[index % 16];
     assertEqualCRGB(got, expected, "offset did not shift index");
@@ -141,11 +218,12 @@ void test_clip_below_value_passes_full_colour() {
     auto cm = h.layer.compile();
     // clip strictly below the value channel, feather 0 -> mask == F16_MAX,
     // so the colour is the un-scaled palette entry.
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteClipEnabled = true;
     h.pattern->seenCtx->paletteClip = PatternNormU16(kVal - 1);
     h.pattern->seenCtx->paletteClipFeather = f16(0);
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
     CRGB expected = pal.entries[fl::map16_to_8(kHue) % 16];
     assertEqualCRGB(got, expected, "value above clip should pass full colour");
 }
@@ -155,11 +233,12 @@ void test_clip_above_value_gates_to_black() {
     Harness h = makeHarness(pal);
     auto cm = h.layer.compile();
     // clip above the value channel, feather 0 -> mask == 0 -> black.
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteClipEnabled = true;
     h.pattern->seenCtx->paletteClip = PatternNormU16(kVal + 1);
     h.pattern->seenCtx->paletteClipFeather = f16(0);
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
     assertEqualCRGB(got, CRGB::Black, "value below clip should gate to black");
 }
 
@@ -170,7 +249,7 @@ void test_colour_mask_single_tint_with_value_alpha() {
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::ColourMask;
     h.pattern->seenCtx->paletteOffset = 7;
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
     // Mirror tintPalette's colour-mask branch: single tint at offset, alpha =
     // scale16(value, mask), mask == F16_MAX (clip disabled).
     uint16_t alpha = scale16(kVal, F16_MAX);
@@ -186,7 +265,7 @@ void test_native_mode_bypasses_palette_via_chsv() {
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::Native;
     h.pattern->seenCtx->paletteOffset = 4;
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
     // Native renders the emitted hue directly with offset as a hue phase; the
     // palette is bypassed. The native stub honours the value->brightness map.
     uint8_t hue8 = static_cast<uint8_t>(fl::map16_to_8(kHue) + 4);
@@ -199,13 +278,13 @@ void test_rainbow_hue_remap_renders_native() {
     CRGBPalette16 pal = distinctPalette();
     Harness h = makeHarness(pal);
     auto cm = h.layer.compile();
-    // HueRemap is the default, but with a Rainbow palette it is redundant and
-    // must render natively (offset applied as a hue phase), NOT index the
-    // provided palette.
+    // With a Rainbow palette a HueRemap is redundant and must render natively
+    // (offset applied as a hue phase), NOT index the provided palette.
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteIsRainbow = true;
     h.pattern->seenCtx->paletteOffset = 3;
 
-    CRGB got = (*cm)(f16(0), f16(0x8000));
+    CRGB got = (*cm)(testPoint());
     uint8_t hue8 = static_cast<uint8_t>(fl::map16_to_8(kHue) + 3);
     uint8_t bright = fl::map16_to_8(kVal);
     CRGB expected = CHSV(hue8, 255, bright);
@@ -221,5 +300,8 @@ int main(int, char **) {
     RUN_TEST(test_colour_mask_single_tint_with_value_alpha);
     RUN_TEST(test_native_mode_bypasses_palette_via_chsv);
     RUN_TEST(test_rainbow_hue_remap_renders_native);
+    RUN_TEST(test_scalar_default_is_greyscale);
+    RUN_TEST(test_scalar_zero_value_stays_black);
+    RUN_TEST(test_scalar_hue_remap_indexes_palette);
     return UNITY_END();
 }

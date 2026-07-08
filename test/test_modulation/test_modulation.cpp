@@ -184,6 +184,24 @@ void test_phase_offset_wraps() {
     TEST_ASSERT_INT32_WITHIN(500, SF16_MIN, raw(s.sample(SIGNED_RANGE, 0)));
 }
 
+/** @brief Verify explicit zero noise phase offsets pick a fresh random phase per signal instance. */
+void test_noise_zero_phase_offset_randomizes_instances() {
+    Sf16Signal first = noise(constant(0), sf16(0));
+    int32_t firstSample = raw(first.sample(SIGNED_RANGE, 0));
+    bool sawDifferentSample = false;
+
+    for (uint8_t i = 0; i < 8; ++i) {
+        Sf16Signal next = noise(constant(0), sf16(0));
+        int32_t nextSample = raw(next.sample(SIGNED_RANGE, 0));
+        if (nextSample != firstSample) {
+            sawDifferentSample = true;
+            break;
+        }
+    }
+
+    TEST_ASSERT_TRUE(sawDifferentSample);
+}
+
 /** @brief Verify smap supports animated floor and ceiling signals. */
 void test_smap_animated_bounds() {
     Sf16Signal s = smap(constant(500), linear(1000), constant(1000));
@@ -254,6 +272,7 @@ void setup() {
     RUN_TEST(test_negative_time_reset);
     RUN_TEST(test_bounded_sine_clamps_and_swaps_bounds);
     RUN_TEST(test_phase_offset_wraps);
+    RUN_TEST(test_noise_zero_phase_offset_randomizes_instances);
     RUN_TEST(test_smap_animated_bounds);
     RUN_TEST(test_smap_preserves_aperiodic_metadata);
     RUN_TEST(test_palette_clip_zero_has_zero_feather);
@@ -275,6 +294,7 @@ int main() {
     RUN_TEST(test_negative_time_reset);
     RUN_TEST(test_bounded_sine_clamps_and_swaps_bounds);
     RUN_TEST(test_phase_offset_wraps);
+    RUN_TEST(test_noise_zero_phase_offset_randomizes_instances);
     RUN_TEST(test_smap_animated_bounds);
     RUN_TEST(test_smap_preserves_aperiodic_metadata);
     RUN_TEST(test_palette_clip_zero_has_zero_feather);

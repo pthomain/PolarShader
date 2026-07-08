@@ -32,6 +32,17 @@ class GeneratePscPlaylistTest(unittest.TestCase):
             self.assertIn("brightness must be between 0 and 255", stdout.getvalue())
             self.assertNotIn("POLAR_SHADER_DISPLAY_BRIGHTNESS", config)
 
+    def test_invalid_psc_file_fails_the_build(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            psc_dir = project_dir / "build" / "psc"
+            psc_dir.mkdir(parents=True)
+            (psc_dir / "broken.psc").write_bytes(b"not a psc file")
+            output_header = project_dir / "out" / "PscPlaylistAssets.h"
+
+            with self.assertRaises(generate_psc_playlist.PscValidationError):
+                generate_psc_playlist.generate(project_dir, output_header)
+
     def test_valid_display_brightness_is_embedded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_dir = Path(tmp)

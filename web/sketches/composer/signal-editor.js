@@ -4,12 +4,40 @@
 // Recursive Sf16Signal editor. Each slot renders as
 //   [type dropdown] [params row]
 // where each param of kind 'signal' is itself a SignalSlot (recursion).
-// The model is a plain object: { id: 'sine', params: { phaseVelocity: {...}, phaseOffset: 0 } }
+// The model is a plain object: { id: 'sine', params: { phaseVelocity: {...}, phaseOffset: 0 } }.
+// Noise signal phase is intentionally hidden; PSC phase 0 means randomize per scene instance.
 // Whenever the model mutates, onChange(updatedModel) fires. The parent
 // (composer.js) re-encodes and pushes to WASM.
 
 import { SIGNALS, DEFAULT_SIGNAL } from './schema.js';
 import { attachStepper } from './stepper.js';
+
+function visibleSignalModel(model) {
+    if (model?.id === 'noise') {
+        // Keep a hidden fixed phase in the model so loaded PSC files can round
+        // trip exactly, even though the editor does not expose a phase control.
+        return {
+            id: 'noise',
+            params: {
+                phaseVelocity: model.params?.phaseVelocity ?? DEFAULT_SIGNAL(),
+                phaseOffset: model.params?.phaseOffset ?? 0,
+            },
+        };
+    }
+    if (model?.id === 'noiseBoundedPhase') {
+        return {
+            id: 'noiseBounded',
+            wireId: 'noiseBoundedPhase',
+            params: {
+                phaseVelocity: model.params?.phaseVelocity ?? DEFAULT_SIGNAL(),
+                phaseOffset: model.params?.phaseOffset ?? 0,
+                floor: model.params?.floor ?? DEFAULT_SIGNAL(),
+                ceiling: model.params?.ceiling ?? DEFAULT_SIGNAL(),
+            },
+        };
+    }
+    return model;
+}
 
 // Render param controls for a leaf or modulator. Mutates `signal.params`
 // in place; onChange() is invoked after every keystroke / dropdown change.
@@ -87,6 +115,7 @@ function renderParamControl(p, signal, onChange) {
         const updateReadout = () => { readout.textContent = input.value; };
         updateReadout();
         input.addEventListener('input', updateReadout);
+        input.addEventListener('stepper-preview', updateReadout);
         wrap.appendChild(readout);
     }
 
@@ -97,6 +126,7 @@ function renderParamControl(p, signal, onChange) {
 // signal object; mutations (id change, param change) call onChange(next)
 // with the new model so the parent can update its tree.
 export function renderSignalSlot(model, onChange) {
+    model = visibleSignalModel(model);
     const slot = document.createElement('div');
     slot.className = 'signal-slot';
 
@@ -104,6 +134,7 @@ export function renderSignalSlot(model, onChange) {
     const typeSel = document.createElement('select');
     typeSel.className = 'signal-type';
     for (const [id, def] of Object.entries(SIGNALS)) {
+        if (def.hidden) continue;
         const opt = document.createElement('option');
         opt.value = id;
         opt.textContent = def.label;

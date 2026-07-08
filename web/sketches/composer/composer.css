@@ -161,6 +161,29 @@ body.composer-resizing {
     border-bottom: 1px solid #232830;
 }
 
+.pattern-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pattern-header h2 {
+    margin-right: auto;
+}
+
+.pattern-type-select {
+    flex: 0 0 auto;
+    max-width: 92px;
+}
+
+.inline-warning {
+    color: #d6a84f;
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 6px;
+}
+
 .top-row, .pattern-picker-row, .add-row {
     display: flex;
     align-items: center;
@@ -223,8 +246,16 @@ body.composer-resizing {
 
 .playlist-item {
     display: flex;
+    align-items: center;
     min-width: 0;
     gap: 4px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.playlist-item.active {
+    border-color: #4b93ff;
 }
 
 .playlist-load-btn {
@@ -243,7 +274,19 @@ body.composer-resizing {
     text-align: center;
 }
 
-.playlist-item.active .playlist-load-btn {
+.playlist-dirty-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.playlist-dirty-actions button {
+    white-space: nowrap;
+}
+
+.playlist-item.selected .playlist-load-btn {
     background: #39404a;
     border-color: #56616f;
     color: #ffffff;
@@ -322,6 +365,13 @@ button:disabled {
     gap: 4px;
     flex: 1;
     min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.stepper.active {
+    border-color: #4b93ff;
 }
 
 .stepper-btn {
@@ -450,17 +500,6 @@ button:disabled {
     color: #5a626c;
     font-style: italic;
 }
-
-.status {
-    margin-top: 8px;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-family: ui-monospace, monospace;
-}
-
-.status.ok { background: #1c2a1d; color: #7fb88a; }
-.status.err { background: #2a1c1c; color: #d88a8a; }
 
 #composer-debug-console {
     position: fixed;

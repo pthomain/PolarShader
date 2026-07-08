@@ -28,17 +28,24 @@
 #endif
 
 #include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/RenderPoint.h"
 
 namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */
     using UVMap = fl::function<PatternNormU16(UV)>;
+
+    /** @brief Pixel-addressed sampling interface for matrix/raster patterns. */
+    using RasterMap = fl::function<PatternNormU16(const RasterPoint&)>;
+
+    /** @brief Pixel-addressed colour-emitting sampling interface. */
+    using RasterColourMap = fl::function<PaletteSample(const RasterPoint&)>;
 
     /** @brief Colour-emitting sampling interface: RGB-native patterns emit a (hue, value) pair. */
     using UVColourMap = fl::function<PaletteSample(UV)>;
 
     // THREAD-SAFETY: ColourMap is called concurrently from multiple cores.
     // All functions in its call chain must be pure (no mutable static locals, no global writes).
-    using ColourMap = fl::function<CRGB(f16, f16)>;
+    using ColourMap = fl::function<CRGB(const RenderPoint&)>;
 }
 
 #endif //POLAR_SHADER_TRANSFORMS_BASE_LAYERS_H

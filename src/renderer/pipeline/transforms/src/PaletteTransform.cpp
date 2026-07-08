@@ -58,12 +58,6 @@ namespace PolarShader {
         PipelineContext::PaletteTintMode tintMode = PipelineContext::PaletteTintMode::HueRemap;
     };
 
-    PaletteTransform::MappedInputs PaletteTransform::makeInputs(Sf16Signal offset) {
-        return MappedInputs{
-            std::move(offset)
-        };
-    }
-
     PaletteTransform::MappedInputs PaletteTransform::makeInputs(
         Sf16Signal offset,
         Sf16Signal clipSignal,
@@ -100,10 +94,6 @@ namespace PolarShader {
               tintMode(inputs.tintMode) {
         }
     };
-
-    PaletteTransform::PaletteTransform(Sf16Signal offset) {
-        state = std::make_shared<State>(makeInputs(std::move(offset)));
-    }
 
     PaletteTransform::PaletteTransform(
         Sf16Signal offset,

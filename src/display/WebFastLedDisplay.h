@@ -65,7 +65,7 @@ namespace PolarShader {
             const WebDisplayGeometry &geometry,
             uint8_t brightness = 255,
             uint8_t refreshRateInMillis = 30
-        ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toPolarCoords(pixelIndex); }),
+        ) : renderer(spec.nbLeds(), [pSpec = &spec](uint16_t pixelIndex) { return pSpec->toRenderPoint(pixelIndex); }),
             outputArray(spec.nbLeds()),
             screenMap(makeScreenMap(geometry)),
             refreshRateInMillis(refreshRateInMillis) {
