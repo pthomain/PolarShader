@@ -18,31 +18,33 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_LIFEVARIANTPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_LIFEVARIANTPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // Life-like cellular automata that share Conway's Moore-neighbour count but
+    // use different birth/survival rules. A dead cell is born when its live
+    // neighbour count is in the birth set; a live cell survives when its count
+    // is in the survival set.
+    class LifeVariantPattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        enum class Rule : uint8_t {
+            HighLife = 0,   // B36/S23
+            DayAndNight = 1, // B3678/S34678
+            Seeds = 2        // B2/S (no survival)
+        };
+
+        explicit LifeVariantPattern(
+            uint16_t stepIntervalMs = 200,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint16_t densityPermille = 350,
+            Rule rule = Rule::HighLife
         );
 
-        bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
-        RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -52,12 +54,16 @@ namespace PolarShader {
 
     private:
         uint16_t densityPermille;
+        uint16_t birthMask;
+        uint16_t survivalMask;
 
         mutable std::unique_ptr<uint8_t[]> cells;
         mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+
+        static Rule clampRule(Rule rule);
+        static uint16_t birthMaskFor(Rule rule);
+        static uint16_t survivalMaskFor(Rule rule);
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_LIFEVARIANTPATTERN_H

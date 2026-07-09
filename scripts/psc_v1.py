@@ -145,6 +145,16 @@ PATTERN_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {
     0x1E: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x22: (_sig("u8", "u16"), "uv"),
     0x2B: (_sig("u16", "u16", "u16"), "raster"),
+    0x2C: (_sig("u16", "u16", "u8", "u8"), "raster"),
+    0x2D: (_sig("u16", "u16", "u16"), "raster"),
+    0x2E: (_sig("u16", "u16", "u16", ("enum", 2)), "raster"),
+    0x2F: (_sig("u16", "u16", "u8"), "raster"),
+    0x30: (_sig("u16", "u16", "u8"), "raster"),
+    0x31: (_sig("u16", "u16", "u8"), "raster"),
+    0x32: (_sig("u16", "u16", "u16", "u16"), "raster"),
+    0x33: (_sig("u16", "u16", "u16"), "raster"),
+    0x34: (_sig("u16", "u16", "u16"), "raster"),
+    0x35: (_sig(("enum", 3), "u16", "u16", "u16"), "raster"),
 }
 
 TRANSFORM_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {

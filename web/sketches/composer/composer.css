@@ -67,10 +67,13 @@ body > h1,
 }
 
 #myCanvas {
+    /* Keep the canvas's intrinsic bitmap aspect ratio (the renderer sizes the
+     * canvas to match the panel: square for 20x20/Round, 4:1 for 32x8). Fit it
+     * inside the container and let the flex-centred dark background letterbox
+     * the spare space, so non-square panels render undistorted. */
     flex: 0 0 auto !important;
-    aspect-ratio: 1 / 1 !important;
-    width: min(var(--composer-left-width), 75vh) !important;
-    height: min(var(--composer-left-width), 75vh) !important;
+    width: auto !important;
+    height: auto !important;
     max-width: 100% !important;
     max-height: 100% !important;
     margin: 0 !important;

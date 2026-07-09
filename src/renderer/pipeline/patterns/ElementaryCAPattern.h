@@ -18,31 +18,26 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_ELEMENTARYCAPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_ELEMENTARYCAPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // One-dimensional (elementary / Wolfram) cellular automaton. Each step
+    // derives a fresh bottom row from the current bottom row using an 8-bit
+    // rule number (e.g. 30, 90, 110) applied to each cell's left/self/right
+    // triple, then scrolls the whole grid up one row so history flows upward.
+    class ElementaryCAPattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit ElementaryCAPattern(
+            uint16_t stepIntervalMs = 90,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint8_t rule = 30
         );
 
-        bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
-        RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -51,13 +46,11 @@ namespace PolarShader {
         bool step() const override;
 
     private:
-        uint16_t densityPermille;
+        uint8_t rule;
 
         mutable std::unique_ptr<uint8_t[]> cells;
-        mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+        mutable std::unique_ptr<uint8_t[]> rowBuf;
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_ELEMENTARYCAPATTERN_H

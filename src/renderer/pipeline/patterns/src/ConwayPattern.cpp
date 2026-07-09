@@ -25,43 +25,10 @@
 #endif
 
 #include "renderer/pipeline/patterns/ConwayPattern.h"
-#include <algorithm>
 #include <new>
 
 namespace PolarShader {
     namespace {
-        constexpr uint8_t kMaxCatchUpStepsPerFrame = 4;
-
-        uint32_t lcgNext(uint32_t &state) {
-            state = (state * 1664525u) + 1013904223u;
-            return state;
-        }
-
-        uint16_t clampDensity(uint16_t densityPermille) {
-            return densityPermille > 1000u ? 1000u : densityPermille;
-        }
-
-        uint32_t randomSeed32() {
-            uint32_t value = (static_cast<uint32_t>(random16()) << 16) | random16();
-            return value == 0 ? 0xA5A5A5A5u : value;
-        }
-
-        uint32_t seedForGeneration(uint32_t baseSeed, uint32_t generation) {
-            if (generation == 0) return baseSeed == 0 ? 0xA5A5A5A5u : baseSeed;
-
-            uint32_t mixed = baseSeed ^ (generation * 0x9E3779B9u);
-            mixed ^= mixed >> 16;
-            mixed *= 0x7FEB352Du;
-            mixed ^= mixed >> 15;
-            mixed *= 0x846CA68Bu;
-            mixed ^= mixed >> 16;
-            return mixed == 0 ? 0x6D2B79F5u : mixed;
-        }
-
-        uint16_t hue8ToPatternRaw(uint8_t hue) {
-            return (static_cast<uint16_t>(hue) << 8) | hue;
-        }
-
         int16_t shortestHueDelta(uint8_t base, uint8_t hue) {
             int16_t delta = static_cast<int16_t>(hue) - static_cast<int16_t>(base);
             if (delta > 127) delta -= 256;
@@ -160,156 +127,91 @@ namespace PolarShader {
         uint16_t stepIntervalMs,
         uint16_t seed,
         uint16_t densityPermille
-    ) : state(std::make_shared<State>()),
-        stepIntervalMs(stepIntervalMs),
-        seed(seed),
-        densityPermille(clampDensity(densityPermille)) {
+    ) : RasterAutomaton(stepIntervalMs, seed),
+        densityPermille(raster::clampPermille(densityPermille)) {
     }
 
-    void ConwayPattern::seedState(State &s, uint32_t generationSeed, bool resetTiming) const {
+    bool ConwayPattern::allocate(uint16_t, uint16_t, uint32_t cellCount) const {
+        std::unique_ptr<uint8_t[]> newCells(new (std::nothrow) uint8_t[cellCount]);
+        std::unique_ptr<uint8_t[]> newNext(new (std::nothrow) uint8_t[cellCount]);
+        std::unique_ptr<uint8_t[]> newHues(new (std::nothrow) uint8_t[cellCount]);
+        std::unique_ptr<uint8_t[]> newNextHues(new (std::nothrow) uint8_t[cellCount]);
+        if (!newCells || !newNext || !newHues || !newNextHues) return false;
+
+        cells = std::move(newCells);
+        next = std::move(newNext);
+        hues = std::move(newHues);
+        nextHues = std::move(newNextHues);
+        return true;
+    }
+
+    void ConwayPattern::release() const {
+        cells.reset();
+        next.reset();
+        hues.reset();
+        nextHues.reset();
+    }
+
+    void ConwayPattern::seed(uint32_t generationSeed) const {
+        if (!cells || !next || !hues || !nextHues) return;
+
         uint32_t cellRng = generationSeed == 0 ? 0xA5A5A5A5u : generationSeed;
         uint32_t hueRng = cellRng ^ 0x9E3779B9u;
         if (hueRng == 0) hueRng = 0x6D2B79F5u;
-        const uint16_t density = clampDensity(densityPermille);
-        for (uint32_t i = 0; i < s.cellCount; ++i) {
-            const uint16_t roll = static_cast<uint16_t>((lcgNext(cellRng) >> 16) % 1000u);
-            const uint8_t hue = static_cast<uint8_t>(lcgNext(hueRng) >> 24);
-            s.cells[i] = roll < density ? 1u : 0u;
-            s.next[i] = 0u;
-            s.hues[i] = s.cells[i] ? hue : 0u;
-            s.nextHues[i] = 0u;
-        }
-        if (resetTiming) {
-            s.hasLastElapsed = false;
-            s.lastElapsedMs = 0;
-            s.accumulatedMs = 0;
+        const uint32_t count = cellCount();
+        for (uint32_t i = 0; i < count; ++i) {
+            const uint16_t roll = static_cast<uint16_t>((raster::lcgNext(cellRng) >> 16) % 1000u);
+            const uint8_t hue = static_cast<uint8_t>(raster::lcgNext(hueRng) >> 24);
+            cells[i] = roll < densityPermille ? 1u : 0u;
+            next[i] = 0u;
+            hues[i] = cells[i] ? hue : 0u;
+            nextHues[i] = 0u;
         }
     }
 
-    void ConwayPattern::seedInitialState(State &s) const {
-        s.baseSeed = seed == 0 ? randomSeed32() : seed;
-        s.generation = 0;
-        seedState(s, seedForGeneration(s.baseSeed, s.generation), true);
-    }
-
-    void ConwayPattern::reseedState(State &s) const {
-        if (seed == 0) {
-            s.baseSeed = randomSeed32();
-            s.generation = 0;
-        } else {
-            ++s.generation;
+    bool ConwayPattern::step() const {
+        if (!stepCellsAndHues(cells.get(), hues.get(), next.get(), nextHues.get(), width(), height())) {
+            return false;
         }
-        seedState(s, seedForGeneration(s.baseSeed, s.generation), false);
-        s.accumulatedMs = 0;
-    }
-
-    void ConwayPattern::configureState(const RasterDisplayInfo &display) const {
-        State &s = *state;
-
-        if (!display.valid || display.width == 0 || display.height == 0 || display.cellCount == 0) {
-            if (!s.warnedNoRaster) {
-                Serial.println("ConwayPattern requires a raster display; rendering black.");
-                s.warnedNoRaster = true;
-            }
-            s.ready = false;
-            s.cells.reset();
-            s.next.reset();
-            s.hues.reset();
-            s.nextHues.reset();
-            s.width = 0;
-            s.height = 0;
-            s.cellCount = 0;
-            return;
-        }
-
-        if (display.cellCount > POLAR_SHADER_MAX_RASTER_CELLS) {
-            if (!s.warnedCapacity) {
-                Serial.println("ConwayPattern raster display exceeds POLAR_SHADER_MAX_RASTER_CELLS; rendering black.");
-                s.warnedCapacity = true;
-            }
-            s.ready = false;
-            s.cells.reset();
-            s.next.reset();
-            s.hues.reset();
-            s.nextHues.reset();
-            s.width = display.width;
-            s.height = display.height;
-            s.cellCount = display.cellCount;
-            return;
-        }
-
-        if (s.ready && s.width == display.width && s.height == display.height && s.cellCount == display.cellCount) {
-            return;
-        }
-
-        std::unique_ptr<uint8_t[]> cells(new (std::nothrow) uint8_t[display.cellCount]);
-        std::unique_ptr<uint8_t[]> next(new (std::nothrow) uint8_t[display.cellCount]);
-        std::unique_ptr<uint8_t[]> hues(new (std::nothrow) uint8_t[display.cellCount]);
-        std::unique_ptr<uint8_t[]> nextHues(new (std::nothrow) uint8_t[display.cellCount]);
-        if (!cells || !next || !hues || !nextHues) {
-            if (!s.warnedAllocation) {
-                Serial.println("ConwayPattern failed to allocate raster buffers; rendering black.");
-                s.warnedAllocation = true;
-            }
-            s.ready = false;
-            s.cells.reset();
-            s.next.reset();
-            s.hues.reset();
-            s.nextHues.reset();
-            s.width = display.width;
-            s.height = display.height;
-            s.cellCount = display.cellCount;
-            return;
-        }
-
-        s.width = display.width;
-        s.height = display.height;
-        s.cellCount = display.cellCount;
-        s.cells = std::move(cells);
-        s.next = std::move(next);
-        s.hues = std::move(hues);
-        s.nextHues = std::move(nextHues);
-        s.ready = true;
-        s.warnedNoRaster = false;
-        s.warnedCapacity = false;
-        s.warnedAllocation = false;
-        seedInitialState(s);
+        cells.swap(next);
+        hues.swap(nextHues);
+        return true;
     }
 
     RasterMap ConwayPattern::rasterLayer(const std::shared_ptr<PipelineContext> &context) const {
-        configureState(context ? context->rasterDisplay : RasterDisplayInfo{});
-        return [s = state.get()](const RasterPoint &point) {
-            if (!s || !s->ready || !point.valid || !s->cells) {
+        configure(context);
+        return [this](const RasterPoint &point) {
+            if (!ready() || !point.valid || !cells) {
                 return PatternNormU16(0);
             }
-            if (point.width != s->width || point.height != s->height ||
-                point.x >= s->width || point.y >= s->height) {
+            if (point.width != width() || point.height != height() ||
+                point.x >= width() || point.y >= height()) {
                 return PatternNormU16(0);
             }
 
-            const uint32_t idx = static_cast<uint32_t>(point.y) * s->width + point.x;
-            return s->cells[idx] ? PatternNormU16(F16_MAX) : PatternNormU16(0);
+            const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
+            return cells[idx] ? PatternNormU16(F16_MAX) : PatternNormU16(0);
         };
     }
 
     RasterColourMap ConwayPattern::rasterColourLayer(const std::shared_ptr<PipelineContext> &context) const {
-        configureState(context ? context->rasterDisplay : RasterDisplayInfo{});
-        return [s = state.get()](const RasterPoint &point) {
-            if (!s || !s->ready || !point.valid || !s->cells || !s->hues) {
+        configure(context);
+        return [this](const RasterPoint &point) {
+            if (!ready() || !point.valid || !cells || !hues) {
                 return PaletteSample{};
             }
-            if (point.width != s->width || point.height != s->height ||
-                point.x >= s->width || point.y >= s->height) {
+            if (point.width != width() || point.height != height() ||
+                point.x >= width() || point.y >= height()) {
                 return PaletteSample{};
             }
 
-            const uint32_t idx = static_cast<uint32_t>(point.y) * s->width + point.x;
-            if (!s->cells[idx]) {
+            const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
+            if (!cells[idx]) {
                 return PaletteSample{};
             }
 
             return PaletteSample{
-                PatternNormU16(hue8ToPatternRaw(s->hues[idx])),
+                PatternNormU16(raster::hue8ToPatternRaw(hues[idx])),
                 PatternNormU16(F16_MAX)
             };
         };
@@ -344,51 +246,6 @@ namespace PolarShader {
 
                 const bool alive = current[idx] != 0;
                 next[idx] = (neighbours == 3 || (alive && neighbours == 2)) ? 1u : 0u;
-            }
-        }
-    }
-
-    void ConwayPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
-        (void)progress;
-        State &s = *state;
-        if (!s.ready || !s.cells || !s.next || !s.hues || !s.nextHues) return;
-
-        if (!s.hasLastElapsed || elapsedMs < s.lastElapsedMs) {
-            // Elapsed time can wrap/reset when a scene duration loops; keep the
-            // current board instead of reseeding, so loops do not visibly pop.
-            s.hasLastElapsed = true;
-            s.lastElapsedMs = elapsedMs;
-            s.accumulatedMs = 0;
-            return;
-        }
-
-        const TimeMillis deltaMs = elapsedMs - s.lastElapsedMs;
-        s.lastElapsedMs = elapsedMs;
-
-        if (stepIntervalMs == 0) {
-            if (stepCellsAndHues(s.cells.get(), s.hues.get(), s.next.get(), s.nextHues.get(), s.width, s.height)) {
-                s.cells.swap(s.next);
-                s.hues.swap(s.nextHues);
-            } else {
-                reseedState(s);
-            }
-            return;
-        }
-
-        s.accumulatedMs += deltaMs;
-        const TimeMillis maxAccumulatedMs =
-            static_cast<TimeMillis>(stepIntervalMs) * kMaxCatchUpStepsPerFrame;
-        if (s.accumulatedMs > maxAccumulatedMs) {
-            s.accumulatedMs = maxAccumulatedMs;
-        }
-
-        while (s.accumulatedMs >= stepIntervalMs) {
-            s.accumulatedMs -= stepIntervalMs;
-            if (stepCellsAndHues(s.cells.get(), s.hues.get(), s.next.get(), s.nextHues.get(), s.width, s.height)) {
-                s.cells.swap(s.next);
-                s.hues.swap(s.nextHues);
-            } else {
-                reseedState(s);
             }
         }
     }

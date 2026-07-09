@@ -18,31 +18,28 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_LANGTONANTPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_LANGTONANTPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // Langton's ant on a toroidal binary grid. Each ant sits on a cell facing
+    // one of four directions and, every step, turns right on a "white" cell
+    // (state 1) or left on a "black" cell (state 0), flips the cell it leaves,
+    // then advances one cell (wrapping at the edges). The trail these simple
+    // rules paint self-organises into the classic "highway". Scalar output:
+    // painted cells read full intensity, blank cells read zero.
+    class LangtonAntPattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit LangtonAntPattern(
+            uint16_t stepIntervalMs = 30,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint16_t antCount = 1
         );
 
-        bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
-        RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -51,13 +48,18 @@ namespace PolarShader {
         bool step() const override;
 
     private:
-        uint16_t densityPermille;
+        struct Ant {
+            uint16_t x;
+            uint16_t y;
+            uint8_t dir; // 0=up, 1=right, 2=down, 3=left
+        };
+
+        uint16_t antCount;
 
         mutable std::unique_ptr<uint8_t[]> cells;
-        mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+        mutable std::unique_ptr<Ant[]> ants;
+        mutable uint32_t rng{0};
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_LANGTONANTPATTERN_H

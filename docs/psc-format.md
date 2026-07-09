@@ -65,6 +65,27 @@ The authoritative tag tables are:
 
 These tables must stay in lockstep.
 
+### Raster Patterns
+
+Tags `0x2B`–`0x35` are grid-based patterns that render on a raster
+(matrix/fabric) display rather than the polar/UV domain:
+
+- `0x2B` Conway's Game of Life (colour)
+- `0x2C` Cyclic cellular automaton / Greenberg–Hastings (colour)
+- `0x2D` Brian's Brain
+- `0x2E` Life-rule variants (HighLife / Day & Night / Seeds), selected by a trailing rule enum
+- `0x2F` Elementary CA scroller (Wolfram rule byte)
+- `0x30` Matrix / digital rain
+- `0x31` Integer ripple / wave simulation
+- `0x32` Forest fire (colour)
+- `0x33` Wireworld (colour)
+- `0x34` Langton's Ant
+- `0x35` Raster reaction-diffusion, selected by a leading preset enum
+
+Raster patterns only accept palette-domain transforms; the C++ decoder, web codec, and
+Python validator all reject UV transforms applied to a raster pattern. Their bodies encode
+plain integer config fields (no signal slots).
+
 ## Tag Stability Rules
 
 PSC files identify patterns, transforms, and signals by numeric tag. These tags are part of the file format.

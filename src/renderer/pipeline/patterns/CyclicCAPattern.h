@@ -18,31 +18,29 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CYCLICCAPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_CYCLICCAPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // Cyclic cellular automaton (Greenberg-Hastings): a cell in state k
+    // advances to (k+1) mod numStates when at least `threshold` of its Moore
+    // neighbours already hold that successor state. Produces rotating spiral
+    // waves; state maps directly to hue.
+    class CyclicCAPattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit CyclicCAPattern(
+            uint16_t stepIntervalMs = 120,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint8_t numStates = 8,
+            uint8_t threshold = 1
         );
 
         bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
         RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -51,13 +49,15 @@ namespace PolarShader {
         bool step() const override;
 
     private:
-        uint16_t densityPermille;
+        uint8_t numStates;
+        uint8_t threshold;
 
         mutable std::unique_ptr<uint8_t[]> cells;
         mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+
+        static uint8_t clampNumStates(uint8_t value);
+        static uint8_t clampThreshold(uint8_t value);
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_CYCLICCAPATTERN_H

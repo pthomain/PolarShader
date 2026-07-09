@@ -113,6 +113,16 @@ namespace {
         PAT_PF_RADIAL_PULSE   = 0x1E,
         PAT_XOR               = 0x22,
         PAT_RASTER_CONWAY     = 0x2B,
+        PAT_RASTER_CYCLIC_CA  = 0x2C,
+        PAT_RASTER_BRIANS_BRAIN = 0x2D,
+        PAT_RASTER_LIFE_VARIANT = 0x2E,
+        PAT_RASTER_ELEMENTARY = 0x2F,
+        PAT_RASTER_MATRIX_RAIN = 0x30,
+        PAT_RASTER_RIPPLE     = 0x31,
+        PAT_RASTER_FOREST_FIRE = 0x32,
+        PAT_RASTER_WIREWORLD  = 0x33,
+        PAT_RASTER_LANGTON_ANT = 0x34,
+        PAT_RASTER_REACTION_DIFF = 0x35,
     };
 
     enum : uint8_t {
@@ -335,6 +345,36 @@ namespace {
                     return;
                 case PAT_RASTER_CONWAY:
                     body.u16(250).u16(1).u16(350);
+                    return;
+                case PAT_RASTER_CYCLIC_CA:
+                    body.u16(120).u16(1).u8(8).u8(1);
+                    return;
+                case PAT_RASTER_BRIANS_BRAIN:
+                    body.u16(90).u16(1).u16(300);
+                    return;
+                case PAT_RASTER_LIFE_VARIANT:
+                    body.u16(200).u16(1).u16(350).u8(0);
+                    return;
+                case PAT_RASTER_ELEMENTARY:
+                    body.u16(90).u16(1).u8(30);
+                    return;
+                case PAT_RASTER_MATRIX_RAIN:
+                    body.u16(60).u16(1).u8(40);
+                    return;
+                case PAT_RASTER_RIPPLE:
+                    body.u16(40).u16(1).u8(6);
+                    return;
+                case PAT_RASTER_FOREST_FIRE:
+                    body.u16(120).u16(1).u16(40).u16(2);
+                    return;
+                case PAT_RASTER_WIREWORLD:
+                    body.u16(100).u16(1).u16(500);
+                    return;
+                case PAT_RASTER_LANGTON_ANT:
+                    body.u16(30).u16(1).u16(1);
+                    return;
+                case PAT_RASTER_REACTION_DIFF:
+                    body.u8(0).u16(33).u16(1).u16(4);
                     return;
                 default:
                     TEST_FAIL_MESSAGE("unknown test pattern tag");
@@ -894,6 +934,16 @@ void test_decode_all_pattern_tags_compile() {
         PAT_PF_RADIAL_PULSE,
         PAT_XOR,
         PAT_RASTER_CONWAY,
+        PAT_RASTER_CYCLIC_CA,
+        PAT_RASTER_BRIANS_BRAIN,
+        PAT_RASTER_LIFE_VARIANT,
+        PAT_RASTER_ELEMENTARY,
+        PAT_RASTER_MATRIX_RAIN,
+        PAT_RASTER_RIPPLE,
+        PAT_RASTER_FOREST_FIRE,
+        PAT_RASTER_WIREWORLD,
+        PAT_RASTER_LANGTON_ANT,
+        PAT_RASTER_REACTION_DIFF,
     };
 
     for (uint8_t tag : kPatternTags) {
@@ -1212,6 +1262,36 @@ void test_decode_js_generated_lockstep_fixtures() {
         0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0xf4,
         0x01, 0x00,
     };
+    static const uint8_t kJsRasterCyclicCaFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x01, 0x2c, 0x06, 0x00, 0x78, 0x00, 0x00,
+        0x00, 0x08, 0x01, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
+    static const uint8_t kJsRasterBriansBrainFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x01, 0x2d, 0x06, 0x00, 0x5a, 0x00, 0x00,
+        0x00, 0x2c, 0x01, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+        0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
+    static const uint8_t kJsRasterLifeVariantFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x01, 0x2e, 0x07, 0x00, 0xc8, 0x00, 0x00,
+        0x00, 0x5e, 0x01, 0x00, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
+    static const uint8_t kJsRasterElementaryFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x01, 0x2f, 0x05, 0x00, 0x5a, 0x00, 0x00,
+        0x00, 0x1e, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
+    static const uint8_t kJsRasterMatrixRainFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x01, 0x30, 0x05, 0x00, 0x3c, 0x00, 0x00,
+        0x00, 0x28, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
+    static const uint8_t kJsRasterRippleFixture[] = {
+        0x50, 0x53, 0x43, 0x00, 0x01, 0x01, 0x31, 0x05, 0x00, 0x28, 0x00, 0x00,
+        0x00, 0x06, 0x01, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+        0xf4, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+    };
 
     struct Fixture {
         const char *name;
@@ -1242,6 +1322,12 @@ void test_decode_js_generated_lockstep_fixtures() {
         {"js pfDots", kJsPfDotsFixture, sizeof(kJsPfDotsFixture), false},
         {"js pfWaveMatrix", kJsPfWaveMatrixFixture, sizeof(kJsPfWaveMatrixFixture), false},
         {"js pfRadialPulse", kJsPfRadialPulseFixture, sizeof(kJsPfRadialPulseFixture), false},
+        {"js rasterCyclicCA paletteClip", kJsRasterCyclicCaFixture, sizeof(kJsRasterCyclicCaFixture), true},
+        {"js rasterBriansBrain paletteClip", kJsRasterBriansBrainFixture, sizeof(kJsRasterBriansBrainFixture), true},
+        {"js rasterLifeVariant paletteClip", kJsRasterLifeVariantFixture, sizeof(kJsRasterLifeVariantFixture), true},
+        {"js rasterElementary paletteClip", kJsRasterElementaryFixture, sizeof(kJsRasterElementaryFixture), true},
+        {"js rasterMatrixRain paletteClip", kJsRasterMatrixRainFixture, sizeof(kJsRasterMatrixRainFixture), true},
+        {"js rasterRipple paletteClip", kJsRasterRippleFixture, sizeof(kJsRasterRippleFixture), true},
     };
 
     for (const Fixture &fixture : kFixtures) {
@@ -1418,6 +1504,19 @@ void test_decode_bad_palette_id() {
     TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
 }
 
+void test_decode_life_variant_bad_rule() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_RASTER_LIFE_VARIANT, [](WireBuilder &body) {
+        body.u16(200).u16(0).u16(350).u8(3);   // rule 3 is out of range (0..2)
+    });
+    w.u8(0);
+    DecodeStatus status = DecodeStatus::OK;
+    auto s = decodeScene(w.data(), w.size(), &status);
+    TEST_ASSERT_NULL(s.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
+}
+
 void test_decode_unknown_pattern_tag() {
     WireBuilder w;
     w.header(0).record(0xEE, [](WireBuilder &) {});   // tag 0xEE is not a defined pattern
@@ -1554,6 +1653,7 @@ void setup() {
     RUN_TEST(test_decode_bad_magic);
     RUN_TEST(test_decode_bad_version);
     RUN_TEST(test_decode_bad_palette_id);
+    RUN_TEST(test_decode_life_variant_bad_rule);
     RUN_TEST(test_decode_unknown_pattern_tag);
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);
@@ -1600,6 +1700,7 @@ int main() {
     RUN_TEST(test_decode_bad_magic);
     RUN_TEST(test_decode_bad_version);
     RUN_TEST(test_decode_bad_palette_id);
+    RUN_TEST(test_decode_life_variant_bad_rule);
     RUN_TEST(test_decode_unknown_pattern_tag);
     RUN_TEST(test_decode_unknown_signal_tag);
     RUN_TEST(test_decode_unknown_transform_tag);

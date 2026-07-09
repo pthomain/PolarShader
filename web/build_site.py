@@ -604,6 +604,7 @@ function enterComposerCommand(seq, command) {
 function composerDisplayFromUrlParams(params) {
   const raw = params && (params.display || params.ps_display);
   if (raw === "1" || raw === "round" || raw === "polar") return 1;
+  if (raw === "2" || raw === "fabric32x8") return 2;
   return 0;
 }
 
@@ -897,7 +898,9 @@ _MAIN_SETUP_ANCHOR = (
 _MAIN_SETUP_INJECT = (
     """      if (typeof moduleInstance._composer_set_initial_display === "function") {
         const rawDisplay = urlParams.get("display") || urlParams.get("ps_display");
-        const composerDisplay = (rawDisplay === "1" || rawDisplay === "round" || rawDisplay === "polar") ? 1 : 0;
+        let composerDisplay = 0;
+        if (rawDisplay === "1" || rawDisplay === "round" || rawDisplay === "polar") composerDisplay = 1;
+        else if (rawDisplay === "2" || rawDisplay === "fabric32x8") composerDisplay = 2;
         moduleInstance._composer_set_initial_display(composerDisplay);
       }
 """
@@ -1080,6 +1083,131 @@ def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
         path.write_text(text, encoding="utf-8")
 
 
+_THREEJS_LED_MATERIAL_HELPER_ANCHOR = (
+    "  /**\n"
+    "   * Creates LED objects for each pixel in the frame data\n"
+)
+_THREEJS_LED_MATERIAL_HELPER = (
+    "  /**\n"
+    "   * Creates the LED material. Sparse screen maps use a radial alpha falloff\n"
+    "   * so neighbouring pixels blend instead of drawing as hard overlapping discs.\n"
+    "   * @private\n"
+    "   */\n"
+    "  _createLedMaterial(isDenseScreenMap, color, useVertexColors = false) {\n"
+    "    const { THREE } = this.threeJsModules;\n"
+    "    if (isDenseScreenMap) {\n"
+    "      return new THREE.MeshBasicMaterial({ color, vertexColors: useVertexColors });\n"
+    "    }\n"
+    "\n"
+    "    const uniforms = { diffuse: { value: new THREE.Color(color) } };\n"
+    "    const vertexColorVarying = useVertexColors ? \"varying vec3 vColor;\\n\" : \"\";\n"
+    "    const vertexColorAssign = useVertexColors ? \"      vColor = color;\\n\" : \"\";\n"
+    "    const fragmentColor = useVertexColors ? \"diffuse * vColor\" : \"diffuse\";\n"
+    "    const material = new THREE.ShaderMaterial({\n"
+    "      uniforms,\n"
+    "      vertexColors: useVertexColors,\n"
+    "      transparent: true,\n"
+    "      depthWrite: false,\n"
+    "      vertexShader: `\n"
+    "        varying vec2 vUv;\n"
+    "        ${vertexColorVarying}\n"
+    "        void main() {\n"
+    "          vUv = uv;\n"
+    "    ${vertexColorAssign}"
+    "          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n"
+    "        }\n"
+    "      `,\n"
+    "      fragmentShader: `\n"
+    "        uniform vec3 diffuse;\n"
+    "        varying vec2 vUv;\n"
+    "        ${vertexColorVarying}\n"
+    "        void main() {\n"
+    "          float radius = length((vUv - vec2(0.5)) * 2.0);\n"
+    "          float alpha = clamp(1.0 - radius, 0.0, 1.0);\n"
+    "          gl_FragColor = vec4(${fragmentColor}, alpha);\n"
+    "        }\n"
+    "      `\n"
+    "    });\n"
+    "    material.color = uniforms.diffuse.value;\n"
+    "    return material;\n"
+    "  }\n"
+    + _THREEJS_LED_MATERIAL_HELPER_ANCHOR
+)
+_THREEJS_LED_MATERIAL_REPLACEMENTS = (
+    (
+        "    this.LED_SCALE = 1;\n"
+        "    this.SCREEN_WIDTH = 0;\n",
+        "    this.LED_SCALE = 1;\n"
+        "    this.SPARSE_LED_SCALE = 1.5;\n"
+        "    this.SCREEN_WIDTH = 0;\n",
+    ),
+    (
+        "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;\n",
+        "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+    ),
+    (
+        "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
+        "    if (!canMergeGeometries) {\n",
+        "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
+        "    const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        "    if (!canMergeGeometries) {\n",
+    ),
+    (
+        "              stripDiameter * this.LED_SCALE,\n",
+        "              stripDiameter * ledScale,\n",
+    ),
+    (
+        "            const w = stripDiameter * this.LED_SCALE;\n"
+        "            const h = stripDiameter * this.LED_SCALE;\n",
+        "            const w = stripDiameter * ledScale;\n"
+        "            const h = stripDiameter * ledScale;\n",
+    ),
+    (
+        "          const material = new THREE.MeshBasicMaterial({ color: 0 });\n",
+        "          const material = this._createLedMaterial(isDenseScreenMap, 0);\n",
+    ),
+    (
+        "        const material = new THREE.MeshBasicMaterial({\n"
+        "          color: 16777215,\n"
+        "          vertexColors: true\n"
+        "        });\n",
+        "        const material = this._createLedMaterial(isDenseScreenMap, 16777215, true);\n",
+    ),
+)
+
+
+def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
+    """Render sparse FastLED screen-map LEDs with radial alpha falloff."""
+    asset_dir = dist_sketch_dir / "assets"
+    paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
+    if not paths:
+        raise FileNotFoundError(
+            f"ThreeJS graphics manager not found under {asset_dir}. "
+            "The LED gradient patch needs updating for FastLED's generated output."
+        )
+
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        if "_createLedMaterial(isDenseScreenMap" not in text:
+            if _THREEJS_LED_MATERIAL_HELPER_ANCHOR not in text:
+                raise RuntimeError(
+                    f"Cannot patch LED gradient in {path}: material helper anchor not found."
+                )
+            text = text.replace(
+                _THREEJS_LED_MATERIAL_HELPER_ANCHOR,
+                _THREEJS_LED_MATERIAL_HELPER,
+                1,
+            )
+        for old, new in _THREEJS_LED_MATERIAL_REPLACEMENTS:
+            if old in text:
+                text = text.replace(old, new)
+            elif new not in text:
+                raise RuntimeError(
+                    f"Cannot patch LED gradient in {path}: expected snippet not found: {old.strip()}"
+                )
+        path.write_text(text, encoding="utf-8")
+
+
 def build_site() -> None:
     reset_directory(STAGE_ROOT)
     reset_directory(DIST_ROOT)
@@ -1098,6 +1226,7 @@ def build_site() -> None:
             patch_main_worker_ready_hook(dist_sketch_dir)
             patch_threejs_bloom(dist_sketch_dir)
             patch_threejs_bloom_toggle(dist_sketch_dir)
+            patch_threejs_led_gradient(dist_sketch_dir)
 
     shutil.copy2(LANDING_PAGE, DIST_ROOT / "index.html")
 
