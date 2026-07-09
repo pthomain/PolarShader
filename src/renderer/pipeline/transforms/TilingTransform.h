@@ -46,8 +46,7 @@ namespace PolarShader {
 
         int32_t getCellSizeRaw() const;
 
-        UVMap operator()(const UVMap &layer) const override;
-        UVColourMap operator()(const UVColourMap &layer) const override;
+        UVLayer apply(const UVLayer &layer) const override;
 
     private:
         struct State;

@@ -29,6 +29,7 @@
 
 #include "renderer/pipeline/maths/units/Units.h"
 #include "renderer/RenderPoint.h"
+#include <utility>
 
 namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */
@@ -40,8 +41,45 @@ namespace PolarShader {
     /** @brief Pixel-addressed colour-emitting sampling interface. */
     using RasterColourMap = fl::function<PaletteSample(const RasterPoint&)>;
 
-    /** @brief Colour-emitting sampling interface: RGB-native patterns emit a (hue, value) pair. */
+    /** @brief Palette-emitting sampling interface: patterns emit a (hue, value) pair. */
     using UVColourMap = fl::function<PaletteSample(UV)>;
+
+    /** @brief Full-RGB UV sampling interface with an independent brightness channel. */
+    using UVRgbMap = fl::function<RgbSample(UV)>;
+
+    enum class UVLayerKind : uint8_t {
+        Scalar,
+        Palette,
+        Rgb
+    };
+
+    struct UVLayer {
+        UVLayerKind kind{UVLayerKind::Scalar};
+        UVMap scalar;
+        UVColourMap palette;
+        UVRgbMap rgb;
+
+        static UVLayer fromScalar(UVMap map) {
+            UVLayer layer;
+            layer.kind = UVLayerKind::Scalar;
+            layer.scalar = std::move(map);
+            return layer;
+        }
+
+        static UVLayer fromPalette(UVColourMap map) {
+            UVLayer layer;
+            layer.kind = UVLayerKind::Palette;
+            layer.palette = std::move(map);
+            return layer;
+        }
+
+        static UVLayer fromRgb(UVRgbMap map) {
+            UVLayer layer;
+            layer.kind = UVLayerKind::Rgb;
+            layer.rgb = std::move(map);
+            return layer;
+        }
+    };
 
     // THREAD-SAFETY: ColourMap is called concurrently from multiple cores.
     // All functions in its call chain must be pure (no mutable static locals, no global writes).

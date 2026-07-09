@@ -93,6 +93,21 @@ public:
     }
 };
 
+class TestRgbPattern : public UVPattern {
+public:
+    RgbSample sampleValue;
+    mutable std::shared_ptr<PipelineContext> seenCtx;
+
+    TestRgbPattern(uint16_t r, uint16_t g, uint16_t b, uint16_t value)
+        : sampleValue(PatternNormU16(r), PatternNormU16(g), PatternNormU16(b), PatternNormU16(value)) {}
+
+    UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override {
+        seenCtx = context;
+        RgbSample sample = sampleValue;
+        return UVLayer::fromRgb([sample](UV) { return sample; });
+    }
+};
+
 static CRGBPalette16 distinctPalette() {
     CRGBPalette16 p;
     for (int i = 0; i < 16; ++i) {
@@ -143,6 +158,24 @@ static ScalarHarness makeScalarHarness(const CRGBPalette16 &pal, uint16_t value)
     return ScalarHarness{std::move(l), raw};
 }
 
+struct RgbHarness {
+    Layer layer;
+    TestRgbPattern *pattern;
+};
+
+static RgbHarness makeRgbHarness(
+    const CRGBPalette16 &pal,
+    uint16_t r,
+    uint16_t g,
+    uint16_t b,
+    uint16_t value
+) {
+    auto up = std::make_unique<TestRgbPattern>(r, g, b, value);
+    TestRgbPattern *raw = up.get();
+    Layer l = LayerBuilder(std::move(up), pal, "rgb-leaf-test").build();
+    return RgbHarness{std::move(l), raw};
+}
+
 // Default (Native) mode: a scalar pattern renders greyscale, so its intensity
 // maps straight to an (v,v,v) RGB and value 0 stays black. The palette is not
 // applied unless a palette transform opts in.
@@ -183,6 +216,87 @@ void test_scalar_hue_remap_indexes_palette() {
     CRGB got = (*cm)(testPoint());
     uint8_t index = static_cast<uint8_t>(fl::map16_to_8(kVal) + 6);
     assertEqualCRGB(got, pal.entries[index % 16], "scalar hue-remap index mismatch");
+}
+
+void test_rgb_native_scales_unpremultiplied_colour_by_value() {
+    CRGBPalette16 pal = distinctPalette();
+    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0x8000u, 0x4000u, 0x8000u);
+    auto cm = h.layer.compile();
+    TEST_ASSERT_NOT_NULL(cm.get());
+
+    CRGB got = (*cm)(testPoint());
+    CRGB expected(
+        fl::map16_to_8(scale16(F16_MAX, 0x8000u)),
+        fl::map16_to_8(scale16(0x8000u, 0x8000u)),
+        fl::map16_to_8(scale16(0x4000u, 0x8000u))
+    );
+    assertEqualCRGB(got, expected, "rgb native value scaling mismatch");
+}
+
+void test_rgb_native_clip_gates_by_value_channel() {
+    CRGBPalette16 pal = distinctPalette();
+    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0, 0, 0x4000u);
+    auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteClipEnabled = true;
+    h.pattern->seenCtx->paletteClip = PatternNormU16(0x4001u);
+    h.pattern->seenCtx->paletteClipFeather = f16(0);
+
+    assertEqualCRGB((*cm)(testPoint()), CRGB::Black, "rgb native clip should gate by value");
+}
+
+void test_rgb_colour_mask_ignores_rgb_and_uses_value_alpha() {
+    CRGBPalette16 pal = distinctPalette();
+    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0, 0, kVal);
+    auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::ColourMask;
+    h.pattern->seenCtx->paletteOffset = 9;
+
+    CRGB got = (*cm)(testPoint());
+    uint16_t alpha = scale16(kVal, F16_MAX);
+    CRGB expected = pal.entries[9 % 16];
+    expected.nscale8_video(static_cast<uint8_t>(alpha >> 8));
+    assertEqualCRGB(got, expected, "rgb colour-mask tint/alpha mismatch");
+}
+
+void test_rgb_hue_remap_indexes_palette_from_rgb_hue() {
+    CRGBPalette16 pal = distinctPalette();
+    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0, 0, kVal);
+    auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+    h.pattern->seenCtx->paletteOffset = 5;
+
+    CRGB got = (*cm)(testPoint());
+    assertEqualCRGB(got, pal.entries[5 % 16], "rgb hue-remap red hue mismatch");
+}
+
+void test_rgb_hue_remap_grey_and_near_black_pin_hue_to_zero() {
+    CRGBPalette16 pal = distinctPalette();
+    RgbHarness grey = makeRgbHarness(pal, 0x7000u, 0x7000u, 0x7001u, kVal);
+    auto greyMap = grey.layer.compile();
+    grey.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+    grey.pattern->seenCtx->paletteOffset = 2;
+    assertEqualCRGB((*greyMap)(testPoint()), pal.entries[2 % 16], "grey rgb hue should pin to zero");
+
+    RgbHarness nearBlack = makeRgbHarness(pal, F16_MAX, 0, 0, 0);
+    auto nearBlackMap = nearBlack.layer.compile();
+    nearBlack.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+    assertEqualCRGB((*nearBlackMap)(testPoint()), CRGB::Black, "zero-value rgb should stay black");
+
+    RgbHarness blackRgb = makeRgbHarness(pal, 0, 0, 0, kVal);
+    auto blackRgbMap = blackRgb.layer.compile();
+    blackRgb.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+    assertEqualCRGB((*blackRgbMap)(testPoint()), CRGB::Black, "black rgb should stay black");
+}
+
+void test_rgb_hue_remap_blue_hue_is_lossy_but_stable() {
+    CRGBPalette16 pal = distinctPalette();
+    RgbHarness h = makeRgbHarness(pal, 0, 0, F16_MAX, kVal);
+    auto cm = h.layer.compile();
+    h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
+
+    CRGB got = (*cm)(testPoint());
+    uint8_t blueHue = fl::map16_to_8(static_cast<uint16_t>(4 * 10923));
+    assertEqualCRGB(got, pal.entries[blueHue % 16], "rgb hue-remap blue hue mismatch");
 }
 
 void test_normal_mode_exact_index() {
@@ -303,5 +417,11 @@ int main(int, char **) {
     RUN_TEST(test_scalar_default_is_greyscale);
     RUN_TEST(test_scalar_zero_value_stays_black);
     RUN_TEST(test_scalar_hue_remap_indexes_palette);
+    RUN_TEST(test_rgb_native_scales_unpremultiplied_colour_by_value);
+    RUN_TEST(test_rgb_native_clip_gates_by_value_channel);
+    RUN_TEST(test_rgb_colour_mask_ignores_rgb_and_uses_value_alpha);
+    RUN_TEST(test_rgb_hue_remap_indexes_palette_from_rgb_hue);
+    RUN_TEST(test_rgb_hue_remap_grey_and_near_black_pin_hue_to_zero);
+    RUN_TEST(test_rgb_hue_remap_blue_hue_is_lossy_but_stable);
     return UNITY_END();
 }

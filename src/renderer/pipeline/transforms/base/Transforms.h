@@ -41,6 +41,29 @@ namespace PolarShader {
         std::shared_ptr<PipelineContext> context;
     };
 
+    template<typename State, typename WarpFn>
+    UVLayer composeUvLayer(
+        const UVLayer &layer,
+        std::shared_ptr<State> state,
+        WarpFn warp
+    ) {
+        switch (layer.kind) {
+            case UVLayerKind::Palette:
+                return UVLayer::fromPalette([state = std::move(state), source = layer.palette, warp](UV uv) {
+                    return source(warp(*state, uv));
+                });
+            case UVLayerKind::Rgb:
+                return UVLayer::fromRgb([state = std::move(state), source = layer.rgb, warp](UV uv) {
+                    return source(warp(*state, uv));
+                });
+            case UVLayerKind::Scalar:
+            default:
+                return UVLayer::fromScalar([state = std::move(state), source = layer.scalar, warp](UV uv) {
+                    return source(warp(*state, uv));
+                });
+        }
+    }
+
     /**
      * @brief Standard interface for all spatial transformations in the unified UV pipeline.
      * 
@@ -54,23 +77,34 @@ namespace PolarShader {
          * @brief Composes this transform's coordinate warp under a leaf map.
          *
          * A transform is a pure coordinate warp; it never touches the sampled
-         * value. Two overloads let the SAME warp compose against either the
-         * scalar (UVMap) or colour (UVColourMap) leaf.
+         * value. apply(UVLayer) lets the SAME warp compose against scalar,
+         * palette, or full-RGB leaves.
          *
          * DESIGN (see the WASM ABI NOTE on `UV` in Units.h): the warp is NOT
          * exposed as an `fl::function<UV(UV)>` and composed generically in this
          * base. Returning a two-field `UV` through fl::function's type-erased
-         * invoker traps `call_indirect` under the Emscripten ABI, and — worse —
+         * invoker traps `call_indirect` under the Emscripten ABI, and - worse -
          * corrupts the module heap so a *later* recompile crashes. Instead each
-         * transform implements both overloads itself, applying its warp via a
-         * DIRECT static call (its private `warp(const State&, UV)`), capturing
-         * only its `state` shared_ptr and the leaf — the shape of the original
-         * pre-colour code. No `UV` ever flows through an fl::function.
+         * transform implements apply() itself, applying its warp via a DIRECT
+         * static call (its private `warp(const State&, UV)`), capturing only its
+         * `state` shared_ptr and the leaf. No `UV` ever flows through an
+         * fl::function.
          */
-        virtual UVMap operator()(const UVMap &layer) const = 0;
+        virtual UVLayer apply(const UVLayer &layer) const = 0;
+
+        UVMap operator()(const UVMap &layer) const {
+            return apply(UVLayer::fromScalar(layer)).scalar;
+        }
 
         /** @brief Composes the warp under a colour leaf. */
-        virtual UVColourMap operator()(const UVColourMap &layer) const = 0;
+        UVColourMap operator()(const UVColourMap &layer) const {
+            return apply(UVLayer::fromPalette(layer)).palette;
+        }
+
+        /** @brief Composes the warp under a full-RGB leaf. */
+        UVRgbMap operator()(const UVRgbMap &layer) const {
+            return apply(UVLayer::fromRgb(layer)).rgb;
+        }
     };
 }
 

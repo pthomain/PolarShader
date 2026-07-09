@@ -111,6 +111,7 @@ namespace {
         PAT_PF_DOTS           = 0x1C,
         PAT_PF_WAVE_MATRIX    = 0x1D,
         PAT_PF_RADIAL_PULSE   = 0x1E,
+        PAT_PALETTE_GLOW      = 0x1F,
         PAT_XOR               = 0x22,
         PAT_RASTER_CONWAY     = 0x2B,
         PAT_RASTER_CYCLIC_CA  = 0x2C,
@@ -339,6 +340,8 @@ namespace {
                 case PAT_PF_RADIAL_PULSE:
                     body.u8(6);
                     for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    return;
+                case PAT_PALETTE_GLOW:
                     return;
                 case PAT_XOR:
                     body.u8(16).u16(40);
@@ -932,6 +935,7 @@ void test_decode_all_pattern_tags_compile() {
         PAT_PF_DOTS,
         PAT_PF_WAVE_MATRIX,
         PAT_PF_RADIAL_PULSE,
+        PAT_PALETTE_GLOW,
         PAT_XOR,
         PAT_RASTER_CONWAY,
         PAT_RASTER_CYCLIC_CA,

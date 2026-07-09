@@ -25,12 +25,18 @@
 #include "native/FastLED.h"
 #endif
 #include <unity.h>
+#ifndef ARDUINO
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#endif
 #include "renderer/pipeline/signals/ranges/AngleRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/patterns/ConwayPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 #include "MatrixDisplaySpec.h"
+#include "Matrix128x128DisplaySpec.h"
 #include "FabricDisplaySpec.h"
 #include "RoundDisplaySpec.h"
 
@@ -48,6 +54,7 @@
 #include "renderer/pipeline/patterns/src/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/src/FlowFieldPattern.cpp"
 #include "renderer/pipeline/patterns/src/FlurryPattern.cpp"
+#include "renderer/pipeline/patterns/src/PaletteGlowPattern.cpp"
 #include "renderer/pipeline/patterns/src/SpiralPattern.cpp"
 #include "renderer/pipeline/patterns/src/TilingPattern.cpp"
 #include "renderer/pipeline/patterns/src/TransportPattern.cpp"
@@ -214,6 +221,24 @@ void test_scene_manager_lifecycle() {
     // t=101: Expired. Should call nextScene (count=2).
     manager.advanceFrame(101);
     TEST_ASSERT_EQUAL_INT(2, provider_call_count);
+}
+
+void test_palette_glow_pattern_emits_rgb_samples() {
+    PaletteGlowPattern pattern;
+    auto context = std::make_shared<PipelineContext>();
+    pattern.advanceFrame(f16(0), 1000);
+
+    UV probe(
+        fl::s16x16::from_raw(0x8000),
+        fl::s16x16::from_raw(0x8000)
+    );
+    UVLayer rgbLayer = pattern.uvLayer(context);
+    UVMap scalar = pattern.layer(context);
+    RgbSample sample = rgbLayer.rgb(probe);
+
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(rgbLayer.kind));
+    TEST_ASSERT_GREATER_THAN_UINT16(0, raw(sample.value()));
+    TEST_ASSERT_EQUAL_UINT16(raw(sample.value()), raw(scalar(probe)));
 }
 
 void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
@@ -956,6 +981,53 @@ void test_ripple_is_deterministic() {
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 }
 
+#ifndef ARDUINO
+void test_palette_glow_rgb_1000_frame_perf_guard() {
+    constexpr uint16_t width = Matrix128x128DisplaySpec::DISPLAY_WIDTH;
+    constexpr uint16_t height = Matrix128x128DisplaySpec::DISPLAY_HEIGHT;
+    constexpr uint16_t frames = 1000;
+    constexpr uint32_t refreshBudgetUs = 30000u;
+
+    Layer layer = LayerBuilder(std::make_unique<PaletteGlowPattern>(), CloudColors_p, "rgb-glow-perf").build();
+    layer.setRasterDisplayInfo(RasterDisplayInfo{true, width, height, static_cast<uint32_t>(width) * height});
+    auto map = layer.compile();
+    TEST_ASSERT_NOT_NULL(map.get());
+
+    uint32_t frameUs[frames] = {};
+    volatile uint32_t sink = 0;
+
+    for (uint16_t frame = 0; frame < frames; ++frame) {
+        layer.advanceFrame(f16(0), static_cast<TimeMillis>(frame) * 16u);
+        auto start = std::chrono::steady_clock::now();
+        for (uint16_t y = 0; y < height; ++y) {
+            uint16_t radius = static_cast<uint16_t>((static_cast<uint32_t>(y) * F16_MAX) / (height - 1u));
+            for (uint16_t x = 0; x < width; ++x) {
+                uint16_t angle = static_cast<uint16_t>((static_cast<uint32_t>(x) * F16_MAX) / width);
+                CRGB color = (*map)(RenderPoint{f16(angle), f16(radius), RasterPoint{}});
+                sink += static_cast<uint32_t>(color.r) + color.g + color.b;
+            }
+        }
+        auto end = std::chrono::steady_clock::now();
+        uint64_t elapsedUs = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
+        );
+        frameUs[frame] = elapsedUs > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(elapsedUs);
+    }
+
+    std::sort(frameUs, frameUs + frames);
+    uint32_t totalUs = 0;
+    for (uint16_t i = 0; i < frames; ++i) totalUs += frameUs[i];
+    uint32_t avgUs = totalUs / frames;
+    uint32_t p95Us = frameUs[(frames * 95u) / 100u];
+    std::printf("PaletteGlow RGB perf: avg=%luus p95=%luus sink=%lu\n",
+                static_cast<unsigned long>(avgUs),
+                static_cast<unsigned long>(p95Us),
+                static_cast<unsigned long>(sink));
+
+    TEST_ASSERT_LESS_THAN_UINT32(refreshBudgetUs, p95Us);
+}
+#endif
+
 #ifdef ARDUINO
 
 void setup() {
@@ -965,6 +1037,7 @@ void setup() {
     RUN_TEST(test_range_wraps_across_zero);
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
+    RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
@@ -1007,6 +1080,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_range_wraps_across_zero);
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
+    RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
@@ -1029,6 +1103,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ripple_seeds_single_droplet);
     RUN_TEST(test_ripple_is_deterministic);
     RUN_TEST(test_display_specs_report_raster_points);
+    RUN_TEST(test_palette_glow_rgb_1000_frame_perf_guard);
 
     return UNITY_END();
 

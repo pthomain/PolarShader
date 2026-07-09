@@ -339,6 +339,11 @@ export const PATTERNS = {
         config: [{ name: 'cellCount', kind: 'u8', default: 6 }],
         signals: [{ name: 'phaseSpeed' }, { name: 'warp' }, { name: 'thickness' }],
     },
+    paletteGlow: {
+        tag: 0x1F, label: 'ShaderToy — Palette Glow', output: 'rgb',
+        config: [],
+        signals: [],
+    },
     xor: {
         tag: 0x22, label: 'XOR — Munching Squares',
         config: [

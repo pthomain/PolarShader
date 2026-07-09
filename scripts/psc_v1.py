@@ -143,6 +143,7 @@ PATTERN_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {
     0x1C: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x1D: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x1E: (_sig("u8", "signal", "signal", "signal"), "uv"),
+    0x1F: (_sig(), "uv"),
     0x22: (_sig("u8", "u16"), "uv"),
     0x2B: (_sig("u16", "u16", "u16"), "raster"),
     0x2C: (_sig("u16", "u16", "u8", "u8"), "raster"),

@@ -39,6 +39,7 @@
 #include "renderer/pipeline/patterns/XORPattern.h"
 #include "renderer/pipeline/patterns/SpiralPattern.h"
 #include "renderer/pipeline/patterns/AnnuliPattern.h"
+#include "renderer/pipeline/patterns/PaletteGlowPattern.h"
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> worleyPattern(
@@ -293,5 +294,9 @@ namespace PolarShader {
             std::move(endpointSpeed),
             std::move(fade)
         );
+    }
+
+    std::unique_ptr<UVPattern> paletteGlowPattern() {
+        return std::make_unique<PaletteGlowPattern>();
     }
 }

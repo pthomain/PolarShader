@@ -47,6 +47,8 @@ namespace PolarShader {
 
         virtual UVMap layer(const std::shared_ptr<PipelineContext> &context) const;
 
+        virtual UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const;
+
         virtual PatternDomain domain() const { return PatternDomain::ContinuousUV; }
 
         virtual RasterMap rasterLayer(const std::shared_ptr<PipelineContext> &context) const {

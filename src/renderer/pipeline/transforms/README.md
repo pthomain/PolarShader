@@ -24,7 +24,7 @@ Scene compilation and frame execution are separate phases:
 - `elapsedMs` (`TimeMillis`) is scene-relative elapsed time and is the canonical input for
   scalar signal factories (`Sf16Signal`).
 
-`operator()(const UVMap&)` must only wrap the downstream sampler using state that was already prepared in `advanceFrame()`. It must not sample signals, advance accumulators, or depend on per-frame graph rebuilds.
+`apply(const UVLayer&)` must only wrap the downstream sampler using state that was already prepared in `advanceFrame()`. It must preserve the layer payload kind (scalar, palette, or RGB), must not sample signals, advance accumulators, or depend on per-frame graph rebuilds.
 
 ## Signal model
 

@@ -43,6 +43,7 @@
 #include <renderer/pipeline/patterns/XORPattern.h>
 #include <renderer/pipeline/patterns/SpiralPattern.h>
 #include <renderer/pipeline/patterns/AnnuliPattern.h>
+#include <renderer/pipeline/patterns/PaletteGlowPattern.h>
 #include <renderer/pipeline/patterns/patternflow/PatternFlow.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
 
@@ -236,6 +237,9 @@ namespace PolarShader {
         Sf16Signal endpointSpeed = constant(500),
         Sf16Signal fade = constant(700)
     );
+
+    // ShaderToy-style recursive radial glow using the IQ cosine palette.
+    std::unique_ptr<UVPattern> paletteGlowPattern();
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_H

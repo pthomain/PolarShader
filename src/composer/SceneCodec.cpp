@@ -114,6 +114,7 @@ namespace PolarShader::composer {
             PAT_PF_DOTS             = 0x1C, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_PF_WAVE_MATRIX      = 0x1D, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_PF_RADIAL_PULSE     = 0x1E, // u8 cellCount; signals: phaseSpeed, warp, thickness
+            PAT_PALETTE_GLOW        = 0x1F, // body: (none)
             PAT_XOR                 = 0x22, // u8 gridSize + u16 speed
             PAT_RASTER_CONWAY       = 0x2B, // u16 stepIntervalMs + u16 seed + u16 densityPermille
             PAT_RASTER_CYCLIC_CA    = 0x2C, // u16 stepIntervalMs + u16 seed + u8 numStates + u8 threshold
@@ -611,6 +612,9 @@ namespace PolarShader::composer {
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
                     return xorPattern(gridSize, speed);
                 }
+
+                case PAT_PALETTE_GLOW:
+                    return paletteGlowPattern();
 
                 case PAT_RASTER_CONWAY: {
                     uint16_t stepIntervalMs = r.readU16();

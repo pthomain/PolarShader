@@ -228,6 +228,33 @@ namespace PolarShader {
         PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
     };
 
+    /**
+     * @brief A full-RGB UV sample with an independent brightness/alpha channel.
+     *
+     * Packed bit layout:
+     *   [63:48] red, [47:32] green, [31:16] blue, [15:0] value.
+     *
+     * RGB channels are unpremultiplied 16-bit colour. `value` is post-multiply
+     * brightness for this sample; palette clipping remains a separate mask.
+     */
+    struct RgbSample {
+        uint64_t packed;
+
+        RgbSample() : packed(0) {}
+        RgbSample(PatternNormU16 r, PatternNormU16 g, PatternNormU16 b, PatternNormU16 v)
+            : packed(
+                (static_cast<uint64_t>(r.raw()) << 48) |
+                (static_cast<uint64_t>(g.raw()) << 32) |
+                (static_cast<uint64_t>(b.raw()) << 16) |
+                static_cast<uint64_t>(v.raw())
+            ) {}
+
+        PatternNormU16 red() const { return PatternNormU16(static_cast<uint16_t>(packed >> 48)); }
+        PatternNormU16 green() const { return PatternNormU16(static_cast<uint16_t>((packed >> 32) & 0xFFFFu)); }
+        PatternNormU16 blue() const { return PatternNormU16(static_cast<uint16_t>((packed >> 16) & 0xFFFFu)); }
+        PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
+    };
+
     // --- UV Units ---
 
     /**
@@ -259,7 +286,8 @@ namespace PolarShader {
     // signature mismatch" / heap corruption on repeated compiles). Transforms
     // therefore never wrap their warp in an `fl::function<UV(UV)>`; each applies
     // its warp via a DIRECT static call (see UVTransform / *Transform.cpp). The
-    // same hazard is why PaletteSample below packs (hue,value) into one uint32.
+    // same hazard is why PaletteSample packs (hue,value) into one uint32 and
+    // RgbSample packs (r,g,b,value) into one uint64.
 }
 
 #endif // POLAR_SHADER_PIPELINE_UNITS_UNITS_H
