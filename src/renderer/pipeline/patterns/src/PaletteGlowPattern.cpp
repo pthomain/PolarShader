@@ -21,6 +21,7 @@
 #include "renderer/pipeline/patterns/PaletteGlowPattern.h"
 #include "renderer/pipeline/maths/ShaderMaths.h"
 #include <limits.h>
+#include <utility>
 
 namespace PolarShader {
     namespace {
@@ -104,10 +105,22 @@ namespace PolarShader {
             );
             return raw(powQ16(inverse, 1200));
         }
+
+        uint32_t speedMultiplierRaw(const Sf16Signal &speedSignal, TimeMillis elapsedMs) {
+            if (!speedSignal) return SF16_ONE;
+            int32_t speedRaw = raw(speedSignal.sample(magnitudeRange(), elapsedMs));
+            if (speedRaw <= 0) return 0u;
+            if (speedRaw >= SF16_MAX - 1) return SF16_ONE;
+            return static_cast<uint32_t>(speedRaw) + 1u;
+        }
     }
 
     struct PaletteGlowPattern::State {
+        Sf16Signal speedSignal;
         uint32_t timeRaw{0};
+
+        explicit State(Sf16Signal speed)
+            : speedSignal(std::move(speed)) {}
     };
 
     struct PaletteGlowPattern::Functor {
@@ -164,12 +177,15 @@ namespace PolarShader {
         }
     };
 
-    PaletteGlowPattern::PaletteGlowPattern()
-        : state(std::make_shared<State>()) {}
+    PaletteGlowPattern::PaletteGlowPattern(Sf16Signal speed)
+        : state(std::make_shared<State>(std::move(speed))) {}
 
     void PaletteGlowPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
         (void)progress;
-        state->timeRaw = static_cast<uint32_t>((static_cast<uint64_t>(elapsedMs) << 16) / 1000u);
+        uint64_t secondsRaw = (static_cast<uint64_t>(elapsedMs) << 16) / 1000u;
+        state->timeRaw = static_cast<uint32_t>(
+            (secondsRaw * speedMultiplierRaw(state->speedSignal, elapsedMs)) >> 16
+        );
     }
 
     UVMap PaletteGlowPattern::layer(const std::shared_ptr<PipelineContext> &context) const {

@@ -1709,6 +1709,10 @@ function renderConfigForm(configSchema, configObj, setValue) {
     return form;
 }
 
+function defaultSignalForSlot(slot) {
+    return slot.default ? JSON.parse(JSON.stringify(slot.default)) : DEFAULT_SIGNAL();
+}
+
 function renderSignalsForm(signalsSchema, signalsObj, setSignal) {
     const form = document.createElement('div');
     form.className = 'signals-form';
@@ -1720,7 +1724,7 @@ function renderSignalsForm(signalsSchema, signalsObj, setSignal) {
         label.textContent = s.name;
         row.appendChild(label);
         const slot = renderSignalSlot(
-            signalsObj[s.name] ?? DEFAULT_SIGNAL(),
+            signalsObj[s.name] ?? defaultSignalForSlot(s),
             (next) => setSignal(s.name, next)
         );
         row.appendChild(slot);
@@ -1765,7 +1769,7 @@ function hydrateConfig(schemaConfig, configObj) {
 
 function hydrateSignals(schemaSignals, signalsObj) {
     for (const s of schemaSignals) {
-        if (!signalsObj[s.name]) signalsObj[s.name] = DEFAULT_SIGNAL();
+        if (!signalsObj[s.name]) signalsObj[s.name] = defaultSignalForSlot(s);
     }
 }
 

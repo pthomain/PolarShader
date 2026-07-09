@@ -22,6 +22,7 @@
 #define POLAR_SHADER_PIPELINE_PATTERNS_PALETTEGLOWPATTERN_H
 
 #include "renderer/pipeline/patterns/base/UVPattern.h"
+#include "renderer/pipeline/signals/Signals.h"
 #include <memory>
 
 namespace PolarShader {
@@ -34,7 +35,7 @@ namespace PolarShader {
      */
     class PaletteGlowPattern : public UVPattern {
     public:
-        PaletteGlowPattern();
+        explicit PaletteGlowPattern(Sf16Signal speed = constant(1000));
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 

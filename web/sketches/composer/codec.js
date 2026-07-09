@@ -80,6 +80,10 @@ class ByteReader {
         return new ByteReader(this.bytes(n));
     }
 
+    get remaining() {
+        return this.view.byteLength - this.pos;
+    }
+
     expectEnd(kind) {
         if (this.pos !== this.view.byteLength) {
             throw new Error(`${kind} record has ${this.view.byteLength - this.pos} trailing byte(s)`);
@@ -186,6 +190,10 @@ export function writeSignal(w, signal, version = VERSION) {
     w.appendBytes(body.toUint8Array());
 }
 
+function defaultSignalForSlot(slot) {
+    return slot.default ? JSON.parse(JSON.stringify(slot.default)) : DEFAULT_SIGNAL();
+}
+
 function readSignalBody(r, tag, version, depth) {
     const id = SIGNAL_BY_TAG[tag];
     if (id === undefined) throw new Error(`unknown signal tag 0x${tag.toString(16)}`);
@@ -216,7 +224,7 @@ function writePatternBody(w, pattern, def, version) {
         writeParam(w, c, value, version);
     }
     for (const s of def.signals) {
-        const sig = pattern.signals?.[s.name] ?? DEFAULT_SIGNAL();
+        const sig = pattern.signals?.[s.name] ?? defaultSignalForSlot(s);
         writeSignal(w, sig, version);
     }
 }
@@ -238,7 +246,11 @@ function readPatternBody(r, tag, version) {
     const config = {};
     for (const c of def.config) config[c.name] = readParam(r, c, version, 0);
     const signals = {};
-    for (const s of def.signals) signals[s.name] = readSignal(r, version, 0);
+    for (const s of def.signals) {
+        signals[s.name] = (r.remaining === 0 && s.default)
+            ? defaultSignalForSlot(s)
+            : readSignal(r, version, 0);
+    }
     return { id, config, signals };
 }
 

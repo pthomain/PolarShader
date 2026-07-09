@@ -342,7 +342,7 @@ export const PATTERNS = {
     paletteGlow: {
         tag: 0x1F, label: 'ShaderToy — Palette Glow', output: 'rgb',
         config: [],
-        signals: [],
+        signals: [{ name: 'speed', default: { id: 'constant', params: { permille: 1000 } } }],
     },
     xor: {
         tag: 0x22, label: 'XOR — Munching Squares',
@@ -592,6 +592,9 @@ const pfK    = (permille) => ({ id: 'constant', params: { permille } });
 const pfSine = (permille) => ({
     id: 'sine', params: { phaseVelocity: pfK(permille), phaseOffset: 0 },
 });
+const signalSlotDefault = (slot) => (
+    slot.default ? JSON.parse(JSON.stringify(slot.default)) : DEFAULT_SIGNAL()
+);
 
 // Bare pf pattern model with schema defaults (matches the C++ factory
 // defaults the presets rely on).
@@ -600,7 +603,7 @@ function pfPatternModel(id) {
     const config = {};
     for (const c of def.config) config[c.name] = c.default ?? 0;
     const signals = {};
-    for (const s of def.signals) signals[s.name] = DEFAULT_SIGNAL();
+    for (const s of def.signals) signals[s.name] = signalSlotDefault(s);
     return { id, config, signals };
 }
 

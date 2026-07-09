@@ -339,6 +339,34 @@ void test_palette_glow_pattern_matches_shadertoy_reference_points() {
         assertReferenceRgbNear(actual, expected);
     }
 }
+
+void test_palette_glow_speed_signal_scales_elapsed_time() {
+    auto context = std::make_shared<PipelineContext>();
+    const UV probe(
+        fl::s16x16::from_raw(0x4D00),
+        fl::s16x16::from_raw(0xA200)
+    );
+
+    PaletteGlowPattern fullSpeed(constant(1000));
+    PaletteGlowPattern halfSpeed(constant(500));
+    fullSpeed.advanceFrame(f16(0), 1000);
+    halfSpeed.advanceFrame(f16(0), 2000);
+
+    TEST_ASSERT_EQUAL_UINT64(
+        fullSpeed.uvLayer(context).rgb(probe).packed,
+        halfSpeed.uvLayer(context).rgb(probe).packed
+    );
+
+    PaletteGlowPattern atStart(constant(1000));
+    PaletteGlowPattern stopped(constant(0));
+    atStart.advanceFrame(f16(0), 0);
+    stopped.advanceFrame(f16(0), 2000);
+
+    TEST_ASSERT_EQUAL_UINT64(
+        atStart.uvLayer(context).rgb(probe).packed,
+        stopped.uvLayer(context).rgb(probe).packed
+    );
+}
 #endif
 
 void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
@@ -1138,6 +1166,7 @@ void setup() {
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
     RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
+    RUN_TEST(test_palette_glow_speed_signal_scales_elapsed_time);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
@@ -1182,6 +1211,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_scene_manager_lifecycle);
     RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
     RUN_TEST(test_palette_glow_pattern_matches_shadertoy_reference_points);
+    RUN_TEST(test_palette_glow_speed_signal_scales_elapsed_time);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);

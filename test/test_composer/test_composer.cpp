@@ -342,6 +342,7 @@ namespace {
                     for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
                     return;
                 case PAT_PALETTE_GLOW:
+                    body.sigConstant(1000);
                     return;
                 case PAT_XOR:
                     body.u8(16).u16(40);
@@ -957,6 +958,14 @@ void test_decode_all_pattern_tags_compile() {
         w.u8(0);
         assertDecodeCompileSample(w);
     }
+}
+
+void test_decode_legacy_palette_glow_without_speed_signal() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_PALETTE_GLOW, [](WireBuilder &) {});
+    w.u8(0);
+    assertDecodeCompileSample(w);
 }
 
 void test_decode_uncovered_transform_tags_compile() {
@@ -1636,6 +1645,7 @@ void setup() {
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
     RUN_TEST(test_decode_raster_conway_allows_palette_transform);
     RUN_TEST(test_decode_raster_conway_compiles_with_raster_display);
@@ -1683,6 +1693,7 @@ int main() {
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
     RUN_TEST(test_decode_raster_conway_allows_palette_transform);
     RUN_TEST(test_decode_raster_conway_compiles_with_raster_display);

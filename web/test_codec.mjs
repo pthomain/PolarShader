@@ -43,6 +43,14 @@ const SIMPLE_FIXTURE = [
     0x00, 0x02, 0x00, 0xc8, 0x00,
 ];
 
+const LEGACY_PALETTE_GLOW_FIXTURE = [
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x1F, 0x00, 0x00,
+    0x00,
+];
+
 function bytes(values) {
     return new Uint8Array(values);
 }
@@ -184,6 +192,25 @@ test('default greyscale scene starts with an enabled Palette transform', () => {
 
     const decoded = decodeScene(encodeScene(scene));
     assert.equal(decoded.transforms[0].id, 'paletteClip');
+});
+
+test('paletteGlow speed defaults to full ShaderToy time', () => {
+    const scene = {
+        paletteId: 0,
+        pattern: { id: 'paletteGlow', config: {}, signals: {} },
+        transforms: [],
+    };
+
+    const decoded = decodeScene(encodeScene(scene));
+    assert.equal(decoded.pattern.signals.speed.id, 'constant');
+    assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+});
+
+test('decodeScene accepts legacy paletteGlow without speed signal', () => {
+    const decoded = decodeScene(bytes(LEGACY_PALETTE_GLOW_FIXTURE));
+    assert.equal(decoded.pattern.id, 'paletteGlow');
+    assert.equal(decoded.pattern.signals.speed.id, 'constant');
+    assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
 });
 
 test('all current patterns round-trip through the web codec', () => {
