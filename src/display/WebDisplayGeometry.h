@@ -29,6 +29,7 @@
 
 #include "FabricDisplaySpec.h"
 #include "Fabric32x8DisplaySpec.h"
+#include "Matrix128x128DisplaySpec.h"
 #include "RoundDisplaySpec.h"
 
 namespace PolarShader {
@@ -125,6 +126,28 @@ namespace PolarShader {
         return geometry;
     }
 
+    inline WebDisplayGeometry buildMatrixWebGeometry(const MatrixDisplaySpec &spec) {
+        WebDisplayGeometry geometry;
+        const uint16_t width = spec.matrixWidth();
+        const uint16_t height = spec.matrixHeight();
+        geometry.points.resize(static_cast<std::size_t>(width) * height);
+        geometry.centerX = static_cast<float>(width > 0 ? width - 1 : 0) * 0.5f;
+        geometry.centerY = static_cast<float>(height > 0 ? height - 1 : 0) * 0.5f;
+
+        for (uint16_t row = 0; row < height; ++row) {
+            for (uint16_t col = 0; col < width; ++col) {
+                const uint16_t pixelIndex = static_cast<uint16_t>((row * width) + col);
+                geometry.points[pixelIndex] = {
+                    static_cast<float>(col),
+                    static_cast<float>(row)
+                };
+            }
+        }
+
+        geometry.diameter = detail::deriveLedDiameter(geometry.points);
+        return geometry;
+    }
+
     inline WebDisplayGeometry buildRoundWebGeometry(const RoundDisplaySpec &spec = RoundDisplaySpec()) {
         WebDisplayGeometry geometry;
         const float maxRadius = static_cast<float>(spec.numSegments() > 0 ? spec.numSegments() - 1 : 0);
@@ -159,6 +182,10 @@ namespace PolarShader {
 
     inline WebDisplayGeometry buildWebGeometry(const Fabric32x8DisplaySpec &) {
         return buildFabric32x8WebGeometry();
+    }
+
+    inline WebDisplayGeometry buildWebGeometry(const Matrix128x128DisplaySpec &spec) {
+        return buildMatrixWebGeometry(spec);
     }
 
     inline WebDisplayGeometry buildWebGeometry(const RoundDisplaySpec &spec) {

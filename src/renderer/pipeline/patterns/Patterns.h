@@ -239,7 +239,10 @@ namespace PolarShader {
     );
 
     // ShaderToy-style recursive radial glow using the IQ cosine palette.
-    std::unique_ptr<UVPattern> paletteGlowPattern(Sf16Signal speed = constant(1000));
+    std::unique_ptr<UVPattern> paletteGlowPattern(
+        Sf16Signal speed = constant(1000),
+        Sf16Signal tileScale = constant(500)
+    );
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_H

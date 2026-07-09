@@ -80,6 +80,7 @@ const sceneStore = createSceneStore(bootSceneState?.scene ?? DEFAULT_SCENE());
 function displayIdFromParam(raw) {
     if (raw === '1' || raw === 'round' || raw === 'polar') return 1;
     if (raw === '2' || raw === 'fabric32x8') return 2;
+    if (raw === '3' || raw === 'smartmatrix' || raw === 'matrix128') return 3;
     return 0;
 }
 
@@ -92,7 +93,7 @@ const state = {
     pushTimer: null,             // debounce timer handle for scene pushes
     latestEvent: null,           // most-recent scene-store emission
     debugLogEl: null,            // FastLED-side debug console
-    displayId: initialDisplayId(), // active display geometry (0 = fabric, 1 = round, 2 = fabric 32x8)
+    displayId: initialDisplayId(), // active display geometry (0 = fabric, 1 = round, 2 = fabric 32x8, 3 = SmartMatrix)
     renderSeq: 0,                // monotonic command generation for scene pushes / reloads
     latestSceneSeq: 0,           // sequence assigned to the newest scene-store emission
     lastGoodBootBytes: bootSceneState?.bytes ?? null,
@@ -136,6 +137,7 @@ const DISPLAYS = [
     { id: 0, name: 'Fabric (20×20 matrix)', matrix: true },
     { id: 1, name: 'Round (241-pixel radial)', matrix: false },
     { id: 2, name: 'Matrix (32×8 matrix)', matrix: true },
+    { id: 3, name: 'SmartMatrix (128×128 HUB75)', matrix: true },
 ];
 
 const DEPLOY_POLL_MS = 1000;
@@ -150,6 +152,7 @@ const BLOOM_MAX_MULTIPLIER = 3;
 function displayUrlValue(which) {
     if (which === 1) return 'round';
     if (which === 2) return 'fabric32x8';
+    if (which === 3) return 'smartmatrix';
     return 'fabric';
 }
 

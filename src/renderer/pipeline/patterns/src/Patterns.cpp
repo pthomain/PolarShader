@@ -296,7 +296,7 @@ namespace PolarShader {
         );
     }
 
-    std::unique_ptr<UVPattern> paletteGlowPattern(Sf16Signal speed) {
-        return std::make_unique<PaletteGlowPattern>(std::move(speed));
+    std::unique_ptr<UVPattern> paletteGlowPattern(Sf16Signal speed, Sf16Signal tileScale) {
+        return std::make_unique<PaletteGlowPattern>(std::move(speed), std::move(tileScale));
     }
 }

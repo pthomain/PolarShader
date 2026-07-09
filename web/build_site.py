@@ -114,7 +114,7 @@ SKETCHES = (
 
 # POLARSHADER_SKETCHES_OVERRIDE filters SKETCHES to a comma-separated list of
 # names. The composer is the only shipped sketch; it renders every display and
-# selects fabric/round at startup via _composer_set_initial_display. The
+# selects the requested display at startup via _composer_set_initial_display. The
 # override hook is kept for future sketches. Unknown names are rejected loudly.
 if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
     _requested_sketch_names = {
@@ -605,6 +605,7 @@ function composerDisplayFromUrlParams(params) {
   const raw = params && (params.display || params.ps_display);
   if (raw === "1" || raw === "round" || raw === "polar") return 1;
   if (raw === "2" || raw === "fabric32x8") return 2;
+  if (raw === "3" || raw === "smartmatrix" || raw === "matrix128") return 3;
   return 0;
 }
 
@@ -736,7 +737,7 @@ function refreshWorkerScreenMap(seq) {
 }
 
 // Injected by PolarShader build_site.py (patch_render_worker): switch the active
-// display geometry on this worker's module (0 = fabric, 1 = round). The C++ side
+// display geometry on this worker's module. The C++ side
 // rebuilds the display and replays the last-applied scene, so the pipeline is
 // preserved. The new geometry's screenmap must then be pushed to the renderer so
 // the canvas re-lays out (round for polar displays). Returns { ok } so the
@@ -901,6 +902,7 @@ _MAIN_SETUP_INJECT = (
         let composerDisplay = 0;
         if (rawDisplay === "1" || rawDisplay === "round" || rawDisplay === "polar") composerDisplay = 1;
         else if (rawDisplay === "2" || rawDisplay === "fabric32x8") composerDisplay = 2;
+        else if (rawDisplay === "3" || rawDisplay === "smartmatrix" || rawDisplay === "matrix128") composerDisplay = 3;
         moduleInstance._composer_set_initial_display(composerDisplay);
       }
 """

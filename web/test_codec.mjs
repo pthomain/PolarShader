@@ -51,6 +51,15 @@ const LEGACY_PALETTE_GLOW_FIXTURE = [
     0x00,
 ];
 
+const SPEED_ONLY_PALETTE_GLOW_FIXTURE = [
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x1F, 0x05, 0x00,
+    0x00, 0x02, 0x00, 0xE8, 0x03,
+    0x00,
+];
+
 function bytes(values) {
     return new Uint8Array(values);
 }
@@ -204,6 +213,8 @@ test('paletteGlow speed defaults to full ShaderToy time', () => {
     const decoded = decodeScene(encodeScene(scene));
     assert.equal(decoded.pattern.signals.speed.id, 'constant');
     assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+    assert.equal(decoded.pattern.signals.tileScale.id, 'constant');
+    assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
 });
 
 test('decodeScene accepts legacy paletteGlow without speed signal', () => {
@@ -211,6 +222,17 @@ test('decodeScene accepts legacy paletteGlow without speed signal', () => {
     assert.equal(decoded.pattern.id, 'paletteGlow');
     assert.equal(decoded.pattern.signals.speed.id, 'constant');
     assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+    assert.equal(decoded.pattern.signals.tileScale.id, 'constant');
+    assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
+});
+
+test('decodeScene accepts paletteGlow without tileScale signal', () => {
+    const decoded = decodeScene(bytes(SPEED_ONLY_PALETTE_GLOW_FIXTURE));
+    assert.equal(decoded.pattern.id, 'paletteGlow');
+    assert.equal(decoded.pattern.signals.speed.id, 'constant');
+    assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+    assert.equal(decoded.pattern.signals.tileScale.id, 'constant');
+    assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
 });
 
 test('all current patterns round-trip through the web codec', () => {

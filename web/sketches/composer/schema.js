@@ -342,7 +342,10 @@ export const PATTERNS = {
     paletteGlow: {
         tag: 0x1F, label: 'ShaderToy — Palette Glow', output: 'rgb',
         config: [],
-        signals: [{ name: 'speed', default: { id: 'constant', params: { permille: 1000 } } }],
+        signals: [
+            { name: 'speed', default: { id: 'constant', params: { permille: 1000 } } },
+            { name: 'tileScale', default: { id: 'constant', params: { permille: 500 } } },
+        ],
     },
     xor: {
         tag: 0x22, label: 'XOR — Munching Squares',

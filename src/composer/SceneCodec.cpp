@@ -114,7 +114,7 @@ namespace PolarShader::composer {
             PAT_PF_DOTS             = 0x1C, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_PF_WAVE_MATRIX      = 0x1D, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_PF_RADIAL_PULSE     = 0x1E, // u8 cellCount; signals: phaseSpeed, warp, thickness
-            PAT_PALETTE_GLOW        = 0x1F, // body: optional signal speed (empty => 1.0)
+            PAT_PALETTE_GLOW        = 0x1F, // body: optional signal speed + optional signal tileScale
             PAT_XOR                 = 0x22, // u8 gridSize + u16 speed
             PAT_RASTER_CONWAY       = 0x2B, // u16 stepIntervalMs + u16 seed + u16 densityPermille
             PAT_RASTER_CYCLIC_CA    = 0x2C, // u16 stepIntervalMs + u16 seed + u8 numStates + u8 threshold
@@ -614,10 +614,13 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_PALETTE_GLOW: {
-                    if (r.remaining() == 0) return paletteGlowPattern();
-                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal speed = constant(1000);
+                    Sf16Signal tileScale = constant(500);
+                    if (r.remaining() > 0) speed = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
-                    return paletteGlowPattern(std::move(speed));
+                    if (r.remaining() > 0) tileScale = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return paletteGlowPattern(std::move(speed), std::move(tileScale));
                 }
 
                 case PAT_RASTER_CONWAY: {

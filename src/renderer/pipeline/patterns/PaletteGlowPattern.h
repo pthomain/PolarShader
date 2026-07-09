@@ -35,7 +35,10 @@ namespace PolarShader {
      */
     class PaletteGlowPattern : public UVPattern {
     public:
-        explicit PaletteGlowPattern(Sf16Signal speed = constant(1000));
+        explicit PaletteGlowPattern(
+            Sf16Signal speed = constant(1000),
+            Sf16Signal tileScale = constant(500)
+        );
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 

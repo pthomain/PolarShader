@@ -143,7 +143,7 @@ PATTERN_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {
     0x1C: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x1D: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x1E: (_sig("u8", "signal", "signal", "signal"), "uv"),
-    0x1F: (_sig("signal"), "uv"),
+    0x1F: (_sig("signal", "signal"), "uv"),
     0x22: (_sig("u8", "u16"), "uv"),
     0x2B: (_sig("u16", "u16", "u16"), "raster"),
     0x2C: (_sig("u16", "u16", "u8", "u8"), "raster"),
@@ -218,7 +218,12 @@ def _read_pattern(reader: _Reader) -> tuple[int, str]:
     if schema is None:
         raise PscValidationError(f"unknown pattern tag 0x{tag:02x}")
     params, domain = schema
-    if tag == 0x1F and body.remaining == 0:
+    if tag == 0x1F:
+        if body.remaining:
+            _read_signal(body, 1)
+        if body.remaining:
+            _read_signal(body, 1)
+        body.expect_end("pattern")
         return tag, domain
     _read_params(body, params, 0)
     body.expect_end("pattern")

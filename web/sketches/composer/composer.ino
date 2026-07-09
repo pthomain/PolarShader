@@ -9,9 +9,9 @@
 //
 // Display-switch lifecycle:
 //   The active WebFastLedDisplay is destroyed and reconstructed for the
-//   new geometry. FastLED's strip registry tolerates this because both
-//   FabricDisplaySpec and RoundDisplaySpec instantiate the SAME
-//   addLeds<WS2812, D1, GRB> template specialisation — addLeds returns
+//   new geometry. FastLED's strip registry tolerates this because the web
+//   display specs instantiate the SAME addLeds<WS2812, D1, GRB> template
+//   specialisation — addLeds returns
 //   a function-local static CLEDController that is re-pointed at the
 //   new outputArray. (See FastLED.h:1093-1097 in the pinned commit.) If
 //   a future spec uses a different chipset/pin/order, this assumption
@@ -23,6 +23,7 @@
 
 #include "FabricDisplaySpec.h"
 #include "Fabric32x8DisplaySpec.h"
+#include "Matrix128x128DisplaySpec.h"
 #include "RoundDisplaySpec.h"
 #include "display/WebDisplayGeometry.h"
 #include "display/WebFastLedDisplay.h"
@@ -33,6 +34,7 @@ using namespace PolarShader;
 namespace {
     constexpr uint8_t FABRIC_BRIGHTNESS = 255;
     constexpr uint8_t FABRIC32X8_BRIGHTNESS = 255;
+    constexpr uint8_t SMARTMATRIX_BRIGHTNESS = 255;
     constexpr uint8_t ROUND_BRIGHTNESS = 255;
     constexpr uint8_t REFRESH_MS = 30;
 
@@ -40,6 +42,7 @@ namespace {
     constexpr uint8_t DISPLAY_FABRIC       = 0;
     constexpr uint8_t DISPLAY_ROUND        = 1;
     constexpr uint8_t DISPLAY_FABRIC_32X8  = 2;
+    constexpr uint8_t DISPLAY_SMARTMATRIX  = 3;
 
 #ifndef COMPOSER_INITIAL_DISPLAY
 #define COMPOSER_INITIAL_DISPLAY DISPLAY_FABRIC
@@ -49,6 +52,7 @@ namespace {
     // keeps the dispatch type-safe without runtime polymorphism.
     std::unique_ptr<WebFastLedDisplay<FabricDisplaySpec>>      fabricDisplay;
     std::unique_ptr<WebFastLedDisplay<Fabric32x8DisplaySpec>>  fabric32x8Display;
+    std::unique_ptr<WebFastLedDisplay<Matrix128x128DisplaySpec>> smartMatrixDisplay;
     std::unique_ptr<WebFastLedDisplay<RoundDisplaySpec>>       roundDisplay;
     uint8_t activeDisplay = COMPOSER_INITIAL_DISPLAY;
 
@@ -89,6 +93,7 @@ namespace {
         if (activeDisplay == DISPLAY_ROUND) {
             fabricDisplay.reset();
             fabric32x8Display.reset();
+            smartMatrixDisplay.reset();
             static RoundDisplaySpec spec;
             static composer::DecodeStatus _ignored = composer::DecodeStatus::OK;
             (void) _ignored;
@@ -100,13 +105,23 @@ namespace {
                 spec, geometry, ROUND_BRIGHTNESS, REFRESH_MS);
         } else if (activeDisplay == DISPLAY_FABRIC_32X8) {
             fabricDisplay.reset();
+            smartMatrixDisplay.reset();
             roundDisplay.reset();
             static Fabric32x8DisplaySpec spec;
             static WebDisplayGeometry geometry = buildWebGeometry(spec);
             fabric32x8Display = std::make_unique<WebFastLedDisplay<Fabric32x8DisplaySpec>>(
                 spec, geometry, FABRIC32X8_BRIGHTNESS, REFRESH_MS);
+        } else if (activeDisplay == DISPLAY_SMARTMATRIX) {
+            fabricDisplay.reset();
+            fabric32x8Display.reset();
+            roundDisplay.reset();
+            static Matrix128x128DisplaySpec spec;
+            static WebDisplayGeometry geometry = buildWebGeometry(spec);
+            smartMatrixDisplay = std::make_unique<WebFastLedDisplay<Matrix128x128DisplaySpec>>(
+                spec, geometry, SMARTMATRIX_BRIGHTNESS, REFRESH_MS);
         } else {
             fabric32x8Display.reset();
+            smartMatrixDisplay.reset();
             roundDisplay.reset();
             static FabricDisplaySpec spec;
             static WebDisplayGeometry geometry = buildWebGeometry(spec);
@@ -139,6 +154,8 @@ namespace {
             replaceSceneWithPhase(*roundDisplay, std::move(scene), preserveElapsed, seq);
         } else if (activeDisplay == DISPLAY_FABRIC_32X8 && fabric32x8Display) {
             replaceSceneWithPhase(*fabric32x8Display, std::move(scene), preserveElapsed, seq);
+        } else if (activeDisplay == DISPLAY_SMARTMATRIX && smartMatrixDisplay) {
+            replaceSceneWithPhase(*smartMatrixDisplay, std::move(scene), preserveElapsed, seq);
         } else if (fabricDisplay) {
             replaceSceneWithPhase(*fabricDisplay, std::move(scene), preserveElapsed, seq);
         } else {
@@ -204,7 +221,7 @@ int composer_apply_scene(const uint8_t *bytes, uint32_t len) {
     return composer_apply_scene_seq(bytes, len, 0);
 }
 
-// 0 = fabric, 1 = round, 2 = fabric 32x8. Rebuilds the display AND internally reapplies
+// 0 = fabric, 1 = round, 2 = fabric 32x8, 3 = SmartMatrix 128x128. Rebuilds the display AND internally reapplies
 // the most-recent valid scene blob — JS does not need to call
 // composer_apply_scene after this. No-op if `which` matches the current
 // display.
@@ -217,11 +234,11 @@ int composer_apply_scene(const uint8_t *bytes, uint32_t len) {
 EMSCRIPTEN_KEEPALIVE
 void composer_set_display_seq(uint8_t which, uint32_t seq) {
     postComposerPhase(seq, "display-enter");
-    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND && which != DISPLAY_FABRIC_32X8) {
+    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND && which != DISPLAY_FABRIC_32X8 && which != DISPLAY_SMARTMATRIX) {
         postComposerPhase(seq, "display-invalid");
         return;
     }
-    if (which == activeDisplay && (fabricDisplay || fabric32x8Display || roundDisplay)) {
+    if (which == activeDisplay && (fabricDisplay || fabric32x8Display || smartMatrixDisplay || roundDisplay)) {
         postComposerPhase(seq, "display-noop");
         return;
     }
@@ -240,12 +257,12 @@ void composer_set_display(uint8_t which) {
     composer_set_display_seq(which, 0);
 }
 
-// 0 = fabric, 1 = round, 2 = fabric 32x8. Intended for generated JS to call before setup(),
+// 0 = fabric, 1 = round, 2 = fabric 32x8, 3 = SmartMatrix 128x128. Intended for generated JS to call before setup(),
 // so the initial FastLED screen map matches the iframe URL.
 EMSCRIPTEN_KEEPALIVE
 void composer_set_initial_display(uint8_t which) {
-    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND && which != DISPLAY_FABRIC_32X8) return;
-    if (fabricDisplay || fabric32x8Display || roundDisplay) {
+    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND && which != DISPLAY_FABRIC_32X8 && which != DISPLAY_SMARTMATRIX) return;
+    if (fabricDisplay || fabric32x8Display || smartMatrixDisplay || roundDisplay) {
         composer_set_display(which);
         return;
     }
@@ -272,6 +289,8 @@ void loop() {
         roundDisplay->loop();
     } else if (activeDisplay == DISPLAY_FABRIC_32X8 && fabric32x8Display) {
         fabric32x8Display->loop();
+    } else if (activeDisplay == DISPLAY_SMARTMATRIX && smartMatrixDisplay) {
+        smartMatrixDisplay->loop();
     } else if (fabricDisplay) {
         fabricDisplay->loop();
     }
