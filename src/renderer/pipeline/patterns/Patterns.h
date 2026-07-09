@@ -44,6 +44,7 @@
 #include <renderer/pipeline/patterns/SpiralPattern.h>
 #include <renderer/pipeline/patterns/AnnuliPattern.h>
 #include <renderer/pipeline/patterns/PaletteGlowPattern.h>
+#include <renderer/pipeline/patterns/ShaderToyRgbPatterns.h>
 #include <renderer/pipeline/patterns/patternflow/PatternFlow.h>
 #include <renderer/pipeline/signals/SignalTypes.h>
 
@@ -242,6 +243,53 @@ namespace PolarShader {
     std::unique_ptr<UVPattern> paletteGlowPattern(
         Sf16Signal speed = constant(1000),
         Sf16Signal tileScale = constant(500)
+    );
+
+    // ShaderToy Rocaille port with the source shader's nine slider controls.
+    std::unique_ptr<UVPattern> rocaillePattern(
+        Sf16Signal scale = constant(333),
+        Sf16Signal length = constant(429),
+        Sf16Signal detail = constant(222),
+        Sf16Signal turbulence = constant(500),
+        Sf16Signal frequency = constant(333),
+        Sf16Signal speed = constant(333),
+        Sf16Signal layers = constant(727),
+        Sf16Signal hue = constant(500),
+        Sf16Signal glow = constant(429)
+    );
+
+    // ShaderToy XsXXDn / Danilo Guanabara RGB warp.
+    std::unique_ptr<UVPattern> proteanCloudsPattern(
+        Sf16Signal speed = constant(1000),
+        Sf16Signal warp = constant(500),
+        Sf16Signal frequency = constant(500),
+        Sf16Signal brightness = constant(500)
+    );
+
+    // ShaderToy tlVGDt "Octgrams".
+    std::unique_ptr<UVPattern> octgramsPattern(
+        Sf16Signal speed = constant(1000),
+        Sf16Signal travel = constant(500),
+        Sf16Signal pulse = constant(500),
+        Sf16Signal density = constant(500),
+        Sf16Signal glow = constant(500)
+    );
+
+    // ShaderToy 7ctGz4 rotating square traces.
+    std::unique_ptr<UVPattern> rotatingSquaresPattern(
+        Sf16Signal speed = constant(1000),
+        Sf16Signal thickness = constant(375),
+        Sf16Signal pulse = constant(333),
+        Sf16Signal brightness = constant(500)
+    );
+
+    // ShaderToy MfjyWK "Starry planes".
+    std::unique_ptr<UVPattern> starryPlanesPattern(
+        Sf16Signal speed = constant(1000),
+        Sf16Signal planeSpacing = constant(500),
+        Sf16Signal starSize = constant(400),
+        Sf16Signal path = constant(500),
+        Sf16Signal brightness = constant(500)
     );
 }
 

@@ -56,6 +56,7 @@
 #include "renderer/pipeline/patterns/src/FlowFieldPattern.cpp"
 #include "renderer/pipeline/patterns/src/FlurryPattern.cpp"
 #include "renderer/pipeline/patterns/src/PaletteGlowPattern.cpp"
+#include "renderer/pipeline/patterns/src/ShaderToyRgbPatterns.cpp"
 #include "renderer/pipeline/patterns/src/SpiralPattern.cpp"
 #include "renderer/pipeline/patterns/src/TilingPattern.cpp"
 #include "renderer/pipeline/patterns/src/TransportPattern.cpp"
@@ -305,6 +306,26 @@ namespace {
         };
     }
 
+    const UV kShaderToyProbes[] = {
+        UV(fl::s16x16::from_raw(0x8000), fl::s16x16::from_raw(0x8000)),
+        UV(fl::s16x16::from_raw(0x4D00), fl::s16x16::from_raw(0xA200)),
+        UV(fl::s16x16::from_raw(0xB600), fl::s16x16::from_raw(0x3A00))
+    };
+
+    bool hasVisibleRgb(UVLayer layer) {
+        for (const UV &probe: kShaderToyProbes) {
+            if (raw(layer.rgb(probe).value()) > 0) return true;
+        }
+        return false;
+    }
+
+    bool hasDifferentRgb(UVLayer a, UVLayer b) {
+        for (const UV &probe: kShaderToyProbes) {
+            if (a.rgb(probe).packed != b.rgb(probe).packed) return true;
+        }
+        return false;
+    }
+
     void assertReferenceRgbNear(ReferenceRgb16 actual, ReferenceRgb16 expected) {
         constexpr uint16_t tolerance = 768u;
         TEST_ASSERT_UINT16_WITHIN(tolerance, expected.r, actual.r);
@@ -381,6 +402,60 @@ void test_palette_glow_tile_scale_signal_changes_loop_scale() {
     lowScale.advanceFrame(f16(0), 1000);
 
     TEST_ASSERT_TRUE(defaultScale.uvLayer(context).rgb(probe).packed != lowScale.uvLayer(context).rgb(probe).packed);
+}
+
+void test_requested_shadertoy_patterns_emit_rgb_samples() {
+    auto context = std::make_shared<PipelineContext>();
+    context->rasterDisplay = RasterDisplayInfo{true, 128, 64, 128u * 64u};
+
+    RocaillePattern rocaille;
+    ProteanCloudsPattern protean;
+    OctgramsPattern octgrams;
+    RotatingSquaresPattern rotatingSquares;
+    StarryPlanesPattern starryPlanes;
+    UVPattern *patterns[] = {&rocaille, &protean, &octgrams, &rotatingSquares, &starryPlanes};
+
+    for (UVPattern *pattern: patterns) {
+        pattern->advanceFrame(f16(0), 1000);
+        UVLayer layer = pattern->uvLayer(context);
+        TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(layer.kind));
+        TEST_ASSERT_TRUE(hasVisibleRgb(layer));
+    }
+}
+
+void test_requested_shadertoy_pattern_signals_change_output() {
+    auto context = std::make_shared<PipelineContext>();
+    context->rasterDisplay = RasterDisplayInfo{true, 128, 64, 128u * 64u};
+
+    RocaillePattern rocailleDefault;
+    RocaillePattern rocailleSmallScale(constant(0));
+    rocailleDefault.advanceFrame(f16(0), 1000);
+    rocailleSmallScale.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(rocailleDefault.uvLayer(context), rocailleSmallScale.uvLayer(context)));
+
+    ProteanCloudsPattern proteanDefault;
+    ProteanCloudsPattern proteanDark(constant(1000), constant(500), constant(500), constant(0));
+    proteanDefault.advanceFrame(f16(0), 1000);
+    proteanDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(proteanDefault.uvLayer(context), proteanDark.uvLayer(context)));
+
+    OctgramsPattern octgramsDefault;
+    OctgramsPattern octgramsDense(constant(1000), constant(500), constant(500), constant(0), constant(500));
+    octgramsDefault.advanceFrame(f16(0), 1000);
+    octgramsDense.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(octgramsDefault.uvLayer(context), octgramsDense.uvLayer(context)));
+
+    RotatingSquaresPattern squaresDefault;
+    RotatingSquaresPattern squaresDark(constant(1000), constant(375), constant(333), constant(0));
+    squaresDefault.advanceFrame(f16(0), 1000);
+    squaresDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(squaresDefault.uvLayer(context), squaresDark.uvLayer(context)));
+
+    StarryPlanesPattern starryDefault;
+    StarryPlanesPattern starryDark(constant(1000), constant(500), constant(400), constant(500), constant(0));
+    starryDefault.advanceFrame(f16(0), 1000);
+    starryDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(starryDefault.uvLayer(context), starryDark.uvLayer(context)));
 }
 #endif
 
@@ -1229,6 +1304,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_palette_glow_pattern_matches_shadertoy_reference_points);
     RUN_TEST(test_palette_glow_speed_signal_scales_elapsed_time);
     RUN_TEST(test_palette_glow_tile_scale_signal_changes_loop_scale);
+    RUN_TEST(test_requested_shadertoy_patterns_emit_rgb_samples);
+    RUN_TEST(test_requested_shadertoy_pattern_signals_change_output);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);

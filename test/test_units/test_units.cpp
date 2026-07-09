@@ -73,6 +73,7 @@
 #include "renderer/pipeline/patterns/src/FlowFieldPattern.cpp"
 #include "renderer/pipeline/patterns/src/FlurryPattern.cpp"
 #include "renderer/pipeline/patterns/src/PaletteGlowPattern.cpp"
+#include "renderer/pipeline/patterns/src/ShaderToyRgbPatterns.cpp"
 #include "renderer/pipeline/patterns/src/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/src/SpiralPattern.cpp"
 #include "renderer/pipeline/patterns/src/TilingPattern.cpp"

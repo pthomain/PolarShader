@@ -217,6 +217,60 @@ test('paletteGlow speed defaults to full ShaderToy time', () => {
     assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
 });
 
+test('requested ShaderToy RGB patterns expose expected signal defaults', () => {
+    const expected = {
+        rocaille: {
+            scale: 333,
+            length: 429,
+            detail: 222,
+            turbulence: 500,
+            frequency: 333,
+            speed: 333,
+            layers: 727,
+            hue: 500,
+            glow: 429,
+        },
+        proteanClouds: {
+            speed: 1000,
+            warp: 500,
+            frequency: 500,
+            brightness: 500,
+        },
+        octgrams: {
+            speed: 1000,
+            travel: 500,
+            pulse: 500,
+            density: 500,
+            glow: 500,
+        },
+        rotatingSquares: {
+            speed: 1000,
+            thickness: 375,
+            pulse: 333,
+            brightness: 500,
+        },
+        starryPlanes: {
+            speed: 1000,
+            planeSpacing: 500,
+            starSize: 400,
+            path: 500,
+            brightness: 500,
+        },
+    };
+
+    for (const [id, signals] of Object.entries(expected)) {
+        const decoded = decodeScene(encodeScene({
+            paletteId: 0,
+            pattern: { id, config: {}, signals: {} },
+            transforms: [],
+        }));
+        for (const [name, permille] of Object.entries(signals)) {
+            assert.equal(decoded.pattern.signals[name].id, 'constant', `${id}.${name}`);
+            assert.equal(decoded.pattern.signals[name].params.permille, permille, `${id}.${name}`);
+        }
+    }
+});
+
 test('decodeScene accepts legacy paletteGlow without speed signal', () => {
     const decoded = decodeScene(bytes(LEGACY_PALETTE_GLOW_FIXTURE));
     assert.equal(decoded.pattern.id, 'paletteGlow');

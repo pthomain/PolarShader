@@ -347,6 +347,31 @@ export const PATTERNS = {
             { name: 'tileScale', default: { id: 'constant', params: { permille: 500 } } },
         ],
     },
+    rocaille: {
+        tag: 0x20, label: 'ShaderToy — Rocaille', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'scale', default: { id: 'constant', params: { permille: 333 } } },
+            { name: 'length', default: { id: 'constant', params: { permille: 429 } } },
+            { name: 'detail', default: { id: 'constant', params: { permille: 222 } } },
+            { name: 'turbulence', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'frequency', default: { id: 'constant', params: { permille: 333 } } },
+            { name: 'speed', default: { id: 'constant', params: { permille: 333 } } },
+            { name: 'layers', default: { id: 'constant', params: { permille: 727 } } },
+            { name: 'hue', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'glow', default: { id: 'constant', params: { permille: 429 } } },
+        ],
+    },
+    proteanClouds: {
+        tag: 0x21, label: 'ShaderToy — Protean Clouds', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'speed', default: { id: 'constant', params: { permille: 1000 } } },
+            { name: 'warp', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'frequency', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'brightness', default: { id: 'constant', params: { permille: 500 } } },
+        ],
+    },
     xor: {
         tag: 0x22, label: 'XOR — Munching Squares',
         config: [
@@ -354,6 +379,38 @@ export const PATTERNS = {
             { name: 'speed', kind: 'u16', default: 40 },
         ],
         signals: [],
+    },
+    octgrams: {
+        tag: 0x23, label: 'ShaderToy — Octgrams', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'speed', default: { id: 'constant', params: { permille: 1000 } } },
+            { name: 'travel', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'pulse', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'density', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'glow', default: { id: 'constant', params: { permille: 500 } } },
+        ],
+    },
+    rotatingSquares: {
+        tag: 0x24, label: 'ShaderToy — Rotating Squares', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'speed', default: { id: 'constant', params: { permille: 1000 } } },
+            { name: 'thickness', default: { id: 'constant', params: { permille: 375 } } },
+            { name: 'pulse', default: { id: 'constant', params: { permille: 333 } } },
+            { name: 'brightness', default: { id: 'constant', params: { permille: 500 } } },
+        ],
+    },
+    starryPlanes: {
+        tag: 0x25, label: 'ShaderToy — Starry Planes', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'speed', default: { id: 'constant', params: { permille: 1000 } } },
+            { name: 'planeSpacing', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'starSize', default: { id: 'constant', params: { permille: 400 } } },
+            { name: 'path', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'brightness', default: { id: 'constant', params: { permille: 500 } } },
+        ],
     },
     rasterConway: {
         tag: 0x2B, label: 'Pixel Grid — Conway',

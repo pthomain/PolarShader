@@ -115,7 +115,12 @@ namespace PolarShader::composer {
             PAT_PF_WAVE_MATRIX      = 0x1D, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_PF_RADIAL_PULSE     = 0x1E, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_PALETTE_GLOW        = 0x1F, // body: optional signal speed + optional signal tileScale
+            PAT_ROCAILLE            = 0x20, // body: 9 signals matching source sliders
+            PAT_PROTEAN_CLOUDS      = 0x21, // body: speed, warp, frequency, brightness
             PAT_XOR                 = 0x22, // u8 gridSize + u16 speed
+            PAT_OCTGRAMS            = 0x23, // body: speed, travel, pulse, density, glow
+            PAT_ROTATING_SQUARES    = 0x24, // body: speed, thickness, pulse, brightness
+            PAT_STARRY_PLANES       = 0x25, // body: speed, planeSpacing, starSize, path, brightness
             PAT_RASTER_CONWAY       = 0x2B, // u16 stepIntervalMs + u16 seed + u16 densityPermille
             PAT_RASTER_CYCLIC_CA    = 0x2C, // u16 stepIntervalMs + u16 seed + u8 numStates + u8 threshold
             PAT_RASTER_BRIANS_BRAIN = 0x2D, // u16 stepIntervalMs + u16 seed + u16 densityPermille
@@ -621,6 +626,90 @@ namespace PolarShader::composer {
                     if (r.remaining() > 0) tileScale = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return paletteGlowPattern(std::move(speed), std::move(tileScale));
+                }
+
+                case PAT_ROCAILLE: {
+                    Sf16Signal scale = decodeSignal(r, status, version);
+                    Sf16Signal length = decodeSignal(r, status, version);
+                    Sf16Signal detail = decodeSignal(r, status, version);
+                    Sf16Signal turbulence = decodeSignal(r, status, version);
+                    Sf16Signal frequency = decodeSignal(r, status, version);
+                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal layers = decodeSignal(r, status, version);
+                    Sf16Signal hue = decodeSignal(r, status, version);
+                    Sf16Signal glow = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return rocaillePattern(
+                        std::move(scale),
+                        std::move(length),
+                        std::move(detail),
+                        std::move(turbulence),
+                        std::move(frequency),
+                        std::move(speed),
+                        std::move(layers),
+                        std::move(hue),
+                        std::move(glow)
+                    );
+                }
+
+                case PAT_PROTEAN_CLOUDS: {
+                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal warp = decodeSignal(r, status, version);
+                    Sf16Signal frequency = decodeSignal(r, status, version);
+                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return proteanCloudsPattern(
+                        std::move(speed),
+                        std::move(warp),
+                        std::move(frequency),
+                        std::move(brightness)
+                    );
+                }
+
+                case PAT_OCTGRAMS: {
+                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal travel = decodeSignal(r, status, version);
+                    Sf16Signal pulse = decodeSignal(r, status, version);
+                    Sf16Signal density = decodeSignal(r, status, version);
+                    Sf16Signal glow = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return octgramsPattern(
+                        std::move(speed),
+                        std::move(travel),
+                        std::move(pulse),
+                        std::move(density),
+                        std::move(glow)
+                    );
+                }
+
+                case PAT_ROTATING_SQUARES: {
+                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal thickness = decodeSignal(r, status, version);
+                    Sf16Signal pulse = decodeSignal(r, status, version);
+                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return rotatingSquaresPattern(
+                        std::move(speed),
+                        std::move(thickness),
+                        std::move(pulse),
+                        std::move(brightness)
+                    );
+                }
+
+                case PAT_STARRY_PLANES: {
+                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal planeSpacing = decodeSignal(r, status, version);
+                    Sf16Signal starSize = decodeSignal(r, status, version);
+                    Sf16Signal path = decodeSignal(r, status, version);
+                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return starryPlanesPattern(
+                        std::move(speed),
+                        std::move(planeSpacing),
+                        std::move(starSize),
+                        std::move(path),
+                        std::move(brightness)
+                    );
                 }
 
                 case PAT_RASTER_CONWAY: {
