@@ -402,4 +402,20 @@ namespace PolarShader {
             std::move(brightness)
         );
     }
+
+    std::unique_ptr<UVPattern> starFieldTravelPattern(
+        Sf16Signal speed,
+        Sf16Signal density,
+        Sf16Signal trail,
+        Sf16Signal starSize,
+        Sf16Signal brightness
+    ) {
+        return std::make_unique<StarFieldTravelPattern>(
+            std::move(speed),
+            std::move(density),
+            std::move(trail),
+            std::move(starSize),
+            std::move(brightness)
+        );
+    }
 }

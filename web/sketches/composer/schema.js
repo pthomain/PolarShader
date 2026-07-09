@@ -424,6 +424,17 @@ export const PATTERNS = {
             { name: 'brightness', default: { id: 'constant', params: { permille: 500 } } },
         ],
     },
+    starFieldTravel: {
+        tag: 0x27, label: 'Star Field Travel', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'speed', default: { id: 'constant', params: { permille: 250 } } },
+            { name: 'density', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'trail', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'starSize', default: { id: 'constant', params: { permille: 400 } } },
+            { name: 'brightness', default: { id: 'constant', params: { permille: 600 } } },
+        ],
+    },
     rasterConway: {
         tag: 0x2B, label: 'Pixel Grid — Conway',
         domain: 'raster',

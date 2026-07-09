@@ -42,11 +42,14 @@ namespace PolarShader {
         constexpr int32_t Q16_0_064 = 4194;
         constexpr int32_t Q16_0_07 = 4588;
         constexpr int32_t Q16_0_10 = 6554;
+        constexpr int32_t Q16_0_12 = 7864;
         constexpr int32_t Q16_0_20 = 13107;
         constexpr int32_t Q16_0_25 = 16384;
+        constexpr int32_t Q16_0_30 = 19661;
         constexpr int32_t Q16_0_40 = 26214;
         constexpr int32_t Q16_0_50 = 32768;
         constexpr int32_t Q16_0_55 = 36045;
+        constexpr int32_t Q16_0_60 = 39322;
         constexpr int32_t Q16_0_70 = 45875;
         constexpr int32_t Q16_0_75 = 49152;
         constexpr int32_t Q16_0_80 = 52429;
@@ -97,6 +100,12 @@ namespace PolarShader {
             int64_t mod = value % Q16_TAU;
             if (mod < 0) mod += Q16_TAU;
             return static_cast<int32_t>(mod);
+        }
+
+        int32_t floorToIntRaw(int32_t valueRaw) {
+            int64_t value = valueRaw;
+            if (value >= 0) return static_cast<int32_t>(value >> 16);
+            return -static_cast<int32_t>((-value + SF16_ONE - 1) >> 16);
         }
 
         int32_t shaderToyDisplayAspectRaw(const std::shared_ptr<PipelineContext> &context) {
@@ -481,6 +490,38 @@ namespace PolarShader {
             int32_t value = Q16_0_50 + mulQ16Raw(sinRadiansRaw(phaseRaw), Q16_0_80);
             if (value <= 0) return 0u;
             return mulUnsignedRaw(static_cast<uint32_t>(value), static_cast<uint32_t>(brightnessRaw));
+        }
+
+        uint32_t starFieldHash32(uint32_t value) {
+            value ^= value >> 16;
+            value *= 0x7feb352du;
+            value ^= value >> 15;
+            value *= 0x846ca68bu;
+            value ^= value >> 16;
+            return value;
+        }
+
+        uint32_t starFieldHashCell(int32_t x, int32_t y, uint8_t layer, uint8_t salt) {
+            uint32_t h = static_cast<uint32_t>(x) * 0x9e3779b9u;
+            h ^= static_cast<uint32_t>(y) * 0x85ebca6bu;
+            h ^= static_cast<uint32_t>(layer) * 0xc2b2ae35u;
+            h ^= static_cast<uint32_t>(salt) * 0x27d4eb2fu;
+            return starFieldHash32(h);
+        }
+
+        void starFieldColour(uint32_t hash, uint32_t &r, uint32_t &g, uint32_t &b) {
+            uint32_t h1 = starFieldHash32(hash ^ 0x5bd1e995u);
+            uint32_t h2 = starFieldHash32(hash ^ 0x68bc21ebu);
+            uint32_t h3 = starFieldHash32(hash ^ 0x02e5be93u);
+            r = Q16_0_25 + mulUnsignedRaw(h1 & 0xFFFFu, Q16_0_75);
+            g = Q16_0_25 + mulUnsignedRaw(h2 & 0xFFFFu, Q16_0_75);
+            b = Q16_0_25 + mulUnsignedRaw(h3 & 0xFFFFu, Q16_0_75);
+
+            switch ((hash >> 29) % 3u) {
+                case 0: r = SF16_ONE; break;
+                case 1: g = SF16_ONE; break;
+                default: b = SF16_ONE; break;
+            }
         }
 
         int32_t pminRaw(int32_t aRaw, int32_t bRaw, int32_t kRaw) {
@@ -1352,6 +1393,179 @@ namespace PolarShader {
     UVLayer TrigFieldPattern::uvLayer(const std::shared_ptr<PipelineContext> &context) const {
         (void)context;
         Functor f{state.get()};
+        return UVLayer::fromRgb([f](UV uv) {
+            return f.sample(uv);
+        });
+    }
+
+    struct StarFieldTravelPattern::State {
+        Sf16Signal speedSignal;
+        Sf16Signal densitySignal;
+        Sf16Signal trailSignal;
+        Sf16Signal starSizeSignal;
+        Sf16Signal brightnessSignal;
+        uint32_t timeRaw{0};
+        uint32_t densityRaw{Q16_0_20};
+        uint32_t trailLengthRaw{Q16_0_30};
+        uint32_t trailAlphaRaw{Q16_0_50};
+        int32_t starSizeRaw{Q16_0_07};
+        uint32_t brightnessRaw{SF16_ONE};
+
+        State(
+            Sf16Signal speed,
+            Sf16Signal density,
+            Sf16Signal trail,
+            Sf16Signal starSize,
+            Sf16Signal brightness
+        ) :
+            speedSignal(std::move(speed)),
+            densitySignal(std::move(density)),
+            trailSignal(std::move(trail)),
+            starSizeSignal(std::move(starSize)),
+            brightnessSignal(std::move(brightness)) {}
+    };
+
+    struct StarFieldTravelPattern::Functor {
+        const State *state;
+        int32_t aspectRaw;
+
+        void accumulatePlane(
+            Vec2Q16 uv,
+            int32_t zRaw,
+            uint8_t layer,
+            uint32_t tapWeightRaw,
+            uint32_t &accR,
+            uint32_t &accG,
+            uint32_t &accB
+        ) const {
+            constexpr int32_t gridScaleRaw = Q16_8_00;
+            int32_t scaledZ = mulQ16Raw(zRaw, gridScaleRaw);
+            int32_t pxRaw = mulQ16Raw(raw(uv.x), scaledZ);
+            int32_t pyRaw = mulQ16Raw(raw(uv.y), scaledZ);
+            int32_t cellX = floorToIntRaw(pxRaw);
+            int32_t cellY = floorToIntRaw(pyRaw);
+            int32_t fracX = pxRaw - cellX * SF16_ONE;
+            int32_t fracY = pyRaw - cellY * SF16_ONE;
+            int32_t haloRadiusRaw = state->starSizeRaw * 6;
+            uint32_t depthRaw = divUnsignedRaw(SF16_ONE, static_cast<uint32_t>(zRaw), Q16_3_00);
+            uint32_t planeWeightRaw = mulUnsignedRaw(tapWeightRaw, depthRaw);
+            planeWeightRaw = mulUnsignedRaw(planeWeightRaw, state->brightnessRaw);
+
+            for (int8_t oy = -1; oy <= 1; ++oy) {
+                for (int8_t ox = -1; ox <= 1; ++ox) {
+                    int32_t sx = cellX + ox;
+                    int32_t sy = cellY + oy;
+                    uint32_t hash = starFieldHashCell(sx, sy, layer, 0);
+                    if ((hash & 0xFFFFu) > state->densityRaw) continue;
+
+                    uint32_t hx = starFieldHashCell(sx, sy, layer, 1);
+                    uint32_t hy = starFieldHashCell(sx, sy, layer, 2);
+                    int32_t starXRaw = static_cast<int32_t>(ox) * SF16_ONE + static_cast<int32_t>(hx & 0xFFFFu);
+                    int32_t starYRaw = static_cast<int32_t>(oy) * SF16_ONE + static_cast<int32_t>(hy & 0xFFFFu);
+                    int32_t dxRaw = fracX - starXRaw;
+                    int32_t dyRaw = fracY - starYRaw;
+                    if (absRaw(dxRaw) > haloRadiusRaw || absRaw(dyRaw) > haloRadiusRaw) continue;
+
+                    Vec2Q16 delta{
+                        fl::s16x16::from_raw(dxRaw),
+                        fl::s16x16::from_raw(dyRaw)
+                    };
+                    int32_t distRaw = raw(lengthQ16(delta));
+                    uint32_t core = smoothstepSignedRaw(state->starSizeRaw, 0, distRaw);
+                    uint32_t halo = smoothstepSignedRaw(haloRadiusRaw, 0, distRaw);
+                    uint32_t alphaRaw = core + mulUnsignedRaw(halo, Q16_0_20);
+                    if (alphaRaw > static_cast<uint32_t>(SF16_ONE)) alphaRaw = SF16_ONE;
+                    if (alphaRaw == 0u) continue;
+
+                    uint32_t intensityRaw = mulUnsignedRaw(alphaRaw, planeWeightRaw);
+                    if (intensityRaw == 0u) continue;
+
+                    uint32_t r;
+                    uint32_t g;
+                    uint32_t b;
+                    starFieldColour(hash, r, g, b);
+                    shaderToySaturatingAdd(accR, mulUnsignedRaw(r, intensityRaw));
+                    shaderToySaturatingAdd(accG, mulUnsignedRaw(g, intensityRaw));
+                    shaderToySaturatingAdd(accB, mulUnsignedRaw(b, intensityRaw));
+                }
+            }
+        }
+
+        RgbSample sample(UV uv) const {
+            if (!state) return RgbSample();
+
+            Vec2Q16 p = shaderUvHeight(uv, aspectRaw);
+            uint32_t accR = 0;
+            uint32_t accG = 0;
+            uint32_t accB = 0;
+            constexpr uint8_t layerCount = 6;
+            constexpr uint8_t trailTaps = 3;
+            int32_t timePhaseRaw = static_cast<int32_t>(state->timeRaw & 0xFFFFu);
+
+            for (uint8_t layer = 0; layer < layerCount; ++layer) {
+                int32_t layerPhaseRaw = static_cast<int32_t>((static_cast<uint32_t>(layer) * SF16_ONE) / layerCount);
+                int32_t cycleRaw = floorModRaw(layerPhaseRaw - timePhaseRaw, SF16_ONE);
+                int32_t zRaw = lerpByUnitRaw(Q16_0_20, Q16_1_50, static_cast<uint32_t>(cycleRaw));
+
+                for (uint8_t tap = 0; tap < trailTaps; ++tap) {
+                    int32_t tapZRaw = zRaw;
+                    uint32_t tapWeightRaw = SF16_ONE;
+                    if (tap > 0) {
+                        int32_t tapUnitRaw = static_cast<int32_t>((static_cast<uint32_t>(tap) * SF16_ONE) / (trailTaps - 1));
+                        tapZRaw += mulQ16Raw(static_cast<int32_t>(state->trailLengthRaw), tapUnitRaw);
+                        if (tapZRaw > Q16_1_50) continue;
+                        uint32_t fadeRaw = (static_cast<uint32_t>(trailTaps - tap) * SF16_ONE) / trailTaps;
+                        tapWeightRaw = mulUnsignedRaw(state->trailAlphaRaw, fadeRaw);
+                    }
+                    accumulatePlane(p, tapZRaw, layer, tapWeightRaw, accR, accG, accB);
+                }
+            }
+
+            return rgbFromPremultiplied(accR, accG, accB);
+        }
+
+        PatternNormU16 operator()(UV uv) const {
+            return sample(uv).value();
+        }
+    };
+
+    StarFieldTravelPattern::StarFieldTravelPattern(
+        Sf16Signal speed,
+        Sf16Signal density,
+        Sf16Signal trail,
+        Sf16Signal starSize,
+        Sf16Signal brightness
+    ) : state(std::make_shared<State>(
+        std::move(speed),
+        std::move(density),
+        std::move(trail),
+        std::move(starSize),
+        std::move(brightness)
+    )) {}
+
+    void StarFieldTravelPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+        (void)progress;
+        state->timeRaw = mulUnsignedRaw(secondsRaw(elapsedMs), static_cast<uint32_t>(
+            lerpByUnitRaw(0, Q16_0_80, signalUnitRaw(state->speedSignal, elapsedMs, 250))
+        ));
+        state->densityRaw = static_cast<uint32_t>(
+            lerpByUnitRaw(Q16_0_03, Q16_0_30, signalUnitRaw(state->densitySignal, elapsedMs, 500))
+        );
+        uint32_t trailUnitRaw = signalUnitRaw(state->trailSignal, elapsedMs, 500);
+        state->trailLengthRaw = static_cast<uint32_t>(lerpByUnitRaw(0, Q16_0_60, trailUnitRaw));
+        state->trailAlphaRaw = trailUnitRaw;
+        state->starSizeRaw = lerpByUnitRaw(Q16_0_03, Q16_0_25, signalUnitRaw(state->starSizeSignal, elapsedMs, 400));
+        state->brightnessRaw = static_cast<uint32_t>(
+            lerpByUnitRaw(Q16_0_50, Q16_2_00, signalUnitRaw(state->brightnessSignal, elapsedMs, 600))
+        );
+    }
+
+    UVMap StarFieldTravelPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+        return Functor{state.get(), shaderToyDisplayAspectRaw(context)};
+    }
+
+    UVLayer StarFieldTravelPattern::uvLayer(const std::shared_ptr<PipelineContext> &context) const {
+        Functor f{state.get(), shaderToyDisplayAspectRaw(context)};
         return UVLayer::fromRgb([f](UV uv) {
             return f.sample(uv);
         });

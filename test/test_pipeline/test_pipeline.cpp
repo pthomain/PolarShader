@@ -404,7 +404,7 @@ void test_palette_glow_tile_scale_signal_changes_loop_scale() {
     TEST_ASSERT_TRUE(defaultScale.uvLayer(context).rgb(probe).packed != lowScale.uvLayer(context).rgb(probe).packed);
 }
 
-void test_requested_shadertoy_patterns_emit_rgb_samples() {
+void test_requested_rgb_patterns_emit_rgb_samples() {
     auto context = std::make_shared<PipelineContext>();
     context->rasterDisplay = RasterDisplayInfo{true, 128, 64, 128u * 64u};
 
@@ -414,7 +414,10 @@ void test_requested_shadertoy_patterns_emit_rgb_samples() {
     RotatingSquaresPattern rotatingSquares;
     StarryPlanesPattern starryPlanes;
     TrigFieldPattern trigField;
-    UVPattern *patterns[] = {&rocaille, &protean, &octgrams, &rotatingSquares, &starryPlanes, &trigField};
+    StarFieldTravelPattern starFieldTravel;
+    UVPattern *patterns[] = {
+        &rocaille, &protean, &octgrams, &rotatingSquares, &starryPlanes, &trigField, &starFieldTravel
+    };
 
     for (UVPattern *pattern: patterns) {
         pattern->advanceFrame(f16(0), 1000);
@@ -424,7 +427,7 @@ void test_requested_shadertoy_patterns_emit_rgb_samples() {
     }
 }
 
-void test_requested_shadertoy_pattern_signals_change_output() {
+void test_requested_rgb_pattern_signals_change_output() {
     auto context = std::make_shared<PipelineContext>();
     context->rasterDisplay = RasterDisplayInfo{true, 128, 64, 128u * 64u};
 
@@ -463,6 +466,12 @@ void test_requested_shadertoy_pattern_signals_change_output() {
     trigDefault.advanceFrame(f16(0), 1000);
     trigDark.advanceFrame(f16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(trigDefault.uvLayer(context), trigDark.uvLayer(context)));
+
+    StarFieldTravelPattern starFieldDefault;
+    StarFieldTravelPattern starFieldDark(constant(250), constant(500), constant(500), constant(400), constant(0));
+    starFieldDefault.advanceFrame(f16(0), 1000);
+    starFieldDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(starFieldDefault.uvLayer(context), starFieldDark.uvLayer(context)));
 }
 #endif
 
@@ -1311,8 +1320,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_palette_glow_pattern_matches_shadertoy_reference_points);
     RUN_TEST(test_palette_glow_speed_signal_scales_elapsed_time);
     RUN_TEST(test_palette_glow_tile_scale_signal_changes_loop_scale);
-    RUN_TEST(test_requested_shadertoy_patterns_emit_rgb_samples);
-    RUN_TEST(test_requested_shadertoy_pattern_signals_change_output);
+    RUN_TEST(test_requested_rgb_patterns_emit_rgb_samples);
+    RUN_TEST(test_requested_rgb_pattern_signals_change_output);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);

@@ -119,6 +119,7 @@ namespace {
         PAT_ROTATING_SQUARES  = 0x24,
         PAT_STARRY_PLANES     = 0x25,
         PAT_TRIG_FIELD        = 0x26,
+        PAT_STAR_FIELD_TRAVEL = 0x27,
         PAT_RASTER_CONWAY     = 0x2B,
         PAT_RASTER_CYCLIC_CA  = 0x2C,
         PAT_RASTER_BRIANS_BRAIN = 0x2D,
@@ -398,6 +399,13 @@ namespace {
                     body.sigConstant(500);
                     body.sigConstant(500);
                     body.sigConstant(500);
+                    return;
+                case PAT_STAR_FIELD_TRAVEL:
+                    body.sigConstant(250);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    body.sigConstant(400);
+                    body.sigConstant(600);
                     return;
                 case PAT_RASTER_CONWAY:
                     body.u16(250).u16(1).u16(350);
@@ -996,6 +1004,7 @@ void test_decode_all_pattern_tags_compile() {
         PAT_ROTATING_SQUARES,
         PAT_STARRY_PLANES,
         PAT_TRIG_FIELD,
+        PAT_STAR_FIELD_TRAVEL,
         PAT_RASTER_CONWAY,
         PAT_RASTER_CYCLIC_CA,
         PAT_RASTER_BRIANS_BRAIN,

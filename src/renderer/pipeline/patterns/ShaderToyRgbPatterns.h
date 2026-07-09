@@ -165,6 +165,27 @@ namespace PolarShader {
         struct Functor;
         std::shared_ptr<State> state;
     };
+
+    // Slow forward-travel RGB star field inspired by classic screensavers.
+    class StarFieldTravelPattern : public UVPattern {
+    public:
+        explicit StarFieldTravelPattern(
+            Sf16Signal speed = constant(250),
+            Sf16Signal density = constant(500),
+            Sf16Signal trail = constant(500),
+            Sf16Signal starSize = constant(400),
+            Sf16Signal brightness = constant(600)
+        );
+
+        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
+        UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
+
+    private:
+        struct State;
+        struct Functor;
+        std::shared_ptr<State> state;
+    };
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_SHADERTOYRGBPATTERNS_H

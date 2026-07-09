@@ -301,6 +301,15 @@ namespace PolarShader {
         Sf16Signal colorSpread = constant(500),
         Sf16Signal brightness = constant(500)
     );
+
+    // Slow forward-travel RGB star field.
+    std::unique_ptr<UVPattern> starFieldTravelPattern(
+        Sf16Signal speed = constant(250),
+        Sf16Signal density = constant(500),
+        Sf16Signal trail = constant(500),
+        Sf16Signal starSize = constant(400),
+        Sf16Signal brightness = constant(600)
+    );
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_H

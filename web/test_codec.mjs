@@ -217,7 +217,7 @@ test('paletteGlow speed defaults to full ShaderToy time', () => {
     assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
 });
 
-test('requested ShaderToy RGB patterns expose expected signal defaults', () => {
+test('requested RGB patterns expose expected signal defaults', () => {
     const expected = {
         rocaille: {
             scale: 333,
@@ -263,6 +263,13 @@ test('requested ShaderToy RGB patterns expose expected signal defaults', () => {
             speed: 500,
             colorSpread: 500,
             brightness: 500,
+        },
+        starFieldTravel: {
+            speed: 250,
+            density: 500,
+            trail: 500,
+            starSize: 400,
+            brightness: 600,
         },
     };
 

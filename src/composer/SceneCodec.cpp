@@ -122,6 +122,7 @@ namespace PolarShader::composer {
             PAT_ROTATING_SQUARES    = 0x24, // body: speed, thickness, pulse, brightness
             PAT_STARRY_PLANES       = 0x25, // body: speed, planeSpacing, starSize, path, brightness
             PAT_TRIG_FIELD          = 0x26, // body: zoom, yOffset, waveScale, speed, colorSpread, brightness
+            PAT_STAR_FIELD_TRAVEL   = 0x27, // body: speed, density, trail, starSize, brightness
             PAT_RASTER_CONWAY       = 0x2B, // u16 stepIntervalMs + u16 seed + u16 densityPermille
             PAT_RASTER_CYCLIC_CA    = 0x2C, // u16 stepIntervalMs + u16 seed + u8 numStates + u8 threshold
             PAT_RASTER_BRIANS_BRAIN = 0x2D, // u16 stepIntervalMs + u16 seed + u16 densityPermille
@@ -727,6 +728,22 @@ namespace PolarShader::composer {
                         std::move(waveScale),
                         std::move(speed),
                         std::move(colorSpread),
+                        std::move(brightness)
+                    );
+                }
+
+                case PAT_STAR_FIELD_TRAVEL: {
+                    Sf16Signal speed = decodeSignal(r, status, version);
+                    Sf16Signal density = decodeSignal(r, status, version);
+                    Sf16Signal trail = decodeSignal(r, status, version);
+                    Sf16Signal starSize = decodeSignal(r, status, version);
+                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return starFieldTravelPattern(
+                        std::move(speed),
+                        std::move(density),
+                        std::move(trail),
+                        std::move(starSize),
                         std::move(brightness)
                     );
                 }
