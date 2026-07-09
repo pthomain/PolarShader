@@ -93,10 +93,53 @@ namespace PolarShader {
             return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(out))};
         }
 
+        PaletteSample chirp(UV uv) const {
+            UV polar = cartesianToPolarUV(uv);
+            int32_t radiusQ16 = raw(polar.v);      // [0, 65536]
+            const int32_t t = state->tTurns;
+
+            // Instantaneous radial frequency rises with radius: the ring phase
+            // is r*(f0 + k*r), so rings densify toward the edge. petalCount is
+            // the base ring count f0; fold adds the k*r sweep gain.
+            int32_t rC = radiusQ16 > static_cast<int32_t>(SF16_MAX) ? SF16_MAX : radiusQ16;
+            int32_t chirpGain = SF16_ONE + static_cast<int32_t>(
+                (static_cast<int64_t>(raw(state->foldF16)) * rC) >> 16
+            );
+            int64_t phase = (static_cast<int64_t>(state->petalCount) * rC * chirpGain) >> 16;
+            int32_t wave = raw(PfMath::pfSinTurns(static_cast<int32_t>(phase) - t));
+
+            uint16_t crest = PfMath::pfBump(SF16_ONE - wave, state->halfBandRaw);
+            // Hue: the signed sweep wave tints leading vs trailing edge.
+            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(crest)};
+        }
+
+        PaletteSample spiralArms(UV uv) const {
+            UV polar = cartesianToPolarUV(uv);
+            int32_t angleTurns = raw(polar.u);
+            int32_t radiusQ16 = raw(polar.v);
+            const int32_t t = state->tTurns;
+
+            // Radius-sheared Archimedean pinwheel: the arm phase winds the
+            // angle by an amount proportional to radius (fold = winding gain).
+            int32_t wind = static_cast<int32_t>(
+                (static_cast<int64_t>(raw(state->foldF16)) * 8 * radiusQ16) >> 16
+            );
+            int32_t phase = static_cast<int32_t>(state->petalCount) * angleTurns + wind - t;
+            int32_t wave = raw(PfMath::pfSinTurns(phase));
+
+            uint16_t arm = PfMath::pfBump(SF16_ONE - wave, state->halfBandRaw);
+            // Hue: the polar angle sweeps colour around the galaxy.
+            PatternNormU16 hue = PatternNormU16(static_cast<uint16_t>(angleTurns));
+            return PaletteSample{hue, PatternNormU16(arm)};
+        }
+
         PaletteSample sample(UV uv) const {
             switch (state->variant) {
                 case Variant::Petals: return petals(uv);
                 case Variant::Ripple: return rippleField(uv);
+                case Variant::Chirp: return chirp(uv);
+                case Variant::SpiralArms: return spiralArms(uv);
             }
             return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
         }

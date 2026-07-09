@@ -57,6 +57,7 @@
 #include "renderer/pipeline/patterns/patternflow/src/PfContourField.cpp"
 #include "renderer/pipeline/patterns/patternflow/src/PfPlasmaWarp.cpp"
 #include "renderer/pipeline/patterns/patternflow/src/PfCellularField.cpp"
+#include "renderer/pipeline/patterns/patternflow/src/PfSourceField.cpp"
 #include "renderer/pipeline/patterns/patternflow/src/PatternFlow.cpp"
 #include "renderer/pipeline/patterns/patternflow/src/PatternFlowPresets.cpp"
 #include "renderer/pipeline/transforms/src/PaletteTransform.cpp"
@@ -79,7 +80,8 @@ static const char *kFactoryNames[] = {
     "pfConcentricGrid", "pfDualAxis", "pfRowSegments", "pfPetals", "pfShapes",
     "pfCounterRibbons", "pfQuadDirectional", "pfOrganic", "pfTendrils",
     "pfRipple", "pfDots", "pfTopographic", "pfLiquidGate", "pfPosterized",
-    "pfWaveMatrix", "pfPlasma", "pfCross", "pfRadialPulse"
+    "pfWaveMatrix", "pfPlasma", "pfCross", "pfRadialPulse",
+    "pfLattice", "pfMoire", "pfChladni", "pfChirp", "pfSpiralArms", "pfRippleTank"
 };
 
 static std::vector<Factory> makeFactories() {
@@ -102,6 +104,12 @@ static std::vector<Factory> makeFactories() {
         []{ return pfPlasma(); },
         []{ return pfCross(); },
         []{ return pfRadialPulse(); },
+        []{ return pfLattice(); },
+        []{ return pfMoire(); },
+        []{ return pfChladni(); },
+        []{ return pfChirp(); },
+        []{ return pfSpiralArms(); },
+        []{ return pfRippleTank(); },
     };
 }
 

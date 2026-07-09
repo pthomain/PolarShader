@@ -41,6 +41,12 @@ namespace PolarShader {
      *   - Cross           (0614-2): a breathing plus/cross of axis-aligned
      *     bars. The single cross is folded into a grid by a TilingTransform in
      *     pfCrossPreset (the fold is a transform, not a pattern param).
+     *   - Lattice:        a separable sin(x)*sin(y) standing wave; glowing
+     *     antinode dots on a grid (warp detunes the axes, thickness = dot size).
+     *   - Moire:          two near-equal gratings per axis beat into slow moire
+     *     fringes (warp = detune, thickness = fringe band count).
+     *   - Chladni:        cos(m x)cos(n y) - cos(n x)cos(m y) nodal figure; sand
+     *     collects on the bright nodal curves (modeCount = m, warp = axis skew).
      *
      * Intrinsic parameters only (per the PatternFlow design rule). Global
      * scale/density -> ZoomTransform, colour/hue -> PaletteTransform, tiling/
@@ -53,7 +59,8 @@ namespace PolarShader {
      *              centre drift).
      *   thickness  [0,1] -> feature (ribbon / vein / cross-bar) width.
      * posterizeLevels is structural: the flat-band count for the Posterized
-     * variant (>= 2); ignored by the other variants.
+     * variant (>= 2), reused by Chladni as its mode number m; ignored by the
+     * other variants.
      */
     class PfInterferenceField : public UVPattern {
     public:
@@ -62,7 +69,10 @@ namespace PolarShader {
             CounterRibbons,
             QuadDirectional,
             Posterized,
-            Cross
+            Cross,
+            Lattice,
+            Moire,
+            Chladni
         };
 
         explicit PfInterferenceField(

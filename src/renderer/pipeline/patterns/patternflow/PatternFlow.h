@@ -20,6 +20,7 @@
 #include "renderer/pipeline/patterns/patternflow/PfContourField.h"
 #include "renderer/pipeline/patterns/patternflow/PfPlasmaWarp.h"
 #include "renderer/pipeline/patterns/patternflow/PfCellularField.h"
+#include "renderer/pipeline/patterns/patternflow/PfSourceField.h"
 #include "renderer/pipeline/signals/Signals.h"
 
 namespace PolarShader {
@@ -62,6 +63,25 @@ namespace PolarShader {
         Sf16Signal thickness = constant(500)
     );
 
+    std::unique_ptr<UVPattern> pfLattice(           // standing-wave lattice
+        Sf16Signal phaseSpeed = constant(500),
+        Sf16Signal warp = constant(500),
+        Sf16Signal thickness = constant(500)
+    );
+
+    std::unique_ptr<UVPattern> pfMoire(             // moire beat field
+        Sf16Signal phaseSpeed = constant(500),
+        Sf16Signal warp = constant(500),
+        Sf16Signal thickness = constant(500)
+    );
+
+    std::unique_ptr<UVPattern> pfChladni(           // Chladni plate figure
+        uint8_t modeCount = 4,
+        Sf16Signal phaseSpeed = constant(500),
+        Sf16Signal warp = constant(500),
+        Sf16Signal thickness = constant(500)
+    );
+
     // --- PfRadialField ---
     std::unique_ptr<UVPattern> pfPetals(            // 0512
         uint8_t petalCount = 6,
@@ -72,6 +92,28 @@ namespace PolarShader {
 
     std::unique_ptr<UVPattern> pfRipple(            // 0524-2
         uint8_t waveCount = 6,
+        Sf16Signal phaseSpeed = constant(500),
+        Sf16Signal warp = constant(500),
+        Sf16Signal thickness = constant(500)
+    );
+
+    std::unique_ptr<UVPattern> pfChirp(             // radial sonar chirp
+        uint8_t waveCount = 6,
+        Sf16Signal phaseSpeed = constant(500),
+        Sf16Signal fold = constant(500),
+        Sf16Signal thickness = constant(500)
+    );
+
+    std::unique_ptr<UVPattern> pfSpiralArms(        // galaxy pinwheel arms
+        uint8_t armCount = 5,
+        Sf16Signal phaseSpeed = constant(500),
+        Sf16Signal fold = constant(500),
+        Sf16Signal thickness = constant(500)
+    );
+
+    // --- PfSourceField ---
+    std::unique_ptr<UVPattern> pfRippleTank(        // N-emitter ripple tank
+        uint8_t sourceCount = 3,
         Sf16Signal phaseSpeed = constant(500),
         Sf16Signal warp = constant(500),
         Sf16Signal thickness = constant(500)

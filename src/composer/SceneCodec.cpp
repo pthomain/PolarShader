@@ -134,6 +134,12 @@ namespace PolarShader::composer {
             PAT_RASTER_WIREWORLD    = 0x33, // u16 stepIntervalMs + u16 seed + u16 densityPermille
             PAT_RASTER_LANGTON_ANT  = 0x34, // u16 stepIntervalMs + u16 seed + u16 antCount
             PAT_RASTER_REACTION_DIFF = 0x35, // u8 preset + u16 stepIntervalMs + u16 seed + u16 iterationsPerStep
+            PAT_PF_LATTICE          = 0x36, // signals: phaseSpeed, warp, thickness
+            PAT_PF_MOIRE            = 0x37, // signals: phaseSpeed, warp, thickness
+            PAT_PF_CHLADNI          = 0x38, // u8 modeCount; signals: phaseSpeed, warp, thickness
+            PAT_PF_CHIRP            = 0x39, // u8 waveCount; signals: phaseSpeed, fold, thickness
+            PAT_PF_SPIRAL_ARMS      = 0x3A, // u8 armCount; signals: phaseSpeed, fold, thickness
+            PAT_PF_RIPPLE_TANK      = 0x3B, // u8 sourceCount; signals: phaseSpeed, warp, thickness
         };
 
         enum TransformTag : uint8_t {
@@ -528,7 +534,9 @@ namespace PolarShader::composer {
                 case PAT_PF_CROSS:
                 case PAT_PF_PLASMA:
                 case PAT_PF_TENDRILS:
-                case PAT_PF_LIQUID_GATE: {
+                case PAT_PF_LIQUID_GATE:
+                case PAT_PF_LATTICE:
+                case PAT_PF_MOIRE: {
                     Sf16Signal phaseSpeed = decodeSignal(r, status, version);
                     Sf16Signal warp       = decodeSignal(r, status, version);
                     Sf16Signal thickness  = decodeSignal(r, status, version);
@@ -541,6 +549,8 @@ namespace PolarShader::composer {
                         case PAT_PF_PLASMA:           return pfPlasma(std::move(phaseSpeed), std::move(warp), std::move(thickness));
                         case PAT_PF_TENDRILS:         return pfTendrils(std::move(phaseSpeed), std::move(warp), std::move(thickness));
                         case PAT_PF_LIQUID_GATE:      return pfLiquidGate(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_LATTICE:          return pfLattice(std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                        case PAT_PF_MOIRE:            return pfMoire(std::move(phaseSpeed), std::move(warp), std::move(thickness));
                     }
                     return nullptr;
                 }
@@ -553,6 +563,46 @@ namespace PolarShader::composer {
                     Sf16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfPosterized(levels, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                }
+
+                case PAT_PF_CHLADNI: {
+                    uint8_t modeCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
+                    Sf16Signal warp       = decodeSignal(r, status, version);
+                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfChladni(modeCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
+                }
+
+                case PAT_PF_CHIRP: {
+                    uint8_t waveCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
+                    Sf16Signal fold       = decodeSignal(r, status, version);
+                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfChirp(waveCount, std::move(phaseSpeed), std::move(fold), std::move(thickness));
+                }
+
+                case PAT_PF_SPIRAL_ARMS: {
+                    uint8_t armCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
+                    Sf16Signal fold       = decodeSignal(r, status, version);
+                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfSpiralArms(armCount, std::move(phaseSpeed), std::move(fold), std::move(thickness));
+                }
+
+                case PAT_PF_RIPPLE_TANK: {
+                    uint8_t sourceCount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
+                    Sf16Signal warp       = decodeSignal(r, status, version);
+                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return pfRippleTank(sourceCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
                 }
 
                 case PAT_PF_PETALS: {
