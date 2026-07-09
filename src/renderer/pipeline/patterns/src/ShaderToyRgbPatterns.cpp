@@ -364,6 +364,14 @@ namespace PolarShader {
             return reversed ? static_cast<uint32_t>(SF16_ONE) - shaped : shaped;
         }
 
+        uint32_t starFieldTravelBirthFadeRaw(int32_t cycleRaw) {
+            constexpr int32_t fadeWindowRaw = Q16_0_12;
+            int32_t distanceFromBirthRaw = SF16_ONE - cycleRaw;
+            if (distanceFromBirthRaw <= 0) return 0u;
+            if (distanceFromBirthRaw >= fadeWindowRaw) return SF16_ONE;
+            return smoothstepSignedRaw(0, fadeWindowRaw, distanceFromBirthRaw);
+        }
+
         int32_t mixSignedRaw(int32_t aRaw, int32_t bRaw, uint32_t tRaw) {
             return lerpByUnitRaw(aRaw, bRaw, tRaw);
         }
@@ -1506,6 +1514,7 @@ namespace PolarShader {
                 int32_t layerPhaseRaw = static_cast<int32_t>((static_cast<uint32_t>(layer) * SF16_ONE) / layerCount);
                 int32_t cycleRaw = floorModRaw(layerPhaseRaw - timePhaseRaw, SF16_ONE);
                 int32_t zRaw = lerpByUnitRaw(Q16_0_20, Q16_1_50, static_cast<uint32_t>(cycleRaw));
+                uint32_t birthFadeRaw = starFieldTravelBirthFadeRaw(cycleRaw);
 
                 for (uint8_t tap = 0; tap < trailTaps; ++tap) {
                     int32_t tapZRaw = zRaw;
@@ -1517,6 +1526,8 @@ namespace PolarShader {
                         uint32_t fadeRaw = (static_cast<uint32_t>(trailTaps - tap) * SF16_ONE) / trailTaps;
                         tapWeightRaw = mulUnsignedRaw(state->trailAlphaRaw, fadeRaw);
                     }
+                    tapWeightRaw = mulUnsignedRaw(tapWeightRaw, birthFadeRaw);
+                    if (tapWeightRaw == 0u) continue;
                     accumulatePlane(p, tapZRaw, layer, tapWeightRaw, accR, accG, accB);
                 }
             }

@@ -473,6 +473,14 @@ void test_requested_rgb_pattern_signals_change_output() {
     starFieldDark.advanceFrame(f16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(starFieldDefault.uvLayer(context), starFieldDark.uvLayer(context)));
 }
+
+void test_star_field_travel_new_planes_fade_in() {
+    TEST_ASSERT_EQUAL_UINT32(0u, starFieldTravelBirthFadeRaw(SF16_ONE));
+    TEST_ASSERT_LESS_THAN_UINT32(SF16_ONE / 8, starFieldTravelBirthFadeRaw(SF16_ONE - Q16_0_01));
+    TEST_ASSERT_GREATER_THAN_UINT32(SF16_ONE / 2, starFieldTravelBirthFadeRaw(SF16_ONE - Q16_0_07));
+    TEST_ASSERT_EQUAL_UINT32(SF16_ONE, starFieldTravelBirthFadeRaw(SF16_ONE - Q16_0_12));
+    TEST_ASSERT_EQUAL_UINT32(SF16_ONE, starFieldTravelBirthFadeRaw(Q16_0_50));
+}
 #endif
 
 void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
@@ -1322,6 +1330,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_palette_glow_tile_scale_signal_changes_loop_scale);
     RUN_TEST(test_requested_rgb_patterns_emit_rgb_samples);
     RUN_TEST(test_requested_rgb_pattern_signals_change_output);
+    RUN_TEST(test_star_field_travel_new_planes_fade_in);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
