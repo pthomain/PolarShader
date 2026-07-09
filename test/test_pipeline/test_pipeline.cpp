@@ -413,7 +413,8 @@ void test_requested_shadertoy_patterns_emit_rgb_samples() {
     OctgramsPattern octgrams;
     RotatingSquaresPattern rotatingSquares;
     StarryPlanesPattern starryPlanes;
-    UVPattern *patterns[] = {&rocaille, &protean, &octgrams, &rotatingSquares, &starryPlanes};
+    TrigFieldPattern trigField;
+    UVPattern *patterns[] = {&rocaille, &protean, &octgrams, &rotatingSquares, &starryPlanes, &trigField};
 
     for (UVPattern *pattern: patterns) {
         pattern->advanceFrame(f16(0), 1000);
@@ -456,6 +457,12 @@ void test_requested_shadertoy_pattern_signals_change_output() {
     starryDefault.advanceFrame(f16(0), 1000);
     starryDark.advanceFrame(f16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(starryDefault.uvLayer(context), starryDark.uvLayer(context)));
+
+    TrigFieldPattern trigDefault;
+    TrigFieldPattern trigDark(constant(379), constant(0), constant(364), constant(500), constant(500), constant(0));
+    trigDefault.advanceFrame(f16(0), 1000);
+    trigDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(trigDefault.uvLayer(context), trigDark.uvLayer(context)));
 }
 #endif
 

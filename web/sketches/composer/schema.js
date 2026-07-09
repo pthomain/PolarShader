@@ -412,6 +412,18 @@ export const PATTERNS = {
             { name: 'brightness', default: { id: 'constant', params: { permille: 500 } } },
         ],
     },
+    trigField: {
+        tag: 0x26, label: 'ShaderToy — Trig Field', output: 'rgb',
+        config: [],
+        signals: [
+            { name: 'zoom', default: { id: 'constant', params: { permille: 379 } } },
+            { name: 'yOffset', default: { id: 'constant', params: { permille: 0 } } },
+            { name: 'waveScale', default: { id: 'constant', params: { permille: 364 } } },
+            { name: 'speed', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'colorSpread', default: { id: 'constant', params: { permille: 500 } } },
+            { name: 'brightness', default: { id: 'constant', params: { permille: 500 } } },
+        ],
+    },
     rasterConway: {
         tag: 0x2B, label: 'Pixel Grid — Conway',
         domain: 'raster',

@@ -384,4 +384,22 @@ namespace PolarShader {
             std::move(brightness)
         );
     }
+
+    std::unique_ptr<UVPattern> trigFieldPattern(
+        Sf16Signal zoom,
+        Sf16Signal yOffset,
+        Sf16Signal waveScale,
+        Sf16Signal speed,
+        Sf16Signal colorSpread,
+        Sf16Signal brightness
+    ) {
+        return std::make_unique<TrigFieldPattern>(
+            std::move(zoom),
+            std::move(yOffset),
+            std::move(waveScale),
+            std::move(speed),
+            std::move(colorSpread),
+            std::move(brightness)
+        );
+    }
 }

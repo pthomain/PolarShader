@@ -256,6 +256,14 @@ test('requested ShaderToy RGB patterns expose expected signal defaults', () => {
             path: 500,
             brightness: 500,
         },
+        trigField: {
+            zoom: 379,
+            yOffset: 0,
+            waveScale: 364,
+            speed: 500,
+            colorSpread: 500,
+            brightness: 500,
+        },
     };
 
     for (const [id, signals] of Object.entries(expected)) {

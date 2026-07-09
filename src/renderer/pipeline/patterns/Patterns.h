@@ -291,6 +291,16 @@ namespace PolarShader {
         Sf16Signal path = constant(500),
         Sf16Signal brightness = constant(500)
     );
+
+    // ShaderToy DsVGRc trigonometric colour field.
+    std::unique_ptr<UVPattern> trigFieldPattern(
+        Sf16Signal zoom = constant(379),
+        Sf16Signal yOffset = constant(0),
+        Sf16Signal waveScale = constant(364),
+        Sf16Signal speed = constant(500),
+        Sf16Signal colorSpread = constant(500),
+        Sf16Signal brightness = constant(500)
+    );
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_H

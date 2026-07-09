@@ -143,6 +143,28 @@ namespace PolarShader {
         struct Functor;
         std::shared_ptr<State> state;
     };
+
+    // Port of https://www.shadertoy.com/view/DsVGRc
+    class TrigFieldPattern : public UVPattern {
+    public:
+        explicit TrigFieldPattern(
+            Sf16Signal zoom = constant(379),
+            Sf16Signal yOffset = constant(0),
+            Sf16Signal waveScale = constant(364),
+            Sf16Signal speed = constant(500),
+            Sf16Signal colorSpread = constant(500),
+            Sf16Signal brightness = constant(500)
+        );
+
+        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
+        UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
+
+    private:
+        struct State;
+        struct Functor;
+        std::shared_ptr<State> state;
+    };
 }
 
 #endif // POLAR_SHADER_PIPELINE_PATTERNS_SHADERTOYRGBPATTERNS_H

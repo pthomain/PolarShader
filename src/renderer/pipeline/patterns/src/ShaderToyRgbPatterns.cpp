@@ -27,6 +27,7 @@ namespace PolarShader {
     namespace {
         constexpr int32_t ST_Q16_HALF = 0x00008000;
         constexpr int32_t Q16_PI = 205887;
+        constexpr int32_t Q16_TAU = 411775;
         constexpr int32_t Q16_HALF_PI = 102944;
         constexpr int32_t ST_Q16_INV_TAU = 10430;
 
@@ -34,8 +35,11 @@ namespace PolarShader {
         constexpr int32_t Q16_0_01 = 655;
         constexpr int32_t Q16_0_02 = 1311;
         constexpr int32_t Q16_0_03 = 1966;
+        constexpr int32_t Q16_0_035 = 2294;
         constexpr int32_t Q16_0_04 = 2621;
+        constexpr int32_t Q16_0_042 = 2753;
         constexpr int32_t Q16_0_05 = 3277;
+        constexpr int32_t Q16_0_064 = 4194;
         constexpr int32_t Q16_0_07 = 4588;
         constexpr int32_t Q16_0_10 = 6554;
         constexpr int32_t Q16_0_20 = 13107;
@@ -47,9 +51,13 @@ namespace PolarShader {
         constexpr int32_t Q16_0_75 = 49152;
         constexpr int32_t Q16_0_80 = 52429;
         constexpr int32_t Q16_0_90 = 58982;
+        constexpr int32_t Q16_1_30 = 85197;
+        constexpr int32_t Q16_1_34 = 87818;
         constexpr int32_t Q16_1_50 = 98304;
+        constexpr int32_t Q16_1_525 = 99942;
         constexpr int32_t Q16_1_60 = 104858;
         constexpr int32_t Q16_1_75 = 114688;
+        constexpr int32_t Q16_1_80 = 117965;
         constexpr int32_t Q16_2_00 = 131072;
         constexpr int32_t Q16_2_43 = 159253;
         constexpr int32_t Q16_2_51 = 164495;
@@ -60,10 +68,13 @@ namespace PolarShader {
         constexpr int32_t Q16_6_00 = 393216;
         constexpr int32_t Q16_8_00 = 524288;
         constexpr int32_t Q16_9_00 = 589824;
+        constexpr int32_t Q16_12_00 = 786432;
         constexpr int32_t Q16_15_00 = 983040;
         constexpr int32_t Q16_23_00 = 1507328;
         constexpr int32_t Q16_46_00 = 3014656;
         constexpr int32_t Q16_100_PI = 20588742;
+        constexpr int32_t Q16_OFFSET_1_8M_MOD_TAU = 369595;
+        constexpr int32_t Q16_OFFSET_2_35M_MOD_TAU = 47875;
 
         struct Vec3Q16 {
             fl::s16x16 x;
@@ -80,6 +91,12 @@ namespace PolarShader {
             if (value < minValue) return minValue;
             if (value > maxValue) return maxValue;
             return static_cast<int32_t>(value);
+        }
+
+        int32_t wrapRadiansRaw(int64_t value) {
+            int64_t mod = value % Q16_TAU;
+            if (mod < 0) mod += Q16_TAU;
+            return static_cast<int32_t>(mod);
         }
 
         int32_t shaderToyDisplayAspectRaw(const std::shared_ptr<PipelineContext> &context) {
@@ -458,6 +475,12 @@ namespace PolarShader {
             uint32_t numerator = mulUnsignedRaw(v, mulUnsignedRaw(Q16_2_51, v) + Q16_0_03);
             uint32_t denominator = mulUnsignedRaw(v, mulUnsignedRaw(Q16_2_43, v) + 38666u) + 9175u;
             return divUnsignedRaw(numerator, denominator, SF16_ONE);
+        }
+
+        uint32_t trigFieldChannel(int32_t phaseRaw, int32_t brightnessRaw) {
+            int32_t value = Q16_0_50 + mulQ16Raw(sinRadiansRaw(phaseRaw), Q16_0_80);
+            if (value <= 0) return 0u;
+            return mulUnsignedRaw(static_cast<uint32_t>(value), static_cast<uint32_t>(brightnessRaw));
         }
 
         int32_t pminRaw(int32_t aRaw, int32_t bRaw, int32_t kRaw) {
@@ -1207,6 +1230,128 @@ namespace PolarShader {
 
     UVLayer StarryPlanesPattern::uvLayer(const std::shared_ptr<PipelineContext> &context) const {
         Functor f{state.get(), shaderToyDisplayAspectRaw(context), displayWidth(context)};
+        return UVLayer::fromRgb([f](UV uv) {
+            return f.sample(uv);
+        });
+    }
+
+    struct TrigFieldPattern::State {
+        Sf16Signal zoomSignal;
+        Sf16Signal yOffsetSignal;
+        Sf16Signal waveScaleSignal;
+        Sf16Signal speedSignal;
+        Sf16Signal colorSpreadSignal;
+        Sf16Signal brightnessSignal;
+        uint32_t timeRaw{0};
+        uint32_t zoomRaw{Q16_0_064};
+        int32_t yOffsetRaw{Q16_OFFSET_1_8M_MOD_TAU};
+        int32_t waveScaleRaw{Q16_0_035};
+        int32_t colorSpreadRaw{Q16_1_30};
+        int32_t brightnessRaw{SF16_ONE};
+
+        State(
+            Sf16Signal zoom,
+            Sf16Signal yOffset,
+            Sf16Signal waveScale,
+            Sf16Signal speed,
+            Sf16Signal colorSpread,
+            Sf16Signal brightness
+        ) :
+            zoomSignal(std::move(zoom)),
+            yOffsetSignal(std::move(yOffset)),
+            waveScaleSignal(std::move(waveScale)),
+            speedSignal(std::move(speed)),
+            colorSpreadSignal(std::move(colorSpread)),
+            brightnessSignal(std::move(brightness)) {}
+    };
+
+    struct TrigFieldPattern::Functor {
+        const State *state;
+
+        RgbSample sample(UV uv) const {
+            if (!state) return RgbSample();
+
+            int32_t uvX = wrapRadiansRaw(divUnsignedRaw(
+                static_cast<uint32_t>(raw(uv.u)),
+                state->zoomRaw,
+                64u * SF16_ONE
+            ));
+            int32_t uvY = wrapRadiansRaw(static_cast<int64_t>(divUnsignedRaw(
+                static_cast<uint32_t>(raw(uv.v)),
+                state->zoomRaw,
+                64u * SF16_ONE
+            )) + state->yOffsetRaw);
+
+            int32_t piRaw = Q16_PI;
+            int32_t product = mulQ16Raw(piRaw, mulQ16Raw(uvY, piRaw));
+            piRaw = wrapRadiansRaw(mulQ16Raw(product, state->waveScaleRaw));
+            piRaw = wrapRadiansRaw(static_cast<int64_t>(piRaw) + uvX - uvY + piRaw);
+            uvY = wrapRadiansRaw(static_cast<int64_t>(uvY) + sinRadiansRaw(divSignedRaw(piRaw, Q16_12_00, 64 * SF16_ONE) + uvY));
+            uvY = wrapRadiansRaw(static_cast<int64_t>(uvY) + cosRadiansRaw(mulQ16Raw(Q16_1_525, piRaw)));
+
+            const int32_t colorBase = wrapRadiansRaw(static_cast<int64_t>(state->timeRaw) + uvY);
+            const int32_t rgSpread = state->colorSpreadRaw + (Q16_1_34 - Q16_1_30);
+
+            uint32_t r = trigFieldChannel(
+                wrapRadiansRaw(static_cast<int64_t>(colorBase) + mulQ16Raw(absRaw(piRaw + uvY), state->colorSpreadRaw)),
+                state->brightnessRaw
+            );
+            uint32_t g = trigFieldChannel(
+                wrapRadiansRaw(static_cast<int64_t>(colorBase) + mulQ16Raw(absRaw(piRaw + uvY + Q16_0_20), rgSpread)),
+                state->brightnessRaw
+            );
+            uint32_t b = trigFieldChannel(
+                wrapRadiansRaw(static_cast<int64_t>(colorBase) + mulQ16Raw(absRaw(piRaw + uvY + Q16_0_10), rgSpread)),
+                state->brightnessRaw
+            );
+
+            return rgbFromPremultiplied(r, g, b);
+        }
+
+        PatternNormU16 operator()(UV uv) const {
+            return sample(uv).value();
+        }
+    };
+
+    TrigFieldPattern::TrigFieldPattern(
+        Sf16Signal zoom,
+        Sf16Signal yOffset,
+        Sf16Signal waveScale,
+        Sf16Signal speed,
+        Sf16Signal colorSpread,
+        Sf16Signal brightness
+    ) : state(std::make_shared<State>(
+        std::move(zoom),
+        std::move(yOffset),
+        std::move(waveScale),
+        std::move(speed),
+        std::move(colorSpread),
+        std::move(brightness)
+    )) {}
+
+    void TrigFieldPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+        (void)progress;
+        state->zoomRaw = static_cast<uint32_t>(lerpByUnitRaw(Q16_0_042, Q16_0_10, signalUnitRaw(state->zoomSignal, elapsedMs, 379)));
+        state->yOffsetRaw = wrapRadiansRaw(lerpByUnitRaw(
+            Q16_OFFSET_1_8M_MOD_TAU,
+            Q16_OFFSET_2_35M_MOD_TAU,
+            signalUnitRaw(state->yOffsetSignal, elapsedMs, 0)
+        ));
+        state->waveScaleRaw = lerpByUnitRaw(Q16_0_01, Q16_0_07, signalUnitRaw(state->waveScaleSignal, elapsedMs, 364));
+        uint32_t speedRaw = static_cast<uint32_t>(lerpByUnitRaw(0, Q16_4_00, signalUnitRaw(state->speedSignal, elapsedMs, 500)));
+        state->timeRaw = mulUnsignedRaw(secondsRaw(elapsedMs), speedRaw);
+        state->colorSpreadRaw = lerpByUnitRaw(Q16_0_80, Q16_1_80, signalUnitRaw(state->colorSpreadSignal, elapsedMs, 500));
+        state->brightnessRaw = lerpByUnitRaw(0, Q16_2_00, signalUnitRaw(state->brightnessSignal, elapsedMs, 500));
+    }
+
+    UVMap TrigFieldPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+        (void)context;
+        return Functor{state.get()};
+    }
+
+    UVLayer TrigFieldPattern::uvLayer(const std::shared_ptr<PipelineContext> &context) const {
+        (void)context;
+        Functor f{state.get()};
         return UVLayer::fromRgb([f](UV uv) {
             return f.sample(uv);
         });

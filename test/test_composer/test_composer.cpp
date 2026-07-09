@@ -118,6 +118,7 @@ namespace {
         PAT_OCTGRAMS          = 0x23,
         PAT_ROTATING_SQUARES  = 0x24,
         PAT_STARRY_PLANES     = 0x25,
+        PAT_TRIG_FIELD        = 0x26,
         PAT_RASTER_CONWAY     = 0x2B,
         PAT_RASTER_CYCLIC_CA  = 0x2C,
         PAT_RASTER_BRIANS_BRAIN = 0x2D,
@@ -387,6 +388,14 @@ namespace {
                     body.sigConstant(1000);
                     body.sigConstant(500);
                     body.sigConstant(400);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    return;
+                case PAT_TRIG_FIELD:
+                    body.sigConstant(379);
+                    body.sigConstant(0);
+                    body.sigConstant(364);
+                    body.sigConstant(500);
                     body.sigConstant(500);
                     body.sigConstant(500);
                     return;
@@ -986,6 +995,7 @@ void test_decode_all_pattern_tags_compile() {
         PAT_OCTGRAMS,
         PAT_ROTATING_SQUARES,
         PAT_STARRY_PLANES,
+        PAT_TRIG_FIELD,
         PAT_RASTER_CONWAY,
         PAT_RASTER_CYCLIC_CA,
         PAT_RASTER_BRIANS_BRAIN,
