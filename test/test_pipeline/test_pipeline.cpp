@@ -25,12 +25,19 @@
 #include "native/FastLED.h"
 #endif
 #include <unity.h>
+#ifndef ARDUINO
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#endif
 #include "renderer/pipeline/signals/ranges/AngleRange.h"
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/patterns/Patterns.h"
 #include "renderer/pipeline/patterns/ConwayPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 #include "MatrixDisplaySpec.h"
+#include "Matrix128x128DisplaySpec.h"
 #include "FabricDisplaySpec.h"
 #include "RoundDisplaySpec.h"
 
@@ -48,6 +55,8 @@
 #include "renderer/pipeline/patterns/src/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/src/FlowFieldPattern.cpp"
 #include "renderer/pipeline/patterns/src/FlurryPattern.cpp"
+#include "renderer/pipeline/patterns/src/PaletteGlowPattern.cpp"
+#include "renderer/pipeline/patterns/src/ShaderToyRgbPatterns.cpp"
 #include "renderer/pipeline/patterns/src/SpiralPattern.cpp"
 #include "renderer/pipeline/patterns/src/TilingPattern.cpp"
 #include "renderer/pipeline/patterns/src/TransportPattern.cpp"
@@ -215,6 +224,256 @@ void test_scene_manager_lifecycle() {
     manager.advanceFrame(101);
     TEST_ASSERT_EQUAL_INT(2, provider_call_count);
 }
+
+void test_palette_glow_pattern_emits_rgb_samples() {
+    PaletteGlowPattern pattern;
+    auto context = std::make_shared<PipelineContext>();
+    pattern.advanceFrame(f16(0), 1000);
+
+    UV probe(
+        fl::s16x16::from_raw(0x8000),
+        fl::s16x16::from_raw(0x8000)
+    );
+    UVLayer rgbLayer = pattern.uvLayer(context);
+    UVMap scalar = pattern.layer(context);
+    RgbSample sample = rgbLayer.rgb(probe);
+
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(rgbLayer.kind));
+    TEST_ASSERT_GREATER_THAN_UINT16(0, raw(sample.value()));
+    TEST_ASSERT_EQUAL_UINT16(raw(sample.value()), raw(scalar(probe)));
+}
+
+#ifndef ARDUINO
+namespace {
+    struct ReferenceRgb16 {
+        uint16_t r;
+        uint16_t g;
+        uint16_t b;
+    };
+
+    double shaderFract(double value) {
+        return value - std::floor(value);
+    }
+
+    uint16_t referenceChannel(double value) {
+        if (value <= 0.0) return 0;
+        if (value >= 1.0) return F16_MAX;
+        return static_cast<uint16_t>((value * static_cast<double>(F16_MAX)) + 0.5);
+    }
+
+    ReferenceRgb16 shadertoyReference(UV input, double timeSeconds, double aspect) {
+        double uvX = ((static_cast<double>(raw(input.u)) / 65536.0) * 2.0 - 1.0) * aspect;
+        double uvY = (static_cast<double>(raw(input.v)) / 65536.0) * 2.0 - 1.0;
+        const double uv0X = uvX;
+        const double uv0Y = uvY;
+        const double uv0Length = std::sqrt(uv0X * uv0X + uv0Y * uv0Y);
+
+        double accR = 0.0;
+        double accG = 0.0;
+        double accB = 0.0;
+
+        for (int i = 0; i < 4; ++i) {
+            uvX = shaderFract(uvX * 1.5) - 0.5;
+            uvY = shaderFract(uvY * 1.5) - 0.5;
+
+            double d = std::sqrt(uvX * uvX + uvY * uvY) * std::exp(-uv0Length);
+            const double t = uv0Length + static_cast<double>(i) * 0.4 + timeSeconds * 0.4;
+            const double r = 0.5 + 0.5 * std::cos(6.28318 * (t + 0.263));
+            const double g = 0.5 + 0.5 * std::cos(6.28318 * (t + 0.416));
+            const double b = 0.5 + 0.5 * std::cos(6.28318 * (t + 0.557));
+
+            d = std::fabs(std::sin(d * 8.0 + timeSeconds) / 8.0);
+            if (d < 0.0001220703125) d = 0.0001220703125;
+            d = std::pow(0.01 / d, 1.2);
+
+            accR += r * d;
+            accG += g * d;
+            accB += b * d;
+        }
+
+        return ReferenceRgb16{
+            referenceChannel(accR),
+            referenceChannel(accG),
+            referenceChannel(accB)
+        };
+    }
+
+    ReferenceRgb16 renderedRgb16(RgbSample sample) {
+        return ReferenceRgb16{
+            scale16(raw(sample.red()), raw(sample.value())),
+            scale16(raw(sample.green()), raw(sample.value())),
+            scale16(raw(sample.blue()), raw(sample.value()))
+        };
+    }
+
+    const UV kShaderToyProbes[] = {
+        UV(fl::s16x16::from_raw(0x8000), fl::s16x16::from_raw(0x8000)),
+        UV(fl::s16x16::from_raw(0x4D00), fl::s16x16::from_raw(0xA200)),
+        UV(fl::s16x16::from_raw(0xB600), fl::s16x16::from_raw(0x3A00))
+    };
+
+    bool hasVisibleRgb(UVLayer layer) {
+        for (const UV &probe: kShaderToyProbes) {
+            if (raw(layer.rgb(probe).value()) > 0) return true;
+        }
+        return false;
+    }
+
+    bool hasDifferentRgb(UVLayer a, UVLayer b) {
+        for (const UV &probe: kShaderToyProbes) {
+            if (a.rgb(probe).packed != b.rgb(probe).packed) return true;
+        }
+        return false;
+    }
+
+    void assertReferenceRgbNear(ReferenceRgb16 actual, ReferenceRgb16 expected) {
+        constexpr uint16_t tolerance = 768u;
+        TEST_ASSERT_UINT16_WITHIN(tolerance, expected.r, actual.r);
+        TEST_ASSERT_UINT16_WITHIN(tolerance, expected.g, actual.g);
+        TEST_ASSERT_UINT16_WITHIN(tolerance, expected.b, actual.b);
+    }
+}
+
+void test_palette_glow_pattern_matches_shadertoy_reference_points() {
+    constexpr uint16_t width = Matrix128x128DisplaySpec::DISPLAY_WIDTH;
+    constexpr uint16_t height = 64;
+    constexpr TimeMillis elapsedMs = 1250;
+    constexpr double aspect = static_cast<double>(width) / static_cast<double>(height);
+
+    PaletteGlowPattern pattern;
+    auto context = std::make_shared<PipelineContext>();
+    context->rasterDisplay = RasterDisplayInfo{true, width, height, static_cast<uint32_t>(width) * height};
+    pattern.advanceFrame(f16(0), elapsedMs);
+
+    UVLayer layer = pattern.uvLayer(context);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(layer.kind));
+
+    const UV probes[] = {
+        UV(fl::s16x16::from_raw(0x8000), fl::s16x16::from_raw(0x8000)),
+        UV(fl::s16x16::from_raw(0x4000), fl::s16x16::from_raw(0xA000)),
+        UV(fl::s16x16::from_raw(0xD000), fl::s16x16::from_raw(0x3000))
+    };
+
+    for (const UV &probe: probes) {
+        ReferenceRgb16 actual = renderedRgb16(layer.rgb(probe));
+        ReferenceRgb16 expected = shadertoyReference(probe, static_cast<double>(elapsedMs) / 1000.0, aspect);
+        assertReferenceRgbNear(actual, expected);
+    }
+}
+
+void test_palette_glow_speed_signal_scales_elapsed_time() {
+    auto context = std::make_shared<PipelineContext>();
+    const UV probe(
+        fl::s16x16::from_raw(0x4D00),
+        fl::s16x16::from_raw(0xA200)
+    );
+
+    PaletteGlowPattern fullSpeed(constant(1000));
+    PaletteGlowPattern halfSpeed(constant(500));
+    fullSpeed.advanceFrame(f16(0), 1000);
+    halfSpeed.advanceFrame(f16(0), 2000);
+
+    TEST_ASSERT_EQUAL_UINT64(
+        fullSpeed.uvLayer(context).rgb(probe).packed,
+        halfSpeed.uvLayer(context).rgb(probe).packed
+    );
+
+    PaletteGlowPattern atStart(constant(1000));
+    PaletteGlowPattern stopped(constant(0));
+    atStart.advanceFrame(f16(0), 0);
+    stopped.advanceFrame(f16(0), 2000);
+
+    TEST_ASSERT_EQUAL_UINT64(
+        atStart.uvLayer(context).rgb(probe).packed,
+        stopped.uvLayer(context).rgb(probe).packed
+    );
+}
+
+void test_palette_glow_tile_scale_signal_changes_loop_scale() {
+    auto context = std::make_shared<PipelineContext>();
+    const UV probe(
+        fl::s16x16::from_raw(0x4D00),
+        fl::s16x16::from_raw(0xA200)
+    );
+
+    PaletteGlowPattern defaultScale(constant(1000), constant(500));
+    PaletteGlowPattern lowScale(constant(1000), constant(0));
+    defaultScale.advanceFrame(f16(0), 1000);
+    lowScale.advanceFrame(f16(0), 1000);
+
+    TEST_ASSERT_TRUE(defaultScale.uvLayer(context).rgb(probe).packed != lowScale.uvLayer(context).rgb(probe).packed);
+}
+
+void test_requested_rgb_patterns_emit_rgb_samples() {
+    auto context = std::make_shared<PipelineContext>();
+    context->rasterDisplay = RasterDisplayInfo{true, 128, 64, 128u * 64u};
+
+    RocaillePattern rocaille;
+    ProteanCloudsPattern protean;
+    OctgramsPattern octgrams;
+    RotatingSquaresPattern rotatingSquares;
+    StarryPlanesPattern starryPlanes;
+    TrigFieldPattern trigField;
+    StarFieldTravelPattern starFieldTravel;
+    UVPattern *patterns[] = {
+        &rocaille, &protean, &octgrams, &rotatingSquares, &starryPlanes, &trigField, &starFieldTravel
+    };
+
+    for (UVPattern *pattern: patterns) {
+        pattern->advanceFrame(f16(0), 1000);
+        UVLayer layer = pattern->uvLayer(context);
+        TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(layer.kind));
+        TEST_ASSERT_TRUE(hasVisibleRgb(layer));
+    }
+}
+
+void test_requested_rgb_pattern_signals_change_output() {
+    auto context = std::make_shared<PipelineContext>();
+    context->rasterDisplay = RasterDisplayInfo{true, 128, 64, 128u * 64u};
+
+    RocaillePattern rocailleDefault;
+    RocaillePattern rocailleSmallScale(constant(0));
+    rocailleDefault.advanceFrame(f16(0), 1000);
+    rocailleSmallScale.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(rocailleDefault.uvLayer(context), rocailleSmallScale.uvLayer(context)));
+
+    ProteanCloudsPattern proteanDefault;
+    ProteanCloudsPattern proteanDark(constant(1000), constant(500), constant(500), constant(0));
+    proteanDefault.advanceFrame(f16(0), 1000);
+    proteanDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(proteanDefault.uvLayer(context), proteanDark.uvLayer(context)));
+
+    OctgramsPattern octgramsDefault;
+    OctgramsPattern octgramsDense(constant(1000), constant(500), constant(500), constant(0), constant(500));
+    octgramsDefault.advanceFrame(f16(0), 1000);
+    octgramsDense.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(octgramsDefault.uvLayer(context), octgramsDense.uvLayer(context)));
+
+    RotatingSquaresPattern squaresDefault;
+    RotatingSquaresPattern squaresDark(constant(1000), constant(375), constant(333), constant(0));
+    squaresDefault.advanceFrame(f16(0), 1000);
+    squaresDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(squaresDefault.uvLayer(context), squaresDark.uvLayer(context)));
+
+    StarryPlanesPattern starryDefault;
+    StarryPlanesPattern starryDark(constant(1000), constant(500), constant(400), constant(500), constant(0));
+    starryDefault.advanceFrame(f16(0), 1000);
+    starryDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(starryDefault.uvLayer(context), starryDark.uvLayer(context)));
+
+    TrigFieldPattern trigDefault;
+    TrigFieldPattern trigDark(constant(379), constant(0), constant(364), constant(500), constant(500), constant(0));
+    trigDefault.advanceFrame(f16(0), 1000);
+    trigDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(trigDefault.uvLayer(context), trigDark.uvLayer(context)));
+
+    StarFieldTravelPattern starFieldDefault;
+    StarFieldTravelPattern starFieldDark(constant(250), constant(500), constant(500), constant(400), constant(0));
+    starFieldDefault.advanceFrame(f16(0), 1000);
+    starFieldDark.advanceFrame(f16(0), 1000);
+    TEST_ASSERT_TRUE(hasDifferentRgb(starFieldDefault.uvLayer(context), starFieldDark.uvLayer(context)));
+}
+#endif
 
 void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
     ReactionDiffusionPattern pattern(ReactionDiffusionPattern::Preset::Spots, 20, 20, 1);
@@ -956,6 +1215,53 @@ void test_ripple_is_deterministic() {
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 }
 
+#ifndef ARDUINO
+void test_palette_glow_rgb_1000_frame_perf_guard() {
+    constexpr uint16_t width = Matrix128x128DisplaySpec::DISPLAY_WIDTH;
+    constexpr uint16_t height = Matrix128x128DisplaySpec::DISPLAY_HEIGHT;
+    constexpr uint16_t frames = 1000;
+    constexpr uint32_t refreshBudgetUs = 30000u;
+
+    Layer layer = LayerBuilder(std::make_unique<PaletteGlowPattern>(), CloudColors_p, "rgb-glow-perf").build();
+    layer.setRasterDisplayInfo(RasterDisplayInfo{true, width, height, static_cast<uint32_t>(width) * height});
+    auto map = layer.compile();
+    TEST_ASSERT_NOT_NULL(map.get());
+
+    uint32_t frameUs[frames] = {};
+    volatile uint32_t sink = 0;
+
+    for (uint16_t frame = 0; frame < frames; ++frame) {
+        layer.advanceFrame(f16(0), static_cast<TimeMillis>(frame) * 16u);
+        auto start = std::chrono::steady_clock::now();
+        for (uint16_t y = 0; y < height; ++y) {
+            uint16_t radius = static_cast<uint16_t>((static_cast<uint32_t>(y) * F16_MAX) / (height - 1u));
+            for (uint16_t x = 0; x < width; ++x) {
+                uint16_t angle = static_cast<uint16_t>((static_cast<uint32_t>(x) * F16_MAX) / width);
+                CRGB color = (*map)(RenderPoint{f16(angle), f16(radius), RasterPoint{}});
+                sink += static_cast<uint32_t>(color.r) + color.g + color.b;
+            }
+        }
+        auto end = std::chrono::steady_clock::now();
+        uint64_t elapsedUs = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
+        );
+        frameUs[frame] = elapsedUs > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(elapsedUs);
+    }
+
+    std::sort(frameUs, frameUs + frames);
+    uint32_t totalUs = 0;
+    for (uint16_t i = 0; i < frames; ++i) totalUs += frameUs[i];
+    uint32_t avgUs = totalUs / frames;
+    uint32_t p95Us = frameUs[(frames * 95u) / 100u];
+    std::printf("PaletteGlow RGB perf: avg=%luus p95=%luus sink=%lu\n",
+                static_cast<unsigned long>(avgUs),
+                static_cast<unsigned long>(p95Us),
+                static_cast<unsigned long>(sink));
+
+    TEST_ASSERT_LESS_THAN_UINT32(refreshBudgetUs, p95Us);
+}
+#endif
+
 #ifdef ARDUINO
 
 void setup() {
@@ -965,6 +1271,9 @@ void setup() {
     RUN_TEST(test_range_wraps_across_zero);
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
+    RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
+    RUN_TEST(test_palette_glow_speed_signal_scales_elapsed_time);
+    RUN_TEST(test_palette_glow_tile_scale_signal_changes_loop_scale);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
@@ -1007,6 +1316,12 @@ int main(int argc, char **argv) {
     RUN_TEST(test_range_wraps_across_zero);
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
+    RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
+    RUN_TEST(test_palette_glow_pattern_matches_shadertoy_reference_points);
+    RUN_TEST(test_palette_glow_speed_signal_scales_elapsed_time);
+    RUN_TEST(test_palette_glow_tile_scale_signal_changes_loop_scale);
+    RUN_TEST(test_requested_rgb_patterns_emit_rgb_samples);
+    RUN_TEST(test_requested_rgb_pattern_signals_change_output);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
@@ -1029,6 +1344,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ripple_seeds_single_droplet);
     RUN_TEST(test_ripple_is_deterministic);
     RUN_TEST(test_display_specs_report_raster_points);
+    RUN_TEST(test_palette_glow_rgb_1000_frame_perf_guard);
 
     return UNITY_END();
 

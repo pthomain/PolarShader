@@ -19,6 +19,7 @@
  */
 
 #include "renderer/pipeline/patterns/base/UVPattern.h"
+#include <utility>
 
 namespace PolarShader {
     void UVPattern::setContext(std::shared_ptr<PipelineContext> context) {
@@ -37,6 +38,15 @@ namespace PolarShader {
     }
 
     UVMap UVPattern::layer(const std::shared_ptr<PipelineContext> &context) const {
+        (void)context;
         return layerValue;
+    }
+
+    UVLayer UVPattern::uvLayer(const std::shared_ptr<PipelineContext> &context) const {
+        if (emitsColour()) {
+            UVColourMap colour = colourLayer(context);
+            if (colour) return UVLayer::fromPalette(std::move(colour));
+        }
+        return UVLayer::fromScalar(layer(context));
     }
 }

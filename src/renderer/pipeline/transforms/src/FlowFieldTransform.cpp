@@ -239,13 +239,9 @@ namespace PolarShader {
         );
     }
 
-    // See Transforms.h / Units.h WASM ABI NOTE: warp is applied via a DIRECT
-    // static call; no UV ever flows through an fl::function.
-    UVMap FlowFieldTransform::operator()(const UVMap &layer) const {
-        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
-    }
-
-    UVColourMap FlowFieldTransform::operator()(const UVColourMap &layer) const {
-        return [state = this->state, layer](UV uv) { return layer(warp(*state, uv)); };
+    UVLayer FlowFieldTransform::apply(const UVLayer &layer) const {
+        return composeUvLayer(layer, state, [](const State &state, UV uv) {
+            return warp(state, uv);
+        });
     }
 }

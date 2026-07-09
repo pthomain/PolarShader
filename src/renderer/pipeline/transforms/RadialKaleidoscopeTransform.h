@@ -37,8 +37,7 @@ namespace PolarShader {
     public:
         RadialKaleidoscopeTransform(uint16_t radialDivisions, bool isMirrored = true);
 
-        UVMap operator()(const UVMap &layer) const override;
-        UVColourMap operator()(const UVColourMap &layer) const override;
+        UVLayer apply(const UVLayer &layer) const override;
     };
 }
 

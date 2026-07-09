@@ -43,6 +43,23 @@ const SIMPLE_FIXTURE = [
     0x00, 0x02, 0x00, 0xc8, 0x00,
 ];
 
+const LEGACY_PALETTE_GLOW_FIXTURE = [
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x1F, 0x00, 0x00,
+    0x00,
+];
+
+const SPEED_ONLY_PALETTE_GLOW_FIXTURE = [
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x1F, 0x05, 0x00,
+    0x00, 0x02, 0x00, 0xE8, 0x03,
+    0x00,
+];
+
 function bytes(values) {
     return new Uint8Array(values);
 }
@@ -184,6 +201,107 @@ test('default greyscale scene starts with an enabled Palette transform', () => {
 
     const decoded = decodeScene(encodeScene(scene));
     assert.equal(decoded.transforms[0].id, 'paletteClip');
+});
+
+test('paletteGlow speed defaults to full ShaderToy time', () => {
+    const scene = {
+        paletteId: 0,
+        pattern: { id: 'paletteGlow', config: {}, signals: {} },
+        transforms: [],
+    };
+
+    const decoded = decodeScene(encodeScene(scene));
+    assert.equal(decoded.pattern.signals.speed.id, 'constant');
+    assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+    assert.equal(decoded.pattern.signals.tileScale.id, 'constant');
+    assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
+});
+
+test('requested RGB patterns expose expected signal defaults', () => {
+    const expected = {
+        rocaille: {
+            scale: 333,
+            length: 429,
+            detail: 222,
+            turbulence: 500,
+            frequency: 333,
+            speed: 333,
+            layers: 727,
+            hue: 500,
+            glow: 429,
+        },
+        proteanClouds: {
+            speed: 1000,
+            warp: 500,
+            frequency: 500,
+            brightness: 500,
+        },
+        octgrams: {
+            speed: 1000,
+            travel: 500,
+            pulse: 500,
+            density: 500,
+            glow: 500,
+        },
+        rotatingSquares: {
+            speed: 1000,
+            thickness: 375,
+            pulse: 333,
+            brightness: 500,
+        },
+        starryPlanes: {
+            speed: 1000,
+            planeSpacing: 500,
+            starSize: 400,
+            path: 500,
+            brightness: 500,
+        },
+        trigField: {
+            zoom: 379,
+            yOffset: 0,
+            waveScale: 364,
+            speed: 500,
+            colorSpread: 500,
+            brightness: 500,
+        },
+        starFieldTravel: {
+            speed: 250,
+            density: 500,
+            trail: 500,
+            starSize: 400,
+            brightness: 600,
+        },
+    };
+
+    for (const [id, signals] of Object.entries(expected)) {
+        const decoded = decodeScene(encodeScene({
+            paletteId: 0,
+            pattern: { id, config: {}, signals: {} },
+            transforms: [],
+        }));
+        for (const [name, permille] of Object.entries(signals)) {
+            assert.equal(decoded.pattern.signals[name].id, 'constant', `${id}.${name}`);
+            assert.equal(decoded.pattern.signals[name].params.permille, permille, `${id}.${name}`);
+        }
+    }
+});
+
+test('decodeScene accepts legacy paletteGlow without speed signal', () => {
+    const decoded = decodeScene(bytes(LEGACY_PALETTE_GLOW_FIXTURE));
+    assert.equal(decoded.pattern.id, 'paletteGlow');
+    assert.equal(decoded.pattern.signals.speed.id, 'constant');
+    assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+    assert.equal(decoded.pattern.signals.tileScale.id, 'constant');
+    assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
+});
+
+test('decodeScene accepts paletteGlow without tileScale signal', () => {
+    const decoded = decodeScene(bytes(SPEED_ONLY_PALETTE_GLOW_FIXTURE));
+    assert.equal(decoded.pattern.id, 'paletteGlow');
+    assert.equal(decoded.pattern.signals.speed.id, 'constant');
+    assert.equal(decoded.pattern.signals.speed.params.permille, 1000);
+    assert.equal(decoded.pattern.signals.tileScale.id, 'constant');
+    assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
 });
 
 test('all current patterns round-trip through the web codec', () => {

@@ -12,6 +12,10 @@
 
 #include "display/WebDisplayGeometry.h"
 
+#ifndef ARDUINO
+#include "renderer/pipeline/maths/src/PolarMaths.cpp"
+#endif
+
 using namespace PolarShader;
 
 namespace {
@@ -73,11 +77,31 @@ void test_round_geometry_matches_ring_counts_and_radii() {
     TEST_ASSERT_EQUAL_UINT16(spec.nbLeds(), offset);
 }
 
+void test_smartmatrix_geometry_matches_logical_matrix() {
+    Matrix128x128DisplaySpec spec;
+    const WebDisplayGeometry geometry = buildWebGeometry(spec);
+
+    TEST_ASSERT_EQUAL_UINT16(spec.nbLeds(), geometry.points.size());
+    TEST_ASSERT_TRUE(geometry.diameter > 0.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 31.5f, geometry.centerX);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 31.5f, geometry.centerY);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[0].x);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[0].y);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 63.0f, geometry.points[63].x);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[63].y);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[64].x);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f, geometry.points[64].y);
+}
+
 #ifdef ARDUINO
 void setup() {
     UNITY_BEGIN();
     RUN_TEST(test_fabric_geometry_matches_serpentine_wiring);
     RUN_TEST(test_round_geometry_matches_ring_counts_and_radii);
+    RUN_TEST(test_smartmatrix_geometry_matches_logical_matrix);
     UNITY_END();
 }
 
@@ -87,6 +111,7 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_fabric_geometry_matches_serpentine_wiring);
     RUN_TEST(test_round_geometry_matches_ring_counts_and_radii);
+    RUN_TEST(test_smartmatrix_geometry_matches_logical_matrix);
     return UNITY_END();
 }
 #endif

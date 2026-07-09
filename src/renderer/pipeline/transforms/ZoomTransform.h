@@ -40,8 +40,7 @@ namespace PolarShader {
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
-        UVMap operator()(const UVMap &layer) const override;
-        UVColourMap operator()(const UVColourMap &layer) const override;
+        UVLayer apply(const UVLayer &layer) const override;
 
     private:
         struct MappedInputs;

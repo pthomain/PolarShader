@@ -18,39 +18,39 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
-#define POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_PALETTEGLOWPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_PALETTEGLOWPATTERN_H
 
-#include "renderer/pipeline/signals/accumulators/Accumulators.h"
-#include "renderer/pipeline/transforms/base/Transforms.h"
+#include "renderer/pipeline/patterns/base/UVPattern.h"
+#include "renderer/pipeline/signals/Signals.h"
 #include <memory>
 
 namespace PolarShader {
     /**
-     * Cartesian translation using direction and speed signals.
+     * ShaderToy-style recursive radial glow using the IQ cosine palette.
      *
-     * Direction is a full-turn phase in f16/sf16.
-     * Velocity is a 0..1 scalar in f16/sf16 mapped to a max speed in fl::s16x16 UV units.
+     * Port of the fragment shader from https://www.shadertoy.com/view/mtyGWy
+     * and https://iquilezles.org/articles/palettes/ into the existing UV
+     * pattern pipeline. It emits full RGB samples through UVLayer::Rgb.
      */
-    class TranslationTransform : public UVTransform {
+    class PaletteGlowPattern : public UVPattern {
     public:
-        explicit TranslationTransform(UVSignal offsetSignal);
-
-        TranslationTransform(
-            Sf16Signal direction,
-            Sf16Signal speed
+        explicit PaletteGlowPattern(
+            Sf16Signal speed = constant(1000),
+            Sf16Signal tileScale = constant(500)
         );
 
         void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
 
-        UVLayer apply(const UVLayer &layer) const override;
+        UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
+
+        UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
         struct State;
-        // Pure warp applied via a DIRECT static call (see WASM ABI NOTE in Units.h).
-        static UV warp(const State &state, UV uv);
+        struct Functor;
         std::shared_ptr<State> state;
     };
 }
 
-#endif // POLAR_SHADER_TRANSFORMS_TRANSLATIONTRANSFORM_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_PALETTEGLOWPATTERN_H

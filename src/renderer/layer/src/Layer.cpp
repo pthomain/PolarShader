@@ -31,6 +31,73 @@
 #endif
 
 namespace PolarShader {
+    namespace {
+        uint16_t scaleRgbChannel(uint16_t channel, uint16_t value, uint16_t mask) {
+            uint16_t scaled = scale16(channel, value);
+            if (mask != F16_MAX) scaled = scale16(scaled, mask);
+            return scaled;
+        }
+
+        bool hasUvLayerMap(const UVLayer &layer) {
+            switch (layer.kind) {
+                case UVLayerKind::Palette:
+                    return static_cast<bool>(layer.palette);
+                case UVLayerKind::Rgb:
+                    return static_cast<bool>(layer.rgb);
+                case UVLayerKind::Scalar:
+                default:
+                    return static_cast<bool>(layer.scalar);
+            }
+        }
+
+        PaletteSample rgbToPaletteSample(RgbSample sample) {
+            const uint16_t r = raw(sample.red());
+            const uint16_t g = raw(sample.green());
+            const uint16_t b = raw(sample.blue());
+            const uint16_t value = raw(sample.value());
+
+            uint16_t maxc = r;
+            if (g > maxc) maxc = g;
+            if (b > maxc) maxc = b;
+
+            uint16_t minc = r;
+            if (g < minc) minc = g;
+            if (b < minc) minc = b;
+
+            const uint16_t effectiveValue = scale16(maxc, value);
+            const uint16_t delta = static_cast<uint16_t>(maxc - minc);
+            if (value <= 0x0100u || maxc <= 0x0100u) {
+                return PaletteSample(PatternNormU16(0), PatternNormU16(0));
+            }
+            if (delta <= 0x0100u) {
+                return PaletteSample(PatternNormU16(0), PatternNormU16(effectiveValue));
+            }
+
+            constexpr int32_t ONE_SIXTH_TURN = 10923;
+            int32_t hue = 0;
+            if (maxc == r) {
+                hue = static_cast<int32_t>(
+                    (static_cast<int64_t>(static_cast<int32_t>(g) - static_cast<int32_t>(b)) *
+                     ONE_SIXTH_TURN) / delta
+                );
+            } else if (maxc == g) {
+                hue = 2 * ONE_SIXTH_TURN + static_cast<int32_t>(
+                    (static_cast<int64_t>(static_cast<int32_t>(b) - static_cast<int32_t>(r)) *
+                     ONE_SIXTH_TURN) / delta
+                );
+            } else {
+                hue = 4 * ONE_SIXTH_TURN + static_cast<int32_t>(
+                    (static_cast<int64_t>(static_cast<int32_t>(r) - static_cast<int32_t>(g)) *
+                     ONE_SIXTH_TURN) / delta
+                );
+            }
+
+            hue %= static_cast<int32_t>(ANGLE_FULL_TURN_U32);
+            if (hue < 0) hue += static_cast<int32_t>(ANGLE_FULL_TURN_U32);
+            return PaletteSample(PatternNormU16(static_cast<uint16_t>(hue)), PatternNormU16(effectiveValue));
+        }
+    }
+
     Layer::Layer(
         std::unique_ptr<UVPattern> pattern,
         const CRGBPalette16 &palette,
@@ -185,6 +252,38 @@ namespace PolarShader {
         return color;
     }
 
+    CRGB Layer::mapRgb(
+        const CRGBPalette16 &palette,
+        RgbSample sample,
+        const std::shared_ptr<PipelineContext> &context
+    ) {
+        const uint16_t value_raw = raw(sample.value());
+        const uint16_t mask_value = computeClipMask(context, value_raw);
+        const PipelineContext::PaletteTintMode mode =
+            context ? context->paletteTintMode : PipelineContext::PaletteTintMode::HueRemap;
+        const uint8_t offset = context ? context->paletteOffset : 0;
+
+        if (mode == PipelineContext::PaletteTintMode::ColourMask) {
+            CRGB color = ColorFromPalette(palette, offset, 255, LINEARBLEND);
+            uint16_t alpha = scale16(value_raw, mask_value);
+            color.nscale8_video(static_cast<uint8_t>(alpha >> 8));
+            return color;
+        }
+
+        if (mode == PipelineContext::PaletteTintMode::HueRemap) {
+            PaletteSample converted = rgbToPaletteSample(sample);
+            if (raw(converted.value()) <= 0x0100u) return CRGB::Black;
+            return tintPalette(palette, converted, context);
+        }
+
+        CRGB color(
+            fl::map16_to_8(scaleRgbChannel(raw(sample.red()), value_raw, mask_value)),
+            fl::map16_to_8(scaleRgbChannel(raw(sample.green()), value_raw, mask_value)),
+            fl::map16_to_8(scaleRgbChannel(raw(sample.blue()), value_raw, mask_value))
+        );
+        return color;
+    }
+
     void Layer::setRasterDisplayInfo(const RasterDisplayInfo &rasterDisplay) {
         if (!context) {
             context = std::make_shared<PipelineContext>();
@@ -248,40 +347,15 @@ namespace PolarShader {
             });
         }
 
-        // Colour-native patterns emit a (hue, value) pair: compose the colour
-        // leaf through the same transform warps and tint through the palette as
-        // a hue-remap. Empty leaf -> fall back to the scalar path below.
-        if (pattern->emitsColour()) {
-            UVColourMap currentColour = pattern->colourLayer(context);
-            if (currentColour) {
-                for (const auto &step: steps) {
-                    if (step.kind == PipelineStepKind::UV) {
-                        if (!step.uvTransform) return blackLayer("UV step missing transform.");
-                        currentColour = (*step.uvTransform)(currentColour);
-                    }
-                }
-
-                return std::make_unique<ColourMap>([palette = palette, layer = std::move(currentColour), context = context](
-                    const RenderPoint &point
-                ) {
-                    UV input = polarToCartesianUV(UV(
-                        fl::s16x16::from_raw(raw(point.angle)),
-                        fl::s16x16::from_raw(raw(point.radius))
-                    ));
-
-                    PaletteSample sample = layer(input);
-                    return tintPalette(palette, sample, context);
-                });
-            }
-        }
-
-        UVMap currentUV = pattern->layer(context);
+        UVLayer currentUV = pattern->uvLayer(context);
+        if (!hasUvLayerMap(currentUV)) return blackLayer("Continuous pattern returned no UV layer.");
 
         // Apply transforms in order
         for (const auto &step: steps) {
             if (step.kind == PipelineStepKind::UV) {
                 if (!step.uvTransform) return blackLayer("UV step missing transform.");
-                currentUV = (*step.uvTransform)(currentUV);
+                currentUV = step.uvTransform->apply(currentUV);
+                if (!hasUvLayerMap(currentUV)) return blackLayer("UV transform returned no UV layer.");
             }
         }
 
@@ -297,8 +371,15 @@ namespace PolarShader {
                 fl::s16x16::from_raw(raw(point.radius))
             ));
 
-            PatternNormU16 value = layer(input);
-            return mapPalette(palette, value, context);
+            switch (layer.kind) {
+                case UVLayerKind::Palette:
+                    return tintPalette(palette, layer.palette(input), context);
+                case UVLayerKind::Rgb:
+                    return mapRgb(palette, layer.rgb(input), context);
+                case UVLayerKind::Scalar:
+                default:
+                    return mapPalette(palette, layer.scalar(input), context);
+            }
         });
     }
 }

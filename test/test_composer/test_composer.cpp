@@ -111,7 +111,15 @@ namespace {
         PAT_PF_DOTS           = 0x1C,
         PAT_PF_WAVE_MATRIX    = 0x1D,
         PAT_PF_RADIAL_PULSE   = 0x1E,
+        PAT_PALETTE_GLOW      = 0x1F,
+        PAT_ROCAILLE          = 0x20,
+        PAT_PROTEAN_CLOUDS    = 0x21,
         PAT_XOR               = 0x22,
+        PAT_OCTGRAMS          = 0x23,
+        PAT_ROTATING_SQUARES  = 0x24,
+        PAT_STARRY_PLANES     = 0x25,
+        PAT_TRIG_FIELD        = 0x26,
+        PAT_STAR_FIELD_TRAVEL = 0x27,
         PAT_RASTER_CONWAY     = 0x2B,
         PAT_RASTER_CYCLIC_CA  = 0x2C,
         PAT_RASTER_BRIANS_BRAIN = 0x2D,
@@ -340,8 +348,64 @@ namespace {
                     body.u8(6);
                     for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
                     return;
+                case PAT_PALETTE_GLOW:
+                    body.sigConstant(1000);
+                    body.sigConstant(500);
+                    return;
+                case PAT_ROCAILLE:
+                    body.sigConstant(333);
+                    body.sigConstant(429);
+                    body.sigConstant(222);
+                    body.sigConstant(500);
+                    body.sigConstant(333);
+                    body.sigConstant(333);
+                    body.sigConstant(727);
+                    body.sigConstant(500);
+                    body.sigConstant(429);
+                    return;
+                case PAT_PROTEAN_CLOUDS:
+                    body.sigConstant(1000);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    return;
                 case PAT_XOR:
                     body.u8(16).u16(40);
+                    return;
+                case PAT_OCTGRAMS:
+                    body.sigConstant(1000);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    return;
+                case PAT_ROTATING_SQUARES:
+                    body.sigConstant(1000);
+                    body.sigConstant(375);
+                    body.sigConstant(333);
+                    body.sigConstant(500);
+                    return;
+                case PAT_STARRY_PLANES:
+                    body.sigConstant(1000);
+                    body.sigConstant(500);
+                    body.sigConstant(400);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    return;
+                case PAT_TRIG_FIELD:
+                    body.sigConstant(379);
+                    body.sigConstant(0);
+                    body.sigConstant(364);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    return;
+                case PAT_STAR_FIELD_TRAVEL:
+                    body.sigConstant(250);
+                    body.sigConstant(500);
+                    body.sigConstant(500);
+                    body.sigConstant(400);
+                    body.sigConstant(600);
                     return;
                 case PAT_RASTER_CONWAY:
                     body.u16(250).u16(1).u16(350);
@@ -932,7 +996,15 @@ void test_decode_all_pattern_tags_compile() {
         PAT_PF_DOTS,
         PAT_PF_WAVE_MATRIX,
         PAT_PF_RADIAL_PULSE,
+        PAT_PALETTE_GLOW,
+        PAT_ROCAILLE,
+        PAT_PROTEAN_CLOUDS,
         PAT_XOR,
+        PAT_OCTGRAMS,
+        PAT_ROTATING_SQUARES,
+        PAT_STARRY_PLANES,
+        PAT_TRIG_FIELD,
+        PAT_STAR_FIELD_TRAVEL,
         PAT_RASTER_CONWAY,
         PAT_RASTER_CYCLIC_CA,
         PAT_RASTER_BRIANS_BRAIN,
@@ -953,6 +1025,24 @@ void test_decode_all_pattern_tags_compile() {
         w.u8(0);
         assertDecodeCompileSample(w);
     }
+}
+
+void test_decode_legacy_palette_glow_without_speed_signal() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_PALETTE_GLOW, [](WireBuilder &) {});
+    w.u8(0);
+    assertDecodeCompileSample(w);
+}
+
+void test_decode_palette_glow_without_tile_scale_signal() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_PALETTE_GLOW, [](WireBuilder &body) {
+        body.sigConstant(1000);
+    });
+    w.u8(0);
+    assertDecodeCompileSample(w);
 }
 
 void test_decode_uncovered_transform_tags_compile() {
@@ -1632,6 +1722,8 @@ void setup() {
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
+    RUN_TEST(test_decode_palette_glow_without_tile_scale_signal);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
     RUN_TEST(test_decode_raster_conway_allows_palette_transform);
     RUN_TEST(test_decode_raster_conway_compiles_with_raster_display);
@@ -1679,6 +1771,8 @@ int main() {
     RUN_TEST(test_decode_default_noise_succeeds);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
+    RUN_TEST(test_decode_palette_glow_without_tile_scale_signal);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
     RUN_TEST(test_decode_raster_conway_allows_palette_transform);
     RUN_TEST(test_decode_raster_conway_compiles_with_raster_display);

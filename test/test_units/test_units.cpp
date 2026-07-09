@@ -26,8 +26,10 @@
 #include "native/FastLED.h"
 #endif
 #include <unity.h>
+#include <limits.h>
 #include "renderer/pipeline/signals/SignalTypes.h"
 #include "renderer/pipeline/maths/units/Units.h"
+#include "renderer/pipeline/maths/ShaderMaths.h"
 #include "renderer/pipeline/maths/CartesianMaths.h"
 #include "renderer/pipeline/maths/PolarMaths.h"
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
@@ -70,6 +72,8 @@
 #include "renderer/pipeline/patterns/src/RasterReactionDiffusionPattern.cpp"
 #include "renderer/pipeline/patterns/src/FlowFieldPattern.cpp"
 #include "renderer/pipeline/patterns/src/FlurryPattern.cpp"
+#include "renderer/pipeline/patterns/src/PaletteGlowPattern.cpp"
+#include "renderer/pipeline/patterns/src/ShaderToyRgbPatterns.cpp"
 #include "renderer/pipeline/patterns/src/NoisePattern.cpp"
 #include "renderer/pipeline/patterns/src/SpiralPattern.cpp"
 #include "renderer/pipeline/patterns/src/TilingPattern.cpp"
@@ -102,6 +106,73 @@ void test_uv_coordinate_structure() {
     UV uv(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
     TEST_ASSERT_EQUAL_INT32(0x00010000, uv.u.raw());
     TEST_ASSERT_EQUAL_INT32(0x00008000, uv.v.raw());
+}
+
+void test_rgb_sample_packed_layout_and_accessors() {
+    RgbSample sample(
+        PatternNormU16(0x1234u),
+        PatternNormU16(0x5678u),
+        PatternNormU16(0x9ABCu),
+        PatternNormU16(0xDEF0u)
+    );
+
+    TEST_ASSERT_EQUAL_UINT64(0x123456789ABCDEF0ull, sample.packed);
+    TEST_ASSERT_EQUAL_UINT16(0x1234u, raw(sample.red()));
+    TEST_ASSERT_EQUAL_UINT16(0x5678u, raw(sample.green()));
+    TEST_ASSERT_EQUAL_UINT16(0x9ABCu, raw(sample.blue()));
+    TEST_ASSERT_EQUAL_UINT16(0xDEF0u, raw(sample.value()));
+}
+
+void test_shader_fract_q16_matches_glsl_for_negatives() {
+    TEST_ASSERT_EQUAL_INT32(0x0000C000, raw(fractQ16(fl::s16x16::from_raw(-0x00004000))));
+    TEST_ASSERT_EQUAL_INT32(0x00000000, raw(fractQ16(fl::s16x16::from_raw(-0x00010000))));
+
+    Vec2Q16 value{fl::s16x16::from_raw(-0x00018000), fl::s16x16::from_raw(0x00014000)};
+    Vec2Q16 wrapped = fractQ16(value);
+    TEST_ASSERT_EQUAL_INT32(0x00008000, raw(wrapped.x));
+    TEST_ASSERT_EQUAL_INT32(0x00004000, raw(wrapped.y));
+}
+
+void test_shader_length_uses_64_bit_intermediates() {
+    Vec2Q16 value{fl::s16x16::from_raw(0x7FFF0000), fl::s16x16::from_raw(0x7FFF0000)};
+    fl::s16x16 length = lengthQ16(value);
+    TEST_ASSERT_GREATER_THAN_INT32(0x7FFF0000, raw(length));
+}
+
+void test_shader_dot_saturates_without_overflow() {
+    Vec2Q16 a{fl::s16x16::from_raw(INT32_MAX), fl::s16x16::from_raw(INT32_MAX)};
+    Vec2Q16 b{fl::s16x16::from_raw(INT32_MAX), fl::s16x16::from_raw(INT32_MAX)};
+    TEST_ASSERT_EQUAL_INT32(INT32_MAX, raw(dotQ16(a, b)));
+
+    Vec2Q16 c{fl::s16x16::from_raw(INT32_MAX), fl::s16x16::from_raw(INT32_MAX)};
+    Vec2Q16 d{fl::s16x16::from_raw(INT32_MIN), fl::s16x16::from_raw(INT32_MIN)};
+    TEST_ASSERT_EQUAL_INT32(INT32_MIN, raw(dotQ16(c, d)));
+}
+
+void test_shader_div_clamped_q16() {
+    fl::u16x16 maxValue = fl::u16x16::from_raw(2u << 16);
+    fl::u16x16 one = fl::u16x16::from_raw(1u << 16);
+    fl::u16x16 half = fl::u16x16::from_raw(1u << 15);
+
+    TEST_ASSERT_EQUAL_UINT32(2u << 16, raw(divClampedQ16(one, half, maxValue)));
+    TEST_ASSERT_EQUAL_UINT32(2u << 16, raw(divClampedQ16(one, fl::u16x16::from_raw(0), maxValue)));
+}
+
+void test_shader_exp_neg_and_pow_q16_reference_points() {
+    TEST_ASSERT_UINT32_WITHIN(1u, 1u << 16, raw(expNegQ16(fl::u16x16::from_raw(0))));
+    TEST_ASSERT_UINT32_WITHIN(140u, 24109u, raw(expNegQ16(fl::u16x16::from_raw(1u << 16))));
+
+    fl::u16x16 quarter = fl::u16x16::from_raw(1u << 14);
+    TEST_ASSERT_UINT32_WITHIN(180u, 12417u, raw(powQ16(quarter, 1200)));
+}
+
+void test_iq_cosine_palette_q16_reference_points() {
+    RgbSample sample = iqCosinePaletteQ16(fl::u16x16::from_raw(0), PatternNormU16(0x8000u));
+
+    TEST_ASSERT_UINT16_WITHIN(256u, 30094u, raw(sample.red()));
+    TEST_ASSERT_UINT16_WITHIN(256u, 4459u, raw(sample.green()));
+    TEST_ASSERT_UINT16_WITHIN(256u, 2079u, raw(sample.blue()));
+    TEST_ASSERT_EQUAL_UINT16(0x8000u, raw(sample.value()));
 }
 
 /** @brief Verify basic additive arithmetic for UV coordinates. */
@@ -293,6 +364,57 @@ void test_kaleidoscope_translation_mirrors_at_unit_uv_boundary() {
     PatternNormU16 shifted = translation(kaleidoscope(capture))(probe);
 
     TEST_ASSERT_EQUAL_UINT16(raw(baseline), raw(shifted));
+}
+
+void test_uv_transform_chain_warps_all_payload_kinds_identically() {
+    RotationTransform rotation(constant(sf16(0x2000)), true);
+    TranslationTransform translation(UVSignal([](f16, TimeMillis) {
+        return UV(fl::s16x16::from_raw(0x00001234), fl::s16x16::from_raw(-0x00000567));
+    }));
+    rotation.advanceFrame(f16(0), 0);
+    translation.advanceFrame(f16(0), 0);
+
+    UVMap echoU = [](UV uv) {
+        return PatternNormU16(static_cast<uint16_t>(raw(uv.u)));
+    };
+    UVMap echoV = [](UV uv) {
+        return PatternNormU16(static_cast<uint16_t>(raw(uv.v)));
+    };
+    UVColourMap echoPalette = [](UV uv) {
+        return PaletteSample(
+            PatternNormU16(static_cast<uint16_t>(raw(uv.u))),
+            PatternNormU16(static_cast<uint16_t>(raw(uv.v)))
+        );
+    };
+    UVRgbMap echoRgb = [](UV uv) {
+        return RgbSample(
+            PatternNormU16(static_cast<uint16_t>(raw(uv.u))),
+            PatternNormU16(static_cast<uint16_t>(raw(uv.v))),
+            PatternNormU16(0),
+            PatternNormU16(F16_MAX)
+        );
+    };
+
+    UVLayer scalarU = UVLayer::fromScalar(echoU);
+    UVLayer scalarV = UVLayer::fromScalar(echoV);
+    UVLayer palette = UVLayer::fromPalette(echoPalette);
+    UVLayer rgb = UVLayer::fromRgb(echoRgb);
+    UVTransform *chain[] = {&rotation, &translation};
+    for (UVTransform *transform: chain) {
+        scalarU = transform->apply(scalarU);
+        scalarV = transform->apply(scalarV);
+        palette = transform->apply(palette);
+        rgb = transform->apply(rgb);
+    }
+
+    UV probe(fl::s16x16::from_raw(0x0000A123), fl::s16x16::from_raw(0x00004987));
+    PaletteSample paletteSample = palette.palette(probe);
+    RgbSample rgbSample = rgb.rgb(probe);
+
+    TEST_ASSERT_EQUAL_UINT16(raw(scalarU.scalar(probe)), raw(paletteSample.hue()));
+    TEST_ASSERT_EQUAL_UINT16(raw(scalarV.scalar(probe)), raw(paletteSample.value()));
+    TEST_ASSERT_EQUAL_UINT16(raw(scalarU.scalar(probe)), raw(rgbSample.red()));
+    TEST_ASSERT_EQUAL_UINT16(raw(scalarV.scalar(probe)), raw(rgbSample.green()));
 }
 
 /** @brief Verify easing functions loop if period > 0. */
@@ -530,6 +652,13 @@ void setup() {
     UNITY_BEGIN();
     RUN_TEST(test_frac_q16_16_raw_values);
     RUN_TEST(test_uv_coordinate_structure);
+    RUN_TEST(test_rgb_sample_packed_layout_and_accessors);
+    RUN_TEST(test_shader_fract_q16_matches_glsl_for_negatives);
+    RUN_TEST(test_shader_length_uses_64_bit_intermediates);
+    RUN_TEST(test_shader_dot_saturates_without_overflow);
+    RUN_TEST(test_shader_div_clamped_q16);
+    RUN_TEST(test_shader_exp_neg_and_pow_q16_reference_points);
+    RUN_TEST(test_iq_cosine_palette_q16_reference_points);
     RUN_TEST(test_uv_addition);
     RUN_TEST(test_cartesian_uv_conversion);
     RUN_TEST(test_polar_uv_conversion_center);
@@ -542,6 +671,7 @@ void setup() {
     RUN_TEST(test_sine_speed);
     RUN_TEST(test_zoom_transform_sine_varies_over_time);
     RUN_TEST(test_kaleidoscope_translation_mirrors_at_unit_uv_boundary);
+    RUN_TEST(test_uv_transform_chain_warps_all_payload_kinds_identically);
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);
@@ -567,6 +697,13 @@ int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_frac_q16_16_raw_values);
     RUN_TEST(test_uv_coordinate_structure);
+    RUN_TEST(test_rgb_sample_packed_layout_and_accessors);
+    RUN_TEST(test_shader_fract_q16_matches_glsl_for_negatives);
+    RUN_TEST(test_shader_length_uses_64_bit_intermediates);
+    RUN_TEST(test_shader_dot_saturates_without_overflow);
+    RUN_TEST(test_shader_div_clamped_q16);
+    RUN_TEST(test_shader_exp_neg_and_pow_q16_reference_points);
+    RUN_TEST(test_iq_cosine_palette_q16_reference_points);
     RUN_TEST(test_uv_addition);
     RUN_TEST(test_cartesian_uv_conversion);
     RUN_TEST(test_polar_uv_conversion_center);
@@ -579,6 +716,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_sine_speed);
     RUN_TEST(test_zoom_transform_sine_varies_over_time);
     RUN_TEST(test_kaleidoscope_translation_mirrors_at_unit_uv_boundary);
+    RUN_TEST(test_uv_transform_chain_warps_all_payload_kinds_identically);
     RUN_TEST(test_easing_period_looping);
     RUN_TEST(test_periodic_signal_uses_elapsed_time);
     RUN_TEST(test_aperiodic_reset_wraps_time);
