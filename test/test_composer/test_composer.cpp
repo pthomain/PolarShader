@@ -131,6 +131,12 @@ namespace {
         PAT_RASTER_WIREWORLD  = 0x33,
         PAT_RASTER_LANGTON_ANT = 0x34,
         PAT_RASTER_REACTION_DIFF = 0x35,
+        PAT_PF_LATTICE        = 0x36,
+        PAT_PF_MOIRE          = 0x37,
+        PAT_PF_CHLADNI        = 0x38,
+        PAT_PF_CHIRP          = 0x39,
+        PAT_PF_SPIRAL_ARMS    = 0x3A,
+        PAT_PF_RIPPLE_TANK    = 0x3B,
     };
 
     enum : uint8_t {
@@ -323,6 +329,8 @@ namespace {
                 case PAT_PF_PLASMA:
                 case PAT_PF_TENDRILS:
                 case PAT_PF_LIQUID_GATE:
+                case PAT_PF_LATTICE:
+                case PAT_PF_MOIRE:
                     for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
                     return;
                 case PAT_PF_POSTERIZED:
@@ -331,6 +339,10 @@ namespace {
                     return;
                 case PAT_PF_PETALS:
                 case PAT_PF_RIPPLE:
+                case PAT_PF_CHLADNI:
+                case PAT_PF_CHIRP:
+                case PAT_PF_SPIRAL_ARMS:
+                case PAT_PF_RIPPLE_TANK:
                     body.u8(6);
                     for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
                     return;
@@ -1005,6 +1017,12 @@ void test_decode_all_pattern_tags_compile() {
         PAT_STARRY_PLANES,
         PAT_TRIG_FIELD,
         PAT_STAR_FIELD_TRAVEL,
+        PAT_PF_LATTICE,
+        PAT_PF_MOIRE,
+        PAT_PF_CHLADNI,
+        PAT_PF_CHIRP,
+        PAT_PF_SPIRAL_ARMS,
+        PAT_PF_RIPPLE_TANK,
         PAT_RASTER_CONWAY,
         PAT_RASTER_CYCLIC_CA,
         PAT_RASTER_BRIANS_BRAIN,

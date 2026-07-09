@@ -53,6 +53,30 @@ namespace PolarShader {
             std::move(phaseSpeed), std::move(warp), std::move(thickness));
     }
 
+    std::unique_ptr<UVPattern> pfLattice(
+        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+    ) {
+        return std::make_unique<PfInterferenceField>(
+            PfInterferenceField::Variant::Lattice, 5,
+            std::move(phaseSpeed), std::move(warp), std::move(thickness));
+    }
+
+    std::unique_ptr<UVPattern> pfMoire(
+        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+    ) {
+        return std::make_unique<PfInterferenceField>(
+            PfInterferenceField::Variant::Moire, 5,
+            std::move(phaseSpeed), std::move(warp), std::move(thickness));
+    }
+
+    std::unique_ptr<UVPattern> pfChladni(
+        uint8_t modeCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+    ) {
+        return std::make_unique<PfInterferenceField>(
+            PfInterferenceField::Variant::Chladni, modeCount,
+            std::move(phaseSpeed), std::move(warp), std::move(thickness));
+    }
+
     std::unique_ptr<UVPattern> pfPetals(
         uint8_t petalCount, Sf16Signal phaseSpeed, Sf16Signal fold, Sf16Signal thickness
     ) {
@@ -66,6 +90,30 @@ namespace PolarShader {
     ) {
         return std::make_unique<PfRadialField>(
             PfRadialField::Variant::Ripple, waveCount,
+            std::move(phaseSpeed), std::move(warp), std::move(thickness));
+    }
+
+    std::unique_ptr<UVPattern> pfChirp(
+        uint8_t waveCount, Sf16Signal phaseSpeed, Sf16Signal fold, Sf16Signal thickness
+    ) {
+        return std::make_unique<PfRadialField>(
+            PfRadialField::Variant::Chirp, waveCount,
+            std::move(phaseSpeed), std::move(fold), std::move(thickness));
+    }
+
+    std::unique_ptr<UVPattern> pfSpiralArms(
+        uint8_t armCount, Sf16Signal phaseSpeed, Sf16Signal fold, Sf16Signal thickness
+    ) {
+        return std::make_unique<PfRadialField>(
+            PfRadialField::Variant::SpiralArms, armCount,
+            std::move(phaseSpeed), std::move(fold), std::move(thickness));
+    }
+
+    std::unique_ptr<UVPattern> pfRippleTank(
+        uint8_t sourceCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+    ) {
+        return std::make_unique<PfSourceField>(
+            sourceCount,
             std::move(phaseSpeed), std::move(warp), std::move(thickness));
     }
 

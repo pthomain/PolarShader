@@ -138,6 +138,66 @@ namespace PolarShader {
             return PaletteSample{hue, PatternNormU16(barV > barH ? barV : barH)};
         }
 
+        // Separable standing wave: sin(kx X)*sin(ky Y). Antinodes (|product|~1)
+        // glow as a grid of dots; warp detunes the Y axis, thickness sizes dots.
+        PaletteSample lattice(int32_t X, int32_t Y) const {
+            const int32_t t = state->tTurns;
+            int32_t detune = static_cast<int32_t>(
+                (static_cast<int64_t>(raw(state->warpF16)) * 2 * Y) >> 16);
+            int32_t sx = raw(PfMath::pfSinTurns(4 * X + t));
+            int32_t sy = raw(PfMath::pfSinTurns(4 * Y + detune - t));
+            int32_t prod = static_cast<int32_t>((static_cast<int64_t>(sx) * sy) >> 16); // sf16
+            int32_t aprod = prod < 0 ? -prod : prod;                                    // |prod|
+            // Dot half-width 0.125 .. 0.625 of the antinode neighbourhood.
+            int32_t half = (SF16_ONE / 8) + (state->thicknessRaw / 2);
+            uint16_t glow = PfMath::pfBump(SF16_ONE - aprod, half);
+            PatternNormU16 hue = PfMath::pfSignedToNorm(sx - sy, 2 * SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(glow)};
+        }
+
+        // Two near-equal gratings per axis beat into slow moire fringes. The
+        // product of the pair isolates the beat envelope; thickness bands it.
+        PaletteSample moire(int32_t X, int32_t Y) const {
+            const int32_t t = state->tTurns;
+            const int32_t k = 6;
+            int32_t dk = 1 + static_cast<int32_t>(
+                (static_cast<int64_t>(raw(state->warpF16)) * 6) >> 16); // 1..7
+            int32_t g1 = raw(PfMath::pfSinTurns(k * X + t));
+            int32_t g2 = raw(PfMath::pfSinTurns((k + dk) * X - t));
+            int32_t g3 = raw(PfMath::pfSinTurns(k * Y + PfMath::pfCoefT(t, 3, 4)));
+            int32_t g4 = raw(PfMath::pfSinTurns((k + dk) * Y - PfMath::pfCoefT(t, 3, 4)));
+            int32_t beatX = static_cast<int32_t>((static_cast<int64_t>(g1) * g2) >> 16);
+            int32_t beatY = static_cast<int32_t>((static_cast<int64_t>(g3) * g4) >> 16);
+            PatternNormU16 composite = PfMath::pfSignedToNorm(beatX + beatY, 2 * SF16_ONE);
+            // thickness widens the fringes -> fewer, chunkier bands (8 down to 2).
+            uint8_t levels = static_cast<uint8_t>(
+                2 + (((SF16_ONE - state->thicknessRaw) * 6) >> 16));
+            PatternNormU16 hue = PfMath::pfSignedToNorm(beatX - beatY, 2 * SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(PfMath::pfPosterize(raw(composite), levels))};
+        }
+
+        // Chladni figure: field = cos(m X)cos(n Y) - cos(n X)cos(m Y). Sand
+        // collects on the nodal curves (field ~ 0), drawn as bright thin lines.
+        PaletteSample chladni(int32_t X, int32_t Y) const {
+            const int32_t t = state->tTurns;
+            const int32_t m = state->levels;   // mode m (>= 2 by construction)
+            const int32_t n = m + 1;           // paired mode
+            int32_t p = PfMath::pfCoefT(t, 1, 4); // slow morph phase
+            int32_t q = p + raw(scaleSf16(
+                PfMath::pfSinTurns(PfMath::pfCoefT(t, 1, 3)), state->warpF16)); // axis skew
+            int32_t a = raw(PfMath::pfCosTurns(m * X + p));
+            int32_t b = raw(PfMath::pfCosTurns(n * Y + q));
+            int32_t c = raw(PfMath::pfCosTurns(n * X + q));
+            int32_t d = raw(PfMath::pfCosTurns(m * Y + p));
+            int32_t ab = static_cast<int32_t>((static_cast<int64_t>(a) * b) >> 16);
+            int32_t cd = static_cast<int32_t>((static_cast<int64_t>(c) * d) >> 16);
+            int32_t field = ab - cd; // [-2, 2] in sf16 units
+            int32_t half = (SF16_ONE * 4 / 100) + (state->thicknessRaw / 4); // 0.04 .. 0.29
+            uint16_t node = PfMath::pfBump(field, half);
+            PatternNormU16 hue = PfMath::pfSignedToNorm(ab + cd, 2 * SF16_ONE);
+            return PaletteSample{hue, PatternNormU16(node)};
+        }
+
         PaletteSample sample(UV uv) const {
             int32_t X = raw(uv.u);
             int32_t Y = raw(uv.v);
@@ -147,6 +207,9 @@ namespace PolarShader {
                 case Variant::QuadDirectional: return quadDirectional(X, Y);
                 case Variant::Posterized:      return posterized(X, Y);
                 case Variant::Cross:           return cross(X, Y);
+                case Variant::Lattice:         return lattice(X, Y);
+                case Variant::Moire:           return moire(X, Y);
+                case Variant::Chladni:         return chladni(X, Y);
             }
             return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
         }

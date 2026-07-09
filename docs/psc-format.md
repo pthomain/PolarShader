@@ -65,6 +65,20 @@ The authoritative tag tables are:
 
 These tables must stay in lockstep.
 
+### Wave & Interference Patterns
+
+Tags `0x36`–`0x3B` are UV-domain sine / interference fields. They emit their
+own `(hue, value)` colour, so the palette transform acts as a hue-remap tint:
+
+- `0x36` PF — Lattice (standing-wave antinode grid); 3 signals
+- `0x37` PF — Moiré (two near-equal gratings beat into fringes); 3 signals
+- `0x38` PF — Chladni (nodal plate figure); `u8` modeCount + 3 signals
+- `0x39` PF — Chirp (radial sonar sweep, rings densify outward); `u8` waveCount + 3 signals
+- `0x3A` PF — Spiral Arms (radius-sheared galaxy pinwheel); `u8` armCount + 3 signals
+- `0x3B` PF — Ripple Tank (N drifting point emitters interfere); `u8` sourceCount + 3 signals
+
+The three signals are `phaseSpeed`, then `warp`/`fold`, then `thickness`.
+
 ### Raster Patterns
 
 Tags `0x2B`–`0x35` are grid-based patterns that render on a raster

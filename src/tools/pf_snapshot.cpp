@@ -88,6 +88,12 @@ std::vector<PatternEntry> patterns() {
         {"pfPlasma",         []{ return pfPlasma(); }},
         {"pfCross",          []{ return pfCross(); }},         // 0614-2
         {"pfRadialPulse",    []{ return pfRadialPulse(); }},   // 0624 (approx)
+        {"pfLattice",        []{ return pfLattice(); }},
+        {"pfMoire",          []{ return pfMoire(); }},
+        {"pfChladni",        []{ return pfChladni(); }},
+        {"pfChirp",          []{ return pfChirp(); }},
+        {"pfSpiralArms",     []{ return pfSpiralArms(); }},
+        {"pfRippleTank",     []{ return pfRippleTank(); }},
     };
 }
 
