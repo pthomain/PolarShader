@@ -53,9 +53,20 @@
 #include "renderer/pipeline/patterns/src/TransportPattern.cpp"
 #include "renderer/pipeline/patterns/src/ReactionDiffusionPattern.cpp"
 #include "renderer/pipeline/patterns/src/ConwayPattern.cpp"
+#include "renderer/pipeline/patterns/src/CyclicCAPattern.cpp"
+#include "renderer/pipeline/patterns/src/BriansBrainPattern.cpp"
+#include "renderer/pipeline/patterns/src/LifeVariantPattern.cpp"
+#include "renderer/pipeline/patterns/src/ElementaryCAPattern.cpp"
+#include "renderer/pipeline/patterns/src/MatrixRainPattern.cpp"
+#include "renderer/pipeline/patterns/src/RipplePattern.cpp"
+#include "renderer/pipeline/patterns/src/ForestFirePattern.cpp"
+#include "renderer/pipeline/patterns/src/WireWorldPattern.cpp"
+#include "renderer/pipeline/patterns/src/LangtonAntPattern.cpp"
+#include "renderer/pipeline/patterns/src/RasterReactionDiffusionPattern.cpp"
 #include "renderer/pipeline/patterns/src/WorleyPatterns.cpp"
 #include "renderer/pipeline/patterns/src/XORPattern.cpp"
 #include "renderer/pipeline/patterns/src/base/UVPattern.cpp"
+#include "renderer/pipeline/patterns/src/base/RasterAutomaton.cpp"
 #include "renderer/layer/src/Layer.cpp"
 #include "renderer/layer/src/LayerBuilder.cpp"
 #include "renderer/scene/src/Scene.cpp"
@@ -610,6 +621,341 @@ void test_display_specs_report_raster_points() {
     TEST_ASSERT_FALSE(roundPoint.raster.valid);
 }
 
+namespace {
+    uint8_t recoverCyclicState(uint16_t value, uint8_t numStates) {
+        for (uint8_t s = 0; s < numStates; ++s) {
+            const uint16_t expected =
+                static_cast<uint16_t>((static_cast<uint32_t>(s) * F16_MAX) / (numStates - 1u));
+            if (expected == value) return s;
+        }
+        return 0;
+    }
+
+    void assertRasterMapsEqual(const RasterMap &a, const RasterMap &b, uint16_t w, uint16_t h) {
+        for (uint16_t y = 0; y < h; ++y) {
+            for (uint16_t x = 0; x < w; ++x) {
+                RasterPoint point = rasterPoint(x, y, w, h);
+                TEST_ASSERT_EQUAL_UINT16(raw(a(point)), raw(b(point)));
+            }
+        }
+    }
+}
+
+void test_raster_moore_neighbourhood_wraps() {
+    // Toroidal Moore-neighbour counting shared by every cellular automaton.
+    const uint8_t grid[9] = {
+        5, 0, 5,
+        0, 1, 0,
+        5, 0, 5
+    };
+    // Centre sees the four corners (state 5) and four edges (state 0).
+    TEST_ASSERT_EQUAL_UINT8(4, raster::countMooreState(grid, 1, 1, 3, 3, 5));
+    TEST_ASSERT_EQUAL_UINT8(4, raster::countMooreState(grid, 1, 1, 3, 3, 0));
+    // A corner wraps around the torus to see every other cell; three are 5.
+    TEST_ASSERT_EQUAL_UINT8(3, raster::countMooreState(grid, 0, 0, 3, 3, 5));
+}
+
+void test_cyclic_ca_step_advances_on_threshold() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    const uint8_t numStates = 4;
+    const uint8_t threshold = 1;
+    auto context = rasterContext(W, H);
+    CyclicCAPattern pattern(120, 99, numStates, threshold);
+    RasterMap map = pattern.rasterLayer(context);
+
+    uint8_t initial[W * H];
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            initial[y * W + x] =
+                recoverCyclicState(raw(map(rasterPoint(x, y, W, H))), numStates);
+        }
+    }
+
+    uint8_t expected[W * H];
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            const uint8_t current = initial[idx];
+            const uint8_t successor = static_cast<uint8_t>((current + 1u) % numStates);
+            const uint8_t match = raster::countMooreState(initial, x, y, W, H, successor);
+            expected[idx] = match >= threshold ? successor : current;
+        }
+    }
+
+    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(f16(0), 120);
+
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            TEST_ASSERT_EQUAL_UINT8(
+                expected[idx],
+                recoverCyclicState(raw(map(rasterPoint(x, y, W, H))), numStates)
+            );
+        }
+    }
+}
+
+void test_cyclic_ca_is_deterministic() {
+    auto context = rasterContext(6, 6);
+    CyclicCAPattern first(120, 314, 6, 2);
+    CyclicCAPattern second(120, 314, 6, 2);
+    RasterMap firstMap = first.rasterLayer(context);
+    RasterMap secondMap = second.rasterLayer(context);
+    assertRasterMapsEqual(firstMap, secondMap, 6, 6);
+
+    for (uint8_t i = 0; i < 3; ++i) {
+        first.advanceFrame(f16(0), static_cast<TimeMillis>(120 * (i + 1)));
+        second.advanceFrame(f16(0), static_cast<TimeMillis>(120 * (i + 1)));
+    }
+    assertRasterMapsEqual(firstMap, secondMap, 6, 6);
+}
+
+void test_brians_brain_cycles_firing_to_dying_to_off() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    const uint16_t kFiring = F16_MAX;
+    const uint16_t kDying = F16_MAX / 3u;
+    auto context = rasterContext(W, H);
+    BriansBrainPattern pattern(90, 77, 500);
+    RasterMap map = pattern.rasterLayer(context);
+
+    // Seeding produces only firing or off cells (never dying).
+    bool initiallyFiring[W * H];
+    bool sawFiring = false;
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            const uint16_t value = raw(map(rasterPoint(x, y, W, H)));
+            TEST_ASSERT_TRUE(value == kFiring || value == 0u);
+            initiallyFiring[idx] = value == kFiring;
+            sawFiring = sawFiring || initiallyFiring[idx];
+        }
+    }
+    TEST_ASSERT_TRUE(sawFiring);
+
+    // After one step every firing cell must have decayed to the dying state.
+    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(f16(0), 90);
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            if (initiallyFiring[idx]) {
+                TEST_ASSERT_EQUAL_UINT16(kDying, raw(map(rasterPoint(x, y, W, H))));
+            }
+        }
+    }
+
+    // After a second step those dying cells must fall to off.
+    pattern.advanceFrame(f16(0), 180);
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            if (initiallyFiring[idx]) {
+                TEST_ASSERT_EQUAL_UINT16(0u, raw(map(rasterPoint(x, y, W, H))));
+            }
+        }
+    }
+}
+
+void test_life_seeds_rule_has_no_survivors() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    auto context = rasterContext(W, H);
+    LifeVariantPattern pattern(200, 55, 400, LifeVariantPattern::Rule::Seeds);
+    RasterMap map = pattern.rasterLayer(context);
+
+    bool initiallyAlive[W * H];
+    bool sawAlive = false;
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            initiallyAlive[idx] = raw(map(rasterPoint(x, y, W, H))) != 0;
+            sawAlive = sawAlive || initiallyAlive[idx];
+        }
+    }
+    TEST_ASSERT_TRUE(sawAlive);
+
+    // Seeds has an empty survival set: no live cell can persist across a step.
+    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(f16(0), 200);
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            if (initiallyAlive[idx]) {
+                TEST_ASSERT_EQUAL_UINT16(0u, raw(map(rasterPoint(x, y, W, H))));
+            }
+        }
+    }
+}
+
+void test_life_highlife_birth_and_survival_masks() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    // HighLife: B36/S23.
+    const uint16_t birthMask = (1u << 3) | (1u << 6);
+    const uint16_t survivalMask = (1u << 2) | (1u << 3);
+    auto context = rasterContext(W, H);
+    LifeVariantPattern pattern(200, 88, 350, LifeVariantPattern::Rule::HighLife);
+    RasterMap map = pattern.rasterLayer(context);
+
+    uint8_t initial[W * H];
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            initial[y * W + x] = raw(map(rasterPoint(x, y, W, H))) != 0 ? 1u : 0u;
+        }
+    }
+
+    uint8_t expected[W * H];
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            const uint8_t neighbours = raster::countMooreState(initial, x, y, W, H, 1u);
+            const uint16_t mask = initial[idx] ? survivalMask : birthMask;
+            expected[idx] = (mask & (1u << neighbours)) != 0 ? 1u : 0u;
+        }
+    }
+
+    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(f16(0), 200);
+
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            TEST_ASSERT_EQUAL_UINT8(
+                expected[idx],
+                raw(map(rasterPoint(x, y, W, H))) != 0 ? 1u : 0u
+            );
+        }
+    }
+}
+
+void test_elementary_ca_applies_rule_and_scrolls() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    const uint8_t rule = 90;
+    auto context = rasterContext(W, H);
+    ElementaryCAPattern pattern(90, 33, rule);
+    RasterMap map = pattern.rasterLayer(context);
+
+    uint8_t initial[W * H];
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            initial[y * W + x] = raw(map(rasterPoint(x, y, W, H))) != 0 ? 1u : 0u;
+        }
+    }
+
+    // The bottom row advances by Wolfram's rule; every row then scrolls up one.
+    const uint32_t bottom = static_cast<uint32_t>(H - 1) * W;
+    uint8_t newRow[W];
+    for (uint16_t x = 0; x < W; ++x) {
+        const uint16_t xLeft = x == 0 ? static_cast<uint16_t>(W - 1) : static_cast<uint16_t>(x - 1);
+        const uint16_t xRight = x == W - 1 ? 0 : static_cast<uint16_t>(x + 1);
+        const uint8_t triple = static_cast<uint8_t>(
+            (initial[bottom + xLeft] << 2) |
+            (initial[bottom + x] << 1) |
+            initial[bottom + xRight]);
+        newRow[x] = static_cast<uint8_t>((rule >> triple) & 1u);
+    }
+
+    uint8_t expected[W * H];
+    for (uint16_t y = 0; y + 1 < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            expected[y * W + x] = initial[(y + 1) * W + x];
+        }
+    }
+    for (uint16_t x = 0; x < W; ++x) {
+        expected[bottom + x] = newRow[x];
+    }
+
+    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(f16(0), 90);
+
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint32_t idx = static_cast<uint32_t>(y) * W + x;
+            TEST_ASSERT_EQUAL_UINT8(
+                expected[idx],
+                raw(map(rasterPoint(x, y, W, H))) != 0 ? 1u : 0u
+            );
+        }
+    }
+}
+
+void test_matrix_rain_heads_advance_and_light_up() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    auto context = rasterContext(W, H);
+    MatrixRainPattern pattern(60, 44, 40);
+    RasterMap map = pattern.rasterLayer(context);
+
+    // Freshly seeded: no cell is lit yet.
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            TEST_ASSERT_EQUAL_UINT16(0u, raw(map(rasterPoint(x, y, W, H))));
+        }
+    }
+
+    // One step advances every column head and lights exactly one cell per column.
+    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(f16(0), 60);
+    for (uint16_t x = 0; x < W; ++x) {
+        uint8_t lit = 0;
+        for (uint16_t y = 0; y < H; ++y) {
+            if (raw(map(rasterPoint(x, y, W, H))) == F16_MAX) ++lit;
+        }
+        TEST_ASSERT_EQUAL_UINT8(1, lit);
+    }
+}
+
+void test_matrix_rain_is_deterministic() {
+    auto context = rasterContext(6, 6);
+    MatrixRainPattern first(60, 271, 40);
+    MatrixRainPattern second(60, 271, 40);
+    RasterMap firstMap = first.rasterLayer(context);
+    RasterMap secondMap = second.rasterLayer(context);
+    for (uint8_t i = 0; i < 4; ++i) {
+        first.advanceFrame(f16(0), static_cast<TimeMillis>(60 * (i + 1)));
+        second.advanceFrame(f16(0), static_cast<TimeMillis>(60 * (i + 1)));
+    }
+    assertRasterMapsEqual(firstMap, secondMap, 6, 6);
+}
+
+void test_ripple_seeds_single_droplet() {
+    const uint16_t W = 8;
+    const uint16_t H = 8;
+    auto context = rasterContext(W, H);
+    RipplePattern pattern(40, 22, 6);
+    RasterMap map = pattern.rasterLayer(context);
+
+    // Seeding drops a single amplitude-4000 impulse (maps to 4000 << 4).
+    uint16_t nonZero = 0;
+    for (uint16_t y = 0; y < H; ++y) {
+        for (uint16_t x = 0; x < W; ++x) {
+            const uint16_t value = raw(map(rasterPoint(x, y, W, H)));
+            if (value != 0) {
+                ++nonZero;
+                TEST_ASSERT_EQUAL_UINT16(static_cast<uint16_t>(4000u << 4), value);
+            }
+        }
+    }
+    TEST_ASSERT_EQUAL_UINT16(1, nonZero);
+}
+
+void test_ripple_is_deterministic() {
+    auto context = rasterContext(6, 6);
+    RipplePattern first(40, 909, 6);
+    RipplePattern second(40, 909, 6);
+    RasterMap firstMap = first.rasterLayer(context);
+    RasterMap secondMap = second.rasterLayer(context);
+    for (uint8_t i = 0; i < 5; ++i) {
+        first.advanceFrame(f16(0), static_cast<TimeMillis>(40 * (i + 1)));
+        second.advanceFrame(f16(0), static_cast<TimeMillis>(40 * (i + 1)));
+    }
+    assertRasterMapsEqual(firstMap, secondMap, 6, 6);
+}
+
 #ifdef ARDUINO
 
 void setup() {
@@ -629,6 +975,17 @@ void setup() {
     RUN_TEST(test_conway_reseeds_when_static);
     RUN_TEST(test_conway_colour_survives_and_births_inherit);
     RUN_TEST(test_conway_invalid_and_over_capacity_raster_render_black);
+    RUN_TEST(test_raster_moore_neighbourhood_wraps);
+    RUN_TEST(test_cyclic_ca_step_advances_on_threshold);
+    RUN_TEST(test_cyclic_ca_is_deterministic);
+    RUN_TEST(test_brians_brain_cycles_firing_to_dying_to_off);
+    RUN_TEST(test_life_seeds_rule_has_no_survivors);
+    RUN_TEST(test_life_highlife_birth_and_survival_masks);
+    RUN_TEST(test_elementary_ca_applies_rule_and_scrolls);
+    RUN_TEST(test_matrix_rain_heads_advance_and_light_up);
+    RUN_TEST(test_matrix_rain_is_deterministic);
+    RUN_TEST(test_ripple_seeds_single_droplet);
+    RUN_TEST(test_ripple_is_deterministic);
     RUN_TEST(test_display_specs_report_raster_points);
 
     UNITY_END();
@@ -660,6 +1017,17 @@ int main(int argc, char **argv) {
     RUN_TEST(test_conway_reseeds_when_static);
     RUN_TEST(test_conway_colour_survives_and_births_inherit);
     RUN_TEST(test_conway_invalid_and_over_capacity_raster_render_black);
+    RUN_TEST(test_raster_moore_neighbourhood_wraps);
+    RUN_TEST(test_cyclic_ca_step_advances_on_threshold);
+    RUN_TEST(test_cyclic_ca_is_deterministic);
+    RUN_TEST(test_brians_brain_cycles_firing_to_dying_to_off);
+    RUN_TEST(test_life_seeds_rule_has_no_survivors);
+    RUN_TEST(test_life_highlife_birth_and_survival_masks);
+    RUN_TEST(test_elementary_ca_applies_rule_and_scrolls);
+    RUN_TEST(test_matrix_rain_heads_advance_and_light_up);
+    RUN_TEST(test_matrix_rain_is_deterministic);
+    RUN_TEST(test_ripple_seeds_single_droplet);
+    RUN_TEST(test_ripple_is_deterministic);
     RUN_TEST(test_display_specs_report_raster_points);
 
     return UNITY_END();

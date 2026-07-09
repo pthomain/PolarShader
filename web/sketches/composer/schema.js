@@ -38,6 +38,7 @@ export const FLOWFIELD_MODES   = ['Lissajous', 'Dots', 'Both'];
 export const RD_PRESETS        = ['Spots', 'Stripes', 'Coral', 'Worms'];
 export const TILE_SHAPES       = ['SQUARE', 'TRIANGLE', 'HEXAGON'];
 export const WORLEY_ALIASING   = ['None', 'Fast', 'Precise'];
+export const LIFE_RULES        = ['HighLife', 'Day & Night', 'Seeds'];
 
 // ─────────────────────────────────────────────────────────────────────
 // Signal definitions. Tag values are SIG_* in SceneCodec.cpp.
@@ -354,6 +355,113 @@ export const PATTERNS = {
             { name: 'stepIntervalMs', kind: 'u16', default: 250, label: 'step interval (ms)' },
             { name: 'seed', kind: 'u16', default: 0 },
             { name: 'densityPermille', kind: 'permille', default: 350, label: 'density' },
+        ],
+        signals: [],
+    },
+    rasterCyclicCA: {
+        tag: 0x2C, label: 'Pixel Grid — Cyclic CA',
+        domain: 'raster',
+        output: 'rgb',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 120, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'numStates', kind: 'u8', default: 8, label: 'states' },
+            { name: 'threshold', kind: 'u8', default: 1 },
+        ],
+        signals: [],
+    },
+    rasterBriansBrain: {
+        tag: 0x2D, label: "Pixel Grid — Brian's Brain",
+        domain: 'raster',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 90, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'densityPermille', kind: 'permille', default: 300, label: 'density' },
+        ],
+        signals: [],
+    },
+    rasterLifeVariant: {
+        tag: 0x2E, label: 'Pixel Grid — Life Variants',
+        domain: 'raster',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 200, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'densityPermille', kind: 'permille', default: 350, label: 'density' },
+            { name: 'rule', kind: 'enum', options: LIFE_RULES, default: 0 },
+        ],
+        signals: [],
+    },
+    rasterElementary: {
+        tag: 0x2F, label: 'Pixel Grid — Elementary CA',
+        domain: 'raster',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 90, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'rule', kind: 'u8', default: 30 },
+        ],
+        signals: [],
+    },
+    rasterMatrixRain: {
+        tag: 0x30, label: 'Pixel Grid — Matrix Rain',
+        domain: 'raster',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 60, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'fadeAmount', kind: 'u8', default: 40, label: 'fade' },
+        ],
+        signals: [],
+    },
+    rasterRipple: {
+        tag: 0x31, label: 'Pixel Grid — Ripple',
+        domain: 'raster',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 40, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'damping', kind: 'u8', default: 6 },
+        ],
+        signals: [],
+    },
+    rasterForestFire: {
+        tag: 0x32, label: 'Pixel Grid — Forest Fire',
+        domain: 'raster',
+        output: 'rgb',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 120, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'growthPermille', kind: 'permille', default: 40, label: 'growth' },
+            { name: 'lightningPermille', kind: 'permille', default: 2, label: 'lightning' },
+        ],
+        signals: [],
+    },
+    rasterWireWorld: {
+        tag: 0x33, label: 'Pixel Grid — Wireworld',
+        domain: 'raster',
+        output: 'rgb',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 100, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'densityPermille', kind: 'permille', default: 500, label: 'conductor density' },
+        ],
+        signals: [],
+    },
+    rasterLangtonAnt: {
+        tag: 0x34, label: "Pixel Grid — Langton's Ant",
+        domain: 'raster',
+        config: [
+            { name: 'stepIntervalMs', kind: 'u16', default: 30, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'antCount', kind: 'u16', default: 1, label: 'ants' },
+        ],
+        signals: [],
+    },
+    rasterReactionDiffusion: {
+        tag: 0x35, label: 'Pixel Grid — Reaction-Diffusion',
+        domain: 'raster',
+        config: [
+            { name: 'preset', kind: 'enum', options: RD_PRESETS, default: 0 },
+            { name: 'stepIntervalMs', kind: 'u16', default: 33, label: 'step interval (ms)' },
+            { name: 'seed', kind: 'u16', default: 0 },
+            { name: 'iterationsPerStep', kind: 'u16', default: 4, label: 'iterations/step' },
         ],
         signals: [],
     },

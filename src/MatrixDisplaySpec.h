@@ -31,6 +31,12 @@ namespace PolarShader {
         virtual uint16_t displayHeight() const = 0;
         virtual uint16_t subsample() const = 0;
 
+        // When true, the polar/UV coordinate mapping preserves aspect ratio and
+        // centre-crops (cover fit) on non-square panels instead of stretching
+        // each axis independently. Raster automata are unaffected — they run
+        // 1:1 on the native grid and never pass through toPolarCoords().
+        virtual bool centerCrop() const { return false; }
+
         uint16_t matrixWidth() const { return displayWidth() / subsample(); }
         uint16_t matrixHeight() const { return displayHeight() / subsample(); }
 
@@ -65,8 +71,19 @@ namespace PolarShader {
             const int32_t centered_y =
                     (static_cast<int32_t>(mHeight - 1 - y) * 2) - (mHeight - 1);
 
-            const int32_t denom_x = mWidth > 1 ? (mWidth - 1) : 1;
-            const int32_t denom_y = mHeight > 1 ? (mHeight - 1) : 1;
+            int32_t denom_x = mWidth > 1 ? (mWidth - 1) : 1;
+            int32_t denom_y = mHeight > 1 ? (mHeight - 1) : 1;
+
+            // Centre-crop (aspect-preserving cover): share one denominator so
+            // both axes carry the same units-per-pixel. The longer axis spans
+            // the full [-1, 1] effect extent; the shorter axis maps to a
+            // proportionally smaller central band, so the effect fills the
+            // panel undistorted and the overflow is cropped off-screen.
+            if (centerCrop()) {
+                const int32_t common = denom_x > denom_y ? denom_x : denom_y;
+                denom_x = common;
+                denom_y = common;
+            }
 
             const int32_t x_q0_16 = (centered_x * SF16_ONE) / denom_x;
             const int32_t y_q0_16 = (centered_y * SF16_ONE) / denom_y;

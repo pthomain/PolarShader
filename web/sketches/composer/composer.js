@@ -79,6 +79,7 @@ const sceneStore = createSceneStore(bootSceneState?.scene ?? DEFAULT_SCENE());
 
 function displayIdFromParam(raw) {
     if (raw === '1' || raw === 'round' || raw === 'polar') return 1;
+    if (raw === '2' || raw === 'fabric32x8') return 2;
     return 0;
 }
 
@@ -91,7 +92,7 @@ const state = {
     pushTimer: null,             // debounce timer handle for scene pushes
     latestEvent: null,           // most-recent scene-store emission
     debugLogEl: null,            // FastLED-side debug console
-    displayId: initialDisplayId(), // active display geometry (0 = fabric, 1 = round)
+    displayId: initialDisplayId(), // active display geometry (0 = fabric, 1 = round, 2 = fabric 32x8)
     renderSeq: 0,                // monotonic command generation for scene pushes / reloads
     latestSceneSeq: 0,           // sequence assigned to the newest scene-store emission
     lastGoodBootBytes: bootSceneState?.bytes ?? null,
@@ -134,6 +135,7 @@ const state = {
 const DISPLAYS = [
     { id: 0, name: 'Fabric (20×20 matrix)', matrix: true },
     { id: 1, name: 'Round (241-pixel radial)', matrix: false },
+    { id: 2, name: 'Matrix (32×8 matrix)', matrix: true },
 ];
 
 const DEPLOY_POLL_MS = 1000;
@@ -146,7 +148,9 @@ const BLOOM_BASE_MULTIPLIER = 1;
 const BLOOM_MAX_MULTIPLIER = 3;
 
 function displayUrlValue(which) {
-    return which === 1 ? 'round' : 'fabric';
+    if (which === 1) return 'round';
+    if (which === 2) return 'fabric32x8';
+    return 'fabric';
 }
 
 function reloadForDisplay(which) {
@@ -713,7 +717,13 @@ function autoSelectDeployTarget() {
     if (deviceText.includes('teensy')) {
         targetId = 'teensy41_matrix';
     } else if (deviceText.includes('rp2040')) {
-        targetId = state.displayId === 1 ? 'seeed_xiao_rp2040_round' : 'seeed_xiao_rp2040_fabric';
+        if (state.displayId === 1) {
+            targetId = 'seeed_xiao_rp2040_round';
+        } else if (state.displayId === 2) {
+            targetId = 'seeed_xiao_rp2040_matrix32x8';
+        } else {
+            targetId = 'seeed_xiao_rp2040_fabric';
+        }
     } else if (deviceText.includes('samd') || deviceText.includes('atsamd')) {
         targetId = 'seeed_xiao';
     } else {
@@ -2159,26 +2169,6 @@ function renderTopSection() {
         reader.readAsArrayBuffer(f);
     });
     resetBtn.addEventListener('click', resetRenderer);
-    // Bloom on/off: toggles the ThreeJS bloom post-processing pass in the render
-    // worker's graphics manager (see setWorkerBloom).
-    const bloomLabel = document.createElement('label');
-    bloomLabel.style.display = 'flex';
-    bloomLabel.style.alignItems = 'center';
-    bloomLabel.style.gap = '6px';
-    const bloomChk = document.createElement('input');
-    bloomChk.type = 'checkbox';
-    bloomChk.checked = bloomPreference;
-    bloomChk.addEventListener('change', () => {
-        setWorkerBloom(bloomChk.checked).then((res) => {
-            if (res && res.ok === false) {
-                showStatus(`bloom: ${res.reason || 'failed'}`, true);
-            } else {
-                showStatus(`bloom ${bloomChk.checked ? 'on' : 'off'}`, false);
-            }
-        });
-    });
-    bloomLabel.appendChild(bloomChk);
-    bloomLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Bloom' }));
     ioRow.appendChild(loadBtn);
     ioRow.appendChild(saveBtn);
     if (state.composerTab === 'new') {
@@ -2188,7 +2178,6 @@ function renderTopSection() {
         ioRow.appendChild(importPlaylistBtn);
     }
     ioRow.appendChild(resetBtn);
-    ioRow.appendChild(bloomLabel);
     ioRow.appendChild(fileIn);
     ioRow.appendChild(importIn);
     section.appendChild(ioRow);

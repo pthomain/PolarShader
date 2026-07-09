@@ -84,6 +84,54 @@ class PscValidationTest(unittest.TestCase):
                 self.assertEqual(tag, expected_tag)
                 self.assertIsNone(error)
 
+    def test_validator_accepts_all_raster_pattern_tags(self) -> None:
+        def scene_for_pattern(tag: int, body: list[int]) -> bytes:
+            return bytes([
+                0x50, 0x53, 0x43, 0x00,
+                0x01,
+                0x00,
+                tag, len(body) & 0xFF, (len(body) >> 8) & 0xFF,
+                *body,
+                0x00,
+            ])
+
+        fixtures = [
+            (0x2B, [0xFA, 0x00, 0x01, 0x00, 0x5E, 0x01]),
+            (0x2C, [0x78, 0x00, 0x01, 0x00, 0x08, 0x01]),
+            (0x2D, [0x5A, 0x00, 0x01, 0x00, 0x2C, 0x01]),
+            (0x2E, [0xC8, 0x00, 0x01, 0x00, 0x5E, 0x01, 0x00]),
+            (0x2F, [0x5A, 0x00, 0x01, 0x00, 0x1E]),
+            (0x30, [0x3C, 0x00, 0x01, 0x00, 0x28]),
+            (0x31, [0x28, 0x00, 0x01, 0x00, 0x06]),
+            (0x32, [0x78, 0x00, 0x01, 0x00, 0x28, 0x00, 0x02, 0x00]),
+            (0x33, [0x64, 0x00, 0x01, 0x00, 0xF4, 0x01]),
+            (0x34, [0x1E, 0x00, 0x01, 0x00, 0x01, 0x00]),
+            (0x35, [0x00, 0x21, 0x00, 0x01, 0x00, 0x04, 0x00]),
+        ]
+
+        for tag, body in fixtures:
+            with self.subTest(tag=f"0x{tag:02x}"):
+                payload = scene_for_pattern(tag, body)
+                info = psc_v1.validate_psc_scene(payload)
+                self.assertEqual(info.pattern_tag, tag)
+
+                detected_tag, error = local_server._psc_pattern_tag(payload)
+                self.assertEqual(detected_tag, tag)
+                self.assertIsNone(error)
+
+    def test_validator_rejects_bad_raster_reaction_diffusion_preset(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x01,
+            0x00,
+            0x35, 0x07, 0x00,
+            0x04, 0x21, 0x00, 0x01, 0x00, 0x04, 0x00,
+            0x00,
+        ])
+
+        with self.assertRaisesRegex(psc_v1.PscValidationError, "bad enum value 4"):
+            psc_v1.validate_psc_scene(payload)
+
     def test_validator_rejects_legacy_palette_transform(self) -> None:
         tag, error = local_server._psc_pattern_tag(LEGACY_PALETTE_TRANSFORM_PSC)
         self.assertEqual(tag, 0)

@@ -116,6 +116,16 @@ namespace PolarShader::composer {
             PAT_PF_RADIAL_PULSE     = 0x1E, // u8 cellCount; signals: phaseSpeed, warp, thickness
             PAT_XOR                 = 0x22, // u8 gridSize + u16 speed
             PAT_RASTER_CONWAY       = 0x2B, // u16 stepIntervalMs + u16 seed + u16 densityPermille
+            PAT_RASTER_CYCLIC_CA    = 0x2C, // u16 stepIntervalMs + u16 seed + u8 numStates + u8 threshold
+            PAT_RASTER_BRIANS_BRAIN = 0x2D, // u16 stepIntervalMs + u16 seed + u16 densityPermille
+            PAT_RASTER_LIFE_VARIANT = 0x2E, // u16 stepIntervalMs + u16 seed + u16 densityPermille + u8 rule
+            PAT_RASTER_ELEMENTARY   = 0x2F, // u16 stepIntervalMs + u16 seed + u8 rule
+            PAT_RASTER_MATRIX_RAIN  = 0x30, // u16 stepIntervalMs + u16 seed + u8 fadeAmount
+            PAT_RASTER_RIPPLE       = 0x31, // u16 stepIntervalMs + u16 seed + u8 damping
+            PAT_RASTER_FOREST_FIRE  = 0x32, // u16 stepIntervalMs + u16 seed + u16 growthPermille + u16 lightningPermille
+            PAT_RASTER_WIREWORLD    = 0x33, // u16 stepIntervalMs + u16 seed + u16 densityPermille
+            PAT_RASTER_LANGTON_ANT  = 0x34, // u16 stepIntervalMs + u16 seed + u16 antCount
+            PAT_RASTER_REACTION_DIFF = 0x35, // u8 preset + u16 stepIntervalMs + u16 seed + u16 iterationsPerStep
         };
 
         enum TransformTag : uint8_t {
@@ -608,6 +618,98 @@ namespace PolarShader::composer {
                     uint16_t densityPermille = r.readU16();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
                     return conwayPattern(stepIntervalMs, seed, densityPermille);
+                }
+
+                case PAT_RASTER_CYCLIC_CA: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint8_t numStates = r.readU8();
+                    uint8_t threshold = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return cyclicCAPattern(stepIntervalMs, seed, numStates, threshold);
+                }
+
+                case PAT_RASTER_BRIANS_BRAIN: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint16_t densityPermille = r.readU16();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return briansBrainPattern(stepIntervalMs, seed, densityPermille);
+                }
+
+                case PAT_RASTER_LIFE_VARIANT: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint16_t densityPermille = r.readU16();
+                    uint8_t rule = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    if (rule > static_cast<uint8_t>(LifeVariantPattern::Rule::Seeds)) {
+                        setStatusIfOk(status, DecodeStatus::BAD_ENUM); return nullptr;
+                    }
+                    return lifeVariantPattern(
+                        stepIntervalMs, seed, densityPermille,
+                        static_cast<LifeVariantPattern::Rule>(rule));
+                }
+
+                case PAT_RASTER_ELEMENTARY: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint8_t rule = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return elementaryCAPattern(stepIntervalMs, seed, rule);
+                }
+
+                case PAT_RASTER_MATRIX_RAIN: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint8_t fadeAmount = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return matrixRainPattern(stepIntervalMs, seed, fadeAmount);
+                }
+
+                case PAT_RASTER_RIPPLE: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint8_t damping = r.readU8();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return ripplePattern(stepIntervalMs, seed, damping);
+                }
+
+                case PAT_RASTER_FOREST_FIRE: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint16_t growthPermille = r.readU16();
+                    uint16_t lightningPermille = r.readU16();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return forestFirePattern(stepIntervalMs, seed, growthPermille, lightningPermille);
+                }
+
+                case PAT_RASTER_WIREWORLD: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint16_t densityPermille = r.readU16();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return wireWorldPattern(stepIntervalMs, seed, densityPermille);
+                }
+
+                case PAT_RASTER_LANGTON_ANT: {
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint16_t antCount = r.readU16();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    return langtonAntPattern(stepIntervalMs, seed, antCount);
+                }
+
+                case PAT_RASTER_REACTION_DIFF: {
+                    uint8_t preset = r.readU8();
+                    uint16_t stepIntervalMs = r.readU16();
+                    uint16_t seed = r.readU16();
+                    uint16_t iterationsPerStep = r.readU16();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    if (preset > static_cast<uint8_t>(RasterReactionDiffusionPattern::Preset::Worms)) {
+                        setStatusIfOk(status, DecodeStatus::BAD_ENUM); return nullptr;
+                    }
+                    return rasterReactionDiffusionPattern(preset, stepIntervalMs, seed, iterationsPerStep);
                 }
 
                 default:

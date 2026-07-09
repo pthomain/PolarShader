@@ -18,31 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_RIPPLEPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_RIPPLEPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // Integer water-ripple simulation: a two-buffer discrete wave equation
+    // over the grid. Droplets are injected periodically and their circular
+    // waves interfere and decay according to the damping parameter.
+    class RipplePattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit RipplePattern(
+            uint16_t stepIntervalMs = 40,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint8_t damping = 6
         );
 
-        bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
-        RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -51,13 +45,17 @@ namespace PolarShader {
         bool step() const override;
 
     private:
-        uint16_t densityPermille;
+        uint8_t damping;
 
-        mutable std::unique_ptr<uint8_t[]> cells;
-        mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+        mutable std::unique_ptr<int16_t[]> cur;
+        mutable std::unique_ptr<int16_t[]> prev;
+        mutable uint32_t waveRng{0};
+        mutable uint32_t stepCounter{0};
+
+        void injectDroplet() const;
+
+        static uint8_t clampDamping(uint8_t value);
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_RIPPLEPATTERN_H

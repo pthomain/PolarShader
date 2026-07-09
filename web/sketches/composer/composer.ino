@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "FabricDisplaySpec.h"
+#include "Fabric32x8DisplaySpec.h"
 #include "RoundDisplaySpec.h"
 #include "display/WebDisplayGeometry.h"
 #include "display/WebFastLedDisplay.h"
@@ -31,12 +32,14 @@ using namespace PolarShader;
 
 namespace {
     constexpr uint8_t FABRIC_BRIGHTNESS = 255;
+    constexpr uint8_t FABRIC32X8_BRIGHTNESS = 255;
     constexpr uint8_t ROUND_BRIGHTNESS = 255;
     constexpr uint8_t REFRESH_MS = 30;
 
     // Display tag values — must match composer_set_display(which) in JS.
-    constexpr uint8_t DISPLAY_FABRIC = 0;
-    constexpr uint8_t DISPLAY_ROUND  = 1;
+    constexpr uint8_t DISPLAY_FABRIC       = 0;
+    constexpr uint8_t DISPLAY_ROUND        = 1;
+    constexpr uint8_t DISPLAY_FABRIC_32X8  = 2;
 
 #ifndef COMPOSER_INITIAL_DISPLAY
 #define COMPOSER_INITIAL_DISPLAY DISPLAY_FABRIC
@@ -44,8 +47,9 @@ namespace {
 
     // Exactly one of these is non-null at a time. Holding both type slots
     // keeps the dispatch type-safe without runtime polymorphism.
-    std::unique_ptr<WebFastLedDisplay<FabricDisplaySpec>> fabricDisplay;
-    std::unique_ptr<WebFastLedDisplay<RoundDisplaySpec>>  roundDisplay;
+    std::unique_ptr<WebFastLedDisplay<FabricDisplaySpec>>      fabricDisplay;
+    std::unique_ptr<WebFastLedDisplay<Fabric32x8DisplaySpec>>  fabric32x8Display;
+    std::unique_ptr<WebFastLedDisplay<RoundDisplaySpec>>       roundDisplay;
     uint8_t activeDisplay = COMPOSER_INITIAL_DISPLAY;
 
     // Most-recent successfully-decoded scene blob. Empty until the JS
@@ -84,6 +88,7 @@ namespace {
         // objects; instantiating them inline is cheap.
         if (activeDisplay == DISPLAY_ROUND) {
             fabricDisplay.reset();
+            fabric32x8Display.reset();
             static RoundDisplaySpec spec;
             static composer::DecodeStatus _ignored = composer::DecodeStatus::OK;
             (void) _ignored;
@@ -93,7 +98,15 @@ namespace {
             static WebDisplayGeometry geometry = buildWebGeometry(spec);
             roundDisplay = std::make_unique<WebFastLedDisplay<RoundDisplaySpec>>(
                 spec, geometry, ROUND_BRIGHTNESS, REFRESH_MS);
+        } else if (activeDisplay == DISPLAY_FABRIC_32X8) {
+            fabricDisplay.reset();
+            roundDisplay.reset();
+            static Fabric32x8DisplaySpec spec;
+            static WebDisplayGeometry geometry = buildWebGeometry(spec);
+            fabric32x8Display = std::make_unique<WebFastLedDisplay<Fabric32x8DisplaySpec>>(
+                spec, geometry, FABRIC32X8_BRIGHTNESS, REFRESH_MS);
         } else {
+            fabric32x8Display.reset();
             roundDisplay.reset();
             static FabricDisplaySpec spec;
             static WebDisplayGeometry geometry = buildWebGeometry(spec);
@@ -124,6 +137,8 @@ namespace {
     void replaceActiveSceneWithPhase(std::unique_ptr<Scene> scene, bool preserveElapsed, uint32_t seq) {
         if (activeDisplay == DISPLAY_ROUND && roundDisplay) {
             replaceSceneWithPhase(*roundDisplay, std::move(scene), preserveElapsed, seq);
+        } else if (activeDisplay == DISPLAY_FABRIC_32X8 && fabric32x8Display) {
+            replaceSceneWithPhase(*fabric32x8Display, std::move(scene), preserveElapsed, seq);
         } else if (fabricDisplay) {
             replaceSceneWithPhase(*fabricDisplay, std::move(scene), preserveElapsed, seq);
         } else {
@@ -189,7 +204,7 @@ int composer_apply_scene(const uint8_t *bytes, uint32_t len) {
     return composer_apply_scene_seq(bytes, len, 0);
 }
 
-// 0 = fabric, 1 = round. Rebuilds the display AND internally reapplies
+// 0 = fabric, 1 = round, 2 = fabric 32x8. Rebuilds the display AND internally reapplies
 // the most-recent valid scene blob — JS does not need to call
 // composer_apply_scene after this. No-op if `which` matches the current
 // display.
@@ -202,11 +217,11 @@ int composer_apply_scene(const uint8_t *bytes, uint32_t len) {
 EMSCRIPTEN_KEEPALIVE
 void composer_set_display_seq(uint8_t which, uint32_t seq) {
     postComposerPhase(seq, "display-enter");
-    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND) {
+    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND && which != DISPLAY_FABRIC_32X8) {
         postComposerPhase(seq, "display-invalid");
         return;
     }
-    if (which == activeDisplay && (fabricDisplay || roundDisplay)) {
+    if (which == activeDisplay && (fabricDisplay || fabric32x8Display || roundDisplay)) {
         postComposerPhase(seq, "display-noop");
         return;
     }
@@ -225,12 +240,12 @@ void composer_set_display(uint8_t which) {
     composer_set_display_seq(which, 0);
 }
 
-// 0 = fabric, 1 = round. Intended for generated JS to call before setup(),
+// 0 = fabric, 1 = round, 2 = fabric 32x8. Intended for generated JS to call before setup(),
 // so the initial FastLED screen map matches the iframe URL.
 EMSCRIPTEN_KEEPALIVE
 void composer_set_initial_display(uint8_t which) {
-    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND) return;
-    if (fabricDisplay || roundDisplay) {
+    if (which != DISPLAY_FABRIC && which != DISPLAY_ROUND && which != DISPLAY_FABRIC_32X8) return;
+    if (fabricDisplay || fabric32x8Display || roundDisplay) {
         composer_set_display(which);
         return;
     }
@@ -255,6 +270,8 @@ void setup() {
 void loop() {
     if (activeDisplay == DISPLAY_ROUND && roundDisplay) {
         roundDisplay->loop();
+    } else if (activeDisplay == DISPLAY_FABRIC_32X8 && fabric32x8Display) {
+        fabric32x8Display->loop();
     } else if (fabricDisplay) {
         fabricDisplay->loop();
     }

@@ -18,31 +18,25 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_MATRIXRAINPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_MATRIXRAINPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // "Digital rain": each column has a bright head that falls down the grid,
+    // lighting the cell it passes; every step fades all cells so the heads
+    // leave decaying trails behind them.
+    class MatrixRainPattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit MatrixRainPattern(
+            uint16_t stepIntervalMs = 60,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint8_t fadeAmount = 40
         );
 
-        bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
-        RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -51,13 +45,13 @@ namespace PolarShader {
         bool step() const override;
 
     private:
-        uint16_t densityPermille;
+        uint8_t fadeAmount;
 
-        mutable std::unique_ptr<uint8_t[]> cells;
-        mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+        mutable std::unique_ptr<uint8_t[]> brightness;
+        mutable std::unique_ptr<uint16_t[]> heads;
+
+        static uint8_t clampFade(uint8_t value);
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_MATRIXRAINPATTERN_H

@@ -18,31 +18,26 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_BRIANSBRAINPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_BRIANSBRAINPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // Brian's Brain: a 3-state cellular automaton (off / firing / dying).
+    // An off cell fires when it has exactly two firing neighbours; a firing
+    // cell always becomes dying; a dying cell always turns off. Perpetually
+    // animated, producing drifting glider-like sparks.
+    class BriansBrainPattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit BriansBrainPattern(
+            uint16_t stepIntervalMs = 90,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint16_t densityPermille = 300
         );
 
-        bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
-        RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -55,9 +50,7 @@ namespace PolarShader {
 
         mutable std::unique_ptr<uint8_t[]> cells;
         mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_BRIANSBRAINPATTERN_H

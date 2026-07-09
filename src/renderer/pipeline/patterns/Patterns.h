@@ -30,6 +30,16 @@
 #include <renderer/pipeline/patterns/TilingPattern.h>
 #include <renderer/pipeline/patterns/ReactionDiffusionPattern.h>
 #include <renderer/pipeline/patterns/ConwayPattern.h>
+#include <renderer/pipeline/patterns/CyclicCAPattern.h>
+#include <renderer/pipeline/patterns/BriansBrainPattern.h>
+#include <renderer/pipeline/patterns/LifeVariantPattern.h>
+#include <renderer/pipeline/patterns/ElementaryCAPattern.h>
+#include <renderer/pipeline/patterns/MatrixRainPattern.h>
+#include <renderer/pipeline/patterns/RipplePattern.h>
+#include <renderer/pipeline/patterns/ForestFirePattern.h>
+#include <renderer/pipeline/patterns/WireWorldPattern.h>
+#include <renderer/pipeline/patterns/LangtonAntPattern.h>
+#include <renderer/pipeline/patterns/RasterReactionDiffusionPattern.h>
 #include <renderer/pipeline/patterns/XORPattern.h>
 #include <renderer/pipeline/patterns/SpiralPattern.h>
 #include <renderer/pipeline/patterns/AnnuliPattern.h>
@@ -88,6 +98,80 @@ namespace PolarShader {
         uint16_t stepIntervalMs = 250,
         uint16_t seed = 0,
         uint16_t densityPermille = 350
+    );
+
+    // Cyclic cellular automaton (Greenberg-Hastings); rotating spiral waves.
+    std::unique_ptr<UVPattern> cyclicCAPattern(
+        uint16_t stepIntervalMs = 120,
+        uint16_t seed = 0,
+        uint8_t numStates = 8,
+        uint8_t threshold = 1
+    );
+
+    // Brian's Brain 3-state automaton (off/firing/dying).
+    std::unique_ptr<UVPattern> briansBrainPattern(
+        uint16_t stepIntervalMs = 90,
+        uint16_t seed = 0,
+        uint16_t densityPermille = 300
+    );
+
+    // Life-like automata with alternate birth/survival rules.
+    std::unique_ptr<UVPattern> lifeVariantPattern(
+        uint16_t stepIntervalMs = 200,
+        uint16_t seed = 0,
+        uint16_t densityPermille = 350,
+        LifeVariantPattern::Rule rule = LifeVariantPattern::Rule::HighLife
+    );
+
+    // One-dimensional (Wolfram) cellular automaton scroller.
+    std::unique_ptr<UVPattern> elementaryCAPattern(
+        uint16_t stepIntervalMs = 90,
+        uint16_t seed = 0,
+        uint8_t rule = 30
+    );
+
+    // Falling "digital rain" columns with fading trails.
+    std::unique_ptr<UVPattern> matrixRainPattern(
+        uint16_t stepIntervalMs = 60,
+        uint16_t seed = 0,
+        uint8_t fadeAmount = 40
+    );
+
+    // Integer water-ripple wave simulation.
+    std::unique_ptr<UVPattern> ripplePattern(
+        uint16_t stepIntervalMs = 40,
+        uint16_t seed = 0,
+        uint8_t damping = 6
+    );
+
+    // Drossel-Schwabl forest-fire model (empty/tree/burning).
+    std::unique_ptr<UVPattern> forestFirePattern(
+        uint16_t stepIntervalMs = 120,
+        uint16_t seed = 0,
+        uint16_t growthPermille = 40,
+        uint16_t lightningPermille = 2
+    );
+
+    // Wireworld electron-transport automaton.
+    std::unique_ptr<UVPattern> wireWorldPattern(
+        uint16_t stepIntervalMs = 100,
+        uint16_t seed = 0,
+        uint16_t densityPermille = 500
+    );
+
+    // Langton's ant trail on a toroidal binary grid.
+    std::unique_ptr<UVPattern> langtonAntPattern(
+        uint16_t stepIntervalMs = 30,
+        uint16_t seed = 0,
+        uint16_t antCount = 1
+    );
+
+    // Display-native Gray-Scott reaction-diffusion (raster grid).
+    std::unique_ptr<UVPattern> rasterReactionDiffusionPattern(
+        uint8_t preset = 0,
+        uint16_t stepIntervalMs = 33,
+        uint16_t seed = 0,
+        uint16_t iterationsPerStep = 4
     );
 
     // Animated (x XOR y) "munching squares" texture.

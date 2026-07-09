@@ -18,31 +18,31 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
-#define POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#ifndef POLAR_SHADER_PIPELINE_PATTERNS_FORESTFIREPATTERN_H
+#define POLAR_SHADER_PIPELINE_PATTERNS_FORESTFIREPATTERN_H
 
 #include "renderer/pipeline/patterns/base/RasterAutomaton.h"
 #include <memory>
 
 namespace PolarShader {
-    class ConwayPattern : public RasterAutomaton {
+    // Drossel-Schwabl forest-fire model. Three states: empty, tree, burning.
+    //  - a burning cell becomes empty next step;
+    //  - a tree ignites if any of its 8 Moore neighbours is burning, or
+    //    spontaneously ("lightning") with probability lightningPermille;
+    //  - an empty cell grows a tree with probability growthPermille.
+    // Colour-emitting: trees read green, fire reads red/orange.
+    class ForestFirePattern : public RasterAutomaton {
     public:
-        explicit ConwayPattern(
-            uint16_t stepIntervalMs = 250,
+        explicit ForestFirePattern(
+            uint16_t stepIntervalMs = 120,
             uint16_t seed = 0,
-            uint16_t densityPermille = 350
+            uint16_t growthPermille = 40,
+            uint16_t lightningPermille = 2
         );
 
         bool emitsColour() const override { return true; }
         RasterMap rasterLayer(const std::shared_ptr<PipelineContext>& context) const override;
         RasterColourMap rasterColourLayer(const std::shared_ptr<PipelineContext>& context) const override;
-
-        static void stepCells(
-            const uint8_t *current,
-            uint8_t *next,
-            uint16_t width,
-            uint16_t height
-        );
 
     protected:
         bool allocate(uint16_t width, uint16_t height, uint32_t cellCount) const override;
@@ -51,13 +51,13 @@ namespace PolarShader {
         bool step() const override;
 
     private:
-        uint16_t densityPermille;
+        uint16_t growthPermille;
+        uint16_t lightningPermille;
 
         mutable std::unique_ptr<uint8_t[]> cells;
         mutable std::unique_ptr<uint8_t[]> next;
-        mutable std::unique_ptr<uint8_t[]> hues;
-        mutable std::unique_ptr<uint8_t[]> nextHues;
+        mutable uint32_t rng{0};
     };
 }
 
-#endif // POLAR_SHADER_PIPELINE_PATTERNS_CONWAYPATTERN_H
+#endif // POLAR_SHADER_PIPELINE_PATTERNS_FORESTFIREPATTERN_H

@@ -26,6 +26,16 @@
 #include "renderer/pipeline/patterns/TilingPattern.h"
 #include "renderer/pipeline/patterns/ReactionDiffusionPattern.h"
 #include "renderer/pipeline/patterns/ConwayPattern.h"
+#include "renderer/pipeline/patterns/CyclicCAPattern.h"
+#include "renderer/pipeline/patterns/BriansBrainPattern.h"
+#include "renderer/pipeline/patterns/LifeVariantPattern.h"
+#include "renderer/pipeline/patterns/ElementaryCAPattern.h"
+#include "renderer/pipeline/patterns/MatrixRainPattern.h"
+#include "renderer/pipeline/patterns/RipplePattern.h"
+#include "renderer/pipeline/patterns/ForestFirePattern.h"
+#include "renderer/pipeline/patterns/WireWorldPattern.h"
+#include "renderer/pipeline/patterns/LangtonAntPattern.h"
+#include "renderer/pipeline/patterns/RasterReactionDiffusionPattern.h"
 #include "renderer/pipeline/patterns/XORPattern.h"
 #include "renderer/pipeline/patterns/SpiralPattern.h"
 #include "renderer/pipeline/patterns/AnnuliPattern.h"
@@ -95,6 +105,90 @@ namespace PolarShader {
         uint16_t speed
     ) {
         return std::make_unique<XORPattern>(gridSize, speed);
+    }
+
+    std::unique_ptr<UVPattern> cyclicCAPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint8_t numStates,
+        uint8_t threshold
+    ) {
+        return std::make_unique<CyclicCAPattern>(stepIntervalMs, seed, numStates, threshold);
+    }
+
+    std::unique_ptr<UVPattern> briansBrainPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t densityPermille
+    ) {
+        return std::make_unique<BriansBrainPattern>(stepIntervalMs, seed, densityPermille);
+    }
+
+    std::unique_ptr<UVPattern> lifeVariantPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t densityPermille,
+        LifeVariantPattern::Rule rule
+    ) {
+        return std::make_unique<LifeVariantPattern>(stepIntervalMs, seed, densityPermille, rule);
+    }
+
+    std::unique_ptr<UVPattern> elementaryCAPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint8_t rule
+    ) {
+        return std::make_unique<ElementaryCAPattern>(stepIntervalMs, seed, rule);
+    }
+
+    std::unique_ptr<UVPattern> matrixRainPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint8_t fadeAmount
+    ) {
+        return std::make_unique<MatrixRainPattern>(stepIntervalMs, seed, fadeAmount);
+    }
+
+    std::unique_ptr<UVPattern> ripplePattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint8_t damping
+    ) {
+        return std::make_unique<RipplePattern>(stepIntervalMs, seed, damping);
+    }
+
+    std::unique_ptr<UVPattern> forestFirePattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t growthPermille,
+        uint16_t lightningPermille
+    ) {
+        return std::make_unique<ForestFirePattern>(stepIntervalMs, seed, growthPermille, lightningPermille);
+    }
+
+    std::unique_ptr<UVPattern> wireWorldPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t densityPermille
+    ) {
+        return std::make_unique<WireWorldPattern>(stepIntervalMs, seed, densityPermille);
+    }
+
+    std::unique_ptr<UVPattern> langtonAntPattern(
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t antCount
+    ) {
+        return std::make_unique<LangtonAntPattern>(stepIntervalMs, seed, antCount);
+    }
+
+    std::unique_ptr<UVPattern> rasterReactionDiffusionPattern(
+        uint8_t preset,
+        uint16_t stepIntervalMs,
+        uint16_t seed,
+        uint16_t iterationsPerStep
+    ) {
+        return std::make_unique<RasterReactionDiffusionPattern>(preset, stepIntervalMs, seed, iterationsPerStep);
     }
 
     std::unique_ptr<UVPattern> flowFieldPattern(

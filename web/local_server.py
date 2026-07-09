@@ -48,6 +48,11 @@ DEPLOY_TARGETS = [
         "matches": ["rp2040", "xiao rp2040", "seeed xiao rp2040"],
     },
     {
+        "id": "seeed_xiao_rp2040_matrix32x8",
+        "label": "Seeed XIAO RP2040 Matrix 32x8",
+        "matches": ["rp2040", "xiao rp2040", "seeed xiao rp2040"],
+    },
+    {
         "id": "teensy41_matrix",
         "label": "Teensy 4.1 Matrix",
         "matches": ["teensy", "teensyduino", "imxrt1062"],

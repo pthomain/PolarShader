@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "FabricDisplaySpec.h"
+#include "Fabric32x8DisplaySpec.h"
 #include "RoundDisplaySpec.h"
 
 namespace PolarShader {
@@ -101,6 +102,29 @@ namespace PolarShader {
         return geometry;
     }
 
+    inline WebDisplayGeometry buildFabric32x8WebGeometry() {
+        WebDisplayGeometry geometry;
+        geometry.points.resize(Fabric32x8DisplaySpec::WIDTH * Fabric32x8DisplaySpec::HEIGHT);
+        geometry.centerX = static_cast<float>(Fabric32x8DisplaySpec::WIDTH - 1) * 0.5f;
+        geometry.centerY = static_cast<float>(Fabric32x8DisplaySpec::HEIGHT - 1) * 0.5f;
+
+        // Vertical serpentine: even columns run top-to-bottom, odd columns
+        // bottom-to-top. Must match Fabric32x8DisplaySpec's physical mapping.
+        for (uint16_t col = 0; col < Fabric32x8DisplaySpec::WIDTH; ++col) {
+            for (uint16_t p = 0; p < Fabric32x8DisplaySpec::HEIGHT; ++p) {
+                const uint16_t row = col & 1 ? (Fabric32x8DisplaySpec::HEIGHT - 1) - p : p;
+                const uint16_t pixelIndex = static_cast<uint16_t>((col * Fabric32x8DisplaySpec::HEIGHT) + p);
+                geometry.points[pixelIndex] = {
+                    static_cast<float>(col),
+                    static_cast<float>(row)
+                };
+            }
+        }
+
+        geometry.diameter = detail::deriveLedDiameter(geometry.points);
+        return geometry;
+    }
+
     inline WebDisplayGeometry buildRoundWebGeometry(const RoundDisplaySpec &spec = RoundDisplaySpec()) {
         WebDisplayGeometry geometry;
         const float maxRadius = static_cast<float>(spec.numSegments() > 0 ? spec.numSegments() - 1 : 0);
@@ -131,6 +155,10 @@ namespace PolarShader {
 
     inline WebDisplayGeometry buildWebGeometry(const FabricDisplaySpec &) {
         return buildFabricWebGeometry();
+    }
+
+    inline WebDisplayGeometry buildWebGeometry(const Fabric32x8DisplaySpec &) {
+        return buildFabric32x8WebGeometry();
     }
 
     inline WebDisplayGeometry buildWebGeometry(const RoundDisplaySpec &spec) {

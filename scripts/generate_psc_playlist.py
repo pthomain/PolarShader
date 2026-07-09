@@ -18,7 +18,14 @@ import re
 import sys
 from typing import Iterable
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    _SCRIPT_DIR = Path(__file__).resolve().parent
+except NameError:
+    # PlatformIO/SCons execs this as a pre-build SConscript, where __file__
+    # is not defined. PlatformIO runs from the project root, so the sibling
+    # psc_v1 module lives under ./scripts.
+    _SCRIPT_DIR = Path.cwd().resolve() / "scripts"
+sys.path.insert(0, str(_SCRIPT_DIR))
 from psc_v1 import PscValidationError, validate_psc_scene
 
 
