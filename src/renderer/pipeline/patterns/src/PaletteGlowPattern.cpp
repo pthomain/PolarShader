@@ -25,9 +25,9 @@
 namespace PolarShader {
     namespace {
         constexpr int32_t Q16_HALF = 0x00008000;
-        constexpr int32_t Q16_ONE_AND_HALF = 0x00018000;
-        constexpr uint32_t Q16_IQ_TIME_STEP = 26214u; // 0.4
-        constexpr uint32_t Q16_ONE_HUNDREDTH = 655u; // 0.01
+        constexpr int32_t Q16_TILE_SCALE = 0x00018000; // 1.5
+        constexpr uint32_t Q16_TIME_SCALE = 26214u; // 0.4
+        constexpr uint32_t Q16_GLOW_BASE = 655u; // 0.01
         constexpr uint32_t Q16_GLOW_DIV_MAX = 16u << 16;
         constexpr uint32_t Q16_WAVE_EPSILON = 8u;
         constexpr uint32_t Q16_INV_TAU = 10430u;
@@ -40,16 +40,27 @@ namespace PolarShader {
             return static_cast<int32_t>(scaled / context->rasterDisplay.height);
         }
 
-        fl::s16x16 centredUvAxis(fl::s16x16 axis) {
+        fl::s16x16 shaderAxis(fl::s16x16 axis) {
             int64_t centred = static_cast<int64_t>(raw(axis)) * 2 - SF16_ONE;
             if (centred > INT32_MAX) centred = INT32_MAX;
             if (centred < INT32_MIN) centred = INT32_MIN;
             return fl::s16x16::from_raw(static_cast<int32_t>(centred));
         }
 
+        Vec2Q16 shaderUv(UV uv, int32_t aspectRaw) {
+            return Vec2Q16{
+                fl::s16x16::from_raw(mulQ16Raw(raw(shaderAxis(uv.u)), aspectRaw)),
+                shaderAxis(uv.v)
+            };
+        }
+
         fl::s16x16 tileAxis(fl::s16x16 axis) {
-            int32_t scaled = mulQ16Raw(raw(axis), Q16_ONE_AND_HALF);
+            int32_t scaled = mulQ16Raw(raw(axis), Q16_TILE_SCALE);
             return fl::s16x16::from_raw(raw(fractQ16(fl::s16x16::from_raw(scaled))) - Q16_HALF);
+        }
+
+        Vec2Q16 tileUv(Vec2Q16 uv) {
+            return Vec2Q16{tileAxis(uv.x), tileAxis(uv.y)};
         }
 
         uint32_t scaleByGlow(uint16_t channel, uint32_t glowRaw) {
@@ -75,6 +86,24 @@ namespace PolarShader {
             if (scaled > F16_MAX) scaled = F16_MAX;
             return PatternNormU16(static_cast<uint16_t>(scaled));
         }
+
+        uint32_t shaderWaveGlow(uint32_t distanceRaw, uint32_t timeRaw) {
+            uint32_t waveRadiansRaw = (distanceRaw << 3) + timeRaw;
+            uint32_t waveTurnsRaw = static_cast<uint32_t>(
+                (static_cast<uint64_t>(waveRadiansRaw) * Q16_INV_TAU) >> 16
+            );
+            int32_t wave = raw(angleSinF16(f16(static_cast<uint16_t>(waveTurnsRaw))));
+            if (wave < 0) wave = -wave;
+            uint32_t waveRaw = static_cast<uint32_t>(wave) >> 3;
+            if (waveRaw < Q16_WAVE_EPSILON) waveRaw = Q16_WAVE_EPSILON;
+
+            fl::u16x16 inverse = divClampedQ16(
+                fl::u16x16::from_raw(Q16_GLOW_BASE),
+                fl::u16x16::from_raw(waveRaw),
+                fl::u16x16::from_raw(Q16_GLOW_DIV_MAX)
+            );
+            return raw(powQ16(inverse, 1200));
+        }
     }
 
     struct PaletteGlowPattern::State {
@@ -86,10 +115,7 @@ namespace PolarShader {
         int32_t aspectRaw;
 
         RgbSample sample(UV uv) const {
-            Vec2Q16 current{
-                fl::s16x16::from_raw(mulQ16Raw(raw(centredUvAxis(uv.u)), aspectRaw)),
-                centredUvAxis(uv.v)
-            };
+            Vec2Q16 current = shaderUv(uv, aspectRaw);
             const Vec2Q16 uv0 = current;
             const uint32_t uv0LengthRaw = static_cast<uint32_t>(raw(lengthQ16(uv0)));
             const fl::u16x16 falloff = expNegQ16(fl::u16x16::from_raw(uv0LengthRaw));
@@ -100,8 +126,7 @@ namespace PolarShader {
             uint32_t accB = 0;
 
             for (uint8_t i = 0; i < 4; ++i) {
-                current.x = tileAxis(current.x);
-                current.y = tileAxis(current.y);
+                current = tileUv(current);
 
                 uint32_t dRaw = static_cast<uint32_t>(
                     (static_cast<uint64_t>(static_cast<uint32_t>(raw(lengthQ16(current)))) * raw(falloff)) >> 16
@@ -109,25 +134,11 @@ namespace PolarShader {
 
                 uint32_t paletteTRaw =
                     uv0LengthRaw +
-                    (static_cast<uint32_t>(i) * Q16_IQ_TIME_STEP) +
-                    static_cast<uint32_t>((static_cast<uint64_t>(timeRaw) * Q16_IQ_TIME_STEP) >> 16);
+                    (static_cast<uint32_t>(i) * Q16_TIME_SCALE) +
+                    static_cast<uint32_t>((static_cast<uint64_t>(timeRaw) * Q16_TIME_SCALE) >> 16);
                 RgbSample colour = iqCosinePaletteQ16(fl::u16x16::from_raw(paletteTRaw), PatternNormU16(F16_MAX));
 
-                uint32_t waveRadiansRaw = (dRaw << 3) + timeRaw;
-                uint32_t waveTurnsRaw = static_cast<uint32_t>(
-                    (static_cast<uint64_t>(waveRadiansRaw) * Q16_INV_TAU) >> 16
-                );
-                int32_t wave = raw(angleSinF16(f16(static_cast<uint16_t>(waveTurnsRaw))));
-                if (wave < 0) wave = -wave;
-                uint32_t waveRaw = static_cast<uint32_t>(wave) >> 3;
-                if (waveRaw < Q16_WAVE_EPSILON) waveRaw = Q16_WAVE_EPSILON;
-
-                fl::u16x16 inverse = divClampedQ16(
-                    fl::u16x16::from_raw(Q16_ONE_HUNDREDTH),
-                    fl::u16x16::from_raw(waveRaw),
-                    fl::u16x16::from_raw(Q16_GLOW_DIV_MAX)
-                );
-                uint32_t glowRaw = raw(powQ16(inverse, 1200));
+                uint32_t glowRaw = shaderWaveGlow(dRaw, timeRaw);
 
                 saturatingAdd(accR, scaleByGlow(raw(colour.red()), glowRaw));
                 saturatingAdd(accG, scaleByGlow(raw(colour.green()), glowRaw));

@@ -28,6 +28,7 @@
 #ifndef ARDUINO
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #endif
 #include "renderer/pipeline/signals/ranges/AngleRange.h"
@@ -240,6 +241,105 @@ void test_palette_glow_pattern_emits_rgb_samples() {
     TEST_ASSERT_GREATER_THAN_UINT16(0, raw(sample.value()));
     TEST_ASSERT_EQUAL_UINT16(raw(sample.value()), raw(scalar(probe)));
 }
+
+#ifndef ARDUINO
+namespace {
+    struct ReferenceRgb16 {
+        uint16_t r;
+        uint16_t g;
+        uint16_t b;
+    };
+
+    double shaderFract(double value) {
+        return value - std::floor(value);
+    }
+
+    uint16_t referenceChannel(double value) {
+        if (value <= 0.0) return 0;
+        if (value >= 1.0) return F16_MAX;
+        return static_cast<uint16_t>((value * static_cast<double>(F16_MAX)) + 0.5);
+    }
+
+    ReferenceRgb16 shadertoyReference(UV input, double timeSeconds, double aspect) {
+        double uvX = ((static_cast<double>(raw(input.u)) / 65536.0) * 2.0 - 1.0) * aspect;
+        double uvY = (static_cast<double>(raw(input.v)) / 65536.0) * 2.0 - 1.0;
+        const double uv0X = uvX;
+        const double uv0Y = uvY;
+        const double uv0Length = std::sqrt(uv0X * uv0X + uv0Y * uv0Y);
+
+        double accR = 0.0;
+        double accG = 0.0;
+        double accB = 0.0;
+
+        for (int i = 0; i < 4; ++i) {
+            uvX = shaderFract(uvX * 1.5) - 0.5;
+            uvY = shaderFract(uvY * 1.5) - 0.5;
+
+            double d = std::sqrt(uvX * uvX + uvY * uvY) * std::exp(-uv0Length);
+            const double t = uv0Length + static_cast<double>(i) * 0.4 + timeSeconds * 0.4;
+            const double r = 0.5 + 0.5 * std::cos(6.28318 * (t + 0.263));
+            const double g = 0.5 + 0.5 * std::cos(6.28318 * (t + 0.416));
+            const double b = 0.5 + 0.5 * std::cos(6.28318 * (t + 0.557));
+
+            d = std::fabs(std::sin(d * 8.0 + timeSeconds) / 8.0);
+            if (d < 0.0001220703125) d = 0.0001220703125;
+            d = std::pow(0.01 / d, 1.2);
+
+            accR += r * d;
+            accG += g * d;
+            accB += b * d;
+        }
+
+        return ReferenceRgb16{
+            referenceChannel(accR),
+            referenceChannel(accG),
+            referenceChannel(accB)
+        };
+    }
+
+    ReferenceRgb16 renderedRgb16(RgbSample sample) {
+        return ReferenceRgb16{
+            scale16(raw(sample.red()), raw(sample.value())),
+            scale16(raw(sample.green()), raw(sample.value())),
+            scale16(raw(sample.blue()), raw(sample.value()))
+        };
+    }
+
+    void assertReferenceRgbNear(ReferenceRgb16 actual, ReferenceRgb16 expected) {
+        constexpr uint16_t tolerance = 768u;
+        TEST_ASSERT_UINT16_WITHIN(tolerance, expected.r, actual.r);
+        TEST_ASSERT_UINT16_WITHIN(tolerance, expected.g, actual.g);
+        TEST_ASSERT_UINT16_WITHIN(tolerance, expected.b, actual.b);
+    }
+}
+
+void test_palette_glow_pattern_matches_shadertoy_reference_points() {
+    constexpr uint16_t width = Matrix128x128DisplaySpec::DISPLAY_WIDTH;
+    constexpr uint16_t height = 64;
+    constexpr TimeMillis elapsedMs = 1250;
+    constexpr double aspect = static_cast<double>(width) / static_cast<double>(height);
+
+    PaletteGlowPattern pattern;
+    auto context = std::make_shared<PipelineContext>();
+    context->rasterDisplay = RasterDisplayInfo{true, width, height, static_cast<uint32_t>(width) * height};
+    pattern.advanceFrame(f16(0), elapsedMs);
+
+    UVLayer layer = pattern.uvLayer(context);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(layer.kind));
+
+    const UV probes[] = {
+        UV(fl::s16x16::from_raw(0x8000), fl::s16x16::from_raw(0x8000)),
+        UV(fl::s16x16::from_raw(0x4000), fl::s16x16::from_raw(0xA000)),
+        UV(fl::s16x16::from_raw(0xD000), fl::s16x16::from_raw(0x3000))
+    };
+
+    for (const UV &probe: probes) {
+        ReferenceRgb16 actual = renderedRgb16(layer.rgb(probe));
+        ReferenceRgb16 expected = shadertoyReference(probe, static_cast<double>(elapsedMs) / 1000.0, aspect);
+        assertReferenceRgbNear(actual, expected);
+    }
+}
+#endif
 
 void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
     ReactionDiffusionPattern pattern(ReactionDiffusionPattern::Preset::Spots, 20, 20, 1);
@@ -1081,6 +1181,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_scene_progress_calculation);
     RUN_TEST(test_scene_manager_lifecycle);
     RUN_TEST(test_palette_glow_pattern_emits_rgb_samples);
+    RUN_TEST(test_palette_glow_pattern_matches_shadertoy_reference_points);
     RUN_TEST(test_reaction_diffusion_compiled_sampler_tracks_front_buffer);
     RUN_TEST(test_conway_step_rules);
     RUN_TEST(test_conway_raster_layer_is_idempotent_and_deterministic);
