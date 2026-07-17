@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import http.server
+import base64
 import codecs
 import json
 import os
@@ -24,6 +25,10 @@ from psc_v1 import PscValidationError, raw_pattern_tag, validate_psc_scene  # no
 
 MAX_PSC_BYTES = 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
+MAX_PLAYLIST_BUNDLE_BYTES = 16 * 1024 * 1024
+# Playlist bundle wire format version — must match PLAYLIST_BUNDLE_VERSION in
+# web/sketches/composer/composer.js.
+PLAYLIST_BUNDLE_VERSION = 1
 DEPLOY_TIMEOUT_SECONDS = 10 * 60
 DEVICE_LIST_TIMEOUT_SECONDS = 8
 PROCESS_TERM_GRACE_SECONDS = 5
@@ -50,6 +55,11 @@ DEPLOY_TARGETS = [
     {
         "id": "seeed_xiao_rp2040_matrix32x8",
         "label": "Seeed XIAO RP2040 Matrix 32x8",
+        "matches": ["rp2040", "xiao rp2040", "seeed xiao rp2040"],
+    },
+    {
+        "id": "seeed_xiao_rp2040_fibonacci",
+        "label": "Seeed XIAO RP2040 Fibonacci",
         "matches": ["rp2040", "xiao rp2040", "seeed xiao rp2040"],
     },
     {
@@ -744,6 +754,110 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 return
 
             self._send_json(200, {"ok": True, "file": {"name": name}})
+            return
+
+        if parsed.path == "/api/playlist/replace":
+            length_raw = self.headers.get("Content-Length")
+            try:
+                length = int(length_raw or "-1")
+            except ValueError:
+                self._reject_api_request(411, "invalid Content-Length", drain=True)
+                return
+            if length < 0:
+                self._reject_api_request(411, "missing Content-Length", drain=True)
+                return
+            if length > MAX_PLAYLIST_BUNDLE_BYTES:
+                self._reject_api_request(413, f"playlist bundle is too large ({length} bytes)", drain=True)
+                return
+
+            raw = self.rfile.read(length)
+            try:
+                bundle = json.loads(raw.decode("utf-8") or "{}")
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._send_error_json(400, "invalid playlist bundle JSON")
+                return
+            if not isinstance(bundle, dict) or bundle.get("polarshaderPlaylist") != PLAYLIST_BUNDLE_VERSION:
+                self._send_error_json(400, "unrecognised playlist bundle format")
+                return
+            entries = bundle.get("files")
+            if not isinstance(entries, list) or not entries:
+                self._send_error_json(400, "playlist bundle contains no compositions")
+                return
+
+            # Validate every composition up front so a bad bundle never wipes
+            # the existing playlist. Only after all pass do we touch build/psc.
+            prepared: list[tuple[str, Path, bytes]] = []
+            seen: set[str] = set()
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    self._send_error_json(400, "playlist bundle entry is not an object")
+                    return
+                try:
+                    name, path = _playlist_name(str(entry.get("name", "")), self.playlist_dir)
+                except ValueError as exc:
+                    self._send_error_json(400, f"invalid composition name in bundle: {exc}")
+                    return
+                if name in seen:
+                    self._send_error_json(400, f"duplicate composition in bundle: {name}")
+                    return
+                seen.add(name)
+                try:
+                    data = base64.b64decode(str(entry.get("data", "")), validate=True)
+                except ValueError:
+                    self._send_error_json(400, f"invalid base64 data for {name}")
+                    return
+                if len(data) > MAX_PSC_BYTES:
+                    self._send_error_json(413, f"{name} is too large ({len(data)} bytes)")
+                    return
+                _tag, error = _psc_pattern_tag(data)
+                if error:
+                    self._send_error_json(400, f"{name}: {error}")
+                    return
+                prepared.append((name, path, data))
+
+            try:
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    removed = 0
+                    if self.playlist_dir.is_dir():
+                        for existing in self.playlist_dir.rglob("*.psc"):
+                            existing.unlink()
+                            removed += 1
+                    for name, path, data in prepared:
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(data)
+                finally:
+                    self.deploy_manager.release_build_input_lock()
+            except OSError as exc:
+                self._send_error_json(500, f"failed to replace playlist: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+
+            self._send_json(200, {"ok": True, "replaced": len(prepared), "removed": removed})
+            return
+
+        if parsed.path == "/api/playlist/clear":
+            self._drain_request_body()
+            try:
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    removed = 0
+                    if self.playlist_dir.is_dir():
+                        for existing in self.playlist_dir.rglob("*.psc"):
+                            existing.unlink()
+                            removed += 1
+                finally:
+                    self.deploy_manager.release_build_input_lock()
+            except OSError as exc:
+                self._send_error_json(500, f"failed to clear playlist: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+
+            self._send_json(200, {"ok": True, "removed": removed})
             return
 
         if parsed.path != "/api/playlist/save":

@@ -347,6 +347,16 @@ button:disabled {
     font-size: 12px;
 }
 
+.vortex-fibonacci {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.vortex-fibonacci button {
+    flex: 0 0 auto;
+}
+
 .param-label {
     width: 100px;
     flex: 0 0 100px;

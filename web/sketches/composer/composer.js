@@ -81,6 +81,7 @@ function displayIdFromParam(raw) {
     if (raw === '1' || raw === 'round' || raw === 'polar') return 1;
     if (raw === '2' || raw === 'fabric32x8') return 2;
     if (raw === '3' || raw === 'smartmatrix' || raw === 'matrix128') return 3;
+    if (raw === '4' || raw === 'fibonacci') return 4;
     return 0;
 }
 
@@ -106,6 +107,8 @@ const state = {
     sceneSourceName: '',
     playlistApiChecked: false,
     playlistApiAvailable: false,
+    playlistLocalMode: false,
+    localPlaylistBytes: null,
     playlistItems: [],
     playlistSelected: '',
     playlistActiveName: '',
@@ -138,7 +141,16 @@ const DISPLAYS = [
     { id: 1, name: 'Round (241-pixel radial)', matrix: false },
     { id: 2, name: 'Matrix (32×8 matrix)', matrix: true },
     { id: 3, name: 'SmartMatrix (128×128 HUB75)', matrix: true },
+    { id: 4, name: 'Fibonacci (324-pixel phyllotaxis)', matrix: false },
 ];
+
+// Golden-angle ("Fibonacci") vortex twist, as a plain constant-signal permille.
+// The vortex maps a 0..1000 permille constant onto a bipolar [-1,1] strength,
+// so 500 is neutral and a ±0.381966-turn (137.5°) swirl at the rim lands at
+// 691 (clockwise) and 309 (counter-clockwise). Web-only convenience — it emits
+// an ordinary constant signal, so the .psc wire format is unchanged.
+const VORTEX_FIBONACCI_CW_PERMILLE = 691;
+const VORTEX_FIBONACCI_CCW_PERMILLE = 309;
 
 const DEPLOY_POLL_MS = 1000;
 const DEPLOY_DONE_STATUSES = new Set(['succeeded', 'failed', 'timed_out']);
@@ -153,6 +165,7 @@ function displayUrlValue(which) {
     if (which === 1) return 'round';
     if (which === 2) return 'fabric32x8';
     if (which === 3) return 'smartmatrix';
+    if (which === 4) return 'fibonacci';
     return 'fabric';
 }
 
@@ -447,6 +460,12 @@ function playlistFileIssue(file) {
 
 function playlistFileByName(name) {
     return state.playlistItems.find((file) => file.name === name) ?? null;
+}
+
+// True when a playlist can be browsed/loaded — either the local server API is
+// running, or an in-browser playlist has been loaded on the static build.
+function playlistBrowsingAvailable() {
+    return state.playlistApiAvailable || state.playlistLocalMode;
 }
 
 function supportedPlaylistItems() {
@@ -854,14 +873,7 @@ async function loadPlaylistScene(name, { activate = false } = {}) {
     let statusText = null;
     let statusError = false;
     try {
-        const response = await fetch(playlistApiUrl('/api/playlist/file', { name }), {
-            headers: { Accept: 'application/octet-stream' },
-        });
-        if (!response.ok) {
-            const body = await response.json().catch(() => ({}));
-            throw new Error(body?.error || `${response.status} ${response.statusText}`);
-        }
-        const bytes = new Uint8Array(await response.arrayBuffer());
+        const bytes = await fetchPlaylistFileBytes(name);
         const decoded = decodeScene(bytes);
         setPlaylistBaseline(name, bytes);
         state.playlistActiveName = activate ? name : '';
@@ -883,6 +895,11 @@ async function loadPlaylistScene(name, { activate = false } = {}) {
 }
 
 async function fetchPlaylistFileBytes(name) {
+    if (state.playlistLocalMode) {
+        const bytes = state.localPlaylistBytes?.get(name);
+        if (!bytes) throw new Error(`${name} is not in the loaded playlist`);
+        return bytes;
+    }
     const response = await fetch(playlistApiUrl('/api/playlist/file', { name }), {
         headers: { Accept: 'application/octet-stream' },
     });
@@ -903,6 +920,211 @@ async function fetchPlaylistByteEntries() {
         });
     }
     return entries;
+}
+
+function bytesToBase64(bytes) {
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+}
+
+function base64ToBytes(b64) {
+    const binary = atob(String(b64 ?? ''));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+// Playlist bundle wire format — a single JSON file wrapping every .psc as
+// base64. Built by buildPlaylistBundle, parsed by parsePlaylistBundle, and
+// mirrored by web/local_server.py (PLAYLIST_BUNDLE_VERSION there must match).
+const PLAYLIST_BUNDLE_VERSION = 1;
+
+function buildPlaylistBundle(entries) {
+    return {
+        polarshaderPlaylist: PLAYLIST_BUNDLE_VERSION,
+        files: entries.map((entry) => ({
+            name: entry.name,
+            data: bytesToBase64(entry.bytes),
+        })),
+    };
+}
+
+function parsePlaylistBundle(text) {
+    let bundle;
+    try {
+        bundle = JSON.parse(text);
+    } catch {
+        throw new Error('not a valid playlist file');
+    }
+    if (!bundle
+        || bundle.polarshaderPlaylist !== PLAYLIST_BUNDLE_VERSION
+        || !Array.isArray(bundle.files)
+        || bundle.files.length === 0) {
+        throw new Error('unrecognised or empty playlist file');
+    }
+    return bundle;
+}
+
+function playlistBundleFilename() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+        + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    return `polarshader-playlist-${stamp}.json`;
+}
+
+async function downloadPlaylistBundle() {
+    if (!playlistBrowsingAvailable() || state.playlistBusy || state.deployBusy) return;
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    try {
+        const entries = await fetchPlaylistByteEntries();
+        if (entries.length === 0) {
+            statusText = 'playlist is empty — nothing to download';
+            statusError = true;
+        } else {
+            const bundle = buildPlaylistBundle(entries);
+            const blob = new Blob([JSON.stringify(bundle)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = playlistBundleFilename();
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            statusText = `downloaded playlist (${entries.length} composition${entries.length === 1 ? '' : 's'})`;
+            logDebug('playlist', statusText);
+        }
+    } catch (e) {
+        statusText = `playlist download error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist download failed: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+async function readPlaylistBundleFile(file) {
+    const text = await file.text();
+    return { text, bundle: parsePlaylistBundle(text) };
+}
+
+function confirmPlaylistReplace(incoming) {
+    const existing = state.playlistItems.length;
+    const message = existing > 0
+        ? `Replace all ${existing} saved composition${existing === 1 ? '' : 's'} `
+            + `with ${incoming} from this playlist?\n\nThis cannot be undone.`
+        : `Load ${incoming} composition${incoming === 1 ? '' : 's'} into the playlist?`;
+    return window.confirm(message);
+}
+
+// Route a chosen bundle file: when the local playlist API is running, replace
+// build/psc on disk via the server; otherwise (static GitHub Pages build) load
+// the compositions into an in-browser playlist that can still be browsed.
+async function loadPlaylistBundleFile(file) {
+    if (!file || state.playlistBusy || state.deployBusy) return;
+    if (state.playlistApiAvailable) {
+        await replacePlaylistViaApi(file);
+    } else {
+        await replacePlaylistLocally(file);
+    }
+}
+
+async function replacePlaylistViaApi(file) {
+    let text;
+    let bundle;
+    try {
+        ({ text, bundle } = await readPlaylistBundleFile(file));
+    } catch (e) {
+        showStatus(`playlist load error: ${e.message}`, true);
+        return;
+    }
+    if (!confirmPlaylistReplace(bundle.files.length)) return;
+
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    try {
+        const body = await fetchPlaylistJson('/api/playlist/replace', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: text,
+        });
+        clearPlaylistBaseline({ clearSelection: true });
+        await refreshPlaylistItems();
+        const replaced = body.replaced ?? bundle.files.length;
+        statusText = `playlist replaced (${replaced} composition${replaced === 1 ? '' : 's'})`;
+        logDebug('playlist', statusText);
+    } catch (e) {
+        statusText = `playlist replace error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist replace failed: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+async function replacePlaylistLocally(file) {
+    let bundle;
+    try {
+        ({ bundle } = await readPlaylistBundleFile(file));
+    } catch (e) {
+        showStatus(`playlist load error: ${e.message}`, true);
+        return;
+    }
+
+    // Decode + validate every entry before mutating state, mirroring the
+    // server's validate-before-replace behaviour.
+    const items = [];
+    const bytesByName = new Map();
+    for (const entry of bundle.files) {
+        const name = String(entry?.name ?? '').trim();
+        if (!isSafePlaylistFilename(name)) {
+            showStatus(`playlist load error: invalid filename "${entry?.name ?? ''}"`, true);
+            return;
+        }
+        if (bytesByName.has(name)) {
+            showStatus(`playlist load error: duplicate composition "${name}"`, true);
+            return;
+        }
+        let bytes;
+        try {
+            bytes = base64ToBytes(entry.data);
+        } catch {
+            showStatus(`playlist load error: ${name} is not valid base64`, true);
+            return;
+        }
+        let error;
+        try {
+            decodeScene(bytes);
+        } catch (e) {
+            error = e.message;
+        }
+        bytesByName.set(name, bytes);
+        items.push(error ? { name, supported: false, error } : { name, supported: true });
+    }
+
+    if (!confirmPlaylistReplace(items.length)) return;
+
+    state.localPlaylistBytes = bytesByName;
+    state.playlistLocalMode = true;
+    state.playlistItems = items;
+    clearPlaylistBaseline({ clearSelection: true });
+    rebuildPanel();
+    showStatus(`playlist loaded (${items.length} composition${items.length === 1 ? '' : 's'})`, false);
+    logDebug('playlist', `loaded local playlist (${items.length} compositions)`);
 }
 
 async function saveCurrentSceneToPlaylist() {
@@ -1038,6 +1260,48 @@ async function deletePlaylistScene(name) {
         statusText = `playlist delete error: ${e.message}`;
         statusError = true;
         logDebug('error', `playlist delete failed for ${name}: ${e.message}`);
+    } finally {
+        state.playlistBusy = false;
+        rebuildPanel();
+        if (statusText) showStatus(statusText, statusError);
+    }
+}
+
+async function clearPlaylist() {
+    if (!playlistBrowsingAvailable() || state.playlistBusy || state.deployBusy) return;
+    const count = state.playlistItems.length;
+    if (count === 0) return;
+    const message = state.playlistLocalMode
+        ? `Clear the loaded playlist (${count} composition${count === 1 ? '' : 's'})?`
+        : `Delete all ${count} composition${count === 1 ? '' : 's'} from build/psc?\n\nThis cannot be undone.`;
+    if (!window.confirm(message)) return;
+
+    if (state.playlistLocalMode) {
+        state.localPlaylistBytes = null;
+        state.playlistLocalMode = false;
+        state.playlistItems = [];
+        clearPlaylistBaseline({ clearSelection: true });
+        rebuildPanel();
+        showStatus(`playlist cleared (${count} composition${count === 1 ? '' : 's'})`, false);
+        logDebug('playlist', `cleared local playlist (${count} compositions)`);
+        return;
+    }
+
+    state.playlistBusy = true;
+    rebuildPanel();
+    let statusText = null;
+    let statusError = false;
+    try {
+        const body = await fetchPlaylistJson('/api/playlist/clear', { method: 'POST' });
+        clearPlaylistBaseline({ clearSelection: true });
+        await refreshPlaylistItems();
+        const removed = body.removed ?? count;
+        statusText = `playlist cleared (${removed} composition${removed === 1 ? '' : 's'})`;
+        logDebug('playlist', statusText);
+    } catch (e) {
+        statusText = `playlist clear error: ${e.message}`;
+        statusError = true;
+        logDebug('error', `playlist clear failed: ${e.message}`);
     } finally {
         state.playlistBusy = false;
         rebuildPanel();
@@ -1988,6 +2252,35 @@ function renderTransformsSection() {
                     t.signals[name] = next;
                 });
             }));
+            if (t.id === 'vortex') {
+                // Web-only quick-set: snap the vortex strength to the golden-angle
+                // ("Fibonacci") swirl in either direction. Writes a plain constant
+                // signal, so it round-trips through the normal signal editor.
+                const fibRow = document.createElement('div');
+                fibRow.className = 'config-form vortex-fibonacci';
+                fibRow.appendChild(Object.assign(document.createElement('span'),
+                    { className: 'param-label', textContent: 'Fibonacci twist' }));
+                const setFibonacciStrength = (permille) => {
+                    mutateScene(`transforms.${i}.${t.id}.signals.strength`,
+                        `constant(${permille})`, () => {
+                            t.signals.strength = { id: 'constant', params: { permille } };
+                        });
+                    rebuildList();
+                };
+                const cwBtn = document.createElement('button');
+                cwBtn.type = 'button';
+                cwBtn.textContent = 'φ CW';
+                cwBtn.title = 'Golden-angle swirl, clockwise (≈137.5° twist at the rim)';
+                cwBtn.addEventListener('click', () => setFibonacciStrength(VORTEX_FIBONACCI_CW_PERMILLE));
+                const ccwBtn = document.createElement('button');
+                ccwBtn.type = 'button';
+                ccwBtn.textContent = 'φ CCW';
+                ccwBtn.title = 'Golden-angle swirl, counter-clockwise (≈137.5° twist at the rim)';
+                ccwBtn.addEventListener('click', () => setFibonacciStrength(VORTEX_FIBONACCI_CCW_PERMILLE));
+                fibRow.appendChild(cwBtn);
+                fibRow.appendChild(ccwBtn);
+                card.appendChild(fibRow);
+            }
             list.appendChild(card);
         });
     }
@@ -2078,6 +2371,9 @@ function renderTopSection() {
     const saveBtn = document.createElement('button'); saveBtn.textContent = 'Download .psc';
     const savePlaylistBtn = document.createElement('button'); savePlaylistBtn.textContent = 'Add to playlist';
     const importPlaylistBtn = document.createElement('button'); importPlaylistBtn.textContent = 'Import';
+    const downloadPlaylistBtn = document.createElement('button'); downloadPlaylistBtn.textContent = 'Download playlist';
+    const replacePlaylistBtn = document.createElement('button'); replacePlaylistBtn.textContent = 'Replace playlist';
+    const clearPlaylistBtn = document.createElement('button'); clearPlaylistBtn.textContent = 'Clear playlist';
     const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load .psc';
     const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset renderer';
     resetBtn.title = 'Reload the renderer from the last successfully applied scene';
@@ -2092,6 +2388,9 @@ function renderTopSection() {
     importIn.type = 'file'; importIn.accept = '.psc,application/octet-stream';
     importIn.multiple = true;
     importIn.style.display = 'none';
+    const replaceIn = document.createElement('input');
+    replaceIn.type = 'file'; replaceIn.accept = '.json,application/json';
+    replaceIn.style.display = 'none';
     saveBtn.addEventListener('click', () => {
         try {
             const renderScene = sceneForRender(sceneStore.scene);
@@ -2139,6 +2438,54 @@ function renderTopSection() {
         importIn.value = '';
         void importFilesToPlaylist(files);
     });
+    const playlistIoBusy = state.playlistBusy || state.deployBusy;
+    downloadPlaylistBtn.disabled = playlistIoBusy || !playlistBrowsingAvailable() || state.playlistItems.length === 0;
+    if (!playlistBrowsingAvailable()) {
+        downloadPlaylistBtn.title = state.playlistApiChecked
+            ? 'Load a playlist first, or run web/serve.sh to download build/psc'
+            : 'Checking local playlist API';
+    } else if (state.playlistItems.length === 0) {
+        downloadPlaylistBtn.title = 'The playlist is empty';
+    } else {
+        downloadPlaylistBtn.title = 'Download every composition as a single playlist file';
+    }
+    downloadPlaylistBtn.addEventListener('click', () => {
+        void downloadPlaylistBundle();
+    });
+    // With the local server this replaces build/psc on disk; on the static
+    // build it loads the bundle into an in-browser playlist instead.
+    replacePlaylistBtn.textContent = state.playlistApiAvailable ? 'Replace playlist' : 'Load playlist';
+    replacePlaylistBtn.disabled = playlistIoBusy || !state.playlistApiChecked;
+    if (!state.playlistApiChecked) {
+        replacePlaylistBtn.title = 'Checking local playlist API';
+    } else if (state.deployBusy) {
+        replacePlaylistBtn.title = 'Wait for deploy to finish before changing build/psc';
+    } else if (state.playlistApiAvailable) {
+        replacePlaylistBtn.title = 'Replace all saved compositions with a playlist file';
+    } else {
+        replacePlaylistBtn.title = 'Load a playlist file into an in-browser playlist';
+    }
+    replacePlaylistBtn.addEventListener('click', () => replaceIn.click());
+    replaceIn.addEventListener('change', () => {
+        const bundleFile = replaceIn.files?.[0] ?? null;
+        replaceIn.value = '';
+        void loadPlaylistBundleFile(bundleFile);
+    });
+    clearPlaylistBtn.disabled = playlistIoBusy || !playlistBrowsingAvailable() || state.playlistItems.length === 0;
+    if (!playlistBrowsingAvailable()) {
+        clearPlaylistBtn.title = state.playlistApiChecked
+            ? 'Load a playlist first, or run web/serve.sh to clear build/psc'
+            : 'Checking local playlist API';
+    } else if (state.playlistItems.length === 0) {
+        clearPlaylistBtn.title = 'The playlist is empty';
+    } else if (state.playlistLocalMode) {
+        clearPlaylistBtn.title = 'Clear the loaded in-browser playlist';
+    } else {
+        clearPlaylistBtn.title = 'Delete every composition from build/psc';
+    }
+    clearPlaylistBtn.addEventListener('click', () => {
+        void clearPlaylist();
+    });
     loadBtn.addEventListener('click', () => fileIn.click());
     fileIn.addEventListener('change', () => {
         const f = fileIn.files?.[0]; if (!f) return;
@@ -2183,10 +2530,14 @@ function renderTopSection() {
     }
     if (state.composerTab === 'playlist') {
         ioRow.appendChild(importPlaylistBtn);
+        ioRow.appendChild(downloadPlaylistBtn);
+        ioRow.appendChild(replacePlaylistBtn);
+        ioRow.appendChild(clearPlaylistBtn);
     }
     ioRow.appendChild(resetBtn);
     ioRow.appendChild(fileIn);
     ioRow.appendChild(importIn);
+    ioRow.appendChild(replaceIn);
     section.appendChild(ioRow);
 
     const tabs = document.createElement('div');
@@ -2343,10 +2694,10 @@ function renderTopSection() {
                 className: 'muted-note',
                 textContent: 'checking local playlist API',
             }));
-        } else if (!state.playlistApiAvailable) {
+        } else if (!playlistBrowsingAvailable()) {
             playlistRow.appendChild(Object.assign(document.createElement('span'), {
                 className: 'muted-note',
-                textContent: 'available only from web/serve.sh',
+                textContent: 'load a playlist file to browse it here',
             }));
         } else if (state.playlistItems.length === 0) {
             playlistRow.appendChild(Object.assign(document.createElement('span'), {
@@ -2354,11 +2705,12 @@ function renderTopSection() {
                 textContent: 'no saved compositions in build/psc',
             }));
         } else {
+            const location = state.playlistLocalMode ? 'in loaded playlist' : 'in build/psc';
             const incompatibleCount = state.playlistItems.length - compatiblePlaylistItems.length;
             const compatibilitySuffix = incompatibleCount > 0 ? `, ${incompatibleCount} incompatible` : '';
             playlistRow.appendChild(Object.assign(document.createElement('span'), {
                 className: 'muted-note',
-                textContent: `${compatiblePlaylistItems.length}/${state.playlistItems.length} compatible composition${compatiblePlaylistItems.length === 1 ? '' : 's'} in build/psc${compatibilitySuffix}`,
+                textContent: `${compatiblePlaylistItems.length}/${state.playlistItems.length} compatible composition${compatiblePlaylistItems.length === 1 ? '' : 's'} ${location}${compatibilitySuffix}`,
             }));
         }
         const refreshBtn = document.createElement('button');
@@ -2370,7 +2722,7 @@ function renderTopSection() {
         playlistRow.appendChild(refreshBtn);
         section.appendChild(playlistRow);
 
-        if (state.playlistApiAvailable && state.playlistItems.length > 0) {
+        if (playlistBrowsingAvailable() && state.playlistItems.length > 0) {
             const playlistList = document.createElement('div');
             playlistList.className = 'playlist-list';
             for (const file of state.playlistItems) {
@@ -2395,18 +2747,11 @@ function renderTopSection() {
                 loadSavedBtn.addEventListener('click', () => {
                     void loadPlaylistScene(file.name, { activate: true });
                 });
-                const deleteSavedBtn = document.createElement('button');
-                deleteSavedBtn.type = 'button';
-                deleteSavedBtn.textContent = '×';
-                deleteSavedBtn.className = 'playlist-delete-btn';
-                deleteSavedBtn.title = `Delete ${file.name}`;
-                deleteSavedBtn.setAttribute('aria-label', `Delete ${file.name}`);
-                deleteSavedBtn.disabled = state.playlistBusy || state.deployBusy;
-                deleteSavedBtn.addEventListener('click', () => {
-                    void deletePlaylistScene(file.name);
-                });
                 item.appendChild(loadSavedBtn);
-                if (file.name === state.playlistSelected && file.name === state.playlistBaselineName && state.playlistDirty) {
+                // build/psc mutations (dirty edits, delete) only apply when the
+                // local server API is running, not in the in-browser playlist.
+                if (!state.playlistLocalMode
+                    && file.name === state.playlistSelected && file.name === state.playlistBaselineName && state.playlistDirty) {
                     const dirtyActions = document.createElement('div');
                     dirtyActions.className = 'playlist-dirty-actions';
 
@@ -2440,7 +2785,19 @@ function renderTopSection() {
 
                     item.appendChild(dirtyActions);
                 }
-                item.appendChild(deleteSavedBtn);
+                if (!state.playlistLocalMode) {
+                    const deleteSavedBtn = document.createElement('button');
+                    deleteSavedBtn.type = 'button';
+                    deleteSavedBtn.textContent = '×';
+                    deleteSavedBtn.className = 'playlist-delete-btn';
+                    deleteSavedBtn.title = `Delete ${file.name}`;
+                    deleteSavedBtn.setAttribute('aria-label', `Delete ${file.name}`);
+                    deleteSavedBtn.disabled = state.playlistBusy || state.deployBusy;
+                    deleteSavedBtn.addEventListener('click', () => {
+                        void deletePlaylistScene(file.name);
+                    });
+                    item.appendChild(deleteSavedBtn);
+                }
                 playlistList.appendChild(item);
             }
             section.appendChild(playlistList);

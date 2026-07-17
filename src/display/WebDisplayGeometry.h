@@ -29,8 +29,10 @@
 
 #include "FabricDisplaySpec.h"
 #include "Fabric32x8DisplaySpec.h"
+#include "FibonacciDisplaySpec.h"
 #include "Matrix128x128DisplaySpec.h"
 #include "RoundDisplaySpec.h"
+#include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
     struct WebDisplayPoint {
@@ -176,6 +178,32 @@ namespace PolarShader {
         return geometry;
     }
 
+    inline WebDisplayGeometry buildFibonacciWebGeometry(const FibonacciDisplaySpec &spec = FibonacciDisplaySpec()) {
+        WebDisplayGeometry geometry;
+        // Rim radius maps to the physical spiral end; centre placed so all
+        // points fall in [0, 2*RADIUS_MAX_MM]. Preserves log-spiral spacing.
+        const float rimRadius = FibonacciDisplaySpec::RADIUS_MAX_MM;
+        geometry.centerX = rimRadius;
+        geometry.centerY = rimRadius;
+        geometry.points.reserve(spec.nbLeds());
+
+        for (uint16_t pixelIndex = 0; pixelIndex < spec.nbLeds(); ++pixelIndex) {
+            const PolarCoords coords = spec.toPolarCoords(pixelIndex);
+            const float angle = (2.0f * detail::PI_F * static_cast<float>(raw(coords.first)))
+                                / 65536.0f;
+            const float radius = (static_cast<float>(raw(coords.second)) / 65535.0f) * rimRadius;
+            // Screen convention (y-down): increasing angle winds clockwise,
+            // matching the approved layout preview.
+            geometry.points.push_back({
+                geometry.centerX + (std::cos(angle) * radius),
+                geometry.centerY + (std::sin(angle) * radius)
+            });
+        }
+
+        geometry.diameter = detail::deriveLedDiameter(geometry.points);
+        return geometry;
+    }
+
     inline WebDisplayGeometry buildWebGeometry(const FabricDisplaySpec &) {
         return buildFabricWebGeometry();
     }
@@ -190,6 +218,10 @@ namespace PolarShader {
 
     inline WebDisplayGeometry buildWebGeometry(const RoundDisplaySpec &spec) {
         return buildRoundWebGeometry(spec);
+    }
+
+    inline WebDisplayGeometry buildWebGeometry(const FibonacciDisplaySpec &spec) {
+        return buildFibonacciWebGeometry(spec);
     }
 }
 
