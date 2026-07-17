@@ -73,6 +73,7 @@ EXCLUDED_SOURCE_FILES = {
     "main_teensy.cpp",
     "main_rp2040_fabric.cpp",
     "main_rp2040_round.cpp",
+    "main_rp2040_fibonacci.cpp",
 }
 
 EXCLUDED_SOURCE_DIRS = {
@@ -606,6 +607,7 @@ function composerDisplayFromUrlParams(params) {
   if (raw === "1" || raw === "round" || raw === "polar") return 1;
   if (raw === "2" || raw === "fabric32x8") return 2;
   if (raw === "3" || raw === "smartmatrix" || raw === "matrix128") return 3;
+  if (raw === "4" || raw === "fibonacci") return 4;
   return 0;
 }
 
@@ -903,6 +905,7 @@ _MAIN_SETUP_INJECT = (
         if (rawDisplay === "1" || rawDisplay === "round" || rawDisplay === "polar") composerDisplay = 1;
         else if (rawDisplay === "2" || rawDisplay === "fabric32x8") composerDisplay = 2;
         else if (rawDisplay === "3" || rawDisplay === "smartmatrix" || rawDisplay === "matrix128") composerDisplay = 3;
+        else if (rawDisplay === "4" || rawDisplay === "fibonacci") composerDisplay = 4;
         moduleInstance._composer_set_initial_display(composerDisplay);
       }
 """
