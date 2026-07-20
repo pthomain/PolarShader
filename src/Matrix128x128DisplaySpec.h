@@ -26,7 +26,7 @@
 namespace PolarShader {
     class Matrix128x128DisplaySpec : public MatrixDisplaySpec {
     public:
-        static constexpr int LED_PIN = D1;
+        static constexpr int LED_PIN = 1;
         static constexpr EOrder RGB_ORDER = GRB;
         static constexpr uint16_t PANEL_WIDTH = 64;
         static constexpr uint16_t PANEL_HEIGHT = 64;

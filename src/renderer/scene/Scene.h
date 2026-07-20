@@ -22,6 +22,7 @@
 #define POLAR_SHADER_PIPELINE_SCENE_H
 
 #include <array>
+#include <vector>
 #include <renderer/layer/Layer.h>
 
 namespace PolarShader {
@@ -41,7 +42,7 @@ namespace PolarShader {
         };
 
         fl::vector<std::shared_ptr<Layer>> layers;
-        std::array<fl::vector<CompositedLayer>, 2> compiledLayers;
+        std::array<std::vector<CompositedLayer>, 2> compiledLayers;
         TimeMillis durationMs;
 
     public:
