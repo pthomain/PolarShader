@@ -105,7 +105,7 @@ function writeParam(w, paramSchema, value, version) {
         case 'enum':     w.u8(value | 0); break;
         case 'tintMode': w.u8(value | 0); break;
         case 'permille': w.u16(value | 0); break;
-        case 'f16':      w.u16(value | 0); break;
+        case 'u0x16':      w.u16(value | 0); break;
         case 'signal':   writeSignal(w, value, version); break;
         default: throw new Error(`unknown param kind ${paramSchema.kind}`);
     }
@@ -121,7 +121,7 @@ function readParam(r, paramSchema, version, depth = 0) {
         case 'enum':     return r.u8();
         case 'tintMode': return r.u8();
         case 'permille': return r.u16();
-        case 'f16':      return r.u16();
+        case 'u0x16':      return r.u16();
         case 'signal':   return readSignal(r, version, depth + 1);
         default: throw new Error(`unknown param kind ${paramSchema.kind}`);
     }

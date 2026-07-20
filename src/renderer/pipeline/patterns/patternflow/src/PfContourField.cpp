@@ -19,8 +19,8 @@ namespace PolarShader {
         Variant variant;
         uint8_t contourLevels;
         bool hardEdges;
-        Sf16Signal phaseSpeedSignal;
-        Sf16Signal tensionSignal;
+        S0x16Signal phaseSpeedSignal;
+        S0x16Signal tensionSignal;
 
         int32_t tTurns{0};
         int32_t tensionBias{0}; // Q16 bias added to the normalised height (Organic)
@@ -29,7 +29,7 @@ namespace PolarShader {
         TimeMillis lastElapsedMs{0u};
         bool hasLastElapsed{false};
 
-        State(Variant v, uint8_t levels, bool hard, Sf16Signal ps, Sf16Signal ten)
+        State(Variant v, uint8_t levels, bool hard, S0x16Signal ps, S0x16Signal ten)
             : variant(v),
               contourLevels(levels < 1 ? uint8_t(1) : levels),
               hardEdges(hard),
@@ -47,23 +47,23 @@ namespace PolarShader {
                         + raw(PfMath::pfCosTurns(3 * Y - t))
                         + raw(PfMath::pfSinTurns(2 * (X + Y) + PfMath::pfCoefT(t, 13, 10)))
                         + raw(PfMath::pfCosTurns(3 * (X - Y) - PfMath::pfCoefT(t, 7, 10)));
-            return raw(PfMath::pfSignedToNorm(h, 4 * SF16_ONE));
+            return raw(PfMath::pfSignedToNorm(h, 4 * S0X16_ONE));
         }
 
         PatternNormU16 organic(int32_t X, int32_t Y) const {
             int32_t height = heightField(X, Y);
             height += state->tensionBias;                              // DC shift
-            if (height < 0) height += F16_MAX;
-            height &= F16_MAX;
+            if (height < 0) height += U0X16_MAX;
+            height &= U0X16_MAX;
 
             // Slice into contour bands and read a triangle ridge per band.
             uint32_t prod = static_cast<uint32_t>(height) * state->contourLevels;
-            uint32_t frac = prod & F16_MAX;
-            uint32_t ridge = (frac < (F16_MAX >> 1)) ? (frac << 1) : ((F16_MAX - frac) << 1);
-            if (ridge > F16_MAX) ridge = F16_MAX;
+            uint32_t frac = prod & U0X16_MAX;
+            uint32_t ridge = (frac < (U0X16_MAX >> 1)) ? (frac << 1) : ((U0X16_MAX - frac) << 1);
+            if (ridge > U0X16_MAX) ridge = U0X16_MAX;
 
             if (state->hardEdges) {
-                ridge = (ridge > (F16_MAX >> 1)) ? F16_MAX : 0u;
+                ridge = (ridge > (U0X16_MAX >> 1)) ? U0X16_MAX : 0u;
             }
             return PatternNormU16(static_cast<uint16_t>(ridge));
         }
@@ -72,13 +72,13 @@ namespace PolarShader {
             int32_t height = heightField(X, Y);
             // Position within the current contour band, in Q16 [0, 65535].
             uint32_t prod = static_cast<uint32_t>(height) * state->contourLevels;
-            int32_t frac = static_cast<int32_t>(prod & F16_MAX);
+            int32_t frac = static_cast<int32_t>(prod & U0X16_MAX);
             // Distance to the nearest band edge (a level-set line).
-            int32_t edgeDist = frac < (F16_MAX >> 1) ? frac : (F16_MAX - frac);
+            int32_t edgeDist = frac < (U0X16_MAX >> 1) ? frac : (U0X16_MAX - frac);
             // Thin bright iso-line; tension widens/softens it.
             uint16_t line = PfMath::pfBump(edgeDist, state->softHalfRaw);
             if (state->hardEdges) {
-                line = (line > (F16_MAX >> 1)) ? F16_MAX : 0u;
+                line = (line > (U0X16_MAX >> 1)) ? U0X16_MAX : 0u;
             }
             return PatternNormU16(line);
         }
@@ -98,8 +98,8 @@ namespace PolarShader {
         Variant variant,
         uint8_t contourLevels,
         bool hardEdges,
-        Sf16Signal phaseSpeed,
-        Sf16Signal tension
+        S0x16Signal phaseSpeed,
+        S0x16Signal tension
     ) : state(std::make_shared<State>(
         variant,
         contourLevels,
@@ -108,7 +108,7 @@ namespace PolarShader {
         std::move(tension)
     )) {}
 
-    void PfContourField::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void PfContourField::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 
@@ -131,12 +131,12 @@ namespace PolarShader {
         s.tTurns += deltaTurns;
 
         // tension in [0,1] -> [-0.5, +0.5] turn/height bias (Organic).
-        s.tensionBias = (tensionRaw >> 1) - (SF16_ONE >> 2);
+        s.tensionBias = (tensionRaw >> 1) - (S0X16_ONE >> 2);
 
         // tension in [0,1] -> iso-line half-width 0.03..0.20 of a band (Topographic).
-        int32_t tenClamped = tensionRaw < 0 ? 0 : (tensionRaw > static_cast<int32_t>(F16_MAX) ? F16_MAX : tensionRaw);
-        s.softHalfRaw = (F16_MAX * 3 / 100) + static_cast<int32_t>(
-            (static_cast<int64_t>(tenClamped) * (F16_MAX * 17 / 100)) >> 16
+        int32_t tenClamped = tensionRaw < 0 ? 0 : (tensionRaw > static_cast<int32_t>(U0X16_MAX) ? U0X16_MAX : tensionRaw);
+        s.softHalfRaw = (U0X16_MAX * 3 / 100) + static_cast<int32_t>(
+            (static_cast<int64_t>(tenClamped) * (U0X16_MAX * 17 / 100)) >> 16
         );
     }
 

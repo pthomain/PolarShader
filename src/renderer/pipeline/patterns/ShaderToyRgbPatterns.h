@@ -39,18 +39,18 @@ namespace PolarShader {
     class RocaillePattern : public UVPattern {
     public:
         explicit RocaillePattern(
-            Sf16Signal scale = constant(333),
-            Sf16Signal length = constant(429),
-            Sf16Signal detail = constant(222),
-            Sf16Signal turbulence = constant(500),
-            Sf16Signal frequency = constant(333),
-            Sf16Signal speed = constant(333),
-            Sf16Signal layers = constant(727),
-            Sf16Signal hue = constant(500),
-            Sf16Signal glow = constant(429)
+            S0x16Signal scale = constant(333),
+            S0x16Signal length = constant(429),
+            S0x16Signal detail = constant(222),
+            S0x16Signal turbulence = constant(500),
+            S0x16Signal frequency = constant(333),
+            S0x16Signal speed = constant(333),
+            S0x16Signal layers = constant(727),
+            S0x16Signal hue = constant(500),
+            S0x16Signal glow = constant(429)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -65,13 +65,13 @@ namespace PolarShader {
     class ProteanCloudsPattern : public UVPattern {
     public:
         explicit ProteanCloudsPattern(
-            Sf16Signal speed = constant(1000),
-            Sf16Signal warp = constant(500),
-            Sf16Signal frequency = constant(500),
-            Sf16Signal brightness = constant(500)
+            S0x16Signal speed = constant(1000),
+            S0x16Signal warp = constant(500),
+            S0x16Signal frequency = constant(500),
+            S0x16Signal brightness = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -85,14 +85,14 @@ namespace PolarShader {
     class OctgramsPattern : public UVPattern {
     public:
         explicit OctgramsPattern(
-            Sf16Signal speed = constant(1000),
-            Sf16Signal travel = constant(500),
-            Sf16Signal pulse = constant(500),
-            Sf16Signal density = constant(500),
-            Sf16Signal glow = constant(500)
+            S0x16Signal speed = constant(1000),
+            S0x16Signal travel = constant(500),
+            S0x16Signal pulse = constant(500),
+            S0x16Signal density = constant(500),
+            S0x16Signal glow = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -106,13 +106,13 @@ namespace PolarShader {
     class RotatingSquaresPattern : public UVPattern {
     public:
         explicit RotatingSquaresPattern(
-            Sf16Signal speed = constant(1000),
-            Sf16Signal thickness = constant(375),
-            Sf16Signal pulse = constant(333),
-            Sf16Signal brightness = constant(500)
+            S0x16Signal speed = constant(1000),
+            S0x16Signal thickness = constant(375),
+            S0x16Signal pulse = constant(333),
+            S0x16Signal brightness = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -127,14 +127,14 @@ namespace PolarShader {
     class StarryPlanesPattern : public UVPattern {
     public:
         explicit StarryPlanesPattern(
-            Sf16Signal speed = constant(1000),
-            Sf16Signal planeSpacing = constant(500),
-            Sf16Signal starSize = constant(400),
-            Sf16Signal path = constant(500),
-            Sf16Signal brightness = constant(500)
+            S0x16Signal speed = constant(1000),
+            S0x16Signal planeSpacing = constant(500),
+            S0x16Signal starSize = constant(400),
+            S0x16Signal path = constant(500),
+            S0x16Signal brightness = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -148,15 +148,15 @@ namespace PolarShader {
     class TrigFieldPattern : public UVPattern {
     public:
         explicit TrigFieldPattern(
-            Sf16Signal zoom = constant(379),
-            Sf16Signal yOffset = constant(0),
-            Sf16Signal waveScale = constant(364),
-            Sf16Signal speed = constant(500),
-            Sf16Signal colorSpread = constant(500),
-            Sf16Signal brightness = constant(500)
+            S0x16Signal zoom = constant(379),
+            S0x16Signal yOffset = constant(0),
+            S0x16Signal waveScale = constant(364),
+            S0x16Signal speed = constant(500),
+            S0x16Signal colorSpread = constant(500),
+            S0x16Signal brightness = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 
@@ -170,14 +170,14 @@ namespace PolarShader {
     class StarFieldTravelPattern : public UVPattern {
     public:
         explicit StarFieldTravelPattern(
-            Sf16Signal speed = constant(250),
-            Sf16Signal density = constant(500),
-            Sf16Signal trail = constant(500),
-            Sf16Signal starSize = constant(400),
-            Sf16Signal brightness = constant(600)
+            S0x16Signal speed = constant(250),
+            S0x16Signal density = constant(500),
+            S0x16Signal trail = constant(500),
+            S0x16Signal starSize = constant(400),
+            S0x16Signal brightness = constant(600)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
         UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override;
 

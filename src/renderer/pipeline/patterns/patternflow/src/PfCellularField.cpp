@@ -17,15 +17,15 @@
 
 namespace PolarShader {
     namespace {
-        constexpr int32_t kHalf = F16_MAX >> 1; // 0.5 in Q16 local-cell units
+        constexpr int32_t kHalf = U0X16_MAX >> 1; // 0.5 in Q16 local-cell units
     }
 
     struct PfCellularField::State {
         Variant variant;
         uint16_t cellCount;
-        Sf16Signal phaseSpeedSignal;
-        Sf16Signal warpSignal;
-        Sf16Signal thicknessSignal;
+        S0x16Signal phaseSpeedSignal;
+        S0x16Signal warpSignal;
+        S0x16Signal thicknessSignal;
 
         int32_t tTurns{0};
         int32_t warpRaw{0};   // [0, 65535] warp/chaos depth
@@ -35,7 +35,7 @@ namespace PolarShader {
         TimeMillis lastElapsedMs{0u};
         bool hasLastElapsed{false};
 
-        State(Variant v, uint8_t count, Sf16Signal ps, Sf16Signal w, Sf16Signal th)
+        State(Variant v, uint8_t count, S0x16Signal ps, S0x16Signal w, S0x16Signal th)
             : variant(v),
               cellCount(count < 1 ? uint16_t(1) : uint16_t(count)),
               phaseSpeedSignal(std::move(ps)),
@@ -52,7 +52,7 @@ namespace PolarShader {
             int32_t dy = static_cast<int32_t>(localY) - kHalf;
             uint32_t dist = PfMath::pfDistQ16(dx, dy);
             int32_t ring = raw(PfMath::pfSinTurns(static_cast<int32_t>(4 * dist) - t));
-            return PfMath::pfSignedToNorm(ring, SF16_ONE);
+            return PfMath::pfSignedToNorm(ring, S0X16_ONE);
         }
 
         PatternNormU16 rowSegments(int32_t u01, uint16_t cellY) const {
@@ -60,7 +60,7 @@ namespace PolarShader {
             int32_t dir = (cellY & 1u) ? 1 : -1;
             int32_t shifted = u01 + PfMath::pfCoefT(t, dir, 1);
             uint16_t segIdx, segLocal;
-            PfMath::pfCell(static_cast<int32_t>(static_cast<uint32_t>(shifted) & F16_MAX),
+            PfMath::pfCell(static_cast<int32_t>(static_cast<uint32_t>(shifted) & U0X16_MAX),
                            state->cellCount, segIdx, segLocal);
             uint16_t h = PfMath::pfHash2(segIdx, static_cast<uint32_t>(cellY));
             if (h < 30000u) return PatternNormU16(0);
@@ -92,14 +92,14 @@ namespace PolarShader {
             const int32_t t = state->tTurns;
             int32_t energyS = raw(PfMath::pfSinTurns(
                 static_cast<int32_t>(cellX) * 9000 + static_cast<int32_t>(cellY) * 13000 + t));
-            int32_t energy01 = (energyS + SF16_ONE) >> 1; // [0, 65536]
+            int32_t energy01 = (energyS + S0X16_ONE) >> 1; // [0, 65536]
             if (energy01 <= state->threshRaw) return PatternNormU16(0);
             int32_t dx = static_cast<int32_t>(localX) - kHalf;
             int32_t dy = static_cast<int32_t>(localY) - kHalf;
             uint32_t dist = PfMath::pfDistQ16(dx, dy);
             uint16_t dot = PfMath::pfBump(static_cast<int32_t>(dist), state->sizeRaw);
             uint32_t scaled = (static_cast<uint32_t>(dot) * static_cast<uint32_t>(energy01)) >> 16;
-            if (scaled > F16_MAX) scaled = F16_MAX;
+            if (scaled > U0X16_MAX) scaled = U0X16_MAX;
             return PatternNormU16(static_cast<uint16_t>(scaled));
         }
 
@@ -109,7 +109,7 @@ namespace PolarShader {
             int32_t phase = t + static_cast<int32_t>(cellX) * 7000
                             + static_cast<int32_t>(cellY) * 11000 + split;
             int32_t s = raw(PfMath::pfSinTurns(phase));
-            int32_t sig01 = (s + SF16_ONE) >> 1; // [0, 65536]
+            int32_t sig01 = (s + S0X16_ONE) >> 1; // [0, 65536]
             if (sig01 <= state->threshRaw) return PatternNormU16(0);
             return PfMath::pfUnitToNorm(sig01);
         }
@@ -119,22 +119,22 @@ namespace PolarShader {
             const int32_t t = state->tTurns;
             // Cell centre in [0,1] Q16, measured from the grid centre (0.5).
             int32_t span = static_cast<int32_t>(state->cellCount);
-            int32_t centreX = ((2 * static_cast<int32_t>(cellX) + 1) * F16_MAX) / (2 * span);
-            int32_t centreY = ((2 * static_cast<int32_t>(cellY) + 1) * F16_MAX) / (2 * span);
+            int32_t centreX = ((2 * static_cast<int32_t>(cellX) + 1) * U0X16_MAX) / (2 * span);
+            int32_t centreY = ((2 * static_cast<int32_t>(cellY) + 1) * U0X16_MAX) / (2 * span);
             uint32_t cellDist = PfMath::pfDistQ16(centreX - kHalf, centreY - kHalf);
             // Outward-travelling pulse; warp scatters the ring phase per cell.
             int32_t jitter = (static_cast<int32_t>(PfMath::pfHash2(cellX, cellY)) - kHalf);
             int32_t phase = static_cast<int32_t>(3 * cellDist) - t
                             + static_cast<int32_t>((static_cast<int64_t>(jitter) * state->warpRaw) >> 18);
             int32_t pulse = raw(PfMath::pfSinTurns(phase));
-            int32_t height01 = (pulse + SF16_ONE) >> 1; // [0, 65536]
+            int32_t height01 = (pulse + S0X16_ONE) >> 1; // [0, 65536]
             // Per-cell pillar: bright disc whose brightness rides the pulse.
             int32_t dx = static_cast<int32_t>(localX) - kHalf;
             int32_t dy = static_cast<int32_t>(localY) - kHalf;
             uint32_t dist = PfMath::pfDistQ16(dx, dy);
             uint16_t pillar = PfMath::pfBump(static_cast<int32_t>(dist), state->sizeRaw);
             uint32_t scaled = (static_cast<uint32_t>(pillar) * static_cast<uint32_t>(height01)) >> 16;
-            if (scaled > F16_MAX) scaled = F16_MAX;
+            if (scaled > U0X16_MAX) scaled = U0X16_MAX;
             return PatternNormU16(static_cast<uint16_t>(scaled));
         }
 
@@ -142,9 +142,9 @@ namespace PolarShader {
             // Renderer feeds normalised [0,1] UVs (polarToCartesianUV). The cell
             // grid is periodic, so wrap the coordinate modulo one unit: zoomed-out
             // samples outside [0,1] repeat the grid instead of collapsing onto the
-            // border cell. (F16_MAX+1 == 65536 == 1.0, so & F16_MAX == mod 1.0.)
-            int32_t u01 = static_cast<int32_t>(static_cast<uint32_t>(raw(uv.u)) & F16_MAX);
-            int32_t v01 = static_cast<int32_t>(static_cast<uint32_t>(raw(uv.v)) & F16_MAX);
+            // border cell. (U0X16_MAX+1 == 65536 == 1.0, so & U0X16_MAX == mod 1.0.)
+            int32_t u01 = static_cast<int32_t>(static_cast<uint32_t>(raw(uv.u)) & U0X16_MAX);
+            int32_t v01 = static_cast<int32_t>(static_cast<uint32_t>(raw(uv.v)) & U0X16_MAX);
 
             uint16_t cellX, localX, cellY, localY;
             PfMath::pfCell(u01, state->cellCount, cellX, localX);
@@ -165,9 +165,9 @@ namespace PolarShader {
     PfCellularField::PfCellularField(
         Variant variant,
         uint8_t cellCount,
-        Sf16Signal phaseSpeed,
-        Sf16Signal warp,
-        Sf16Signal thickness
+        S0x16Signal phaseSpeed,
+        S0x16Signal warp,
+        S0x16Signal thickness
     ) : state(std::make_shared<State>(
         variant,
         cellCount,
@@ -176,7 +176,7 @@ namespace PolarShader {
         std::move(thickness)
     )) {}
 
-    void PfCellularField::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void PfCellularField::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 
@@ -199,16 +199,16 @@ namespace PolarShader {
         );
         s.tTurns += deltaTurns;
 
-        int32_t warpClamped = warpRaw < 0 ? 0 : (warpRaw > static_cast<int32_t>(F16_MAX) ? F16_MAX : warpRaw);
+        int32_t warpClamped = warpRaw < 0 ? 0 : (warpRaw > static_cast<int32_t>(U0X16_MAX) ? U0X16_MAX : warpRaw);
         s.warpRaw = warpClamped;
 
-        int32_t thickClamped = thickRaw < 0 ? 0 : (thickRaw > static_cast<int32_t>(F16_MAX) ? F16_MAX : thickRaw);
+        int32_t thickClamped = thickRaw < 0 ? 0 : (thickRaw > static_cast<int32_t>(U0X16_MAX) ? U0X16_MAX : thickRaw);
         // Feature radius: 0.125 .. ~0.75 of a cell half-span as thickness goes 0 -> 1.
-        s.sizeRaw = (F16_MAX >> 3) + static_cast<int32_t>(
-            (static_cast<int64_t>(thickClamped) * (F16_MAX >> 1)) >> 16
+        s.sizeRaw = (U0X16_MAX >> 3) + static_cast<int32_t>(
+            (static_cast<int64_t>(thickClamped) * (U0X16_MAX >> 1)) >> 16
         );
         // Activation threshold: thicker features -> lower gate -> more coverage.
-        s.threshRaw = F16_MAX - thickClamped;
+        s.threshRaw = U0X16_MAX - thickClamped;
     }
 
     UVMap PfCellularField::layer(const std::shared_ptr<PipelineContext> &context) const {

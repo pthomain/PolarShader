@@ -30,21 +30,21 @@
 
 namespace PolarShader {
     struct VortexTransform::MappedInputs {
-        Sf16Signal strengthSignal;
-        BipolarRange<sf16> strengthRange;
+        S0x16Signal strengthSignal;
+        BipolarRange<s0x16> strengthRange;
     };
 
-    VortexTransform::MappedInputs VortexTransform::makeInputs(Sf16Signal strength) {
+    VortexTransform::MappedInputs VortexTransform::makeInputs(S0x16Signal strength) {
         return MappedInputs{
             std::move(strength),
-            BipolarRange(sf16(SF16_MIN), sf16(SF16_MAX))
+            BipolarRange(s0x16(S0X16_MIN), s0x16(S0X16_MAX))
         };
     }
 
     struct VortexTransform::State {
-        Sf16Signal strengthSignal;
-        BipolarRange<sf16> strengthRange;
-        sf16 strengthValue = sf16(0);
+        S0x16Signal strengthSignal;
+        BipolarRange<s0x16> strengthRange;
+        s0x16 strengthValue = s0x16(0);
 
         explicit State(MappedInputs inputs)
             : strengthSignal(std::move(inputs.strengthSignal)),
@@ -52,12 +52,12 @@ namespace PolarShader {
         }
     };
 
-    VortexTransform::VortexTransform(Sf16Signal strength) {
+    VortexTransform::VortexTransform(S0x16Signal strength) {
         auto inputs = makeInputs(std::move(strength));
         state = std::make_shared<State>(std::move(inputs));
     }
 
-    void VortexTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void VortexTransform::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("VortexTransform::advanceFrame context is null.");
         }

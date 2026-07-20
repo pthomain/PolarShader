@@ -54,11 +54,11 @@ namespace PolarShader {
             Variant variant = Variant::Organic,
             uint8_t contourLevels = 10,
             bool hardEdges = false,
-            Sf16Signal phaseSpeed = constant(500),
-            Sf16Signal tension = constant(500)
+            S0x16Signal phaseSpeed = constant(500),
+            S0x16Signal tension = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 

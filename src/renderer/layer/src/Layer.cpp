@@ -34,7 +34,7 @@ namespace PolarShader {
     namespace {
         uint16_t scaleRgbChannel(uint16_t channel, uint16_t value, uint16_t mask) {
             uint16_t scaled = scale16(channel, value);
-            if (mask != F16_MAX) scaled = scale16(scaled, mask);
+            if (mask != U0X16_MAX) scaled = scale16(scaled, mask);
             return scaled;
         }
 
@@ -104,7 +104,7 @@ namespace PolarShader {
         fl::vector<PipelineStep> steps,
         const char *name,
         std::shared_ptr<PipelineContext> context,
-        f16 alpha,
+        u0x16 alpha,
         BlendMode blendMode
     ) : pattern(std::move(pattern)),
         palette(palette),
@@ -137,19 +137,19 @@ namespace PolarShader {
         uint16_t clip_input
     ) {
         if (!(context && context->paletteClipEnabled)) {
-            return F16_MAX;
+            return U0X16_MAX;
         }
         if (context->paletteClipInvert) {
-            clip_input = static_cast<uint16_t>(F16_MAX - clip_input);
+            clip_input = static_cast<uint16_t>(U0X16_MAX - clip_input);
         }
 
         uint16_t clip = raw(context->paletteClip);
         uint16_t feather = raw(context->paletteClipFeather);
         if (feather == 0) {
-            return (clip_input < clip) ? 0 : F16_MAX;
+            return (clip_input < clip) ? 0 : U0X16_MAX;
         }
         uint32_t edge1 = static_cast<uint32_t>(clip) + feather;
-        if (edge1 > F16_MAX) edge1 = F16_MAX;
+        if (edge1 > U0X16_MAX) edge1 = U0X16_MAX;
         return raw(patternSmoothstepU16(
             clip,
             static_cast<uint16_t>(edge1),
@@ -172,7 +172,7 @@ namespace PolarShader {
             // Colour-mask mode: paletteOffset selects a single tint colour for
             // the whole scene; the pattern value drives alpha (brightness),
             // further shaped by the clip mask. When the clip signal is 0 the
-            // mask is fully open (F16_MAX), so alpha reduces to the raw value.
+            // mask is fully open (U0X16_MAX), so alpha reduces to the raw value.
             CRGB color = ColorFromPalette(palette, offset, 255, LINEARBLEND);
             uint16_t alpha = scale16(hue_value, mask_value);
             color.nscale8_video(static_cast<uint8_t>(alpha >> 8));
@@ -185,7 +185,7 @@ namespace PolarShader {
             // scalar patterns — for them the palette IS the colour source.
             uint8_t v = fl::map16_to_8(hue_value);
             CRGB color = CRGB(v, v, v);
-            if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+            if (context && context->paletteClipEnabled && mask_value != U0X16_MAX) {
                 color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
             }
             return color;
@@ -199,7 +199,7 @@ namespace PolarShader {
         uint8_t index = static_cast<uint8_t>(bright + offset);
 
         CRGB color = ColorFromPalette(palette, index, bright, LINEARBLEND);
-        if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+        if (context && context->paletteClipEnabled && mask_value != U0X16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
         }
         return color;
@@ -237,7 +237,7 @@ namespace PolarShader {
         // (the palette already is the hue wheel), so it renders natively too.
         if (mode == PipelineContext::PaletteTintMode::Native || isRainbow) {
             CRGB color = CHSV(hue8, 255, bright);
-            if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+            if (context && context->paletteClipEnabled && mask_value != U0X16_MAX) {
                 color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
             }
             return color;
@@ -246,7 +246,7 @@ namespace PolarShader {
         // HueRemap: the emitted hue selects the palette entry (offset = phase)
         // and the emitted value drives brightness.
         CRGB color = ColorFromPalette(palette, hue8, bright, LINEARBLEND);
-        if (context && context->paletteClipEnabled && mask_value != F16_MAX) {
+        if (context && context->paletteClipEnabled && mask_value != U0X16_MAX) {
             color.nscale8_video(static_cast<uint8_t>(mask_value >> 8));
         }
         return color;
@@ -291,7 +291,7 @@ namespace PolarShader {
         context->rasterDisplay = rasterDisplay;
     }
 
-    void Layer::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void Layer::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         if (!context) {
             Serial.println("Layer::advanceFrame context is null.");
         } else {
@@ -364,7 +364,7 @@ namespace PolarShader {
         return std::make_unique<ColourMap>([palette = palette, layer = std::move(currentUV), context = context](
             const RenderPoint &point
         ) {
-            // Display provides (Angle, Radius) in legacy f16/sf16.
+            // Display provides (Angle, Radius) in legacy u0x16/s0x16.
             // Convert to UV (fl::u16x16/fl::s16x16 (Q16.16)).
             UV input = polarToCartesianUV(UV(
                 fl::s16x16::from_raw(raw(point.angle)),

@@ -112,7 +112,7 @@ namespace PolarShader {
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             const uint16_t value =
-                static_cast<uint16_t>((static_cast<uint32_t>(cells[idx]) * F16_MAX) / (numStates - 1u));
+                static_cast<uint16_t>((static_cast<uint32_t>(cells[idx]) * U0X16_MAX) / (numStates - 1u));
             return PatternNormU16(value);
         };
     }
@@ -133,7 +133,7 @@ namespace PolarShader {
                 static_cast<uint8_t>((static_cast<uint16_t>(cells[idx]) * 256u) / numStates);
             return PaletteSample{
                 PatternNormU16(raster::hue8ToPatternRaw(hue8)),
-                PatternNormU16(F16_MAX)
+                PatternNormU16(U0X16_MAX)
             };
         };
     }

@@ -30,27 +30,27 @@
 namespace PolarShader {
 
     namespace PolarMaths {
-        f16 shortest_angle_dist(f16 a, f16 b) {
+        u0x16 shortest_angle_dist(u0x16 a, u0x16 b) {
             uint16_t dist = raw(a) > raw(b) ? raw(a) - raw(b) : raw(b) - raw(a);
             if (dist > U16_HALF) {
                 uint32_t wrap = ANGLE_FULL_TURN_U32 - dist;
                 dist = static_cast<uint16_t>(wrap);
             }
-            return f16(dist);
+            return u0x16(dist);
         }
     }
 
     UV polarToCartesianUV(UV polar_uv) {
-        f16 angle_turns = f16(static_cast<uint16_t>(polar_uv.u.raw()));
-        f16 radius = f16(static_cast<uint16_t>(polar_uv.v.raw()));
+        u0x16 angle_turns = u0x16(static_cast<uint16_t>(polar_uv.u.raw()));
+        u0x16 radius = u0x16(static_cast<uint16_t>(polar_uv.v.raw()));
 
-        sf16 cos_val = angleCosF16(angle_turns);
-        sf16 sin_val = angleSinF16(angle_turns);
+        s0x16 cos_val = angleCosU0x16(angle_turns);
+        s0x16 sin_val = angleSinU0x16(angle_turns);
 
         // x = cos(angle) * radius, y = sin(angle) * radius
         // Result is in range [-1, 1] relative to center
-        int32_t x_raw = mulI32F16Sat(raw(cos_val), radius);
-        int32_t y_raw = mulI32F16Sat(raw(sin_val), radius);
+        int32_t x_raw = mulI32U0x16Sat(raw(cos_val), radius);
+        int32_t y_raw = mulI32U0x16Sat(raw(sin_val), radius);
 
         // Map from [-1, 1] to [0, 1]
         // x_normalized = (x + 1) / 2
@@ -67,20 +67,20 @@ namespace PolarShader {
         int32_t x = (cart_uv.u.raw() << 1) - 0x00010000;
         int32_t y = (cart_uv.v.raw() << 1) - 0x00010000;
 
-        int32_t clamped_x = constrain(x, SF16_MIN, SF16_MAX);
-        int32_t clamped_y = constrain(y, SF16_MIN, SF16_MAX);
+        int32_t clamped_x = constrain(x, S0X16_MIN, S0X16_MAX);
+        int32_t clamped_y = constrain(y, S0X16_MIN, S0X16_MAX);
         int16_t x16 = static_cast<int16_t>(clamped_x >> 1);
         int16_t y16 = static_cast<int16_t>(clamped_y >> 1);
 
-        f16 angle_units = angleAtan2TurnsApprox(y16, x16);
+        u0x16 angle_units = angleAtan2TurnsApprox(y16, x16);
         int64_t dx = clamped_x;
         int64_t dy = clamped_y;
 
         uint64_t radius_squared = static_cast<uint64_t>(dx * dx) + static_cast<uint64_t>(dy * dy);
         uint64_t magnitude_raw = sqrtU64Raw(radius_squared);
 
-        if (magnitude_raw > static_cast<uint64_t>(SF16_MAX)) {
-            magnitude_raw = SF16_MAX;
+        if (magnitude_raw > static_cast<uint64_t>(S0X16_MAX)) {
+            magnitude_raw = S0X16_MAX;
         }
 
         return UV(fl::s16x16::from_raw(raw(angle_units)), fl::s16x16::from_raw(static_cast<int32_t>(magnitude_raw)));

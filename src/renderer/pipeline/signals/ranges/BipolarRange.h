@@ -54,13 +54,13 @@ namespace PolarShader {
             }
         }
 
-        T map(sf16 t) const override {
+        T map(s0x16 t) const override {
             int64_t span = max_raw - min_raw;
             if (span == 0) return detail::make_bipolar_range_value<T, Rep>(static_cast<Rep>(min_raw));
 
-            constexpr int64_t signed_span = static_cast<int64_t>(SF16_MAX) - static_cast<int64_t>(SF16_MIN);
+            constexpr int64_t signed_span = static_cast<int64_t>(S0X16_MAX) - static_cast<int64_t>(S0X16_MIN);
             int64_t signed_raw = static_cast<int64_t>(Range<T>::mapSigned(t));
-            int64_t signed_t = signed_raw - static_cast<int64_t>(SF16_MIN);
+            int64_t signed_t = signed_raw - static_cast<int64_t>(S0X16_MIN);
             int64_t scaled = (span * signed_t + (signed_span / 2)) / signed_span;
             return detail::make_bipolar_range_value<T, Rep>(static_cast<Rep>(min_raw + scaled));
         }

@@ -52,7 +52,7 @@ namespace PolarShader {
     WorleyBasePattern::WorleyBasePattern(WorleyAliasing aliasingMode)
         : cell_size_raw(WorleyCellUnit),
           dist_shift(0),
-          max_dist_scaled(SF16_MAX),
+          max_dist_scaled(S0X16_MAX),
           aliasing(aliasingMode) {
     }
 
@@ -135,7 +135,7 @@ namespace PolarShader {
     }
 
     PatternNormU16 WorleyBasePattern::softenValue(PatternNormU16 value) const {
-        return patternSmoothstepU16(0, SF16_MAX, raw(value));
+        return patternSmoothstepU16(0, S0X16_MAX, raw(value));
     }
 
     struct WorleyPattern::UVFunctor {

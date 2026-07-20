@@ -40,13 +40,13 @@ namespace PolarShader {
     class PaletteTransform : public FrameTransform {
     public:
         PaletteTransform(
-            Sf16Signal offset,
-            Sf16Signal clipSignal,
-            f16 maxFeather = perMil(500),
+            S0x16Signal offset,
+            S0x16Signal clipSignal,
+            u0x16 maxFeather = perMil(500),
             PipelineContext::PaletteTintMode tintMode = PipelineContext::PaletteTintMode::HueRemap
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         void setContext(std::shared_ptr<PipelineContext> context) override { this->context = std::move(context); }
 
@@ -54,9 +54,9 @@ namespace PolarShader {
         struct MappedInputs;
 
         static MappedInputs makeInputs(
-            Sf16Signal offset,
-            Sf16Signal clipSignal,
-            f16 maxFeather,
+            S0x16Signal offset,
+            S0x16Signal clipSignal,
+            u0x16 maxFeather,
             PipelineContext::PaletteTintMode tintMode
         );
 

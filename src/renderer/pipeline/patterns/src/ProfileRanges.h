@@ -35,7 +35,7 @@ namespace PolarShader {
     namespace {
         constexpr fl::s16x16 kMinFrequency = grid::s16x16FromFraction(1, 64);
         constexpr fl::s16x16 kMaxProfileSpeed = grid::s16x16FromFraction(1, 4);
-        constexpr f16 kMaxProfileAmplitude = toF16(1, 2);
+        constexpr u0x16 kMaxProfileAmplitude = toU0x16(1, 2);
         constexpr fl::s16x16 kMaxProfileFrequency = grid::s16x16FromFraction(1, 2);
 
         const BipolarRange<fl::s16x16> &profileSpeedRange() {
@@ -43,7 +43,7 @@ namespace PolarShader {
             return range;
         }
 
-        const MagnitudeRange<f16> &profileAmplitudeRange() {
+        const MagnitudeRange<u0x16> &profileAmplitudeRange() {
             static const MagnitudeRange range(perMil(0), kMaxProfileAmplitude);
             return range;
         }

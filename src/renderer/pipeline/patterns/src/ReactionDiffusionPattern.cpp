@@ -181,7 +181,7 @@ namespace PolarShader {
         seed(*state);
     }
 
-    void ReactionDiffusionPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void ReactionDiffusionPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void) progress;
         (void) elapsedMs;
         for (uint8_t i = 0; i < stepsPerFrame; ++i) {

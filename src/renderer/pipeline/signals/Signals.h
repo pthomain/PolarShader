@@ -33,89 +33,89 @@
 #include "renderer/pipeline/signals/SignalTypes.h"
 
 namespace PolarShader {
-    using Waveform = Sf16Signal::WaveformFn;
+    using Waveform = S0x16Signal::WaveformFn;
 
-    const MagnitudeRange<sf16> &magnitudeRange();
+    const MagnitudeRange<s0x16> &magnitudeRange();
 
-    const BipolarRange<sf16> &bipolarRange();
+    const BipolarRange<s0x16> &bipolarRange();
 
-    Sf16Signal constant(sf16 value);
+    S0x16Signal constant(s0x16 value);
 
-    Sf16Signal constant(f16 value);
+    S0x16Signal constant(u0x16 value);
 
-    Sf16Signal constant(uint16_t permille = 0);
+    S0x16Signal constant(uint16_t permille = 0);
 
     struct PeriodicSignalFactory {
-        using BaseFn = Sf16Signal (*)(Sf16Signal phaseVelocity, sf16 phaseOffset);
-        using BoundedFn = Sf16Signal (*)(Sf16Signal phaseVelocity, Sf16Signal floor, Sf16Signal ceiling);
-        using BoundedPhaseFn = Sf16Signal (*)(
-            Sf16Signal phaseVelocity,
-            sf16 phaseOffset,
-            Sf16Signal floor,
-            Sf16Signal ceiling
+        using BaseFn = S0x16Signal (*)(S0x16Signal phaseVelocity, s0x16 phaseOffset);
+        using BoundedFn = S0x16Signal (*)(S0x16Signal phaseVelocity, S0x16Signal floor, S0x16Signal ceiling);
+        using BoundedPhaseFn = S0x16Signal (*)(
+            S0x16Signal phaseVelocity,
+            s0x16 phaseOffset,
+            S0x16Signal floor,
+            S0x16Signal ceiling
         );
 
         BaseFn base{nullptr};
         BoundedFn bounded{nullptr};
         BoundedPhaseFn boundedWithPhase{nullptr};
 
-        Sf16Signal operator()(Sf16Signal phaseVelocity, sf16 phaseOffset) const {
-            return base ? base(std::move(phaseVelocity), phaseOffset) : Sf16Signal();
+        S0x16Signal operator()(S0x16Signal phaseVelocity, s0x16 phaseOffset) const {
+            return base ? base(std::move(phaseVelocity), phaseOffset) : S0x16Signal();
         }
 
-        Sf16Signal operator()(Sf16Signal phaseVelocity, Sf16Signal floor) const {
-            return bounded ? bounded(std::move(phaseVelocity), std::move(floor), constant(1000)) : Sf16Signal();
+        S0x16Signal operator()(S0x16Signal phaseVelocity, S0x16Signal floor) const {
+            return bounded ? bounded(std::move(phaseVelocity), std::move(floor), constant(1000)) : S0x16Signal();
         }
 
-        Sf16Signal operator()(Sf16Signal phaseVelocity, Sf16Signal floor, Sf16Signal ceiling) const {
-            return bounded ? bounded(std::move(phaseVelocity), std::move(floor), std::move(ceiling)) : Sf16Signal();
+        S0x16Signal operator()(S0x16Signal phaseVelocity, S0x16Signal floor, S0x16Signal ceiling) const {
+            return bounded ? bounded(std::move(phaseVelocity), std::move(floor), std::move(ceiling)) : S0x16Signal();
         }
 
-        Sf16Signal operator()(Sf16Signal phaseVelocity, sf16 phaseOffset, Sf16Signal floor) const {
+        S0x16Signal operator()(S0x16Signal phaseVelocity, s0x16 phaseOffset, S0x16Signal floor) const {
             return boundedWithPhase
                 ? boundedWithPhase(std::move(phaseVelocity), phaseOffset, std::move(floor), constant(1000))
-                : Sf16Signal();
+                : S0x16Signal();
         }
 
-        Sf16Signal operator()(
-            Sf16Signal phaseVelocity,
-            sf16 phaseOffset,
-            Sf16Signal floor,
-            Sf16Signal ceiling
+        S0x16Signal operator()(
+            S0x16Signal phaseVelocity,
+            s0x16 phaseOffset,
+            S0x16Signal floor,
+            S0x16Signal ceiling
         ) const {
             return boundedWithPhase
                 ? boundedWithPhase(std::move(phaseVelocity), phaseOffset, std::move(floor), std::move(ceiling))
-                : Sf16Signal();
+                : S0x16Signal();
         }
     };
-    using AperiodicSignalFactory = Sf16Signal (*)(TimeMillis duration, LoopMode loopMode);
+    using AperiodicSignalFactory = S0x16Signal (*)(TimeMillis duration, LoopMode loopMode);
 
-    Sf16Signal cRandom();
+    S0x16Signal cRandom();
 
     /** @brief Returns a wrapped signed turn offset suitable for periodic phase initialization. */
-    sf16 randomPhaseOffset();
+    s0x16 randomPhaseOffset();
 
     /**
      * @brief Animated noise signal driven by a phase velocity signal.
      * @param phaseVelocity Magnitude-domain rate where `constant(1000)` = 1.0 and `constant(500)` = 0.5.
      * @param phaseOffset Signed turn offset wrapped into the internal phase domain; zero selects a random offset.
      */
-    Sf16Signal noise(
-        Sf16Signal phaseVelocity = constant(550),
-        sf16 phaseOffset = randomPhaseOffset()
+    S0x16Signal noise(
+        S0x16Signal phaseVelocity = constant(550),
+        s0x16 phaseOffset = randomPhaseOffset()
     );
 
-    Sf16Signal noise(
-        Sf16Signal phaseVelocity,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal noise(
+        S0x16Signal phaseVelocity,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal noise(
-        Sf16Signal phaseVelocity,
-        sf16 phaseOffset,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal noise(
+        S0x16Signal phaseVelocity,
+        s0x16 phaseOffset,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
     /**
@@ -124,105 +124,105 @@ namespace PolarShader {
      * @param phaseOffset Signed turn offset wrapped into the internal phase domain.
      * @note The overloads that accept floor/ceiling signals apply smap() internally.
      */
-    Sf16Signal sine(
-        Sf16Signal phaseVelocity = constant(550),
-        sf16 phaseOffset = sf16(0)
+    S0x16Signal sine(
+        S0x16Signal phaseVelocity = constant(550),
+        s0x16 phaseOffset = s0x16(0)
     );
 
-    Sf16Signal sine(
-        Sf16Signal phaseVelocity,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal sine(
+        S0x16Signal phaseVelocity,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal sine(
-        Sf16Signal phaseVelocity,
-        sf16 phaseOffset,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal sine(
+        S0x16Signal phaseVelocity,
+        s0x16 phaseOffset,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal triangle(
-        Sf16Signal phaseVelocity = constant(550),
-        sf16 phaseOffset = sf16(0)
+    S0x16Signal triangle(
+        S0x16Signal phaseVelocity = constant(550),
+        s0x16 phaseOffset = s0x16(0)
     );
 
-    Sf16Signal triangle(
-        Sf16Signal phaseVelocity,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal triangle(
+        S0x16Signal phaseVelocity,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal triangle(
-        Sf16Signal phaseVelocity,
-        sf16 phaseOffset,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal triangle(
+        S0x16Signal phaseVelocity,
+        s0x16 phaseOffset,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal square(
-        Sf16Signal phaseVelocity = constant(550),
-        sf16 phaseOffset = sf16(0)
+    S0x16Signal square(
+        S0x16Signal phaseVelocity = constant(550),
+        s0x16 phaseOffset = s0x16(0)
     );
 
-    Sf16Signal square(
-        Sf16Signal phaseVelocity,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal square(
+        S0x16Signal phaseVelocity,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal square(
-        Sf16Signal phaseVelocity,
-        sf16 phaseOffset,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal square(
+        S0x16Signal phaseVelocity,
+        s0x16 phaseOffset,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal sawtooth(
-        Sf16Signal phaseVelocity = constant(550),
-        sf16 phaseOffset = sf16(0)
+    S0x16Signal sawtooth(
+        S0x16Signal phaseVelocity = constant(550),
+        s0x16 phaseOffset = s0x16(0)
     );
 
-    Sf16Signal sawtooth(
-        Sf16Signal phaseVelocity,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal sawtooth(
+        S0x16Signal phaseVelocity,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal sawtooth(
-        Sf16Signal phaseVelocity,
-        sf16 phaseOffset,
-        Sf16Signal floor,
-        Sf16Signal ceiling = constant(1000)
+    S0x16Signal sawtooth(
+        S0x16Signal phaseVelocity,
+        s0x16 phaseOffset,
+        S0x16Signal floor,
+        S0x16Signal ceiling = constant(1000)
     );
 
-    Sf16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    S0x16Signal linear(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    Sf16Signal quadraticIn(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    S0x16Signal quadraticIn(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    Sf16Signal quadraticOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    S0x16Signal quadraticOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    Sf16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
+    S0x16Signal quadraticInOut(TimeMillis duration, LoopMode loopMode = LoopMode::RESET);
 
-    // Scale a signed signal in the [-1..1] domain by a f16/sf16 fraction.
-    Sf16Signal scale(Sf16Signal signal, f16 factor);
+    // Scale a signed signal in the [-1..1] domain by a u0x16/s0x16 fraction.
+    S0x16Signal scale(S0x16Signal signal, u0x16 factor);
 
     // Remap a signed signal into dynamically sampled unipolar bounds.
     // Floor and ceiling are sampled through magnitudeRange() each time the signal is sampled.
     // If floor exceeds ceiling for a given sample, the bounds are swapped before remapping.
-    Sf16Signal smap(Sf16Signal signal, Sf16Signal floor, Sf16Signal ceiling);
+    S0x16Signal smap(S0x16Signal signal, S0x16Signal floor, S0x16Signal ceiling);
 
     /** @brief Emits a constant UV coordinate. */
     UVSignal constantUV(UV value);
 
     /** @brief Combines two scalar signals into a 2D UV signal. */
-    UVSignal uvSignal(Sf16Signal u, Sf16Signal v);
+    UVSignal uvSignal(S0x16Signal u, S0x16Signal v);
 
     /** @brief Maps a signed signal into a UV area via unsigned range mapping. */
-    UVSignal uv(Sf16Signal signal, UV min, UV max);
+    UVSignal uv(S0x16Signal signal, UV min, UV max);
 
     /** @brief Maps a signed signal into a UV area via unsigned range mapping. */
-    UVSignal uvInRange(Sf16Signal signal, UV min, UV max);
+    UVSignal uvInRange(S0x16Signal signal, UV min, UV max);
 }
 
 #endif // POLAR_SHADER_PIPELINE_SIGNALS_MODULATORS_SIGNALS_H

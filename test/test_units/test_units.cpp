@@ -91,8 +91,8 @@
 using namespace PolarShader;
 
 namespace {
-    const MagnitudeRange TEST_UNIT_RANGE{sf16(0), sf16(SF16_MAX)};
-    const BipolarRange TEST_SIGNED_RANGE{sf16(SF16_MIN), sf16(SF16_MAX)};
+    const MagnitudeRange TEST_UNIT_RANGE{s0x16(0), s0x16(S0X16_MAX)};
+    const BipolarRange TEST_SIGNED_RANGE{s0x16(S0X16_MIN), s0x16(S0X16_MAX)};
 }
 
 /** @brief Verify that fl::s16x16 correctly stores 32-bit fixed-point values. */
@@ -204,7 +204,7 @@ void test_polar_uv_conversion_center() {
 
 /** @brief Verify that points on the right edge map to angle 0 and radius 1.0. */
 void test_polar_uv_conversion_right() {
-    // Right middle (1.0, 0.5) should have angle 0 and radius 1.0 (0xFFFF in f16/sf16)
+    // Right middle (1.0, 0.5) should have angle 0 and radius 1.0 (0xFFFF in u0x16/s0x16)
     UV cart_uv(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
     UV polar_uv = cartesianToPolarUV(cart_uv);
     TEST_ASSERT_EQUAL_INT32(0, polar_uv.u.raw()); // Angle 0
@@ -226,8 +226,8 @@ void test_uv_round_trip() {
 /** @brief Verify that RotationTransform correctly rotates Cartesian UV coordinates. */
 void test_rotation_transform_uv() {
     // Explicitly use absolute mode (isAngleTurn = true).
-    RotationTransform rotation(constant(sf16(-0x8000)), true);
-    rotation.advanceFrame(f16(0), 0);
+    RotationTransform rotation(constant(s0x16(-0x8000)), true);
+    rotation.advanceFrame(u0x16(0), 0);
 
     UVMap testLayer = [](UV uv) {
         return PatternNormU16(raw(uv.u));
@@ -247,8 +247,8 @@ void test_rotation_transform_uv() {
 
 /** @brief Verify that ZoomTransform correctly scales Cartesian UV coordinates relative to the center. */
 void test_zoom_transform_uv() {
-    ZoomTransform zoom(constant(sf16(SF16_MIN))); // Target min
-    zoom.advanceFrame(f16(0), 0);
+    ZoomTransform zoom(constant(s0x16(S0X16_MIN))); // Target min
+    zoom.advanceFrame(u0x16(0), 0);
     
     UVMap testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
 
@@ -267,12 +267,12 @@ void test_uv_signal_accumulation() {
     // 0.1 in fl::u16x16/fl::s16x16 (Q16.16) is ~6554
     UV delta(fl::s16x16::from_raw(6554), fl::s16x16::from_raw(6554));
 
-    UVSignal rawSignal([delta](f16, TimeMillis) {
+    UVSignal rawSignal([delta](u0x16, TimeMillis) {
         return delta;
     });
 
     UVSignal resolved(
-        [rawSignal, accumulated = UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0))](f16 progress, TimeMillis elapsedMs) mutable {
+        [rawSignal, accumulated = UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0))](u0x16 progress, TimeMillis elapsedMs) mutable {
             UV value = rawSignal(progress, elapsedMs);
             accumulated.u += value.u;
             accumulated.v += value.v;
@@ -281,12 +281,12 @@ void test_uv_signal_accumulation() {
     );
     
     // First sample
-    UV result1 = resolved(f16(100), 0);
+    UV result1 = resolved(u0x16(100), 0);
     TEST_ASSERT_EQUAL_INT32(6554, raw(result1.u));
     TEST_ASSERT_EQUAL_INT32(6554, raw(result1.v));
     
     // Second sample (should accumulate)
-    UV result2 = resolved(f16(200), 0);
+    UV result2 = resolved(u0x16(200), 0);
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.u));
     TEST_ASSERT_EQUAL_INT32(13108, raw(result2.v));
 }
@@ -294,7 +294,7 @@ void test_uv_signal_accumulation() {
 /** @brief Verify PhaseAccumulator integration of signed speed. */
 void test_phase_accumulator_signed() {
     // Speed: -0.5 turns per second
-    auto speed = [](TimeMillis) { return sf16(-32768); };
+    auto speed = [](TimeMillis) { return s0x16(-32768); };
 
     PhaseAccumulator accum(speed);
     accum.advance(0); // Init
@@ -305,7 +305,7 @@ void test_phase_accumulator_signed() {
     (void) accum.advance(600);
     (void) accum.advance(800);
     // 1000ms total -> -0.5 turns -> 0.5 (32768)
-    f16 p1 = accum.advance(1000);
+    u0x16 p1 = accum.advance(1000);
     TEST_ASSERT_UINT16_WITHIN(100, 32768, raw(p1));
 
     (void) accum.advance(1200);
@@ -313,21 +313,21 @@ void test_phase_accumulator_signed() {
     (void) accum.advance(1600);
     (void) accum.advance(1800);
     // Advance another 1000ms -> -1.0 turns -> 0
-    f16 p2 = accum.advance(2000);
+    u0x16 p2 = accum.advance(2000);
     TEST_ASSERT_UINT16_WITHIN(100, 0, raw(p2));
 }
 
 /** @brief Verify sine uses speed signal and is centered in signed space. */
 void test_sine_speed() {
     // Speed: 1.0 turn per second
-    Sf16Signal s = sine(constant(1000), sf16(0));
+    S0x16Signal s = sine(constant(1000), s0x16(0));
     
     // t=0 -> centered
     TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
     // Prime integration in clamped chunks.
     (void) s.sample(TEST_SIGNED_RANGE, 200);
     // t=250ms -> positive peak
-    TEST_ASSERT_INT32_WITHIN(500, SF16_MAX, raw(s.sample(TEST_SIGNED_RANGE, 250)));
+    TEST_ASSERT_INT32_WITHIN(500, S0X16_MAX, raw(s.sample(TEST_SIGNED_RANGE, 250)));
 }
 
 /** @brief Verify zoom driven by sine changes over elapsed time (not treated as constant). */
@@ -336,13 +336,13 @@ void test_zoom_transform_sine_varies_over_time() {
     UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     UV input(fl::s16x16::from_raw(0x0000C000), fl::s16x16::from_raw(0x00008000));
 
-    zoom.advanceFrame(f16(0), 0);
+    zoom.advanceFrame(u0x16(0), 0);
     uint16_t a = raw(zoom(probeLayer)(input));
 
-    zoom.advanceFrame(f16(0), 250);
+    zoom.advanceFrame(u0x16(0), 250);
     uint16_t b = raw(zoom(probeLayer)(input));
 
-    zoom.advanceFrame(f16(0), 500);
+    zoom.advanceFrame(u0x16(0), 500);
     uint16_t c = raw(zoom(probeLayer)(input));
 
     // If zoom is animated, at least one later sample must differ from the initial one.
@@ -352,10 +352,10 @@ void test_zoom_transform_sine_varies_over_time() {
 /** @brief Verify kaleidoscope input mirrors at the unit-UV boundary. */
 void test_kaleidoscope_translation_mirrors_at_unit_uv_boundary() {
     KaleidoscopeTransform kaleidoscope(6, true);
-    TranslationTransform translation(UVSignal([](f16, TimeMillis) {
+    TranslationTransform translation(UVSignal([](u0x16, TimeMillis) {
         return UV(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0));
     }));
-    translation.advanceFrame(f16(0), 0);
+    translation.advanceFrame(u0x16(0), 0);
 
     UV probe(fl::s16x16::from_raw(0x00009234), fl::s16x16::from_raw(0x00006FED));
     UVMap capture = [](UV uv) { return PatternNormU16(raw(uv.u) ^ raw(uv.v)); };
@@ -367,12 +367,12 @@ void test_kaleidoscope_translation_mirrors_at_unit_uv_boundary() {
 }
 
 void test_uv_transform_chain_warps_all_payload_kinds_identically() {
-    RotationTransform rotation(constant(sf16(0x2000)), true);
-    TranslationTransform translation(UVSignal([](f16, TimeMillis) {
+    RotationTransform rotation(constant(s0x16(0x2000)), true);
+    TranslationTransform translation(UVSignal([](u0x16, TimeMillis) {
         return UV(fl::s16x16::from_raw(0x00001234), fl::s16x16::from_raw(-0x00000567));
     }));
-    rotation.advanceFrame(f16(0), 0);
-    translation.advanceFrame(f16(0), 0);
+    rotation.advanceFrame(u0x16(0), 0);
+    translation.advanceFrame(u0x16(0), 0);
 
     UVMap echoU = [](UV uv) {
         return PatternNormU16(static_cast<uint16_t>(raw(uv.u)));
@@ -391,7 +391,7 @@ void test_uv_transform_chain_warps_all_payload_kinds_identically() {
             PatternNormU16(static_cast<uint16_t>(raw(uv.u))),
             PatternNormU16(static_cast<uint16_t>(raw(uv.v))),
             PatternNormU16(0),
-            PatternNormU16(F16_MAX)
+            PatternNormU16(U0X16_MAX)
         );
     };
 
@@ -420,7 +420,7 @@ void test_uv_transform_chain_warps_all_payload_kinds_identically() {
 /** @brief Verify easing functions loop if period > 0. */
 void test_easing_period_looping() {
     // Linear signal looping every 500ms
-    Sf16Signal s = linear(500);
+    S0x16Signal s = linear(500);
     
     // Linear now emits signed values by convention.
     int32_t a = raw(s.sample(TEST_SIGNED_RANGE, 250));
@@ -433,10 +433,10 @@ void test_easing_period_looping() {
 
 /** @brief Verify periodic signals receive scene elapsed time directly. */
 void test_periodic_signal_uses_elapsed_time() {
-    Sf16Signal s(
+    S0x16Signal s(
         SignalKind::PERIODIC,
         [](TimeMillis t) {
-            return sf16(static_cast<int32_t>(t));
+            return s0x16(static_cast<int32_t>(t));
         }
     );
 
@@ -446,12 +446,12 @@ void test_periodic_signal_uses_elapsed_time() {
 
 /** @brief Verify aperiodic RESET mode wraps time by duration modulo. */
 void test_aperiodic_reset_wraps_time() {
-    Sf16Signal s(
+    S0x16Signal s(
         SignalKind::APERIODIC,
         LoopMode::RESET,
         1000,
         [](TimeMillis t) {
-            return sf16(static_cast<int32_t>(t));
+            return s0x16(static_cast<int32_t>(t));
         }
     );
 
@@ -461,12 +461,12 @@ void test_aperiodic_reset_wraps_time() {
 
 /** @brief Verify aperiodic SATURATE mode clamps time at duration. */
 void test_aperiodic_saturate_clamps_time() {
-    Sf16Signal s(
+    S0x16Signal s(
         SignalKind::APERIODIC,
         LoopMode::SATURATE,
         1000,
         [](TimeMillis t) {
-            return sf16(static_cast<int32_t>(t));
+            return s0x16(static_cast<int32_t>(t));
         }
     );
 
@@ -476,12 +476,12 @@ void test_aperiodic_saturate_clamps_time() {
 
 /** @brief Verify aperiodic duration=0 emits zero regardless of waveform. */
 void test_aperiodic_zero_duration_emits_zero() {
-    Sf16Signal s(
+    S0x16Signal s(
         SignalKind::APERIODIC,
         LoopMode::RESET,
         0,
         [](TimeMillis) {
-            return sf16(0xFFFF);
+            return s0x16(0xFFFF);
         }
     );
 
@@ -489,12 +489,12 @@ void test_aperiodic_zero_duration_emits_zero() {
     TEST_ASSERT_EQUAL_INT32(0, raw(s.sample(TEST_SIGNED_RANGE, 1000)));
 }
 
-/** @brief Verify sampling saturates to signed sf16 bounds. */
+/** @brief Verify sampling saturates to signed s0x16 bounds. */
 void test_signal_sample_clamped() {
-    Sf16Signal s(
+    S0x16Signal s(
         SignalKind::PERIODIC,
         [](TimeMillis) {
-            return sf16(-1000);
+            return s0x16(-1000);
         }
     );
 
@@ -503,34 +503,34 @@ void test_signal_sample_clamped() {
 
 /** @brief Verify phase velocity uses the magnitude domain for oscillator speed. */
 void test_sine_half_speed_uses_magnitude_domain() {
-    Sf16Signal s = sine(constant(500), sf16(0));
+    S0x16Signal s = sine(constant(500), s0x16(0));
 
     TEST_ASSERT_INT32_WITHIN(100, 0, raw(s.sample(TEST_SIGNED_RANGE, 0)));
 
     (void) s.sample(TEST_SIGNED_RANGE, 200);
     (void) s.sample(TEST_SIGNED_RANGE, 400);
-    TEST_ASSERT_INT32_WITHIN(500, SF16_MAX, raw(s.sample(TEST_SIGNED_RANGE, 500)));
+    TEST_ASSERT_INT32_WITHIN(500, S0X16_MAX, raw(s.sample(TEST_SIGNED_RANGE, 500)));
 }
 
 /** @brief Verify magnitude constant helpers (unipolar mapping). */
 void test_magnitude_constant_helpers() {
     // constant(0) -> unipolar 0.0 -> signed -1.0
-    TEST_ASSERT_EQUAL_INT32(SF16_MIN, raw(constant(uint16_t(0)).sample(TEST_SIGNED_RANGE, 0)));
+    TEST_ASSERT_EQUAL_INT32(S0X16_MIN, raw(constant(uint16_t(0)).sample(TEST_SIGNED_RANGE, 0)));
     // constant(1000) -> unipolar 1.0 -> signed 1.0 (approx)
-    TEST_ASSERT_INT32_WITHIN(10, SF16_MAX, raw(constant(uint16_t(1000)).sample(TEST_SIGNED_RANGE, 0)));
+    TEST_ASSERT_INT32_WITHIN(10, S0X16_MAX, raw(constant(uint16_t(1000)).sample(TEST_SIGNED_RANGE, 0)));
     
     // constant(500) -> unipolar 0.5 -> signed 0.0
     TEST_ASSERT_INT32_WITHIN(10, 0, raw(constant(uint16_t(500)).sample(TEST_SIGNED_RANGE, 0)));
     // constant(1000) -> unipolar 1.0 -> signed 1.0
-    TEST_ASSERT_INT32_WITHIN(10, SF16_MAX, raw(constant(uint16_t(1000)).sample(TEST_SIGNED_RANGE, 0)));
+    TEST_ASSERT_INT32_WITHIN(10, S0X16_MAX, raw(constant(uint16_t(1000)).sample(TEST_SIGNED_RANGE, 0)));
 }
 
 /** @brief Verify scalar signal range mapping is done directly via sample(range, elapsedMs). */
 void test_signal_range_mapping() {
-    Sf16Signal signal(
+    S0x16Signal signal(
         SignalKind::PERIODIC,
         [](TimeMillis) {
-            return sf16(0x8000); // ~0.5
+            return s0x16(0x8000); // ~0.5
         }
     );
     MagnitudeRange<int32_t> range(0, 1000);
@@ -539,25 +539,25 @@ void test_signal_range_mapping() {
 
 /** @brief Verify that MagnitudeRange correctly interpolates values. */
 void test_magnitude_range() {
-    MagnitudeRange range(sf16(0), sf16(1000));
+    MagnitudeRange range(s0x16(0), s0x16(1000));
     
     // 0.0 -> midpoint
-    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(sf16(0))));
+    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(s0x16(0))));
     // +0.5 -> 750
-    TEST_ASSERT_EQUAL_INT32(750, raw(range.map(sf16(0x8000))));
+    TEST_ASSERT_EQUAL_INT32(750, raw(range.map(s0x16(0x8000))));
     // 1.0 -> 1000
-    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(sf16(0xFFFF))));
+    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(s0x16(0xFFFF))));
     // -1.0 -> 0
-    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(sf16(SF16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(s0x16(S0X16_MIN))));
 }
 
 /** @brief Verify signed-direct mapping preserves signed identity range exactly. */
 void test_bipolar_range_signed_direct_identity() {
-    BipolarRange range{sf16(SF16_MIN), sf16(SF16_MAX)};
+    BipolarRange range{s0x16(S0X16_MIN), s0x16(S0X16_MAX)};
 
-    TEST_ASSERT_EQUAL_INT32(SF16_MIN, raw(range.map(sf16(SF16_MIN))));
-    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(sf16(0))));
-    TEST_ASSERT_EQUAL_INT32(SF16_MAX, raw(range.map(sf16(SF16_MAX))));
+    TEST_ASSERT_EQUAL_INT32(S0X16_MIN, raw(range.map(s0x16(S0X16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(s0x16(0))));
+    TEST_ASSERT_EQUAL_INT32(S0X16_MAX, raw(range.map(s0x16(S0X16_MAX))));
 }
 
 /** @brief Verify that UVRange correctly interpolates 2D coordinates. */
@@ -567,28 +567,28 @@ void test_uv_range() {
     UVRange range(min, max);
     
     // 0.0 -> midpoint (0.5, 0.5)
-    UV result = range.map(sf16(0));
+    UV result = range.map(s0x16(0));
     TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.u));
     TEST_ASSERT_EQUAL_INT32(0x8000, raw(result.v));
 }
 
-/** @brief Verify signed sf16 mulSf16Sat helper. */
-void test_sf16_mul_div_helpers() {
-    sf16 half(0x8000);
-    sf16 quarter(0x4000);
+/** @brief Verify signed s0x16 mulS0x16Sat helper. */
+void test_s0x16_mul_div_helpers() {
+    s0x16 half(0x8000);
+    s0x16 quarter(0x4000);
 
-    TEST_ASSERT_EQUAL_INT32(raw(quarter), raw(mulSf16Sat(half, half)));
+    TEST_ASSERT_EQUAL_INT32(raw(quarter), raw(mulS0x16Sat(half, half)));
 }
 
 /** @brief Verify direct signed<->unsigned scalar mapping helpers. */
-void test_sf16_f16_mapping_helpers() {
-    TEST_ASSERT_EQUAL_UINT16(0, raw(toUnsigned(sf16(SF16_MIN))));
-    TEST_ASSERT_EQUAL_UINT16(0x8000, raw(toUnsigned(sf16(0))));
-    TEST_ASSERT_EQUAL_UINT16(F16_MAX, raw(toUnsigned(sf16(SF16_MAX))));
+void test_s0x16_u0x16_mapping_helpers() {
+    TEST_ASSERT_EQUAL_UINT16(0, raw(toUnsigned(s0x16(S0X16_MIN))));
+    TEST_ASSERT_EQUAL_UINT16(0x8000, raw(toUnsigned(s0x16(0))));
+    TEST_ASSERT_EQUAL_UINT16(U0X16_MAX, raw(toUnsigned(s0x16(S0X16_MAX))));
 
-    TEST_ASSERT_EQUAL_INT32(SF16_MIN, raw(toSigned(f16(0))));
-    TEST_ASSERT_EQUAL_INT32(0, raw(toSigned(f16(0x8000))));
-    TEST_ASSERT_EQUAL_INT32(SF16_MAX, raw(toSigned(f16(F16_MAX))));
+    TEST_ASSERT_EQUAL_INT32(S0X16_MIN, raw(toSigned(u0x16(0))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(toSigned(u0x16(0x8000))));
+    TEST_ASSERT_EQUAL_INT32(S0X16_MAX, raw(toSigned(u0x16(U0X16_MAX))));
 }
 
 /** @brief Verify that RotationTransform supports both absolute and accumulation modes. */
@@ -596,10 +596,10 @@ void test_rotation_accumulation() {
     // 1. Absolute Mode (isAngleTurn = true)
     // Signal constant(250) remapped to -0.5 signed.
     // AngleRange maps -0.5 signed to 0.25 turns (0x4000).
-    Sf16Signal absSignal = constant(uint16_t(250));
+    S0x16Signal absSignal = constant(uint16_t(250));
     
     RotationTransform rotAbs(absSignal, true);
-    rotAbs.advanceFrame(f16(0), 0);
+    rotAbs.advanceFrame(u0x16(0), 0);
     
     UVMap probe = [](UV uv) { return PatternNormU16(raw(uv.u)); };
     UV input(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000)); // (1.0, 0.5) -> Polar Angle 0
@@ -609,13 +609,13 @@ void test_rotation_accumulation() {
 
     // 2. Accumulation Mode (isAngleTurn = false)
     // Speed: 1.0 turn per second (constant(1000) -> 1.0 signed)
-    Sf16Signal speedSignal = constant(uint16_t(1000));
+    S0x16Signal speedSignal = constant(uint16_t(1000));
     RotationTransform rotAcc(speedSignal, false);
     
     // t=0 -> init
-    rotAcc.advanceFrame(f16(0), 0);
+    rotAcc.advanceFrame(u0x16(0), 0);
     // t=200ms -> 0.2 turns -> 13107 units
-    rotAcc.advanceFrame(f16(0), 200);
+    rotAcc.advanceFrame(u0x16(0), 200);
     
     PatternNormU16 resAcc = rotAcc(probe)(input);
     // Angle 0.2 turns (72 deg) -> x_norm ~= 42893
@@ -635,9 +635,9 @@ void test_noise_pattern_depth_speed_wraps_in_six_hours() {
 
     const uint32_t startDepth = pattern.state.depth;
 
-    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(u0x16(0), 0);
     for (TimeMillis t = stepMs; t <= sixHoursMs; t += stepMs) {
-        pattern.advanceFrame(f16(0), t);
+        pattern.advanceFrame(u0x16(0), t);
     }
 
     const uint32_t endDepth = pattern.state.depth;
@@ -684,8 +684,8 @@ void setup() {
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
-    RUN_TEST(test_sf16_mul_div_helpers);
-    RUN_TEST(test_sf16_f16_mapping_helpers);
+    RUN_TEST(test_s0x16_mul_div_helpers);
+    RUN_TEST(test_s0x16_u0x16_mapping_helpers);
     RUN_TEST(test_rotation_accumulation);
     RUN_TEST(test_noise_pattern_depth_speed_wraps_in_six_hours);
     UNITY_END();
@@ -729,8 +729,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_magnitude_range);
     RUN_TEST(test_bipolar_range_signed_direct_identity);
     RUN_TEST(test_uv_range);
-    RUN_TEST(test_sf16_mul_div_helpers);
-    RUN_TEST(test_sf16_f16_mapping_helpers);
+    RUN_TEST(test_s0x16_mul_div_helpers);
+    RUN_TEST(test_s0x16_u0x16_mapping_helpers);
     RUN_TEST(test_rotation_accumulation);
     RUN_TEST(test_noise_pattern_depth_speed_wraps_in_six_hours);
     return UNITY_END();

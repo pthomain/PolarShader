@@ -30,25 +30,25 @@ namespace PolarShader {
     public:
         virtual ~Range() = default;
 
-        virtual T map(sf16 t) const = 0;
+        virtual T map(s0x16 t) const = 0;
 
     protected:
-        static constexpr uint32_t mapUnsigned(sf16 t) {
+        static constexpr uint32_t mapUnsigned(s0x16 t) {
             return mapUnsignedClamped(t);
         }
 
-        static constexpr uint32_t mapUnsignedClamped(sf16 t) {
+        static constexpr uint32_t mapUnsignedClamped(s0x16 t) {
             return raw(toUnsignedClamped(t));
         }
 
-        static constexpr uint32_t mapUnsignedWrapped(sf16 t) {
+        static constexpr uint32_t mapUnsignedWrapped(s0x16 t) {
             return raw(toUnsignedWrapped(t));
         }
 
-        static constexpr int32_t mapSigned(sf16 t) {
+        static constexpr int32_t mapSigned(s0x16 t) {
             int32_t value = raw(t);
-            if (value > SF16_MAX) return SF16_MAX;
-            if (value < SF16_MIN) return SF16_MIN;
+            if (value > S0X16_MAX) return S0X16_MAX;
+            if (value < S0X16_MIN) return S0X16_MIN;
             return value;
         }
     };

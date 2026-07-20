@@ -126,8 +126,8 @@ namespace PolarShader {
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             const uint8_t current = cells[idx];
-            if (current == kBurning) return PatternNormU16(F16_MAX);
-            if (current == kTree) return PatternNormU16(F16_MAX / 2u);
+            if (current == kBurning) return PatternNormU16(U0X16_MAX);
+            if (current == kTree) return PatternNormU16(U0X16_MAX / 2u);
             return PatternNormU16(0);
         };
     }
@@ -148,13 +148,13 @@ namespace PolarShader {
             if (current == kBurning) {
                 return PaletteSample{
                     PatternNormU16(raster::hue8ToPatternRaw(kBurningHue)),
-                    PatternNormU16(F16_MAX)
+                    PatternNormU16(U0X16_MAX)
                 };
             }
             if (current == kTree) {
                 return PaletteSample{
                     PatternNormU16(raster::hue8ToPatternRaw(kTreeHue)),
-                    PatternNormU16(F16_MAX / 2u)
+                    PatternNormU16(U0X16_MAX / 2u)
                 };
             }
             return PaletteSample{};

@@ -41,14 +41,14 @@ namespace PolarShader {
         if (currentScene) {
             TimeMillis elapsed = currentTimeMs - currentSceneStartTimeMs;
             TimeMillis duration = currentScene->getDuration();
-            f16 progress;
+            u0x16 progress;
 
             if (duration == 0) {
-                progress = f16(0xFFFFu);
+                progress = u0x16(0xFFFFu);
             } else {
                 uint64_t p = (static_cast<uint64_t>(elapsed) * 0xFFFFu) / duration;
                 if (p > 0xFFFFu) p = 0xFFFFu;
-                progress = f16(static_cast<uint16_t>(p));
+                progress = u0x16(static_cast<uint16_t>(p));
             }
             currentScene->advanceFrame(progress, elapsed);
         }

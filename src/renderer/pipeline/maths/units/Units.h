@@ -114,13 +114,13 @@ namespace PolarShader {
     // Represents the midpoint of a 16-bit unsigned integer range, often used for remapping.
     inline constexpr uint16_t U16_HALF = 0x8000;
 
-    // The maximum positive value for an sf16 signed integer stored in a 32-bit raw format.
-    inline constexpr int32_t SF16_MIN = -(1 << 16);
-    inline constexpr int32_t SF16_MAX = (1 << 16) - 1;
-    inline constexpr int32_t SF16_ONE = 1 << 16;
+    // The maximum positive value for a s0x16 signed integer stored in a 32-bit raw format.
+    inline constexpr int32_t S0X16_MIN = -(1 << 16);
+    inline constexpr int32_t S0X16_MAX = (1 << 16) - 1;
+    inline constexpr int32_t S0X16_ONE = 1 << 16;
 
-    // The maximum value for an f16 unsigned fraction, representing the value closest to 1.0.
-    inline constexpr uint16_t F16_MAX = 0xFFFF;
+    // The maximum value for a u0x16 unsigned fraction, representing the value closest to 1.0.
+    inline constexpr uint16_t U0X16_MAX = 0xFFFF;
 
     // Full turn in the 16-bit angle domain.
     inline constexpr uint32_t ANGLE_FULL_TURN_U32 = 1u << 16;
@@ -133,33 +133,33 @@ namespace PolarShader {
 
     // --- Scalar Units ---
 
-    struct f16Tag {
+    struct u0x16Tag {
     };
 
-    struct sf16Tag {
+    struct s0x16Tag {
     };
 
     /**
-     * @brief Unsigned fixed-point fraction in f16 (Q0.16) format.
+     * @brief Unsigned fixed-point fraction in u0x16 (Q0.16) format.
      *
      * Definition: 16-bit integer where 0 represents 0.0 and 65535 represents ~1.0.
      * Usage: Used for angles (mod 2^16), alpha blending, and unsigned scaling factors.
      * Analysis: Strictly required for circular math and operations where negative values are semantically invalid.
      */
-    using f16 = Typed<uint16_t, f16Tag>;
+    using u0x16 = Typed<uint16_t, u0x16Tag>;
 
     /**
-     * @brief Signed fixed-point scalar in sf16 (Q0.16) format stored in a 32-bit container.
+     * @brief Signed fixed-point scalar in s0x16 (Q0.16) format stored in a 32-bit container.
      *
      * Definition: Signed integer where 65536 represents 1.0 and -65536 represents -1.0.
      * Usage: The primary currency for signals, oscillators, and trigonometric outputs (sine/cosine).
      * Analysis: Strictly required for the signal engine to support bidirectional modulation (e.g. oscillating around zero).
      */
-    using sf16 = Typed<int32_t, sf16Tag>;
+    using s0x16 = Typed<int32_t, s0x16Tag>;
 
     // --- Raw extractors ---
-    constexpr uint16_t raw(f16 f) { return f.raw(); }
-    constexpr int32_t raw(sf16 v) { return v.raw(); }
+    constexpr uint16_t raw(u0x16 f) { return f.raw(); }
+    constexpr int32_t raw(s0x16 v) { return v.raw(); }
     constexpr int32_t raw(fl::s16x16 v) { return v.raw(); }
     constexpr uint32_t raw(fl::u16x16 v) { return v.raw(); }
     constexpr int32_t raw(fl::s24x8 v) { return v.raw(); }

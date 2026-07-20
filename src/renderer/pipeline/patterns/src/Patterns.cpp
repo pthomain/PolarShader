@@ -57,7 +57,7 @@ namespace PolarShader {
         return std::make_unique<VoronoiPattern>(cellSize, aliasingMode);
     }
 
-    std::unique_ptr<UVPattern> noisePattern(Sf16Signal depthSpeedSignal) {
+    std::unique_ptr<UVPattern> noisePattern(S0x16Signal depthSpeedSignal) {
         return std::make_unique<NoisePattern>(
             NoisePattern::NoiseType::Basic,
             4,
@@ -197,14 +197,14 @@ namespace PolarShader {
         uint8_t gridSize,
         uint8_t dotCount,
         FlowFieldPattern::EmitterMode mode,
-        Sf16Signal xDrift,
-        Sf16Signal yDrift,
-        Sf16Signal amplitude,
-        Sf16Signal frequency,
-        Sf16Signal endpointSpeed,
-        Sf16Signal halfLife,
-        Sf16Signal orbitSpeed,
-        Sf16Signal orbitRadius
+        S0x16Signal xDrift,
+        S0x16Signal yDrift,
+        S0x16Signal amplitude,
+        S0x16Signal frequency,
+        S0x16Signal endpointSpeed,
+        S0x16Signal halfLife,
+        S0x16Signal orbitSpeed,
+        S0x16Signal orbitRadius
     ) {
         return std::make_unique<FlowFieldPattern>(
             gridSize,
@@ -224,10 +224,10 @@ namespace PolarShader {
     std::unique_ptr<UVPattern> transportPattern(
         uint8_t gridSize,
         TransportPattern::TransportMode mode,
-        Sf16Signal radialSpeed,
-        Sf16Signal angularSpeed,
-        Sf16Signal halfLife,
-        Sf16Signal emitterSpeed,
+        S0x16Signal radialSpeed,
+        S0x16Signal angularSpeed,
+        S0x16Signal halfLife,
+        S0x16Signal emitterSpeed,
         bool velocityGlow
     ) {
         return std::make_unique<TransportPattern>(
@@ -244,9 +244,9 @@ namespace PolarShader {
     std::unique_ptr<UVPattern> spiralPattern(
         uint8_t armCount,
         bool clockwise,
-        Sf16Signal tightness,
-        Sf16Signal armThickness,
-        Sf16Signal rotationSpeed
+        S0x16Signal tightness,
+        S0x16Signal armThickness,
+        S0x16Signal rotationSpeed
     ) {
         return std::make_unique<SpiralPattern>(
             armCount,
@@ -277,12 +277,12 @@ namespace PolarShader {
         uint8_t gridSize,
         uint8_t lineCount,
         FlurryPattern::Shape shape,
-        Sf16Signal xDrift,
-        Sf16Signal yDrift,
-        Sf16Signal amplitude,
-        Sf16Signal frequency,
-        Sf16Signal endpointSpeed,
-        Sf16Signal fade
+        S0x16Signal xDrift,
+        S0x16Signal yDrift,
+        S0x16Signal amplitude,
+        S0x16Signal frequency,
+        S0x16Signal endpointSpeed,
+        S0x16Signal fade
     ) {
         return std::make_unique<FlurryPattern>(
             gridSize,
@@ -297,20 +297,20 @@ namespace PolarShader {
         );
     }
 
-    std::unique_ptr<UVPattern> paletteGlowPattern(Sf16Signal speed, Sf16Signal tileScale) {
+    std::unique_ptr<UVPattern> paletteGlowPattern(S0x16Signal speed, S0x16Signal tileScale) {
         return std::make_unique<PaletteGlowPattern>(std::move(speed), std::move(tileScale));
     }
 
     std::unique_ptr<UVPattern> rocaillePattern(
-        Sf16Signal scale,
-        Sf16Signal length,
-        Sf16Signal detail,
-        Sf16Signal turbulence,
-        Sf16Signal frequency,
-        Sf16Signal speed,
-        Sf16Signal layers,
-        Sf16Signal hue,
-        Sf16Signal glow
+        S0x16Signal scale,
+        S0x16Signal length,
+        S0x16Signal detail,
+        S0x16Signal turbulence,
+        S0x16Signal frequency,
+        S0x16Signal speed,
+        S0x16Signal layers,
+        S0x16Signal hue,
+        S0x16Signal glow
     ) {
         return std::make_unique<RocaillePattern>(
             std::move(scale),
@@ -326,10 +326,10 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> proteanCloudsPattern(
-        Sf16Signal speed,
-        Sf16Signal warp,
-        Sf16Signal frequency,
-        Sf16Signal brightness
+        S0x16Signal speed,
+        S0x16Signal warp,
+        S0x16Signal frequency,
+        S0x16Signal brightness
     ) {
         return std::make_unique<ProteanCloudsPattern>(
             std::move(speed),
@@ -340,11 +340,11 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> octgramsPattern(
-        Sf16Signal speed,
-        Sf16Signal travel,
-        Sf16Signal pulse,
-        Sf16Signal density,
-        Sf16Signal glow
+        S0x16Signal speed,
+        S0x16Signal travel,
+        S0x16Signal pulse,
+        S0x16Signal density,
+        S0x16Signal glow
     ) {
         return std::make_unique<OctgramsPattern>(
             std::move(speed),
@@ -356,10 +356,10 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> rotatingSquaresPattern(
-        Sf16Signal speed,
-        Sf16Signal thickness,
-        Sf16Signal pulse,
-        Sf16Signal brightness
+        S0x16Signal speed,
+        S0x16Signal thickness,
+        S0x16Signal pulse,
+        S0x16Signal brightness
     ) {
         return std::make_unique<RotatingSquaresPattern>(
             std::move(speed),
@@ -370,11 +370,11 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> starryPlanesPattern(
-        Sf16Signal speed,
-        Sf16Signal planeSpacing,
-        Sf16Signal starSize,
-        Sf16Signal path,
-        Sf16Signal brightness
+        S0x16Signal speed,
+        S0x16Signal planeSpacing,
+        S0x16Signal starSize,
+        S0x16Signal path,
+        S0x16Signal brightness
     ) {
         return std::make_unique<StarryPlanesPattern>(
             std::move(speed),
@@ -386,12 +386,12 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> trigFieldPattern(
-        Sf16Signal zoom,
-        Sf16Signal yOffset,
-        Sf16Signal waveScale,
-        Sf16Signal speed,
-        Sf16Signal colorSpread,
-        Sf16Signal brightness
+        S0x16Signal zoom,
+        S0x16Signal yOffset,
+        S0x16Signal waveScale,
+        S0x16Signal speed,
+        S0x16Signal colorSpread,
+        S0x16Signal brightness
     ) {
         return std::make_unique<TrigFieldPattern>(
             std::move(zoom),
@@ -404,11 +404,11 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> starFieldTravelPattern(
-        Sf16Signal speed,
-        Sf16Signal density,
-        Sf16Signal trail,
-        Sf16Signal starSize,
-        Sf16Signal brightness
+        S0x16Signal speed,
+        S0x16Signal density,
+        S0x16Signal trail,
+        S0x16Signal starSize,
+        S0x16Signal brightness
     ) {
         return std::make_unique<StarFieldTravelPattern>(
             std::move(speed),

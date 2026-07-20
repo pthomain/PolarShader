@@ -24,13 +24,13 @@
 namespace PolarShader {
     PhaseAccumulator::PhaseAccumulator(
         SpeedSampleFn speed,
-        f16 initialPhase
+        u0x16 initialPhase
     ) : phaseRaw32(static_cast<uint32_t>(raw(initialPhase)) << 16),
         phaseSpeed(std::move(speed)) {
     }
 
-    f16 PhaseAccumulator::advance(TimeMillis elapsedMs) {
-        return f16(static_cast<uint16_t>(advanceRaw(elapsedMs) >> 16));
+    u0x16 PhaseAccumulator::advance(TimeMillis elapsedMs) {
+        return u0x16(static_cast<uint16_t>(advanceRaw(elapsedMs) >> 16));
     }
 
     uint32_t PhaseAccumulator::advanceRaw(TimeMillis elapsedMs) {
@@ -51,11 +51,11 @@ namespace PolarShader {
 
         if (deltaMs == 0) return phaseRaw32;
 
-        int64_t speedRaw = raw(phaseSpeed ? phaseSpeed(elapsedMs) : sf16(0));
+        int64_t speedRaw = raw(phaseSpeed ? phaseSpeed(elapsedMs) : s0x16(0));
         
         // Accumulate phase using a 32-bit container where the top 16 bits represent the 
         // integer phase (turns) and the bottom 16 bits provide fractional precision.
-        // speedRaw is in sf16 (1.0 = 65536 turns/sec).
+        // speedRaw is in s0x16 (1.0 = 65536 turns/sec).
         // increment = (speed * deltaMs / 1000) * 65536
         int64_t increment = (speedRaw * deltaMs * 65536LL + 500LL) / 1000LL;
         phaseRaw32 = static_cast<uint32_t>(static_cast<int64_t>(phaseRaw32) + increment);

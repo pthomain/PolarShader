@@ -40,7 +40,7 @@ namespace PolarShader {
             int32_t cell_size_raw = (1 << 8);
         };
 
-        Sf16Signal cell_size_signal;
+        S0x16Signal cell_size_signal;
         uint16_t cell_size_u16;
         uint8_t color_count;
         TileShape shape;
@@ -54,12 +54,12 @@ namespace PolarShader {
         );
 
         explicit TilingPattern(
-            Sf16Signal cellSize,
+            S0x16Signal cellSize,
             uint8_t colorCount = 3,
             TileShape shape = TileShape::HEXAGON
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

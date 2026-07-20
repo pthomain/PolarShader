@@ -76,7 +76,7 @@ namespace PolarShader {
             uint8_t stepsPerFrame = 4
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
         UVMap layer(const std::shared_ptr<PipelineContext>& context) const override;
     };
 }

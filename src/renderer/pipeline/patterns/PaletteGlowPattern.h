@@ -36,11 +36,11 @@ namespace PolarShader {
     class PaletteGlowPattern : public UVPattern {
     public:
         explicit PaletteGlowPattern(
-            Sf16Signal speed = constant(1000),
-            Sf16Signal tileScale = constant(500)
+            S0x16Signal speed = constant(1000),
+            S0x16Signal tileScale = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 

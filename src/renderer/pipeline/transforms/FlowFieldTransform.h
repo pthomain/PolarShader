@@ -56,10 +56,10 @@ namespace PolarShader {
          * @param maxOffsetRange Output range for `maxOffset`.
          */
         FlowFieldTransform(
-            Sf16Signal phaseSpeed = constant(650),
-            Sf16Signal flowStrength = constant(250),
-            Sf16Signal fieldScale = constant(0),
-            Sf16Signal maxOffset = constant(0),
+            S0x16Signal phaseSpeed = constant(650),
+            S0x16Signal flowStrength = constant(250),
+            S0x16Signal fieldScale = constant(0),
+            S0x16Signal maxOffset = constant(0),
             MagnitudeRange<fl::s24x8> fieldScaleRange = MagnitudeRange(
                 fl::s24x8::from_raw(DEFAULT_FIELD_SCALE_MIN_RAW),
                 fl::s24x8::from_raw(DEFAULT_FIELD_SCALE_MAX_RAW)
@@ -70,7 +70,7 @@ namespace PolarShader {
             )
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVLayer apply(const UVLayer &layer) const override;
 

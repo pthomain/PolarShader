@@ -109,8 +109,8 @@ namespace PolarShader {
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             const uint8_t current = cells[idx];
-            if (current == kFiring) return PatternNormU16(F16_MAX);
-            if (current == kDying) return PatternNormU16(F16_MAX / 3u);
+            if (current == kFiring) return PatternNormU16(U0X16_MAX);
+            if (current == kDying) return PatternNormU16(U0X16_MAX / 3u);
             return PatternNormU16(0);
         };
     }

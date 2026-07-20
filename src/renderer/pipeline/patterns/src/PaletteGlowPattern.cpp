@@ -34,14 +34,14 @@ namespace PolarShader {
 
         int32_t displayAspectRaw(const std::shared_ptr<PipelineContext> &context) {
             if (!(context && context->rasterDisplay.valid && context->rasterDisplay.height > 0)) {
-                return SF16_ONE;
+                return S0X16_ONE;
             }
             uint64_t scaled = static_cast<uint64_t>(context->rasterDisplay.width) << 16;
             return static_cast<int32_t>(scaled / context->rasterDisplay.height);
         }
 
         fl::s16x16 shaderAxis(fl::s16x16 axis) {
-            int64_t centred = static_cast<int64_t>(raw(axis)) * 2 - SF16_ONE;
+            int64_t centred = static_cast<int64_t>(raw(axis)) * 2 - S0X16_ONE;
             if (centred > INT32_MAX) centred = INT32_MAX;
             if (centred < INT32_MIN) centred = INT32_MIN;
             return fl::s16x16::from_raw(static_cast<int32_t>(centred));
@@ -75,15 +75,15 @@ namespace PolarShader {
         }
 
         uint16_t clampAccumToU16(uint32_t value) {
-            return value > F16_MAX ? F16_MAX : static_cast<uint16_t>(value);
+            return value > U0X16_MAX ? U0X16_MAX : static_cast<uint16_t>(value);
         }
 
         PatternNormU16 unpremultiplyChannel(uint32_t channel, uint32_t maxChannel) {
             if (maxChannel == 0u) return PatternNormU16(0);
-            if (maxChannel > F16_MAX) return PatternNormU16(clampAccumToU16(channel));
+            if (maxChannel > U0X16_MAX) return PatternNormU16(clampAccumToU16(channel));
 
             uint64_t scaled = (static_cast<uint64_t>(channel) << 16) / maxChannel;
-            if (scaled > F16_MAX) scaled = F16_MAX;
+            if (scaled > U0X16_MAX) scaled = U0X16_MAX;
             return PatternNormU16(static_cast<uint16_t>(scaled));
         }
 
@@ -92,7 +92,7 @@ namespace PolarShader {
             uint32_t waveTurnsRaw = static_cast<uint32_t>(
                 (static_cast<uint64_t>(waveRadiansRaw) * Q16_INV_TAU) >> 16
             );
-            int32_t wave = raw(angleSinF16(f16(static_cast<uint16_t>(waveTurnsRaw))));
+            int32_t wave = raw(angleSinU0x16(u0x16(static_cast<uint16_t>(waveTurnsRaw))));
             if (wave < 0) wave = -wave;
             uint32_t waveRaw = static_cast<uint32_t>(wave) >> 3;
             if (waveRaw < Q16_WAVE_EPSILON) waveRaw = Q16_WAVE_EPSILON;
@@ -106,33 +106,33 @@ namespace PolarShader {
         }
 
         uint32_t signalMagnitudeRaw(
-            const Sf16Signal &signal,
+            const S0x16Signal &signal,
             TimeMillis elapsedMs,
             uint32_t fallbackRaw
         ) {
             if (!signal) return fallbackRaw;
             int32_t signalRaw = raw(signal.sample(magnitudeRange(), elapsedMs));
             if (signalRaw <= 0) return 0u;
-            if (signalRaw >= SF16_MAX - 1) return SF16_ONE;
+            if (signalRaw >= S0X16_MAX - 1) return S0X16_ONE;
             return static_cast<uint32_t>(signalRaw) + 1u;
         }
 
-        uint32_t speedMultiplierRaw(const Sf16Signal &speedSignal, TimeMillis elapsedMs) {
-            return signalMagnitudeRaw(speedSignal, elapsedMs, SF16_ONE);
+        uint32_t speedMultiplierRaw(const S0x16Signal &speedSignal, TimeMillis elapsedMs) {
+            return signalMagnitudeRaw(speedSignal, elapsedMs, S0X16_ONE);
         }
 
-        uint32_t tileScaleRaw(const Sf16Signal &tileScaleSignal, TimeMillis elapsedMs) {
-            return SF16_ONE + signalMagnitudeRaw(tileScaleSignal, elapsedMs, Q16_HALF);
+        uint32_t tileScaleRaw(const S0x16Signal &tileScaleSignal, TimeMillis elapsedMs) {
+            return S0X16_ONE + signalMagnitudeRaw(tileScaleSignal, elapsedMs, Q16_HALF);
         }
     }
 
     struct PaletteGlowPattern::State {
-        Sf16Signal speedSignal;
-        Sf16Signal tileScaleSignal;
+        S0x16Signal speedSignal;
+        S0x16Signal tileScaleSignal;
         uint32_t timeRaw{0};
-        uint32_t tileScaleRaw{SF16_ONE + Q16_HALF};
+        uint32_t tileScaleRaw{S0X16_ONE + Q16_HALF};
 
-        State(Sf16Signal speed, Sf16Signal tileScale)
+        State(S0x16Signal speed, S0x16Signal tileScale)
             : speedSignal(std::move(speed)),
             tileScaleSignal(std::move(tileScale)) {}
     };
@@ -147,7 +147,7 @@ namespace PolarShader {
             const uint32_t uv0LengthRaw = static_cast<uint32_t>(raw(lengthQ16(uv0)));
             const fl::u16x16 falloff = expNegQ16(fl::u16x16::from_raw(uv0LengthRaw));
             const uint32_t timeRaw = state ? state->timeRaw : 0u;
-            const uint32_t tileScaleRaw = state ? state->tileScaleRaw : SF16_ONE + Q16_HALF;
+            const uint32_t tileScaleRaw = state ? state->tileScaleRaw : S0X16_ONE + Q16_HALF;
 
             uint32_t accR = 0;
             uint32_t accG = 0;
@@ -164,7 +164,7 @@ namespace PolarShader {
                     uv0LengthRaw +
                     (static_cast<uint32_t>(i) * Q16_TIME_SCALE) +
                     static_cast<uint32_t>((static_cast<uint64_t>(timeRaw) * Q16_TIME_SCALE) >> 16);
-                RgbSample colour = iqCosinePaletteQ16(fl::u16x16::from_raw(paletteTRaw), PatternNormU16(F16_MAX));
+                RgbSample colour = iqCosinePaletteQ16(fl::u16x16::from_raw(paletteTRaw), PatternNormU16(U0X16_MAX));
 
                 uint32_t glowRaw = shaderWaveGlow(dRaw, timeRaw);
 
@@ -192,10 +192,10 @@ namespace PolarShader {
         }
     };
 
-    PaletteGlowPattern::PaletteGlowPattern(Sf16Signal speed, Sf16Signal tileScale)
+    PaletteGlowPattern::PaletteGlowPattern(S0x16Signal speed, S0x16Signal tileScale)
         : state(std::make_shared<State>(std::move(speed), std::move(tileScale))) {}
 
-    void PaletteGlowPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void PaletteGlowPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         uint64_t secondsRaw = (static_cast<uint64_t>(elapsedMs) << 16) / 1000u;
         state->timeRaw = static_cast<uint32_t>(

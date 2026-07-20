@@ -21,10 +21,10 @@
 #include "renderer/pipeline/maths/TimeMaths.h"
 
 namespace PolarShader {
-    sf16 timeMillisToScalar(TimeMillis millis) {
+    s0x16 timeMillisToScalar(TimeMillis millis) {
         int64_t dt_raw = (static_cast<int64_t>(millis) << 16) + (MILLIS_PER_SECOND / 2);
         dt_raw /= MILLIS_PER_SECOND;
-        return sf16(static_cast<int32_t>(dt_raw));
+        return s0x16(static_cast<int32_t>(dt_raw));
     }
 
     TimeMillis clampDeltaTime(TimeMillis deltaTime) {

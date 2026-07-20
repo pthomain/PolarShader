@@ -33,167 +33,167 @@ namespace PolarShader {
 
     // --- PfInterferenceField ---
     std::unique_ptr<UVPattern> pfDualAxis(          // 0510
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfCounterRibbons(    // 0515
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfQuadDirectional(   // 0515-3
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfPosterized(        // 0531
         uint8_t posterizeLevels = 5,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfCross(             // 0614-2
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfLattice(           // standing-wave lattice
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfMoire(             // moire beat field
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfChladni(           // Chladni plate figure
         uint8_t modeCount = 4,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     // --- PfRadialField ---
     std::unique_ptr<UVPattern> pfPetals(            // 0512
         uint8_t petalCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal fold = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal fold = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfRipple(            // 0524-2
         uint8_t waveCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfChirp(             // radial sonar chirp
         uint8_t waveCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal fold = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal fold = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfSpiralArms(        // galaxy pinwheel arms
         uint8_t armCount = 5,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal fold = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal fold = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     // --- PfSourceField ---
     std::unique_ptr<UVPattern> pfRippleTank(        // N-emitter ripple tank
         uint8_t sourceCount = 3,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     // --- PfContourField ---
     std::unique_ptr<UVPattern> pfOrganic(           // 0519-1
         uint8_t contourLevels = 10,
         bool hardEdges = false,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal tension = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal tension = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfTopographic(       // 0529
         uint8_t contourLevels = 8,
         bool hardEdges = false,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal tension = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal tension = constant(500)
     );
 
     // --- PfPlasmaWarp ---
     std::unique_ptr<UVPattern> pfPlasma(            // A Big Hit
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfTendrils(          // 0520
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfLiquidGate(        // 0530
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     // --- PfCellularField ---
     std::unique_ptr<UVPattern> pfConcentricGrid(    // Origin
         uint8_t cellCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfRowSegments(       // 0511 (approx)
         uint8_t cellCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfShapes(            // 0514
         uint8_t cellCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfDots(              // 0528
         uint8_t cellCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfWaveMatrix(        // 0601
         uint8_t cellCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 
     std::unique_ptr<UVPattern> pfRadialPulse(       // 0624 (approx)
         uint8_t cellCount = 6,
-        Sf16Signal phaseSpeed = constant(500),
-        Sf16Signal warp = constant(500),
-        Sf16Signal thickness = constant(500)
+        S0x16Signal phaseSpeed = constant(500),
+        S0x16Signal warp = constant(500),
+        S0x16Signal thickness = constant(500)
     );
 }
 

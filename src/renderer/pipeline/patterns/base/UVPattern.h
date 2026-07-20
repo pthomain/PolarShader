@@ -40,7 +40,7 @@ namespace PolarShader {
 
         virtual void setContext(std::shared_ptr<PipelineContext> context);
 
-        virtual void advanceFrame(f16 progress, TimeMillis elapsedMs) {
+        virtual void advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
             (void)progress;
             (void)elapsedMs;
         }

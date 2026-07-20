@@ -24,7 +24,7 @@
 #include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-    using PolarCoords = fl::pair<f16, f16>;
+    using PolarCoords = fl::pair<u0x16, u0x16>;
 
     struct RasterDisplayInfo {
         bool valid{false};
@@ -43,8 +43,8 @@ namespace PolarShader {
     };
 
     struct RenderPoint {
-        f16 angle{0};
-        f16 radius{0};
+        u0x16 angle{0};
+        u0x16 radius{0};
         RasterPoint raster{};
     };
 

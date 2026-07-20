@@ -41,8 +41,8 @@ namespace PolarShader {
         uint16_t matrixHeight() const { return displayHeight() / subsample(); }
 
         // Scale so the unit circle has a diameter equal to the matrix diagonal.
-        // 1 / sqrt(2) in f16/sf16 (~0.7071).
-        static constexpr uint16_t DIAGONAL_SCALE_F16 = 46341u;
+        // 1 / sqrt(2) in u0x16/s0x16 (~0.7071).
+        static constexpr uint16_t DIAGONAL_SCALE_U0X16 = 46341u;
 
         uint16_t numSegments() const override {
             return matrixHeight();
@@ -61,7 +61,7 @@ namespace PolarShader {
             uint16_t mHeight = matrixHeight();
 
             if (pixelIndex >= nbLeds()) {
-                return {f16(0), f16(0)};
+                return {u0x16(0), u0x16(0)};
             }
 
             uint16_t x = pixelIndex % mWidth;
@@ -85,22 +85,22 @@ namespace PolarShader {
                 denom_y = common;
             }
 
-            const int32_t x_q0_16 = (centered_x * SF16_ONE) / denom_x;
-            const int32_t y_q0_16 = (centered_y * SF16_ONE) / denom_y;
+            const int32_t x_q0_16 = (centered_x * S0X16_ONE) / denom_x;
+            const int32_t y_q0_16 = (centered_y * S0X16_ONE) / denom_y;
 
-            const f16 diagonal_scale(DIAGONAL_SCALE_F16);
-            const int32_t scaled_x = mulI32F16Sat(x_q0_16, diagonal_scale);
-            const int32_t scaled_y = mulI32F16Sat(y_q0_16, diagonal_scale);
+            const u0x16 diagonal_scale(DIAGONAL_SCALE_U0X16);
+            const int32_t scaled_x = mulI32U0x16Sat(x_q0_16, diagonal_scale);
+            const int32_t scaled_y = mulI32U0x16Sat(y_q0_16, diagonal_scale);
 
             // Convert to UV space [0, 1] then to Polar UV.
             UV cart_uv(
-                fl::s16x16::from_raw((scaled_x + SF16_ONE) >> 1),
-                fl::s16x16::from_raw((scaled_y + SF16_ONE) >> 1)
+                fl::s16x16::from_raw((scaled_x + S0X16_ONE) >> 1),
+                fl::s16x16::from_raw((scaled_y + S0X16_ONE) >> 1)
             );
             UV polar = cartesianToPolarUV(cart_uv);
             return {
-                f16(static_cast<uint16_t>(polar.u.raw())),
-                f16(static_cast<uint16_t>(polar.v.raw()))
+                u0x16(static_cast<uint16_t>(polar.u.raw())),
+                u0x16(static_cast<uint16_t>(polar.v.raw()))
             };
         }
 

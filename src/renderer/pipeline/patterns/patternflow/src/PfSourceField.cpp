@@ -19,9 +19,9 @@ namespace PolarShader {
 
     struct PfSourceField::State {
         uint8_t sourceCount;
-        Sf16Signal phaseSpeedSignal;
-        Sf16Signal warpSignal;
-        Sf16Signal thicknessSignal;
+        S0x16Signal phaseSpeedSignal;
+        S0x16Signal warpSignal;
+        S0x16Signal thicknessSignal;
 
         int32_t tTurns{0};
         int32_t kCycles{3};      // spatial frequency (cycles per Q16 unit dist)
@@ -34,7 +34,7 @@ namespace PolarShader {
         TimeMillis lastElapsedMs{0u};
         bool hasLastElapsed{false};
 
-        State(uint8_t sc, Sf16Signal ps, Sf16Signal wp, Sf16Signal th)
+        State(uint8_t sc, S0x16Signal ps, S0x16Signal wp, S0x16Signal th)
             : sourceCount(sc < 1 ? uint8_t(1) : (sc > PF_SOURCE_MAX ? PF_SOURCE_MAX : sc)),
               phaseSpeedSignal(std::move(ps)),
               warpSignal(std::move(wp)),
@@ -45,8 +45,8 @@ namespace PolarShader {
         const State *state;
 
         PaletteSample sample(UV uv) const {
-            const int32_t X = (raw(uv.u) << 1) - SF16_ONE;
-            const int32_t Y = (raw(uv.v) << 1) - SF16_ONE;
+            const int32_t X = (raw(uv.u) << 1) - S0X16_ONE;
+            const int32_t Y = (raw(uv.v) << 1) - S0X16_ONE;
             const int32_t t = state->tTurns;
             const int32_t k = state->kCycles;
             const uint8_t n = state->sourceCount;
@@ -59,18 +59,18 @@ namespace PolarShader {
                 int32_t phase = static_cast<int32_t>(k * dist) - t;
                 acc += raw(PfMath::pfSinTurns(phase));
             }
-            // Mean travelling-wave amplitude in sf16 raw units, [-1, 1].
+            // Mean travelling-wave amplitude in s0x16 raw units, [-1, 1].
             int32_t wv = acc / n;
 
             // Thin bright crest where the summed wave peaks (+1), plus a faint
             // base so troughs are not fully black.
-            uint16_t crest = PfMath::pfBump(SF16_ONE - wv, state->halfBandRaw);
-            uint32_t base = static_cast<uint32_t>(raw(PfMath::pfSignedToNorm(wv, SF16_ONE))) >> 2;
+            uint16_t crest = PfMath::pfBump(S0X16_ONE - wv, state->halfBandRaw);
+            uint32_t base = static_cast<uint32_t>(raw(PfMath::pfSignedToNorm(wv, S0X16_ONE))) >> 2;
             uint32_t out = static_cast<uint32_t>(crest) + base;
-            if (out > F16_MAX) out = F16_MAX;
+            if (out > U0X16_MAX) out = U0X16_MAX;
 
             // Hue: the signed interference amplitude tints crest vs trough.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(wv, SF16_ONE);
+            PatternNormU16 hue = PfMath::pfSignedToNorm(wv, S0X16_ONE);
             return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(out))};
         }
 
@@ -81,9 +81,9 @@ namespace PolarShader {
 
     PfSourceField::PfSourceField(
         uint8_t sourceCount,
-        Sf16Signal phaseSpeed,
-        Sf16Signal warp,
-        Sf16Signal thickness
+        S0x16Signal phaseSpeed,
+        S0x16Signal warp,
+        S0x16Signal thickness
     ) : state(std::make_shared<State>(
         sourceCount,
         std::move(phaseSpeed),
@@ -91,7 +91,7 @@ namespace PolarShader {
         std::move(thickness)
     )) {}
 
-    void PfSourceField::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void PfSourceField::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 
@@ -120,8 +120,8 @@ namespace PolarShader {
         );
 
         // Crest band half-width: 0.05 .. 0.25 of a unit as thickness goes 0 -> 1.
-        s.halfBandRaw = (SF16_ONE * 5 / 100) + static_cast<int32_t>(
-            (static_cast<int64_t>(thickRaw) * (SF16_ONE * 20 / 100)) >> 16
+        s.halfBandRaw = (S0X16_ONE * 5 / 100) + static_cast<int32_t>(
+            (static_cast<int64_t>(thickRaw) * (S0X16_ONE * 20 / 100)) >> 16
         );
 
         // Emitters drift on a rotating ring of radius 0.5. The ring rotation is
@@ -129,11 +129,11 @@ namespace PolarShader {
         int32_t ringSpin = PfMath::pfCoefT(s.tTurns, 1, 8);
         for (uint8_t i = 0; i < s.sourceCount; ++i) {
             int32_t baseTurns = static_cast<int32_t>(
-                (static_cast<int64_t>(i) * F16_MAX) / s.sourceCount
+                (static_cast<int64_t>(i) * U0X16_MAX) / s.sourceCount
             );
-            f16 a = f16(static_cast<uint16_t>(baseTurns + ringSpin));
-            s.srcX[i] = raw(scaleSf16(angleCosF16(a), perMil(500)));
-            s.srcY[i] = raw(scaleSf16(angleSinF16(a), perMil(500)));
+            u0x16 a = u0x16(static_cast<uint16_t>(baseTurns + ringSpin));
+            s.srcX[i] = raw(scaleS0x16(angleCosU0x16(a), perMil(500)));
+            s.srcY[i] = raw(scaleS0x16(angleSinU0x16(a), perMil(500)));
         }
     }
 

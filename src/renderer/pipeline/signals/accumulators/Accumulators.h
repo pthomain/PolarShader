@@ -27,14 +27,14 @@ namespace PolarShader {
     // PhaseAccumulator wraps in 16-bit turn space and is only valid for angular/phase domains.
     class PhaseAccumulator {
     public:
-        using SpeedSampleFn = Sf16Signal::WaveformFn;
+        using SpeedSampleFn = S0x16Signal::WaveformFn;
 
         explicit PhaseAccumulator(
             SpeedSampleFn speed,
-            f16 initialPhase = f16(0)
+            u0x16 initialPhase = u0x16(0)
         );
 
-        f16 advance(TimeMillis elapsedMs);
+        u0x16 advance(TimeMillis elapsedMs);
 
         uint32_t advanceRaw(TimeMillis elapsedMs);
 

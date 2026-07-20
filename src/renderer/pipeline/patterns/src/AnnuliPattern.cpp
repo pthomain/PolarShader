@@ -75,7 +75,7 @@ namespace PolarShader {
             const State &s = *state;
             if (s.counter < 0) return PatternNormU16(0u);
 
-            // Convert UV to polar: out.u = angle (f16 turns), out.v = radius (q16 [0, 1]).
+            // Convert UV to polar: out.u = angle (u0x16 turns), out.v = radius (q16 [0, 1]).
             UV polar = cartesianToPolarUV(uv);
             uint16_t angleTurns = static_cast<uint16_t>(polar.u.raw());
             uint32_t radiusRaw = static_cast<uint32_t>(polar.v.raw());
@@ -112,7 +112,7 @@ namespace PolarShader {
         holdMs
     )) {}
 
-    void AnnuliPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void AnnuliPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 

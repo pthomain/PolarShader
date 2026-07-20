@@ -66,7 +66,7 @@ namespace PolarShader {
     );
 
     // Base noise pattern (inoise16) with signed cartesian input.
-    std::unique_ptr<UVPattern> noisePattern(Sf16Signal depthSpeedSignal = cRandom());
+    std::unique_ptr<UVPattern> noisePattern(S0x16Signal depthSpeedSignal = cRandom());
 
     // fBm noise pattern with configurable octaves (default 4).
     std::unique_ptr<UVPattern> fbmNoisePattern(
@@ -187,24 +187,24 @@ namespace PolarShader {
         uint8_t gridSize = 32,
         uint8_t dotCount = 3,
         FlowFieldPattern::EmitterMode mode = FlowFieldPattern::EmitterMode::Both,
-        Sf16Signal xDrift = constant(50),
-        Sf16Signal yDrift = constant(75),
-        Sf16Signal amplitude = constant(100),
-        Sf16Signal frequency = constant(60),
-        Sf16Signal endpointSpeed = constant(500),
-        Sf16Signal halfLife = constant(600),
-        Sf16Signal orbitSpeed = constant(300),
-        Sf16Signal orbitRadius = constant(500)
+        S0x16Signal xDrift = constant(50),
+        S0x16Signal yDrift = constant(75),
+        S0x16Signal amplitude = constant(100),
+        S0x16Signal frequency = constant(60),
+        S0x16Signal endpointSpeed = constant(500),
+        S0x16Signal halfLife = constant(600),
+        S0x16Signal orbitSpeed = constant(300),
+        S0x16Signal orbitRadius = constant(500)
     );
 
     // 2D backward-advected transport field with pluggable vector modes.
     std::unique_ptr<UVPattern> transportPattern(
         uint8_t gridSize = 32,
         TransportPattern::TransportMode mode = TransportPattern::TransportMode::SpiralInward,
-        Sf16Signal radialSpeed = constant(300),
-        Sf16Signal angularSpeed = constant(200),
-        Sf16Signal halfLife = constant(600),
-        Sf16Signal emitterSpeed = constant(500),
+        S0x16Signal radialSpeed = constant(300),
+        S0x16Signal angularSpeed = constant(200),
+        S0x16Signal halfLife = constant(600),
+        S0x16Signal emitterSpeed = constant(500),
         bool velocityGlow = false
     );
 
@@ -212,9 +212,9 @@ namespace PolarShader {
     std::unique_ptr<UVPattern> spiralPattern(
         uint8_t armCount = 2,
         bool clockwise = true,
-        Sf16Signal tightness = constant(720),
-        Sf16Signal armThickness = constant(500),
-        Sf16Signal rotationSpeed = constant(300)
+        S0x16Signal tightness = constant(720),
+        S0x16Signal armThickness = constant(500),
+        S0x16Signal rotationSpeed = constant(300)
     );
 
     // Concentric annuli sweep-fill. Polar reinterpretation of CD77 box-fill.
@@ -231,84 +231,84 @@ namespace PolarShader {
         uint8_t gridSize = 32,
         uint8_t lineCount = 1,
         FlurryPattern::Shape shape = FlurryPattern::Shape::Line,
-        Sf16Signal xDrift = constant(50),
-        Sf16Signal yDrift = constant(75),
-        Sf16Signal amplitude = constant(100),
-        Sf16Signal frequency = constant(60),
-        Sf16Signal endpointSpeed = constant(500),
-        Sf16Signal fade = constant(700)
+        S0x16Signal xDrift = constant(50),
+        S0x16Signal yDrift = constant(75),
+        S0x16Signal amplitude = constant(100),
+        S0x16Signal frequency = constant(60),
+        S0x16Signal endpointSpeed = constant(500),
+        S0x16Signal fade = constant(700)
     );
 
     // ShaderToy-style recursive radial glow using the IQ cosine palette.
     std::unique_ptr<UVPattern> paletteGlowPattern(
-        Sf16Signal speed = constant(1000),
-        Sf16Signal tileScale = constant(500)
+        S0x16Signal speed = constant(1000),
+        S0x16Signal tileScale = constant(500)
     );
 
     // ShaderToy Rocaille port with the source shader's nine slider controls.
     std::unique_ptr<UVPattern> rocaillePattern(
-        Sf16Signal scale = constant(333),
-        Sf16Signal length = constant(429),
-        Sf16Signal detail = constant(222),
-        Sf16Signal turbulence = constant(500),
-        Sf16Signal frequency = constant(333),
-        Sf16Signal speed = constant(333),
-        Sf16Signal layers = constant(727),
-        Sf16Signal hue = constant(500),
-        Sf16Signal glow = constant(429)
+        S0x16Signal scale = constant(333),
+        S0x16Signal length = constant(429),
+        S0x16Signal detail = constant(222),
+        S0x16Signal turbulence = constant(500),
+        S0x16Signal frequency = constant(333),
+        S0x16Signal speed = constant(333),
+        S0x16Signal layers = constant(727),
+        S0x16Signal hue = constant(500),
+        S0x16Signal glow = constant(429)
     );
 
     // ShaderToy XsXXDn / Danilo Guanabara RGB warp.
     std::unique_ptr<UVPattern> proteanCloudsPattern(
-        Sf16Signal speed = constant(1000),
-        Sf16Signal warp = constant(500),
-        Sf16Signal frequency = constant(500),
-        Sf16Signal brightness = constant(500)
+        S0x16Signal speed = constant(1000),
+        S0x16Signal warp = constant(500),
+        S0x16Signal frequency = constant(500),
+        S0x16Signal brightness = constant(500)
     );
 
     // ShaderToy tlVGDt "Octgrams".
     std::unique_ptr<UVPattern> octgramsPattern(
-        Sf16Signal speed = constant(1000),
-        Sf16Signal travel = constant(500),
-        Sf16Signal pulse = constant(500),
-        Sf16Signal density = constant(500),
-        Sf16Signal glow = constant(500)
+        S0x16Signal speed = constant(1000),
+        S0x16Signal travel = constant(500),
+        S0x16Signal pulse = constant(500),
+        S0x16Signal density = constant(500),
+        S0x16Signal glow = constant(500)
     );
 
     // ShaderToy 7ctGz4 rotating square traces.
     std::unique_ptr<UVPattern> rotatingSquaresPattern(
-        Sf16Signal speed = constant(1000),
-        Sf16Signal thickness = constant(375),
-        Sf16Signal pulse = constant(333),
-        Sf16Signal brightness = constant(500)
+        S0x16Signal speed = constant(1000),
+        S0x16Signal thickness = constant(375),
+        S0x16Signal pulse = constant(333),
+        S0x16Signal brightness = constant(500)
     );
 
     // ShaderToy MfjyWK "Starry planes".
     std::unique_ptr<UVPattern> starryPlanesPattern(
-        Sf16Signal speed = constant(1000),
-        Sf16Signal planeSpacing = constant(500),
-        Sf16Signal starSize = constant(400),
-        Sf16Signal path = constant(500),
-        Sf16Signal brightness = constant(500)
+        S0x16Signal speed = constant(1000),
+        S0x16Signal planeSpacing = constant(500),
+        S0x16Signal starSize = constant(400),
+        S0x16Signal path = constant(500),
+        S0x16Signal brightness = constant(500)
     );
 
     // ShaderToy DsVGRc trigonometric colour field.
     std::unique_ptr<UVPattern> trigFieldPattern(
-        Sf16Signal zoom = constant(379),
-        Sf16Signal yOffset = constant(0),
-        Sf16Signal waveScale = constant(364),
-        Sf16Signal speed = constant(500),
-        Sf16Signal colorSpread = constant(500),
-        Sf16Signal brightness = constant(500)
+        S0x16Signal zoom = constant(379),
+        S0x16Signal yOffset = constant(0),
+        S0x16Signal waveScale = constant(364),
+        S0x16Signal speed = constant(500),
+        S0x16Signal colorSpread = constant(500),
+        S0x16Signal brightness = constant(500)
     );
 
     // Slow forward-travel RGB star field.
     std::unique_ptr<UVPattern> starFieldTravelPattern(
-        Sf16Signal speed = constant(250),
-        Sf16Signal density = constant(500),
-        Sf16Signal trail = constant(500),
-        Sf16Signal starSize = constant(400),
-        Sf16Signal brightness = constant(600)
+        S0x16Signal speed = constant(250),
+        S0x16Signal density = constant(500),
+        S0x16Signal trail = constant(500),
+        S0x16Signal starSize = constant(400),
+        S0x16Signal brightness = constant(600)
     );
 }
 

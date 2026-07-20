@@ -58,22 +58,22 @@ namespace PolarShader {
         };
 
         template<>
-        struct SignalAccumulator<f16> {
-            static f16 zero() { return f16(0); }
+        struct SignalAccumulator<u0x16> {
+            static u0x16 zero() { return u0x16(0); }
 
-            static f16 add(f16 base, f16 delta) {
+            static u0x16 add(u0x16 base, u0x16 delta) {
                 uint32_t sum = static_cast<uint32_t>(raw(base)) + static_cast<uint32_t>(raw(delta));
-                return f16(static_cast<uint16_t>(sum));
+                return u0x16(static_cast<uint16_t>(sum));
             }
         };
 
         template<>
-        struct SignalAccumulator<sf16> {
-            static sf16 zero() { return sf16(0); }
+        struct SignalAccumulator<s0x16> {
+            static s0x16 zero() { return s0x16(0); }
 
-            static sf16 add(sf16 base, sf16 delta) {
+            static s0x16 add(s0x16 base, s0x16 delta) {
                 int64_t sum = static_cast<int64_t>(raw(base)) + static_cast<int64_t>(raw(delta));
-                return clampSf16Sat(sum);
+                return clampS0x16Sat(sum);
             }
         };
 

@@ -27,9 +27,9 @@ namespace PolarShader {
     inline constexpr uint16_t MILLIS_PER_SECOND = 1000;
 
     /**
-     * @brief Converts milliseconds to a f16/sf16 fixed-point representation of seconds.
+     * @brief Converts milliseconds to a u0x16/s0x16 fixed-point representation of seconds.
      */
-    sf16 timeMillisToScalar(TimeMillis millis);
+    s0x16 timeMillisToScalar(TimeMillis millis);
 
     TimeMillis clampDeltaTime(TimeMillis deltaTime);
 }

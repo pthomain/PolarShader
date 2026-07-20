@@ -19,18 +19,18 @@ namespace PolarShader {
     struct PfRadialField::State {
         Variant variant;
         uint8_t petalCount;
-        Sf16Signal phaseSpeedSignal;
-        Sf16Signal foldSignal;
-        Sf16Signal thicknessSignal;
+        S0x16Signal phaseSpeedSignal;
+        S0x16Signal foldSignal;
+        S0x16Signal thicknessSignal;
 
         int32_t tTurns{0};
-        f16 foldF16{f16(0)};
+        u0x16 foldU0x16{u0x16(0)};
         int32_t halfBandRaw{0}; // petal band half-width in Q16 radius units
 
         TimeMillis lastElapsedMs{0u};
         bool hasLastElapsed{false};
 
-        State(Variant v, uint8_t pc, Sf16Signal ps, Sf16Signal fold, Sf16Signal th)
+        State(Variant v, uint8_t pc, S0x16Signal ps, S0x16Signal fold, S0x16Signal th)
             : variant(v),
               petalCount(pc < 1 ? uint8_t(1) : pc),
               phaseSpeedSignal(std::move(ps)),
@@ -43,21 +43,21 @@ namespace PolarShader {
 
         PaletteSample petals(UV uv) const {
             UV polar = cartesianToPolarUV(uv);
-            int32_t angleTurns = raw(polar.u);   // f16 turns (0..65535)
+            int32_t angleTurns = raw(polar.u);   // u0x16 turns (0..65535)
             int32_t radiusQ16 = raw(polar.v);    // [0, 65536]
             const int32_t t = state->tTurns;
 
             // Angular petal wave and a radial ripple layered on top.
-            sf16 petalWave = PfMath::pfSinTurns(state->petalCount * angleTurns + PfMath::pfCoefT(t, 2, 1));
-            sf16 ripple = scaleSf16(
+            s0x16 petalWave = PfMath::pfSinTurns(state->petalCount * angleTurns + PfMath::pfCoefT(t, 2, 1));
+            s0x16 ripple = scaleS0x16(
                 PfMath::pfSinTurns(2 * radiusQ16 - PfMath::pfCoefT(t, 3, 1)),
-                state->foldF16
+                state->foldU0x16
             );
 
             // targetRadius = 0.45 + 0.30*petalWave + 0.15*ripple  (Q16 radius)
-            int32_t target = (SF16_ONE * 45 / 100)
-                             + raw(scaleSf16(petalWave, perMil(300)))
-                             + raw(scaleSf16(ripple, perMil(150)));
+            int32_t target = (S0X16_ONE * 45 / 100)
+                             + raw(scaleS0x16(petalWave, perMil(300)))
+                             + raw(scaleS0x16(ripple, perMil(150)));
 
             int32_t diff = radiusQ16 - target;
             uint16_t band = PfMath::pfBump(diff, state->halfBandRaw);
@@ -74,9 +74,9 @@ namespace PolarShader {
 
             // Angular warp bends the radial wavefronts (refraction stand-in),
             // scaled by fold. No true refraction sampling.
-            int32_t warpPhase = raw(scaleSf16(
+            int32_t warpPhase = raw(scaleS0x16(
                 PfMath::pfSinTurns(2 * angleTurns + PfMath::pfCoefT(t, 3, 2)),
-                state->foldF16
+                state->foldU0x16
             ));
             // petalCount travelling concentric ripples pushed inward over time.
             int32_t wave = raw(PfMath::pfSinTurns(
@@ -84,12 +84,12 @@ namespace PolarShader {
             ));
             // Bright thin crest where the wave peaks (+1), plus a faint base so
             // troughs are not fully black.
-            uint16_t crest = PfMath::pfBump(SF16_ONE - wave, state->halfBandRaw);
-            uint32_t base = static_cast<uint32_t>(raw(PfMath::pfSignedToNorm(wave, SF16_ONE))) >> 2;
+            uint16_t crest = PfMath::pfBump(S0X16_ONE - wave, state->halfBandRaw);
+            uint32_t base = static_cast<uint32_t>(raw(PfMath::pfSignedToNorm(wave, S0X16_ONE))) >> 2;
             uint32_t out = static_cast<uint32_t>(crest) + base;
-            if (out > F16_MAX) out = F16_MAX;
+            if (out > U0X16_MAX) out = U0X16_MAX;
             // Hue: the signed ripple wave in [-1, 1] tints crest vs trough.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, SF16_ONE);
+            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, S0X16_ONE);
             return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(out))};
         }
 
@@ -101,16 +101,16 @@ namespace PolarShader {
             // Instantaneous radial frequency rises with radius: the ring phase
             // is r*(f0 + k*r), so rings densify toward the edge. petalCount is
             // the base ring count f0; fold adds the k*r sweep gain.
-            int32_t rC = radiusQ16 > static_cast<int32_t>(SF16_MAX) ? SF16_MAX : radiusQ16;
-            int32_t chirpGain = SF16_ONE + static_cast<int32_t>(
-                (static_cast<int64_t>(raw(state->foldF16)) * rC) >> 16
+            int32_t rC = radiusQ16 > static_cast<int32_t>(S0X16_MAX) ? S0X16_MAX : radiusQ16;
+            int32_t chirpGain = S0X16_ONE + static_cast<int32_t>(
+                (static_cast<int64_t>(raw(state->foldU0x16)) * rC) >> 16
             );
             int64_t phase = (static_cast<int64_t>(state->petalCount) * rC * chirpGain) >> 16;
             int32_t wave = raw(PfMath::pfSinTurns(static_cast<int32_t>(phase) - t));
 
-            uint16_t crest = PfMath::pfBump(SF16_ONE - wave, state->halfBandRaw);
+            uint16_t crest = PfMath::pfBump(S0X16_ONE - wave, state->halfBandRaw);
             // Hue: the signed sweep wave tints leading vs trailing edge.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, SF16_ONE);
+            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, S0X16_ONE);
             return PaletteSample{hue, PatternNormU16(crest)};
         }
 
@@ -123,12 +123,12 @@ namespace PolarShader {
             // Radius-sheared Archimedean pinwheel: the arm phase winds the
             // angle by an amount proportional to radius (fold = winding gain).
             int32_t wind = static_cast<int32_t>(
-                (static_cast<int64_t>(raw(state->foldF16)) * 8 * radiusQ16) >> 16
+                (static_cast<int64_t>(raw(state->foldU0x16)) * 8 * radiusQ16) >> 16
             );
             int32_t phase = static_cast<int32_t>(state->petalCount) * angleTurns + wind - t;
             int32_t wave = raw(PfMath::pfSinTurns(phase));
 
-            uint16_t arm = PfMath::pfBump(SF16_ONE - wave, state->halfBandRaw);
+            uint16_t arm = PfMath::pfBump(S0X16_ONE - wave, state->halfBandRaw);
             // Hue: the polar angle sweeps colour around the galaxy.
             PatternNormU16 hue = PatternNormU16(static_cast<uint16_t>(angleTurns));
             return PaletteSample{hue, PatternNormU16(arm)};
@@ -152,9 +152,9 @@ namespace PolarShader {
     PfRadialField::PfRadialField(
         Variant variant,
         uint8_t petalCount,
-        Sf16Signal phaseSpeed,
-        Sf16Signal fold,
-        Sf16Signal thickness
+        S0x16Signal phaseSpeed,
+        S0x16Signal fold,
+        S0x16Signal thickness
     ) : state(std::make_shared<State>(
         variant,
         petalCount,
@@ -163,7 +163,7 @@ namespace PolarShader {
         std::move(thickness)
     )) {}
 
-    void PfRadialField::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void PfRadialField::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 
@@ -186,12 +186,12 @@ namespace PolarShader {
         );
         s.tTurns += deltaTurns;
 
-        int32_t foldClamped = foldRaw < 0 ? 0 : (foldRaw > static_cast<int32_t>(F16_MAX) ? F16_MAX : foldRaw);
-        s.foldF16 = f16(static_cast<uint16_t>(foldClamped));
+        int32_t foldClamped = foldRaw < 0 ? 0 : (foldRaw > static_cast<int32_t>(U0X16_MAX) ? U0X16_MAX : foldRaw);
+        s.foldU0x16 = u0x16(static_cast<uint16_t>(foldClamped));
 
         // Band half-width: 0.06 .. 0.26 of radius as thickness goes 0 -> 1.
-        s.halfBandRaw = (SF16_ONE * 6 / 100) + static_cast<int32_t>(
-            (static_cast<int64_t>(thickRaw) * (SF16_ONE * 20 / 100)) >> 16
+        s.halfBandRaw = (S0X16_ONE * 6 / 100) + static_cast<int32_t>(
+            (static_cast<int64_t>(thickRaw) * (S0X16_ONE * 20 / 100)) >> 16
         );
     }
 

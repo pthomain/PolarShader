@@ -69,9 +69,9 @@ namespace PolarShader {
                     // For the center pixel (segment 0), the angle is 0.
                     uint32_t angle_step_raw = currentSegmentSize > 1 ? (0x10000u / currentSegmentSize) : 0;
                     uint32_t angle_raw = static_cast<uint32_t>(pixelInSegment) * angle_step_raw;
-                    f16 angle(angle_raw & 0xFFFFu);
+                    u0x16 angle(angle_raw & 0xFFFFu);
 
-                    f16 radius = toF16(
+                    u0x16 radius = toU0x16(
                         segmentIndex,
                         NB_SEGMENTS > 1 ? NB_SEGMENTS - 1 : 1
                     );
@@ -83,7 +83,7 @@ namespace PolarShader {
             }
 
             // This should not be reached if pixelIndex is valid.
-            return {f16(0), f16(0)};
+            return {u0x16(0), u0x16(0)};
         }
     };
 }

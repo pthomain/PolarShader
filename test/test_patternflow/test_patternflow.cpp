@@ -122,7 +122,7 @@ static PfPresetFn kAliases[19] = {
 };
 
 // Sample a UV functor over the renderer's normalised [0,1] domain (raw
-// [0, F16_MAX]) in both axes, matching what polarToCartesianUV feeds patterns.
+// [0, U0X16_MAX]) in both axes, matching what polarToCartesianUV feeds patterns.
 static void gridSample(const UVMap &m, uint16_t &mn, uint16_t &mx, uint64_t &sum) {
     for (int i = 0; i <= 16; ++i) {
         for (int j = 0; j <= 16; ++j) {
@@ -137,7 +137,7 @@ static void gridSample(const UVMap &m, uint16_t &mn, uint16_t &mx, uint64_t &sum
 
 static void advanceN(UVPattern &p, int frames, TimeMillis step) {
     for (int i = 1; i <= frames; ++i) {
-        p.advanceFrame(f16(0), static_cast<TimeMillis>(i) * step);
+        p.advanceFrame(u0x16(0), static_cast<TimeMillis>(i) * step);
     }
 }
 
@@ -183,9 +183,9 @@ void test_pffieldmaths_cell() {
     uint16_t idx, local;
     PfMath::pfCell(0, 4, idx, local);
     TEST_ASSERT_EQUAL_UINT16(0, idx);
-    PfMath::pfCell(F16_MAX, 4, idx, local);
+    PfMath::pfCell(U0X16_MAX, 4, idx, local);
     TEST_ASSERT_EQUAL_UINT16(3, idx);
-    PfMath::pfCell(F16_MAX / 2, 4, idx, local);
+    PfMath::pfCell(U0X16_MAX / 2, 4, idx, local);
     TEST_ASSERT_TRUE(idx == 1 || idx == 2);
 }
 
@@ -201,7 +201,7 @@ void test_pattern_dynamic_range() {
         uint16_t mn = 0xFFFF, mx = 0;
         uint64_t sum = 0;
         for (int f = 0; f < 6; ++f) {
-            p->advanceFrame(f16(0), static_cast<TimeMillis>(f) * 250u);
+            p->advanceFrame(u0x16(0), static_cast<TimeMillis>(f) * 250u);
             gridSample(p->layer(ctx), mn, mx, sum);
         }
         char msg[64];
@@ -230,10 +230,10 @@ void test_pattern_animates() {
     for (size_t k = 0; k < factories.size(); ++k) {
         auto p = factories[k]();
         uint16_t mn0 = 0xFFFF, mx0 = 0; uint64_t s0 = 0;
-        p->advanceFrame(f16(0), 100u);
+        p->advanceFrame(u0x16(0), 100u);
         gridSample(p->layer(ctx), mn0, mx0, s0);
         uint16_t mn1 = 0xFFFF, mx1 = 0; uint64_t s1 = 0;
-        p->advanceFrame(f16(0), 1600u);
+        p->advanceFrame(u0x16(0), 1600u);
         gridSample(p->layer(ctx), mn1, mx1, s1);
         char msg[64];
         snprintf(msg, sizeof(msg), "%s does not animate", kFactoryNames[k]);
@@ -249,8 +249,8 @@ void test_pattern_deterministic_replay() {
         auto a = factories[k]();
         auto b = factories[k]();
         for (TimeMillis t : seq) {
-            a->advanceFrame(f16(0), t);
-            b->advanceFrame(f16(0), t);
+            a->advanceFrame(u0x16(0), t);
+            b->advanceFrame(u0x16(0), t);
         }
         uint16_t amn = 0xFFFF, amx = 0; uint64_t as = 0;
         uint16_t bmn = 0xFFFF, bmx = 0; uint64_t bs = 0;
@@ -274,7 +274,7 @@ static size_t distinctColours(ColourMap &cm) {
     for (uint32_t a = 0; a < 0x10000u; a += 0x0EE7u) {       // full turn
         for (int r = 1; r <= 8; ++r) {                        // centre -> edge
             uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 8);
-            CRGB c = cm(RenderPoint{f16(static_cast<uint16_t>(a)), f16(radius), RasterPoint{}});
+            CRGB c = cm(RenderPoint{u0x16(static_cast<uint16_t>(a)), u0x16(radius), RasterPoint{}});
             colours.insert((static_cast<uint32_t>(c.r) << 16) |
                            (static_cast<uint32_t>(c.g) << 8) | c.b);
         }
@@ -287,7 +287,7 @@ void test_preset_builds_and_varies() {
     for (int i = 0; i < 19; ++i) {
         Layer layer = PF_EFFECTS[i].preset(pal).build();
         for (int f = 0; f < 4; ++f) {
-            layer.advanceFrame(f16(0), static_cast<TimeMillis>(f) * 250u);
+            layer.advanceFrame(u0x16(0), static_cast<TimeMillis>(f) * 250u);
         }
         auto cm = layer.compile();
         TEST_ASSERT_NOT_NULL(cm.get());
@@ -309,15 +309,15 @@ void test_alias_matches_canonical_first_frame() {
     for (int i = 0; i < 19; ++i) {
         Layer canon = PF_EFFECTS[i].preset(pal).build();
         Layer alias = kAliases[i](pal).build();
-        canon.advanceFrame(f16(0), 0u);
-        alias.advanceFrame(f16(0), 0u);
+        canon.advanceFrame(u0x16(0), 0u);
+        alias.advanceFrame(u0x16(0), 0u);
         auto cc = canon.compile();
         auto ac = alias.compile();
         bool identical = true;
         for (uint32_t a = 0; a < 0x10000u && identical; a += 0x2000u) {
             for (int r = 1; r <= 6; ++r) {
                 uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 6);
-                RenderPoint point{f16(static_cast<uint16_t>(a)), f16(radius), RasterPoint{}};
+                RenderPoint point{u0x16(static_cast<uint16_t>(a)), u0x16(radius), RasterPoint{}};
                 CRGB c1 = (*cc)(point);
                 CRGB c2 = (*ac)(point);
                 if (c1.r != c2.r || c1.g != c2.g || c1.b != c2.b) { identical = false; break; }

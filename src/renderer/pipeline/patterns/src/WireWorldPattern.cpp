@@ -128,9 +128,9 @@ namespace PolarShader {
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             switch (cells[idx]) {
-                case kWwHead: return PatternNormU16(F16_MAX);
-                case kWwTail: return PatternNormU16(F16_MAX * 3u / 4u);
-                case kWwConductor: return PatternNormU16(F16_MAX / 4u);
+                case kWwHead: return PatternNormU16(U0X16_MAX);
+                case kWwTail: return PatternNormU16(U0X16_MAX * 3u / 4u);
+                case kWwConductor: return PatternNormU16(U0X16_MAX / 4u);
                 default: return PatternNormU16(0);
             }
         };
@@ -152,17 +152,17 @@ namespace PolarShader {
                 case kWwHead:
                     return PaletteSample{
                         PatternNormU16(raster::hue8ToPatternRaw(kWwHeadHue)),
-                        PatternNormU16(F16_MAX)
+                        PatternNormU16(U0X16_MAX)
                     };
                 case kWwTail:
                     return PaletteSample{
                         PatternNormU16(raster::hue8ToPatternRaw(kWwTailHue)),
-                        PatternNormU16(F16_MAX * 3u / 4u)
+                        PatternNormU16(U0X16_MAX * 3u / 4u)
                     };
                 case kWwConductor:
                     return PaletteSample{
                         PatternNormU16(raster::hue8ToPatternRaw(kWwConductorHue)),
-                        PatternNormU16(F16_MAX / 4u)
+                        PatternNormU16(U0X16_MAX / 4u)
                     };
                 default:
                     return PaletteSample{};

@@ -37,7 +37,7 @@ namespace PolarShader {
 
         uint32_t divisions = state.divisions;
         if (divisions > 1u) {
-            uint32_t full_radius = static_cast<uint32_t>(SF16_MAX) + 1u;
+            uint32_t full_radius = static_cast<uint32_t>(S0X16_MAX) + 1u;
             uint32_t segment = full_radius / divisions;
             if (segment != 0u) {
                 uint32_t radius_raw = static_cast<uint32_t>(polar_uv.v.raw());

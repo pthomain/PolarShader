@@ -35,7 +35,7 @@ namespace PolarShader {
         constexpr uint8_t FLOW_GRID_H = 16;
         constexpr uint8_t FLOW_TRACE_STEPS = 4;
 
-        int32_t sampleSignedSpeedRaw(Sf16Signal &signal, TimeMillis elapsedMs) {
+        int32_t sampleSignedSpeedRaw(S0x16Signal &signal, TimeMillis elapsedMs) {
             return raw(signal.sample(bipolarRange(), elapsedMs));
         }
 
@@ -129,10 +129,10 @@ namespace PolarShader {
 
     struct FlowFieldTransform::State {
         PhaseAccumulator phase;
-        Sf16Signal flowStrengthSignal;
-        Sf16Signal fieldScaleSignal;
+        S0x16Signal flowStrengthSignal;
+        S0x16Signal fieldScaleSignal;
         MagnitudeRange<fl::s24x8> fieldScaleRange;
-        Sf16Signal maxOffsetSignal;
+        S0x16Signal maxOffsetSignal;
         MagnitudeRange<fl::s24x8> maxOffsetRange;
         fl::s24x8 fieldScale = fl::s24x8::from_raw(0);
         fl::s24x8 maxOffset = fl::s24x8::from_raw(0);
@@ -141,15 +141,15 @@ namespace PolarShader {
         std::array<v32, FLOW_GRID_W * FLOW_GRID_H> grid{};
 
         State(
-            Sf16Signal phaseSpeedSignal,
-            Sf16Signal flowStrengthSignal,
-            Sf16Signal fieldScaleSignal,
+            S0x16Signal phaseSpeedSignal,
+            S0x16Signal flowStrengthSignal,
+            S0x16Signal fieldScaleSignal,
             MagnitudeRange<fl::s24x8> fieldScaleRange,
-            Sf16Signal maxOffsetSignal,
+            S0x16Signal maxOffsetSignal,
             MagnitudeRange<fl::s24x8> maxOffsetRange
         ) : phase(
                 [speed = std::move(phaseSpeedSignal)](TimeMillis elapsedMs) mutable {
-                    return sf16(sampleSignedSpeedRaw(speed, elapsedMs));
+                    return s0x16(sampleSignedSpeedRaw(speed, elapsedMs));
                 }
             ),
             flowStrengthSignal(std::move(flowStrengthSignal)),
@@ -161,10 +161,10 @@ namespace PolarShader {
     };
 
     FlowFieldTransform::FlowFieldTransform(
-        Sf16Signal phaseSpeed,
-        Sf16Signal flowStrength,
-        Sf16Signal fieldScale,
-        Sf16Signal maxOffset,
+        S0x16Signal phaseSpeed,
+        S0x16Signal flowStrength,
+        S0x16Signal fieldScale,
+        S0x16Signal maxOffset,
         MagnitudeRange<fl::s24x8> fieldScaleRange,
         MagnitudeRange<fl::s24x8> maxOffsetRange
     ) : state(std::make_shared<State>(
@@ -177,9 +177,9 @@ namespace PolarShader {
     )) {
     }
 
-    void FlowFieldTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void FlowFieldTransform::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
-        f16 phase = state->phase.advance(elapsedMs);
+        u0x16 phase = state->phase.advance(elapsedMs);
         state->timeOffsetRaw = static_cast<int32_t>(raw(phase)) << 8;
         state->fieldScale = state->fieldScaleSignal.sample(state->fieldScaleRange, elapsedMs);
         state->maxOffset = state->maxOffsetSignal.sample(state->maxOffsetRange, elapsedMs);

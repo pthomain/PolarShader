@@ -25,21 +25,21 @@
 
 namespace PolarShader {
     /**
-     * @brief Maps signals to angular values (f16) with wrapping.
+     * @brief Maps signals to angular values (u0x16) with wrapping.
      *
      * Handles wrapping logic appropriate for angles (e.g., 0-360 degrees).
      */
-    class AngleRange : public Range<f16> {
+    class AngleRange : public Range<u0x16> {
     public:
-        AngleRange(f16 min = f16(0), f16 max = f16(F16_MAX))
+        AngleRange(u0x16 min = u0x16(0), u0x16 max = u0x16(U0X16_MAX))
             : min_frac(min), max_frac(max) {
         }
 
-        f16 map(sf16 t) const override {
+        u0x16 map(s0x16 t) const override {
             uint16_t min_raw = raw(min_frac);
             uint16_t max_raw = raw(max_frac);
             if (min_raw == max_raw) return min_frac;
-            uint32_t full_turn = static_cast<uint32_t>(F16_MAX) + 1u;
+            uint32_t full_turn = static_cast<uint32_t>(U0X16_MAX) + 1u;
 
             uint32_t span = 0;
             if (max_raw > min_raw) {
@@ -53,12 +53,12 @@ namespace PolarShader {
             uint32_t result = static_cast<uint32_t>(min_raw) + scaled;
             if (result >= full_turn) result -= full_turn;
 
-            return f16(static_cast<uint16_t>(result));
+            return u0x16(static_cast<uint16_t>(result));
         }
 
     private:
-        f16 min_frac = f16(0);
-        f16 max_frac = f16(F16_MAX);
+        u0x16 min_frac = u0x16(0);
+        u0x16 max_frac = u0x16(U0X16_MAX);
     };
 }
 

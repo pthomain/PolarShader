@@ -56,10 +56,10 @@ namespace PolarShader {
         struct NoisePunch {
             fl::s16x16 center{fl::s16x16::from_raw(0)};
             fl::s16x16 width{fl::s16x16::from_raw(0)};
-            sf16 amplitude{sf16(0)};
+            s0x16 amplitude{s0x16(0)};
             FlowFieldPattern::NoisePunchShape shape{FlowFieldPattern::NoisePunchShape::HalfSine};
 
-            void trigger(fl::s16x16 c, fl::s16x16 w, sf16 amp, FlowFieldPattern::NoisePunchShape s) {
+            void trigger(fl::s16x16 c, fl::s16x16 w, s0x16 amp, FlowFieldPattern::NoisePunchShape s) {
                 center = c;
                 width = w;
                 amplitude = amp;
@@ -68,48 +68,48 @@ namespace PolarShader {
 
             void decay(TimeMillis dtMs) {
                 if (raw(amplitude) == 0) return;
-                f16 factor = halfLifeFade(dtMs, kPunchDecayHalfLifeMs);
+                u0x16 factor = halfLifeFade(dtMs, kPunchDecayHalfLifeMs);
                 int32_t decayed = (static_cast<int64_t>(raw(amplitude)) * raw(factor)) >> 16;
                 // Kill small residuals.
                 if (decayed < 16 && decayed > -16) decayed = 0;
-                amplitude = sf16(static_cast<int32_t>(decayed));
+                amplitude = s0x16(static_cast<int32_t>(decayed));
             }
 
-            sf16 evaluate(uint8_t index, uint8_t gridSize) const {
-                if (raw(amplitude) == 0 || raw(width) == 0) return sf16(0);
+            s0x16 evaluate(uint8_t index, uint8_t gridSize) const {
+                if (raw(amplitude) == 0 || raw(width) == 0) return s0x16(0);
 
                 // Compute position of index relative to center, normalised to [-1, 1] over width.
-                int32_t posRaw = (static_cast<int32_t>(index) << kQ16Shift) + (SF16_ONE >> 1);
+                int32_t posRaw = (static_cast<int32_t>(index) << kQ16Shift) + (S0X16_ONE >> 1);
                 int32_t halfWidthRaw = raw(width) >> 1;
                 if (halfWidthRaw == 0) halfWidthRaw = 1;
                 int32_t deltaRaw = posRaw - raw(center);
                 // x in [-1, 1] as Q16.16
                 int32_t xRaw = (static_cast<int64_t>(deltaRaw) << 16) / halfWidthRaw;
-                if (xRaw < -(1 << 16) || xRaw > (1 << 16)) return sf16(0);
+                if (xRaw < -(1 << 16) || xRaw > (1 << 16)) return s0x16(0);
 
                 int32_t shapedRaw;
                 if (shape == FlowFieldPattern::NoisePunchShape::HalfSine) {
-                    // Map x from [-1, 1] to angle [0, pi] -> f16 [0, 0x8000].
-                    uint16_t angle = static_cast<uint16_t>(((xRaw + SF16_ONE) * 0x8000LL) >> 16);
-                    shapedRaw = raw(angleSinF16(f16(angle)));
+                    // Map x from [-1, 1] to angle [0, pi] -> u0x16 [0, 0x8000].
+                    uint16_t angle = static_cast<uint16_t>(((xRaw + S0X16_ONE) * 0x8000LL) >> 16);
+                    shapedRaw = raw(angleSinU0x16(u0x16(angle)));
                 } else {
                     // Gaussian approximation: (1 - x^2)^2
                     int32_t x2 = static_cast<int32_t>((static_cast<int64_t>(xRaw) * xRaw) >> 16);
-                    int32_t oneMinusX2 = SF16_ONE - x2;
-                    if (oneMinusX2 < 0) return sf16(0);
+                    int32_t oneMinusX2 = S0X16_ONE - x2;
+                    if (oneMinusX2 < 0) return s0x16(0);
                     shapedRaw = static_cast<int32_t>((static_cast<int64_t>(oneMinusX2) * oneMinusX2) >> 16);
                 }
 
                 // Scale by amplitude.
                 int32_t result = static_cast<int32_t>((static_cast<int64_t>(shapedRaw) * raw(amplitude)) >> 16);
-                return sf16(result);
+                return s0x16(result);
             }
         };
 
         // ---- Orbital dot state ----
 
         struct OrbitalDot {
-            uint16_t initialPhase; // f16-scale angle offset, fixed at construction
+            uint16_t initialPhase; // u0x16-scale angle offset, fixed at construction
         };
     }
 
@@ -121,25 +121,25 @@ namespace PolarShader {
         EmitterMode mode;
         std::unique_ptr<uint16_t[]> cells;
         std::unique_ptr<uint16_t[]> rowPass;
-        std::unique_ptr<sf16[]> columnShiftProfile;
-        std::unique_ptr<sf16[]> rowShiftProfile;
+        std::unique_ptr<s0x16[]> columnShiftProfile;
+        std::unique_ptr<s0x16[]> rowShiftProfile;
         uint32_t xProfileNoiseSeed;
         uint32_t yProfileNoiseSeed;
-        Sf16Signal xDriftSignal;
-        Sf16Signal xAmplitudeSignal;
-        Sf16Signal xFrequencySignal;
-        Sf16Signal yDriftSignal;
-        Sf16Signal yAmplitudeSignal;
-        Sf16Signal yFrequencySignal;
-        Sf16Signal endpointSpeedSignal;
-        Sf16Signal halfLifeSignal;
-        Sf16Signal orbitSpeedSignal;
-        Sf16Signal orbitRadiusSignal;
+        S0x16Signal xDriftSignal;
+        S0x16Signal xAmplitudeSignal;
+        S0x16Signal xFrequencySignal;
+        S0x16Signal yDriftSignal;
+        S0x16Signal yAmplitudeSignal;
+        S0x16Signal yFrequencySignal;
+        S0x16Signal endpointSpeedSignal;
+        S0x16Signal halfLifeSignal;
+        S0x16Signal orbitSpeedSignal;
+        S0x16Signal orbitRadiusSignal;
         fl::s16x16 xDrift{fl::s16x16::from_raw(0)};
-        f16 xAmplitude{f16(0)};
+        u0x16 xAmplitude{u0x16(0)};
         fl::s16x16 xFrequency{fl::s16x16::from_raw(0)};
         fl::s16x16 yDrift{fl::s16x16::from_raw(0)};
-        f16 yAmplitude{f16(0)};
+        u0x16 yAmplitude{u0x16(0)};
         fl::s16x16 yFrequency{fl::s16x16::from_raw(0)};
         fl::s16x16 endpointSpeed{fl::s16x16::from_raw(0)};
         uint16_t halfLifeMs{860u};
@@ -156,21 +156,21 @@ namespace PolarShader {
             uint8_t size,
             uint8_t dots,
             EmitterMode emitterMode,
-            Sf16Signal xDrift,
-            Sf16Signal yDrift,
-            Sf16Signal amplitude,
-            Sf16Signal frequency,
-            Sf16Signal endpointSpeed,
-            Sf16Signal halfLife,
-            Sf16Signal orbitSpeed,
-            Sf16Signal orbitRadius
+            S0x16Signal xDrift,
+            S0x16Signal yDrift,
+            S0x16Signal amplitude,
+            S0x16Signal frequency,
+            S0x16Signal endpointSpeed,
+            S0x16Signal halfLife,
+            S0x16Signal orbitSpeed,
+            S0x16Signal orbitRadius
         ) : gridSize(size),
             dotCount(dots),
             mode(emitterMode),
             cells(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
             rowPass(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
-            columnShiftProfile(std::make_unique<sf16[]>(size)),
-            rowShiftProfile(std::make_unique<sf16[]>(size)),
+            columnShiftProfile(std::make_unique<s0x16[]>(size)),
+            rowShiftProfile(std::make_unique<s0x16[]>(size)),
             xProfileNoiseSeed(random32()),
             yProfileNoiseSeed(random32()),
             xDriftSignal(std::move(xDrift)),
@@ -187,7 +187,7 @@ namespace PolarShader {
             std::fill_n(rowPass.get(), static_cast<size_t>(size) * size, uint16_t(0));
 
             // Initialise orbital dots with evenly-spaced initial phases + random jitter.
-            uint16_t phaseStep = F16_MAX / static_cast<uint16_t>(dotCount);
+            uint16_t phaseStep = U0X16_MAX / static_cast<uint16_t>(dotCount);
             for (uint8_t i = 0; i < dotCount; ++i) {
                 uint16_t jitter = static_cast<uint16_t>(random32() & 0x1FFFu); // small jitter
                 this->dots[i].initialPhase = static_cast<uint16_t>(i * phaseStep + jitter);
@@ -211,14 +211,14 @@ namespace PolarShader {
         uint8_t gridSize,
         uint8_t dotCount,
         EmitterMode mode,
-        Sf16Signal xDrift,
-        Sf16Signal yDrift,
-        Sf16Signal amplitude,
-        Sf16Signal frequency,
-        Sf16Signal endpointSpeed,
-        Sf16Signal halfLife,
-        Sf16Signal orbitSpeed,
-        Sf16Signal orbitRadius
+        S0x16Signal xDrift,
+        S0x16Signal yDrift,
+        S0x16Signal amplitude,
+        S0x16Signal frequency,
+        S0x16Signal endpointSpeed,
+        S0x16Signal halfLife,
+        S0x16Signal orbitSpeed,
+        S0x16Signal orbitRadius
     ) : state(std::make_shared<State>(
         std::max<uint8_t>(kMinGridSize, std::min<uint8_t>(gridSize, kMaxGridSize)),
         std::max<uint8_t>(kMinDotCount, std::min<uint8_t>(dotCount, kMaxDotCount)),
@@ -237,20 +237,20 @@ namespace PolarShader {
     // ---- NoisePunch triggers ----
 
     void FlowFieldPattern::triggerNoisePunchX(
-        fl::s16x16 center, fl::s16x16 width, sf16 amplitude, NoisePunchShape shape
+        fl::s16x16 center, fl::s16x16 width, s0x16 amplitude, NoisePunchShape shape
     ) {
         state->punchX.trigger(center, width, amplitude, shape);
     }
 
     void FlowFieldPattern::triggerNoisePunchY(
-        fl::s16x16 center, fl::s16x16 width, sf16 amplitude, NoisePunchShape shape
+        fl::s16x16 center, fl::s16x16 width, s0x16 amplitude, NoisePunchShape shape
     ) {
         state->punchY.trigger(center, width, amplitude, shape);
     }
 
     // ---- advanceFrame ----
 
-    void FlowFieldPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void FlowFieldPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 
@@ -298,20 +298,20 @@ namespace PolarShader {
             fl::s16x16 xProfileCoord = profileCoord * s.xFrequency;
             fl::s16x16 yProfileCoord = profileCoord * s.yFrequency;
 
-            sf16 columnShift = scaleSf16(
+            s0x16 columnShift = scaleS0x16(
                 sampleProfileNoise(xProfileCoord + xPhase, s.xProfileNoiseSeed),
                 s.xAmplitude
             );
-            sf16 rowShift = scaleSf16(
+            s0x16 rowShift = scaleS0x16(
                 sampleProfileNoise(yProfileCoord + yPhase, s.yProfileNoiseSeed),
                 s.yAmplitude
             );
 
             // Add noise punch bias.
-            sf16 punchBiasX = s.punchX.evaluate(index, gridSize);
-            sf16 punchBiasY = s.punchY.evaluate(index, gridSize);
-            columnShift = sf16(raw(columnShift) + raw(punchBiasX));
-            rowShift = sf16(raw(rowShift) + raw(punchBiasY));
+            s0x16 punchBiasX = s.punchX.evaluate(index, gridSize);
+            s0x16 punchBiasY = s.punchY.evaluate(index, gridSize);
+            columnShift = s0x16(raw(columnShift) + raw(punchBiasX));
+            rowShift = s0x16(raw(rowShift) + raw(punchBiasY));
 
             s.columnShiftProfile[gridSize - 1u - index] = columnShift;
             s.rowShiftProfile[index] = rowShift;
@@ -328,7 +328,7 @@ namespace PolarShader {
 
         // Orbital dots.
         if (s.mode == EmitterMode::Dots || s.mode == EmitterMode::Both) {
-            f16 dotIntensity(clampU16(std::max<uint32_t>(1u, kFullIntensity / static_cast<uint32_t>(s.dotCount))));
+            u0x16 dotIntensity(clampU16(std::max<uint32_t>(1u, kFullIntensity / static_cast<uint32_t>(s.dotCount))));
             fl::s16x16 radiusCells = scaleByGridSize(gridSize, s.orbitRadius);
 
             for (uint8_t i = 0; i < s.dotCount; ++i) {
@@ -339,9 +339,9 @@ namespace PolarShader {
                     raw(s.timeQ16 * dotRate) + s.dots[i].initialPhase
                 );
 
-                f16 angle(absolutePhase);
-                fl::s16x16 dotX = gridCenter + mulS16x16(radiusCells, angleCosF16(angle));
-                fl::s16x16 dotY = gridCenter + mulS16x16(radiusCells, angleSinF16(angle));
+                u0x16 angle(absolutePhase);
+                fl::s16x16 dotX = gridCenter + mulS16x16(radiusCells, angleCosU0x16(angle));
+                fl::s16x16 dotY = gridCenter + mulS16x16(radiusCells, angleSinU0x16(angle));
                 drawSubpixelPoint(cells, gridSize, dotX, dotY, dotIntensity);
             }
         }
@@ -360,14 +360,14 @@ namespace PolarShader {
         }
 
         // 7. Column-pass + fade using half-life.
-        f16 fadeFactor = halfLifeFade(dtMs, s.halfLifeMs);
+        u0x16 fadeFactor = halfLifeFade(dtMs, s.halfLifeMs);
         for (uint8_t x = 0; x < gridSize; ++x) {
             fl::s16x16 columnShift = mulS16x16(kColShiftPixels, s.columnShiftProfile[x]);
             for (uint8_t y = 0; y < gridSize; ++y) {
                 uint16_t advected = sampleShiftedLaneWrapped(
                     rowPass, x, gridSize, gridSize, y, columnShift
                 );
-                cells[static_cast<size_t>(y) * gridSize + x] = scaleU16ByF16(advected, fadeFactor);
+                cells[static_cast<size_t>(y) * gridSize + x] = scaleU16ByU0x16(advected, fadeFactor);
             }
         }
     }

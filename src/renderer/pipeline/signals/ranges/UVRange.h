@@ -33,7 +33,7 @@ namespace PolarShader {
         UVRange(UV min, UV max) : min_uv(min), max_uv(max) {
         }
 
-        UV map(sf16 t) const override {
+        UV map(s0x16 t) const override {
             uint32_t t_raw = mapUnsignedClamped(t);
 
             int64_t u_min = min_uv.u.raw();

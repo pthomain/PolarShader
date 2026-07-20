@@ -78,5 +78,5 @@ Polar patterns must treat the `angle` coordinate as a wraparound domain to preve
   #include "renderer/pipeline/maths/PolarMaths.h"
 
   // Calculate the shortest distance between the current angle and a target spoke angle
-  f16 dist_to_spoke = PolarMaths::shortest_angle_dist(current_angle, spoke_angle);
+  u0x16 dist_to_spoke = PolarMaths::shortest_angle_dist(current_angle, spoke_angle);
   ```

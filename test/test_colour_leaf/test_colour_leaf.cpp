@@ -143,7 +143,7 @@ static Harness makeHarness(const CRGBPalette16 &pal) {
 }
 
 static RenderPoint testPoint() {
-    return RenderPoint{f16(0), f16(0x8000), RasterPoint{}};
+    return RenderPoint{u0x16(0), u0x16(0x8000), RasterPoint{}};
 }
 
 struct ScalarHarness {
@@ -220,13 +220,13 @@ void test_scalar_hue_remap_indexes_palette() {
 
 void test_rgb_native_scales_unpremultiplied_colour_by_value() {
     CRGBPalette16 pal = distinctPalette();
-    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0x8000u, 0x4000u, 0x8000u);
+    RgbHarness h = makeRgbHarness(pal, U0X16_MAX, 0x8000u, 0x4000u, 0x8000u);
     auto cm = h.layer.compile();
     TEST_ASSERT_NOT_NULL(cm.get());
 
     CRGB got = (*cm)(testPoint());
     CRGB expected(
-        fl::map16_to_8(scale16(F16_MAX, 0x8000u)),
+        fl::map16_to_8(scale16(U0X16_MAX, 0x8000u)),
         fl::map16_to_8(scale16(0x8000u, 0x8000u)),
         fl::map16_to_8(scale16(0x4000u, 0x8000u))
     );
@@ -235,24 +235,24 @@ void test_rgb_native_scales_unpremultiplied_colour_by_value() {
 
 void test_rgb_native_clip_gates_by_value_channel() {
     CRGBPalette16 pal = distinctPalette();
-    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0, 0, 0x4000u);
+    RgbHarness h = makeRgbHarness(pal, U0X16_MAX, 0, 0, 0x4000u);
     auto cm = h.layer.compile();
     h.pattern->seenCtx->paletteClipEnabled = true;
     h.pattern->seenCtx->paletteClip = PatternNormU16(0x4001u);
-    h.pattern->seenCtx->paletteClipFeather = f16(0);
+    h.pattern->seenCtx->paletteClipFeather = u0x16(0);
 
     assertEqualCRGB((*cm)(testPoint()), CRGB::Black, "rgb native clip should gate by value");
 }
 
 void test_rgb_colour_mask_ignores_rgb_and_uses_value_alpha() {
     CRGBPalette16 pal = distinctPalette();
-    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0, 0, kVal);
+    RgbHarness h = makeRgbHarness(pal, U0X16_MAX, 0, 0, kVal);
     auto cm = h.layer.compile();
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::ColourMask;
     h.pattern->seenCtx->paletteOffset = 9;
 
     CRGB got = (*cm)(testPoint());
-    uint16_t alpha = scale16(kVal, F16_MAX);
+    uint16_t alpha = scale16(kVal, U0X16_MAX);
     CRGB expected = pal.entries[9 % 16];
     expected.nscale8_video(static_cast<uint8_t>(alpha >> 8));
     assertEqualCRGB(got, expected, "rgb colour-mask tint/alpha mismatch");
@@ -260,7 +260,7 @@ void test_rgb_colour_mask_ignores_rgb_and_uses_value_alpha() {
 
 void test_rgb_hue_remap_indexes_palette_from_rgb_hue() {
     CRGBPalette16 pal = distinctPalette();
-    RgbHarness h = makeRgbHarness(pal, F16_MAX, 0, 0, kVal);
+    RgbHarness h = makeRgbHarness(pal, U0X16_MAX, 0, 0, kVal);
     auto cm = h.layer.compile();
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteOffset = 5;
@@ -277,7 +277,7 @@ void test_rgb_hue_remap_grey_and_near_black_pin_hue_to_zero() {
     grey.pattern->seenCtx->paletteOffset = 2;
     assertEqualCRGB((*greyMap)(testPoint()), pal.entries[2 % 16], "grey rgb hue should pin to zero");
 
-    RgbHarness nearBlack = makeRgbHarness(pal, F16_MAX, 0, 0, 0);
+    RgbHarness nearBlack = makeRgbHarness(pal, U0X16_MAX, 0, 0, 0);
     auto nearBlackMap = nearBlack.layer.compile();
     nearBlack.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     assertEqualCRGB((*nearBlackMap)(testPoint()), CRGB::Black, "zero-value rgb should stay black");
@@ -290,7 +290,7 @@ void test_rgb_hue_remap_grey_and_near_black_pin_hue_to_zero() {
 
 void test_rgb_hue_remap_blue_hue_is_lossy_but_stable() {
     CRGBPalette16 pal = distinctPalette();
-    RgbHarness h = makeRgbHarness(pal, 0, 0, F16_MAX, kVal);
+    RgbHarness h = makeRgbHarness(pal, 0, 0, U0X16_MAX, kVal);
     auto cm = h.layer.compile();
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
 
@@ -330,12 +330,12 @@ void test_clip_below_value_passes_full_colour() {
     CRGBPalette16 pal = distinctPalette();
     Harness h = makeHarness(pal);
     auto cm = h.layer.compile();
-    // clip strictly below the value channel, feather 0 -> mask == F16_MAX,
+    // clip strictly below the value channel, feather 0 -> mask == U0X16_MAX,
     // so the colour is the un-scaled palette entry.
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteClipEnabled = true;
     h.pattern->seenCtx->paletteClip = PatternNormU16(kVal - 1);
-    h.pattern->seenCtx->paletteClipFeather = f16(0);
+    h.pattern->seenCtx->paletteClipFeather = u0x16(0);
 
     CRGB got = (*cm)(testPoint());
     CRGB expected = pal.entries[fl::map16_to_8(kHue) % 16];
@@ -350,7 +350,7 @@ void test_clip_above_value_gates_to_black() {
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteClipEnabled = true;
     h.pattern->seenCtx->paletteClip = PatternNormU16(kVal + 1);
-    h.pattern->seenCtx->paletteClipFeather = f16(0);
+    h.pattern->seenCtx->paletteClipFeather = u0x16(0);
 
     CRGB got = (*cm)(testPoint());
     assertEqualCRGB(got, CRGB::Black, "value below clip should gate to black");
@@ -365,8 +365,8 @@ void test_colour_mask_single_tint_with_value_alpha() {
 
     CRGB got = (*cm)(testPoint());
     // Mirror tintPalette's colour-mask branch: single tint at offset, alpha =
-    // scale16(value, mask), mask == F16_MAX (clip disabled).
-    uint16_t alpha = scale16(kVal, F16_MAX);
+    // scale16(value, mask), mask == U0X16_MAX (clip disabled).
+    uint16_t alpha = scale16(kVal, U0X16_MAX);
     CRGB expected = pal.entries[7 % 16];
     expected.nscale8_video(static_cast<uint8_t>(alpha >> 8));
     assertEqualCRGB(got, expected, "colour-mask tint/alpha mismatch");

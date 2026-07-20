@@ -14,7 +14,7 @@
 
 namespace PolarShader {
     std::unique_ptr<UVPattern> pfDualAxis(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::DualAxis, 5,
@@ -22,7 +22,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfCounterRibbons(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::CounterRibbons, 5,
@@ -30,7 +30,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfQuadDirectional(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::QuadDirectional, 5,
@@ -38,7 +38,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfPosterized(
-        uint8_t posterizeLevels, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t posterizeLevels, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::Posterized, posterizeLevels,
@@ -46,7 +46,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfCross(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::Cross, 5,
@@ -54,7 +54,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfLattice(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::Lattice, 5,
@@ -62,7 +62,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfMoire(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::Moire, 5,
@@ -70,7 +70,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfChladni(
-        uint8_t modeCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t modeCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfInterferenceField>(
             PfInterferenceField::Variant::Chladni, modeCount,
@@ -78,7 +78,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfPetals(
-        uint8_t petalCount, Sf16Signal phaseSpeed, Sf16Signal fold, Sf16Signal thickness
+        uint8_t petalCount, S0x16Signal phaseSpeed, S0x16Signal fold, S0x16Signal thickness
     ) {
         return std::make_unique<PfRadialField>(
             PfRadialField::Variant::Petals, petalCount,
@@ -86,7 +86,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfRipple(
-        uint8_t waveCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t waveCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfRadialField>(
             PfRadialField::Variant::Ripple, waveCount,
@@ -94,7 +94,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfChirp(
-        uint8_t waveCount, Sf16Signal phaseSpeed, Sf16Signal fold, Sf16Signal thickness
+        uint8_t waveCount, S0x16Signal phaseSpeed, S0x16Signal fold, S0x16Signal thickness
     ) {
         return std::make_unique<PfRadialField>(
             PfRadialField::Variant::Chirp, waveCount,
@@ -102,7 +102,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfSpiralArms(
-        uint8_t armCount, Sf16Signal phaseSpeed, Sf16Signal fold, Sf16Signal thickness
+        uint8_t armCount, S0x16Signal phaseSpeed, S0x16Signal fold, S0x16Signal thickness
     ) {
         return std::make_unique<PfRadialField>(
             PfRadialField::Variant::SpiralArms, armCount,
@@ -110,7 +110,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfRippleTank(
-        uint8_t sourceCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t sourceCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfSourceField>(
             sourceCount,
@@ -118,7 +118,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfOrganic(
-        uint8_t contourLevels, bool hardEdges, Sf16Signal phaseSpeed, Sf16Signal tension
+        uint8_t contourLevels, bool hardEdges, S0x16Signal phaseSpeed, S0x16Signal tension
     ) {
         return std::make_unique<PfContourField>(
             PfContourField::Variant::Organic, contourLevels, hardEdges,
@@ -126,7 +126,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfTopographic(
-        uint8_t contourLevels, bool hardEdges, Sf16Signal phaseSpeed, Sf16Signal tension
+        uint8_t contourLevels, bool hardEdges, S0x16Signal phaseSpeed, S0x16Signal tension
     ) {
         return std::make_unique<PfContourField>(
             PfContourField::Variant::Topographic, contourLevels, hardEdges,
@@ -134,7 +134,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfPlasma(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfPlasmaWarp>(
             PfPlasmaWarp::Variant::Plasma,
@@ -142,7 +142,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfTendrils(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfPlasmaWarp>(
             PfPlasmaWarp::Variant::Tendrils,
@@ -150,7 +150,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfLiquidGate(
-        Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfPlasmaWarp>(
             PfPlasmaWarp::Variant::LiquidGate,
@@ -158,7 +158,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfConcentricGrid(
-        uint8_t cellCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t cellCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfCellularField>(
             PfCellularField::Variant::ConcentricGrid, cellCount,
@@ -166,7 +166,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfRowSegments(
-        uint8_t cellCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t cellCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfCellularField>(
             PfCellularField::Variant::RowSegments, cellCount,
@@ -174,7 +174,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfShapes(
-        uint8_t cellCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t cellCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfCellularField>(
             PfCellularField::Variant::Shapes, cellCount,
@@ -182,7 +182,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfDots(
-        uint8_t cellCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t cellCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfCellularField>(
             PfCellularField::Variant::Dots, cellCount,
@@ -190,7 +190,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfWaveMatrix(
-        uint8_t cellCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t cellCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfCellularField>(
             PfCellularField::Variant::WaveMatrix, cellCount,
@@ -198,7 +198,7 @@ namespace PolarShader {
     }
 
     std::unique_ptr<UVPattern> pfRadialPulse(
-        uint8_t cellCount, Sf16Signal phaseSpeed, Sf16Signal warp, Sf16Signal thickness
+        uint8_t cellCount, S0x16Signal phaseSpeed, S0x16Signal warp, S0x16Signal thickness
     ) {
         return std::make_unique<PfCellularField>(
             PfCellularField::Variant::RadialPulse, cellCount,

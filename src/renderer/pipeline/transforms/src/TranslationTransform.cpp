@@ -33,16 +33,16 @@
 namespace PolarShader {
     namespace {
         // Smoothing controls when zoom is at minimum (highest noise frequency).
-        const int32_t TRANSLATION_SMOOTH_ALPHA_MIN = SF16_ONE / 16;
-        const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = SF16_ONE / 2;
-        const int32_t TRANSLATION_SMOOTH_SCALE_MIN = SF16_ONE >> 4; // 1/16x
-        const int32_t TRANSLATION_SMOOTH_SCALE_MAX = SF16_ONE << 4; // 16x
-        const int32_t TRANSLATION_MAX_SPEED = SF16_ONE >> 2; // 1/4 of UV units in fl::s16x16 (Q16.16) raw domain
+        const int32_t TRANSLATION_SMOOTH_ALPHA_MIN = S0X16_ONE / 16;
+        const int32_t TRANSLATION_SMOOTH_ALPHA_MAX = S0X16_ONE / 2;
+        const int32_t TRANSLATION_SMOOTH_SCALE_MIN = S0X16_ONE >> 4; // 1/16x
+        const int32_t TRANSLATION_SMOOTH_SCALE_MAX = S0X16_ONE << 4; // 16x
+        const int32_t TRANSLATION_MAX_SPEED = S0X16_ONE >> 2; // 1/4 of UV units in fl::s16x16 (Q16.16) raw domain
 
         UVSignal accumulateUVSignal(UVSignal signal) {
             return UVSignal(
                 [signal = std::move(signal), accumulated = UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0))](
-            f16 progress,
+            u0x16 progress,
             TimeMillis elapsedMs
         ) mutable {
                     UV value = signal(progress, elapsedMs);
@@ -68,8 +68,8 @@ namespace PolarShader {
     }
 
     TranslationTransform::TranslationTransform(
-        Sf16Signal direction,
-        Sf16Signal speed
+        S0x16Signal direction,
+        S0x16Signal speed
     ) : TranslationTransform(accumulateUVSignal(UVSignal([direction, speed]() {
         // Map speed signal to fl::s16x16 velocity magnitude [0 .. 0.25 UV units].
         MagnitudeRange speedRange(fl::s16x16::from_raw(0), fl::s16x16::from_raw(TRANSLATION_MAX_SPEED));
@@ -77,15 +77,15 @@ namespace PolarShader {
         // Use a lambda to combine direction and speed into a velocity UV vector
         // This is a per-frame delta signal that is accumulated into absolute offset.
         AngleRange directionRange;
-        return UVSignal([direction, speed, speedRange, directionRange](f16 progress, TimeMillis elapsedMs) mutable {
-            f16 dir = direction.sample(directionRange, elapsedMs);
+        return UVSignal([direction, speed, speedRange, directionRange](u0x16 progress, TimeMillis elapsedMs) mutable {
+            u0x16 dir = direction.sample(directionRange, elapsedMs);
             int32_t s = speed.sample(speedRange, elapsedMs).raw();
 
-            sf16 cos_val = angleCosF16(dir);
-            sf16 sin_val = angleSinF16(dir);
+            s0x16 cos_val = angleCosU0x16(dir);
+            s0x16 sin_val = angleSinU0x16(dir);
 
             // Velocity vector in UV units (fl::u16x16/fl::s16x16 (Q16.16)) per scene
-            // Trig is f16/sf16, s is fl::u16x16/fl::s16x16 (Q16.16) units/scene.
+            // Trig is u0x16/s0x16, s is fl::u16x16/fl::s16x16 (Q16.16) units/scene.
             // Result is fl::u16x16/fl::s16x16 (Q16.16).
             int32_t vx = static_cast<int32_t>((static_cast<int64_t>(s) * raw(cos_val)) >> 16);
             int32_t vy = static_cast<int32_t>((static_cast<int64_t>(s) * raw(sin_val)) >> 16);
@@ -95,7 +95,7 @@ namespace PolarShader {
     }()))) {
     }
 
-    void TranslationTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void TranslationTransform::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         UV target = state->offsetSignal(progress, elapsedMs);
         if (!state->hasSmoothed) {
             state->offset = target;
@@ -103,11 +103,11 @@ namespace PolarShader {
             return;
         }
 
-        int32_t zoom_raw = context ? raw(context->zoomScale) : SF16_ONE;
+        int32_t zoom_raw = context ? raw(context->zoomScale) : S0X16_ONE;
         if (zoom_raw < TRANSLATION_SMOOTH_SCALE_MIN) zoom_raw = TRANSLATION_SMOOTH_SCALE_MIN;
         if (zoom_raw > TRANSLATION_SMOOTH_SCALE_MAX) zoom_raw = TRANSLATION_SMOOTH_SCALE_MAX;
         int32_t zoom_span = TRANSLATION_SMOOTH_SCALE_MAX - TRANSLATION_SMOOTH_SCALE_MIN;
-        int32_t zoom_norm = zoom_span > 0 ? ((zoom_raw - TRANSLATION_SMOOTH_SCALE_MIN) << 16) / zoom_span : SF16_ONE;
+        int32_t zoom_norm = zoom_span > 0 ? ((zoom_raw - TRANSLATION_SMOOTH_SCALE_MIN) << 16) / zoom_span : S0X16_ONE;
 
         int64_t alpha_span = static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MAX) -
                              static_cast<int64_t>(TRANSLATION_SMOOTH_ALPHA_MIN);
