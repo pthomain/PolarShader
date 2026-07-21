@@ -110,10 +110,10 @@ void test_uv_coordinate_structure() {
 
 void test_rgb_sample_packed_layout_and_accessors() {
     RgbSample sample(
-        PatternNormU16(0x1234u),
-        PatternNormU16(0x5678u),
-        PatternNormU16(0x9ABCu),
-        PatternNormU16(0xDEF0u)
+        PatternNormU0x16(0x1234u),
+        PatternNormU0x16(0x5678u),
+        PatternNormU0x16(0x9ABCu),
+        PatternNormU0x16(0xDEF0u)
     );
 
     TEST_ASSERT_EQUAL_UINT64(0x123456789ABCDEF0ull, sample.packed);
@@ -167,7 +167,7 @@ void test_shader_exp_neg_and_pow_q16_reference_points() {
 }
 
 void test_iq_cosine_palette_q16_reference_points() {
-    RgbSample sample = iqCosinePaletteQ16(fl::u16x16::from_raw(0), PatternNormU16(0x8000u));
+    RgbSample sample = iqCosinePaletteQ16(fl::u16x16::from_raw(0), PatternNormU0x16(0x8000u));
 
     TEST_ASSERT_UINT16_WITHIN(256u, 30094u, raw(sample.red()));
     TEST_ASSERT_UINT16_WITHIN(256u, 4459u, raw(sample.green()));
@@ -230,7 +230,7 @@ void test_rotation_transform_uv() {
     rotation.advanceFrame(u0x16(0), 0);
 
     UVMap testLayer = [](UV uv) {
-        return PatternNormU16(raw(uv.u));
+        return PatternNormU0x16(raw(uv.u));
     };
 
     // Input Cartesian UV: (1.0, 0.5) -> Centered (1.0, 0.0)
@@ -240,7 +240,7 @@ void test_rotation_transform_uv() {
     UV input(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000));
     
     UVMap transformedLayer = rotation(testLayer);
-    PatternNormU16 result = transformedLayer(input);
+    PatternNormU0x16 result = transformedLayer(input);
 
     TEST_ASSERT_UINT16_WITHIN(100, 0x8000, raw(result));
 }
@@ -250,10 +250,10 @@ void test_zoom_transform_uv() {
     ZoomTransform zoom(constant(s0x16(S0X16_MIN))); // Target min
     zoom.advanceFrame(u0x16(0), 0);
     
-    UVMap testLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
+    UVMap testLayer = [](UV uv) { return PatternNormU0x16(raw(uv.u)); };
 
     UV input(fl::s16x16::from_raw(0x0000C000), fl::s16x16::from_raw(0x00008000));
-    PatternNormU16 result = zoom(testLayer)(input);
+    PatternNormU0x16 result = zoom(testLayer)(input);
     
     // With direct-mapped zoom and MIN_SCALE=1/4x (16384):
     // centered x at input.u=0.75 is +0.5 -> fx ~= 0x2000.
@@ -333,7 +333,7 @@ void test_sine_speed() {
 /** @brief Verify zoom driven by sine changes over elapsed time (not treated as constant). */
 void test_zoom_transform_sine_varies_over_time() {
     ZoomTransform zoom(sine(constant(1000)));
-    UVMap probeLayer = [](UV uv) { return PatternNormU16(raw(uv.u)); };
+    UVMap probeLayer = [](UV uv) { return PatternNormU0x16(raw(uv.u)); };
     UV input(fl::s16x16::from_raw(0x0000C000), fl::s16x16::from_raw(0x00008000));
 
     zoom.advanceFrame(u0x16(0), 0);
@@ -358,10 +358,10 @@ void test_kaleidoscope_translation_mirrors_at_unit_uv_boundary() {
     translation.advanceFrame(u0x16(0), 0);
 
     UV probe(fl::s16x16::from_raw(0x00009234), fl::s16x16::from_raw(0x00006FED));
-    UVMap capture = [](UV uv) { return PatternNormU16(raw(uv.u) ^ raw(uv.v)); };
+    UVMap capture = [](UV uv) { return PatternNormU0x16(raw(uv.u) ^ raw(uv.v)); };
 
-    PatternNormU16 baseline = kaleidoscope(capture)(UV(fl::s16x16::from_raw(0x00006DCB), probe.v));
-    PatternNormU16 shifted = translation(kaleidoscope(capture))(probe);
+    PatternNormU0x16 baseline = kaleidoscope(capture)(UV(fl::s16x16::from_raw(0x00006DCB), probe.v));
+    PatternNormU0x16 shifted = translation(kaleidoscope(capture))(probe);
 
     TEST_ASSERT_EQUAL_UINT16(raw(baseline), raw(shifted));
 }
@@ -375,23 +375,23 @@ void test_uv_transform_chain_warps_all_payload_kinds_identically() {
     translation.advanceFrame(u0x16(0), 0);
 
     UVMap echoU = [](UV uv) {
-        return PatternNormU16(static_cast<uint16_t>(raw(uv.u)));
+        return PatternNormU0x16(static_cast<uint16_t>(raw(uv.u)));
     };
     UVMap echoV = [](UV uv) {
-        return PatternNormU16(static_cast<uint16_t>(raw(uv.v)));
+        return PatternNormU0x16(static_cast<uint16_t>(raw(uv.v)));
     };
     UVColourMap echoPalette = [](UV uv) {
         return PaletteSample(
-            PatternNormU16(static_cast<uint16_t>(raw(uv.u))),
-            PatternNormU16(static_cast<uint16_t>(raw(uv.v)))
+            PatternNormU0x16(static_cast<uint16_t>(raw(uv.u))),
+            PatternNormU0x16(static_cast<uint16_t>(raw(uv.v)))
         );
     };
     UVRgbMap echoRgb = [](UV uv) {
         return RgbSample(
-            PatternNormU16(static_cast<uint16_t>(raw(uv.u))),
-            PatternNormU16(static_cast<uint16_t>(raw(uv.v))),
-            PatternNormU16(0),
-            PatternNormU16(U0X16_MAX)
+            PatternNormU0x16(static_cast<uint16_t>(raw(uv.u))),
+            PatternNormU0x16(static_cast<uint16_t>(raw(uv.v))),
+            PatternNormU0x16(0),
+            PatternNormU0x16(U0X16_MAX)
         );
     };
 
@@ -601,10 +601,10 @@ void test_rotation_accumulation() {
     RotationTransform rotAbs(absSignal, true);
     rotAbs.advanceFrame(u0x16(0), 0);
     
-    UVMap probe = [](UV uv) { return PatternNormU16(raw(uv.u)); };
+    UVMap probe = [](UV uv) { return PatternNormU0x16(raw(uv.u)); };
     UV input(fl::s16x16::from_raw(0x00010000), fl::s16x16::from_raw(0x00008000)); // (1.0, 0.5) -> Polar Angle 0
     
-    PatternNormU16 resAbs = rotAbs(probe)(input);
+    PatternNormU0x16 resAbs = rotAbs(probe)(input);
     TEST_ASSERT_UINT16_WITHIN(100, 0x8000, raw(resAbs));
 
     // 2. Accumulation Mode (isAngleTurn = false)
@@ -617,7 +617,7 @@ void test_rotation_accumulation() {
     // t=200ms -> 0.2 turns -> 13107 units
     rotAcc.advanceFrame(u0x16(0), 200);
     
-    PatternNormU16 resAcc = rotAcc(probe)(input);
+    PatternNormU0x16 resAcc = rotAcc(probe)(input);
     // Angle 0.2 turns (72 deg) -> x_norm ~= 42893
     TEST_ASSERT_UINT16_WITHIN(100, 42893, raw(resAcc));
 }

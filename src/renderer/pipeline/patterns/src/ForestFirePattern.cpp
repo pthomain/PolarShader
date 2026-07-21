@@ -117,18 +117,18 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !cells) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             const uint8_t current = cells[idx];
-            if (current == kBurning) return PatternNormU16(U0X16_MAX);
-            if (current == kTree) return PatternNormU16(U0X16_MAX / 2u);
-            return PatternNormU16(0);
+            if (current == kBurning) return PatternNormU0x16(U0X16_MAX);
+            if (current == kTree) return PatternNormU0x16(U0X16_MAX / 2u);
+            return PatternNormU0x16(0);
         };
     }
 
@@ -147,14 +147,14 @@ namespace PolarShader {
             const uint8_t current = cells[idx];
             if (current == kBurning) {
                 return PaletteSample{
-                    PatternNormU16(raster::hue8ToPatternRaw(kBurningHue)),
-                    PatternNormU16(U0X16_MAX)
+                    PatternNormU0x16(raster::hue8ToPatternRaw(kBurningHue)),
+                    PatternNormU0x16(U0X16_MAX)
                 };
             }
             if (current == kTree) {
                 return PaletteSample{
-                    PatternNormU16(raster::hue8ToPatternRaw(kTreeHue)),
-                    PatternNormU16(U0X16_MAX / 2u)
+                    PatternNormU0x16(raster::hue8ToPatternRaw(kTreeHue)),
+                    PatternNormU0x16(U0X16_MAX / 2u)
                 };
             }
             return PaletteSample{};

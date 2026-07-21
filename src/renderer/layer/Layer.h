@@ -69,7 +69,7 @@ namespace PolarShader {
 
         static CRGB mapPalette(
             const CRGBPalette16 &palette,
-            PatternNormU16 value,
+            PatternNormU0x16 value,
             const std::shared_ptr<PipelineContext> &context
         );
 

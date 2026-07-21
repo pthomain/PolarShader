@@ -46,7 +46,7 @@ namespace PolarShader {
     struct PfCellularField::Functor {
         const State *state;
 
-        PatternNormU16 concentricGrid(uint16_t localX, uint16_t localY) const {
+        PatternNormU0x16 concentricGrid(uint16_t localX, uint16_t localY) const {
             const int32_t t = state->tTurns;
             int32_t dx = static_cast<int32_t>(localX) - kHalf;
             int32_t dy = static_cast<int32_t>(localY) - kHalf;
@@ -55,7 +55,7 @@ namespace PolarShader {
             return PfMath::pfSignedToNorm(ring, S0X16_ONE);
         }
 
-        PatternNormU16 rowSegments(int32_t u01, uint16_t cellY) const {
+        PatternNormU0x16 rowSegments(int32_t u01, uint16_t cellY) const {
             const int32_t t = state->tTurns;
             int32_t dir = (cellY & 1u) ? 1 : -1;
             int32_t shifted = u01 + PfMath::pfCoefT(t, dir, 1);
@@ -63,16 +63,16 @@ namespace PolarShader {
             PfMath::pfCell(static_cast<int32_t>(static_cast<uint32_t>(shifted) & U0X16_MAX),
                            state->cellCount, segIdx, segLocal);
             uint16_t h = PfMath::pfHash2(segIdx, static_cast<uint32_t>(cellY));
-            if (h < 30000u) return PatternNormU16(0);
+            if (h < 30000u) return PatternNormU0x16(0);
             uint16_t bar = PfMath::pfBump(static_cast<int32_t>(segLocal) - kHalf, state->sizeRaw);
-            return PatternNormU16(bar);
+            return PatternNormU0x16(bar);
         }
 
-        PatternNormU16 shapes(uint16_t cellX, uint16_t cellY,
+        PatternNormU0x16 shapes(uint16_t cellX, uint16_t cellY,
                               uint16_t localX, uint16_t localY) const {
             const int32_t t = state->tTurns;
             uint16_t present = PfMath::pfHash2(cellX * 3u + 1u, cellY * 5u + 2u);
-            if (present < 18000u) return PatternNormU16(0);
+            if (present < 18000u) return PatternNormU0x16(0);
             uint16_t hx = PfMath::pfHash2(cellX, cellY);
             uint16_t hy = PfMath::pfHash2(cellY + 101u, cellX + 7u);
             int32_t wobX = raw(PfMath::pfSinTurns(t + static_cast<int32_t>(hx)));
@@ -84,37 +84,37 @@ namespace PolarShader {
             uint32_t dist = PfMath::pfDistQ16(static_cast<int32_t>(localX) - cx,
                                               static_cast<int32_t>(localY) - cy);
             uint16_t blob = PfMath::pfBump(static_cast<int32_t>(dist), state->sizeRaw);
-            return PatternNormU16(blob);
+            return PatternNormU0x16(blob);
         }
 
-        PatternNormU16 dots(uint16_t cellX, uint16_t cellY,
+        PatternNormU0x16 dots(uint16_t cellX, uint16_t cellY,
                             uint16_t localX, uint16_t localY) const {
             const int32_t t = state->tTurns;
             int32_t energyS = raw(PfMath::pfSinTurns(
                 static_cast<int32_t>(cellX) * 9000 + static_cast<int32_t>(cellY) * 13000 + t));
             int32_t energy01 = (energyS + S0X16_ONE) >> 1; // [0, 65536]
-            if (energy01 <= state->threshRaw) return PatternNormU16(0);
+            if (energy01 <= state->threshRaw) return PatternNormU0x16(0);
             int32_t dx = static_cast<int32_t>(localX) - kHalf;
             int32_t dy = static_cast<int32_t>(localY) - kHalf;
             uint32_t dist = PfMath::pfDistQ16(dx, dy);
             uint16_t dot = PfMath::pfBump(static_cast<int32_t>(dist), state->sizeRaw);
             uint32_t scaled = (static_cast<uint32_t>(dot) * static_cast<uint32_t>(energy01)) >> 16;
             if (scaled > U0X16_MAX) scaled = U0X16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(scaled));
+            return PatternNormU0x16(static_cast<uint16_t>(scaled));
         }
 
-        PatternNormU16 waveMatrix(uint16_t cellX, uint16_t cellY) const {
+        PatternNormU0x16 waveMatrix(uint16_t cellX, uint16_t cellY) const {
             const int32_t t = state->tTurns;
             int32_t split = (cellX & 1u) ? state->warpRaw : 0;
             int32_t phase = t + static_cast<int32_t>(cellX) * 7000
                             + static_cast<int32_t>(cellY) * 11000 + split;
             int32_t s = raw(PfMath::pfSinTurns(phase));
             int32_t sig01 = (s + S0X16_ONE) >> 1; // [0, 65536]
-            if (sig01 <= state->threshRaw) return PatternNormU16(0);
+            if (sig01 <= state->threshRaw) return PatternNormU0x16(0);
             return PfMath::pfUnitToNorm(sig01);
         }
 
-        PatternNormU16 radialPulse(uint16_t cellX, uint16_t cellY,
+        PatternNormU0x16 radialPulse(uint16_t cellX, uint16_t cellY,
                                    uint16_t localX, uint16_t localY) const {
             const int32_t t = state->tTurns;
             // Cell centre in [0,1] Q16, measured from the grid centre (0.5).
@@ -135,10 +135,10 @@ namespace PolarShader {
             uint16_t pillar = PfMath::pfBump(static_cast<int32_t>(dist), state->sizeRaw);
             uint32_t scaled = (static_cast<uint32_t>(pillar) * static_cast<uint32_t>(height01)) >> 16;
             if (scaled > U0X16_MAX) scaled = U0X16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(scaled));
+            return PatternNormU0x16(static_cast<uint16_t>(scaled));
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             // Renderer feeds normalised [0,1] UVs (polarToCartesianUV). The cell
             // grid is periodic, so wrap the coordinate modulo one unit: zoomed-out
             // samples outside [0,1] repeat the grid instead of collapsing onto the
@@ -158,7 +158,7 @@ namespace PolarShader {
                 case Variant::WaveMatrix:     return waveMatrix(cellX, cellY);
                 case Variant::RadialPulse:    return radialPulse(cellX, cellY, localX, localY);
             }
-            return PatternNormU16(0);
+            return PatternNormU0x16(0);
         }
     };
 

@@ -52,9 +52,9 @@ namespace PolarShader {
             s0x16 dx = scaleS0x16(PfMath::pfCosTurns(2 * X - PfMath::pfCoefT(t, 9, 10)), state->warpU0x16);
             int32_t s1 = raw(PfMath::pfSinTurns(3 * X + raw(dy) + t));
             int32_t s2 = raw(PfMath::pfCosTurns(3 * Y - PfMath::pfCoefT(t, 6, 5) + raw(dx)));
-            PatternNormU16 value = PfMath::pfSignedToNorm(s1 + s2, 2 * S0X16_ONE);
+            PatternNormU0x16 value = PfMath::pfSignedToNorm(s1 + s2, 2 * S0X16_ONE);
             // Hue: the orthogonal wave difference gives an independent phase.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(s1 - s2, 2 * S0X16_ONE);
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(s1 - s2, 2 * S0X16_ONE);
             return PaletteSample{hue, value};
         }
 
@@ -80,8 +80,8 @@ namespace PolarShader {
             else if (m1) intensity = static_cast<uint32_t>(U0X16_MAX * 6 / 10);
             else if (m2) intensity = static_cast<uint32_t>(U0X16_MAX * 4 / 10);
             // Hue: the mean of the two ribbon textures shifts colour along the weave.
-            PatternNormU16 hue = PfMath::pfUnitToNorm(static_cast<int32_t>((v1 + v2) >> 1));
-            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(intensity))};
+            PatternNormU0x16 hue = PfMath::pfUnitToNorm(static_cast<int32_t>((v1 + v2) >> 1));
+            return PaletteSample{hue, PatternNormU0x16(static_cast<uint16_t>(intensity))};
         }
 
         PaletteSample quadDirectional(int32_t X, int32_t Y) const {
@@ -103,8 +103,8 @@ namespace PolarShader {
             int64_t c3 = (c2 * inner) >> 16;
             if (c3 > U0X16_MAX) c3 = U0X16_MAX;
             // Hue: the signed directional sum in [-4, 4] tracks the interference phase.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(sum, 4 * S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(c3))};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(sum, 4 * S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(static_cast<uint16_t>(c3))};
         }
 
         PaletteSample posterized(int32_t X, int32_t Y) const {
@@ -112,10 +112,10 @@ namespace PolarShader {
             int32_t s1 = raw(PfMath::pfSinTurns(4 * X + PfMath::pfCoefT(t, 7, 10)));
             int32_t s2 = raw(PfMath::pfCosTurns(4 * Y - PfMath::pfCoefT(t, 1, 2)));
             int32_t s3 = raw(PfMath::pfSinTurns(2 * (X + Y) + t));
-            PatternNormU16 composite = PfMath::pfSignedToNorm(s1 + s2 + s3, 3 * S0X16_ONE);
+            PatternNormU0x16 composite = PfMath::pfSignedToNorm(s1 + s2 + s3, 3 * S0X16_ONE);
             // Hue: the smooth pre-posterized composite drives continuous colour.
             return PaletteSample{composite,
-                                 PatternNormU16(PfMath::pfPosterize(raw(composite), state->levels))};
+                                 PatternNormU0x16(PfMath::pfPosterize(raw(composite), state->levels))};
         }
 
         PaletteSample cross(int32_t X, int32_t Y) const {
@@ -134,8 +134,8 @@ namespace PolarShader {
             uint16_t barV = PfMath::pfBump(X - kCentre + driftX, hw); // vertical bar
             uint16_t barH = PfMath::pfBump(Y - kCentre + driftY, hw); // horizontal bar
             // Hue: a diagonal position gradient tints the two arms differently.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(X + Y - S0X16_ONE, S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(barV > barH ? barV : barH)};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(X + Y - S0X16_ONE, S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(barV > barH ? barV : barH)};
         }
 
         // Separable standing wave: sin(kx X)*sin(ky Y). Antinodes (|product|~1)
@@ -151,8 +151,8 @@ namespace PolarShader {
             // Dot half-width 0.125 .. 0.625 of the antinode neighbourhood.
             int32_t half = (S0X16_ONE / 8) + (state->thicknessRaw / 2);
             uint16_t glow = PfMath::pfBump(S0X16_ONE - aprod, half);
-            PatternNormU16 hue = PfMath::pfSignedToNorm(sx - sy, 2 * S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(glow)};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(sx - sy, 2 * S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(glow)};
         }
 
         // Two near-equal gratings per axis beat into slow moire fringes. The
@@ -168,12 +168,12 @@ namespace PolarShader {
             int32_t g4 = raw(PfMath::pfSinTurns((k + dk) * Y - PfMath::pfCoefT(t, 3, 4)));
             int32_t beatX = static_cast<int32_t>((static_cast<int64_t>(g1) * g2) >> 16);
             int32_t beatY = static_cast<int32_t>((static_cast<int64_t>(g3) * g4) >> 16);
-            PatternNormU16 composite = PfMath::pfSignedToNorm(beatX + beatY, 2 * S0X16_ONE);
+            PatternNormU0x16 composite = PfMath::pfSignedToNorm(beatX + beatY, 2 * S0X16_ONE);
             // thickness widens the fringes -> fewer, chunkier bands (8 down to 2).
             uint8_t levels = static_cast<uint8_t>(
                 2 + (((S0X16_ONE - state->thicknessRaw) * 6) >> 16));
-            PatternNormU16 hue = PfMath::pfSignedToNorm(beatX - beatY, 2 * S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(PfMath::pfPosterize(raw(composite), levels))};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(beatX - beatY, 2 * S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(PfMath::pfPosterize(raw(composite), levels))};
         }
 
         // Chladni figure: field = cos(m X)cos(n Y) - cos(n X)cos(m Y). Sand
@@ -194,8 +194,8 @@ namespace PolarShader {
             int32_t field = ab - cd; // [-2, 2] in s0x16 units
             int32_t half = (S0X16_ONE * 4 / 100) + (state->thicknessRaw / 4); // 0.04 .. 0.29
             uint16_t node = PfMath::pfBump(field, half);
-            PatternNormU16 hue = PfMath::pfSignedToNorm(ab + cd, 2 * S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(node)};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(ab + cd, 2 * S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(node)};
         }
 
         PaletteSample sample(UV uv) const {
@@ -211,10 +211,10 @@ namespace PolarShader {
                 case Variant::Moire:           return moire(X, Y);
                 case Variant::Chladni:         return chladni(X, Y);
             }
-            return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
+            return PaletteSample{PatternNormU0x16(0), PatternNormU0x16(0)};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };

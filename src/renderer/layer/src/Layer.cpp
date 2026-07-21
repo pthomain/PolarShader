@@ -67,10 +67,10 @@ namespace PolarShader {
             const uint16_t effectiveValue = scale16(maxc, value);
             const uint16_t delta = static_cast<uint16_t>(maxc - minc);
             if (value <= 0x0100u || maxc <= 0x0100u) {
-                return PaletteSample(PatternNormU16(0), PatternNormU16(0));
+                return PaletteSample(PatternNormU0x16(0), PatternNormU0x16(0));
             }
             if (delta <= 0x0100u) {
-                return PaletteSample(PatternNormU16(0), PatternNormU16(effectiveValue));
+                return PaletteSample(PatternNormU0x16(0), PatternNormU0x16(effectiveValue));
             }
 
             constexpr int32_t ONE_SIXTH_TURN = 10923;
@@ -94,7 +94,7 @@ namespace PolarShader {
 
             hue %= static_cast<int32_t>(ANGLE_FULL_TURN_U32);
             if (hue < 0) hue += static_cast<int32_t>(ANGLE_FULL_TURN_U32);
-            return PaletteSample(PatternNormU16(static_cast<uint16_t>(hue)), PatternNormU16(effectiveValue));
+            return PaletteSample(PatternNormU0x16(static_cast<uint16_t>(hue)), PatternNormU0x16(effectiveValue));
         }
     }
 
@@ -159,7 +159,7 @@ namespace PolarShader {
 
     CRGB Layer::mapPalette(
         const CRGBPalette16 &palette,
-        PatternNormU16 value,
+        PatternNormU0x16 value,
         const std::shared_ptr<PipelineContext> &context
     ) {
         uint16_t hue_value = raw(value);
@@ -342,7 +342,7 @@ namespace PolarShader {
             return std::make_unique<ColourMap>([palette = palette, layer = std::move(currentRaster), context = context](
                 const RenderPoint &point
             ) {
-                PatternNormU16 value = layer(point.raster);
+                PatternNormU0x16 value = layer(point.raster);
                 return mapPalette(palette, value, context);
             });
         }

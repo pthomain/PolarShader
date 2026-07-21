@@ -25,7 +25,7 @@
 namespace PolarShader {
     SampleSignal sampleNoise() {
         return [](u0x16 phase) -> s0x16 {
-            NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(phase)));
+            NoiseRawU0x16 rawNoise = NoiseRawU0x16(inoise16(angleToFastLedPhase(phase)));
             return toSigned(u0x16(raw(rawNoise)));
         };
     }
@@ -33,7 +33,7 @@ namespace PolarShader {
     SampleSignal32 sampleNoise32() {
         return [](uint32_t phase) -> s0x16 {
             // inoise16 for 1D uses a 32-bit coordinate (16.16)
-            NoiseRawU16 rawNoise = NoiseRawU16(inoise16(phase << 5));
+            NoiseRawU0x16 rawNoise = NoiseRawU0x16(inoise16(phase << 5));
             return toSigned(u0x16(raw(rawNoise)));
         };
     }

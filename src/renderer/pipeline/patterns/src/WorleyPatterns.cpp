@@ -128,27 +128,27 @@ namespace PolarShader {
         return {best1, best2, best_id};
     }
 
-    PatternNormU16 WorleyBasePattern::normalizeDistance(uint64_t dist) const {
+    PatternNormU0x16 WorleyBasePattern::normalizeDistance(uint64_t dist) const {
         uint64_t scaled = dist >> dist_shift;
         if (scaled > max_dist_scaled) scaled = max_dist_scaled;
         return patternNormalize(static_cast<uint16_t>(scaled), 0, max_dist_scaled);
     }
 
-    PatternNormU16 WorleyBasePattern::softenValue(PatternNormU16 value) const {
+    PatternNormU0x16 WorleyBasePattern::softenValue(PatternNormU0x16 value) const {
         return patternSmoothstepU16(0, S0X16_MAX, raw(value));
     }
 
     struct WorleyPattern::UVFunctor {
         const WorleyPattern *self;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             fl::s24x8 cx = CartesianMaths::from_uv(uv.u);
             fl::s24x8 cy = CartesianMaths::from_uv(uv.v);
 
             if (self->aliasing == WorleyAliasing::Precise) {
                 return self->samplePrecise(cx, cy);
             }
-            PatternNormU16 value = self->sampleFast(cx, cy);
+            PatternNormU0x16 value = self->sampleFast(cx, cy);
             if (self->aliasing == WorleyAliasing::Fast) {
                 return self->softenValue(value);
             }
@@ -165,25 +165,25 @@ namespace PolarShader {
         return UVFunctor{this};
     }
 
-    PatternNormU16 WorleyPattern::sampleFast(fl::s24x8 x, fl::s24x8 y) const {
+    PatternNormU0x16 WorleyPattern::sampleFast(fl::s24x8 x, fl::s24x8 y) const {
         auto d = computeDistances(x, y);
         return normalizeDistance(d.f1);
     }
 
-    PatternNormU16 WorleyPattern::samplePrecise(fl::s24x8 x, fl::s24x8 y) const {
+    PatternNormU0x16 WorleyPattern::samplePrecise(fl::s24x8 x, fl::s24x8 y) const {
         fl::s24x8 offset = aliasingOffset();
         uint32_t sum = 0;
         sum += sampleFast(x - offset, y - offset).raw();
         sum += sampleFast(x + offset, y - offset).raw();
         sum += sampleFast(x - offset, y + offset).raw();
         sum += sampleFast(x + offset, y + offset).raw();
-        return PatternNormU16(static_cast<uint16_t>(sum >> 2));
+        return PatternNormU0x16(static_cast<uint16_t>(sum >> 2));
     }
 
     struct VoronoiPattern::UVFunctor {
         const VoronoiPattern *self;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             fl::s24x8 cx = CartesianMaths::from_uv(uv.u);
             fl::s24x8 cy = CartesianMaths::from_uv(uv.v);
 
@@ -203,12 +203,12 @@ namespace PolarShader {
         return UVFunctor{this};
     }
 
-    PatternNormU16 VoronoiPattern::sampleIdFast(fl::s24x8 x, fl::s24x8 y) const {
+    PatternNormU0x16 VoronoiPattern::sampleIdFast(fl::s24x8 x, fl::s24x8 y) const {
         auto d = computeDistances(x, y);
-        return PatternNormU16(static_cast<uint16_t>(d.id & 0xFFFFu));
+        return PatternNormU0x16(static_cast<uint16_t>(d.id & 0xFFFFu));
     }
 
-    PatternNormU16 VoronoiPattern::sampleFastestId(
+    PatternNormU0x16 VoronoiPattern::sampleFastestId(
         fl::s24x8 x0, fl::s24x8 y0,
         fl::s24x8 x1, fl::s24x8 y1
     ) const {
@@ -220,10 +220,10 @@ namespace PolarShader {
         Distances d3 = computeDistances(x1, y1);
         if (d3.f1 < best.f1) best = d3;
 
-        return PatternNormU16(static_cast<uint16_t>(best.id & 0xFFFFu));
+        return PatternNormU0x16(static_cast<uint16_t>(best.id & 0xFFFFu));
     }
 
-    PatternNormU16 VoronoiPattern::samplePrecise(fl::s24x8 x, fl::s24x8 y) const {
+    PatternNormU0x16 VoronoiPattern::samplePrecise(fl::s24x8 x, fl::s24x8 y) const {
         fl::s24x8 offset = aliasingOffset();
         return sampleFastestId(
             x - offset, y - offset,

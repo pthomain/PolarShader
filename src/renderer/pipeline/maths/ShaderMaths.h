@@ -160,11 +160,11 @@ namespace PolarShader {
         return fl::u16x16::from_raw(shader_detail::exp2Q16Raw(static_cast<int32_t>(exponent), UINT32_MAX));
     }
 
-    inline RgbSample iqCosinePaletteQ16(fl::u16x16 t, PatternNormU16 value) {
+    inline RgbSample iqCosinePaletteQ16(fl::u16x16 t, PatternNormU0x16 value) {
         uint32_t turns = raw(t);
-        PatternNormU16 r = PatternNormU16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 17236u))))));
-        PatternNormU16 g = PatternNormU16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 27263u))))));
-        PatternNormU16 b = PatternNormU16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 36504u))))));
+        PatternNormU0x16 r = PatternNormU0x16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 17236u))))));
+        PatternNormU0x16 g = PatternNormU0x16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 27263u))))));
+        PatternNormU0x16 b = PatternNormU0x16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 36504u))))));
         return RgbSample(r, g, b, value);
     }
 }

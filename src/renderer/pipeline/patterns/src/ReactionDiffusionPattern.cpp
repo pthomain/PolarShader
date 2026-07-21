@@ -68,7 +68,7 @@ namespace PolarShader {
     struct ReactionDiffusionPattern::RDFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sampleScalarGridWrapped(state->v.get(), state->width, state->height, uv);
         }
     };

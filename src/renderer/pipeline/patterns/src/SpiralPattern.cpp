@@ -68,7 +68,7 @@ namespace PolarShader {
     struct SpiralPattern::UVSpiralFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             // 1. Convert UV to polar: out.u = angle (u0x16 turns), out.v = radius (q16 [0, 1]).
             UV polar = cartesianToPolarUV(uv);
             uint16_t angleTurns = static_cast<uint16_t>(polar.u.raw());
@@ -95,7 +95,7 @@ namespace PolarShader {
 
             // 5. Outside the arm window -> zero intensity.
             if (distToCentre > state->halfArmRaw) {
-                return PatternNormU16(0u);
+                return PatternNormU0x16(0u);
             }
 
             // 6. Cosine falloff: t = distToCentre / halfArm in q16, intensity = 0.5 + 0.5*cos(pi*t).
@@ -108,7 +108,7 @@ namespace PolarShader {
             uint32_t weight = kGradientBaseQ16 + ((kGradientSlopeQ16 * radiusRaw) >> 16);
 
             uint32_t out = (intensity * weight) >> 16;
-            return PatternNormU16(static_cast<uint16_t>(out));
+            return PatternNormU0x16(static_cast<uint16_t>(out));
         }
     };
 

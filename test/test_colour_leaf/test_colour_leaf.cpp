@@ -60,8 +60,8 @@ using namespace PolarShader;
 // toggle clip / colour-mask / offset on the exact context tintPalette reads.
 class TestColourPattern : public UVPattern {
 public:
-    PatternNormU16 hueValue;
-    PatternNormU16 valValue;
+    PatternNormU0x16 hueValue;
+    PatternNormU0x16 valValue;
     mutable std::shared_ptr<PipelineContext> seenCtx;
 
     TestColourPattern(uint16_t h, uint16_t v)
@@ -81,14 +81,14 @@ public:
 // brightness-preserving hue-remap when a palette transform opts in.
 class TestScalarPattern : public UVPattern {
 public:
-    PatternNormU16 valValue;
+    PatternNormU0x16 valValue;
     mutable std::shared_ptr<PipelineContext> seenCtx;
 
     explicit TestScalarPattern(uint16_t v) : valValue(v) {}
 
     UVMap layer(const std::shared_ptr<PipelineContext> &context) const override {
         seenCtx = context;
-        PatternNormU16 v = valValue;
+        PatternNormU0x16 v = valValue;
         return [v](UV) { return v; };
     }
 };
@@ -99,7 +99,7 @@ public:
     mutable std::shared_ptr<PipelineContext> seenCtx;
 
     TestRgbPattern(uint16_t r, uint16_t g, uint16_t b, uint16_t value)
-        : sampleValue(PatternNormU16(r), PatternNormU16(g), PatternNormU16(b), PatternNormU16(value)) {}
+        : sampleValue(PatternNormU0x16(r), PatternNormU0x16(g), PatternNormU0x16(b), PatternNormU0x16(value)) {}
 
     UVLayer uvLayer(const std::shared_ptr<PipelineContext> &context) const override {
         seenCtx = context;
@@ -238,7 +238,7 @@ void test_rgb_native_clip_gates_by_value_channel() {
     RgbHarness h = makeRgbHarness(pal, U0X16_MAX, 0, 0, 0x4000u);
     auto cm = h.layer.compile();
     h.pattern->seenCtx->paletteClipEnabled = true;
-    h.pattern->seenCtx->paletteClip = PatternNormU16(0x4001u);
+    h.pattern->seenCtx->paletteClip = PatternNormU0x16(0x4001u);
     h.pattern->seenCtx->paletteClipFeather = u0x16(0);
 
     assertEqualCRGB((*cm)(testPoint()), CRGB::Black, "rgb native clip should gate by value");
@@ -334,7 +334,7 @@ void test_clip_below_value_passes_full_colour() {
     // so the colour is the un-scaled palette entry.
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteClipEnabled = true;
-    h.pattern->seenCtx->paletteClip = PatternNormU16(kVal - 1);
+    h.pattern->seenCtx->paletteClip = PatternNormU0x16(kVal - 1);
     h.pattern->seenCtx->paletteClipFeather = u0x16(0);
 
     CRGB got = (*cm)(testPoint());
@@ -349,7 +349,7 @@ void test_clip_above_value_gates_to_black() {
     // clip above the value channel, feather 0 -> mask == 0 -> black.
     h.pattern->seenCtx->paletteTintMode = PipelineContext::PaletteTintMode::HueRemap;
     h.pattern->seenCtx->paletteClipEnabled = true;
-    h.pattern->seenCtx->paletteClip = PatternNormU16(kVal + 1);
+    h.pattern->seenCtx->paletteClip = PatternNormU0x16(kVal + 1);
     h.pattern->seenCtx->paletteClipFeather = u0x16(0);
 
     CRGB got = (*cm)(testPoint());

@@ -124,15 +124,15 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !cells) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
-            return cells[idx] ? PatternNormU16(U0X16_MAX) : PatternNormU16(0);
+            return cells[idx] ? PatternNormU0x16(U0X16_MAX) : PatternNormU0x16(0);
         };
     }
 }

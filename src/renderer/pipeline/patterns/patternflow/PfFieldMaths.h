@@ -58,20 +58,20 @@ namespace PolarShader {
 
         // Map a signed accumulator in [-maxAbsRaw, +maxAbsRaw] (s0x16 raw units)
         // onto the pattern intensity currency [0, 65535], clamped. maxAbsRaw > 0.
-        inline PatternNormU16 pfSignedToNorm(int32_t valueRaw, int32_t maxAbsRaw) {
-            if (maxAbsRaw <= 0) return PatternNormU16(0);
+        inline PatternNormU0x16 pfSignedToNorm(int32_t valueRaw, int32_t maxAbsRaw) {
+            if (maxAbsRaw <= 0) return PatternNormU0x16(0);
             int64_t shifted = static_cast<int64_t>(valueRaw) + maxAbsRaw;
             int64_t out = (shifted * U0X16_MAX) / (2 * static_cast<int64_t>(maxAbsRaw));
             if (out < 0) out = 0;
             else if (out > U0X16_MAX) out = U0X16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(out));
+            return PatternNormU0x16(static_cast<uint16_t>(out));
         }
 
         // Map a unit value in Q16 [0, 65536] onto [0, 65535], clamped.
-        inline PatternNormU16 pfUnitToNorm(int32_t unitQ16) {
-            if (unitQ16 <= 0) return PatternNormU16(0);
-            if (unitQ16 >= static_cast<int32_t>(U0X16_MAX)) return PatternNormU16(U0X16_MAX);
-            return PatternNormU16(static_cast<uint16_t>(unitQ16));
+        inline PatternNormU0x16 pfUnitToNorm(int32_t unitQ16) {
+            if (unitQ16 <= 0) return PatternNormU0x16(0);
+            if (unitQ16 >= static_cast<int32_t>(U0X16_MAX)) return PatternNormU0x16(U0X16_MAX);
+            return PatternNormU0x16(static_cast<uint16_t>(unitQ16));
         }
 
         // Smooth symmetric bump window centred on distance 0. |d| >= halfWidth

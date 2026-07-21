@@ -297,12 +297,12 @@ namespace PolarShader {
             return value > U0X16_MAX ? U0X16_MAX : static_cast<uint16_t>(value);
         }
 
-        PatternNormU16 shaderToyUnpremultiplyChannel(uint32_t channel, uint32_t maxChannel) {
-            if (maxChannel == 0u) return PatternNormU16(0);
-            if (maxChannel > U0X16_MAX) return PatternNormU16(shaderToyClampAccumToU16(channel));
+        PatternNormU0x16 shaderToyUnpremultiplyChannel(uint32_t channel, uint32_t maxChannel) {
+            if (maxChannel == 0u) return PatternNormU0x16(0);
+            if (maxChannel > U0X16_MAX) return PatternNormU0x16(shaderToyClampAccumToU16(channel));
             uint64_t scaled = (static_cast<uint64_t>(channel) << 16) / maxChannel;
             if (scaled > U0X16_MAX) scaled = U0X16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(scaled));
+            return PatternNormU0x16(static_cast<uint16_t>(scaled));
         }
 
         RgbSample rgbFromPremultiplied(uint32_t r, uint32_t g, uint32_t b) {
@@ -314,7 +314,7 @@ namespace PolarShader {
                 shaderToyUnpremultiplyChannel(r, maxChannel),
                 shaderToyUnpremultiplyChannel(g, maxChannel),
                 shaderToyUnpremultiplyChannel(b, maxChannel),
-                PatternNormU16(shaderToyClampAccumToU16(maxChannel))
+                PatternNormU0x16(shaderToyClampAccumToU16(maxChannel))
             );
         }
 
@@ -713,7 +713,7 @@ namespace PolarShader {
             );
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };
@@ -822,7 +822,7 @@ namespace PolarShader {
             return rgbFromPremultiplied(channels[0], channels[1], channels[2]);
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };
@@ -935,7 +935,7 @@ namespace PolarShader {
             );
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };
@@ -1047,7 +1047,7 @@ namespace PolarShader {
             );
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };
@@ -1245,7 +1245,7 @@ namespace PolarShader {
             );
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };
@@ -1357,7 +1357,7 @@ namespace PolarShader {
             return rgbFromPremultiplied(r, g, b);
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };
@@ -1535,7 +1535,7 @@ namespace PolarShader {
             return rgbFromPremultiplied(accR, accG, accB);
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };

@@ -100,18 +100,18 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !cells) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             const uint8_t current = cells[idx];
-            if (current == kFiring) return PatternNormU16(U0X16_MAX);
-            if (current == kDying) return PatternNormU16(U0X16_MAX / 3u);
-            return PatternNormU16(0);
+            if (current == kFiring) return PatternNormU0x16(U0X16_MAX);
+            if (current == kDying) return PatternNormU0x16(U0X16_MAX / 3u);
+            return PatternNormU0x16(0);
         };
     }
 }

@@ -59,8 +59,8 @@ namespace PolarShader {
             c3 = (c3 * 5) / 2;                       // *2.5 gain
             if (c3 > U0X16_MAX) c3 = U0X16_MAX;
             // Hue: the two base waves give a cheap phase proxy in [-2, 2].
-            PatternNormU16 hue = PfMath::pfSignedToNorm(v1 + v2, 2 * S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(c3))};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(v1 + v2, 2 * S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(static_cast<uint16_t>(c3))};
         }
 
         PaletteSample tendrils(int32_t X, int32_t Y) const {
@@ -78,8 +78,8 @@ namespace PolarShader {
             int32_t d = a - (S0X16_ONE * 2 / 5);
             uint16_t val = PfMath::pfBump(d, state->halfWidthRaw);
             // Hue: the signed centre-field in [-2, 2] varies along filaments.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(cf, 2 * S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(val)};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(cf, 2 * S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(val)};
         }
 
         PaletteSample liquidGate(int32_t X, int32_t Y) const {
@@ -99,11 +99,11 @@ namespace PolarShader {
             int32_t hw = state->gateHalfRaw;
             int32_t e0 = mid - hw; if (e0 < 0) e0 = 0;
             int32_t e1 = mid + hw; if (e1 > static_cast<int32_t>(U0X16_MAX)) e1 = U0X16_MAX;
-            PatternNormU16 value = patternSmoothstepU16(static_cast<uint16_t>(e0),
+            PatternNormU0x16 value = patternSmoothstepU16(static_cast<uint16_t>(e0),
                                                         static_cast<uint16_t>(e1),
                                                         static_cast<uint16_t>(norm));
             // Hue: the pre-gate metaball field is already a [0, 65535] proxy.
-            return PaletteSample{PatternNormU16(static_cast<uint16_t>(norm)), value};
+            return PaletteSample{PatternNormU0x16(static_cast<uint16_t>(norm)), value};
         }
 
         PaletteSample sample(UV uv) const {
@@ -114,10 +114,10 @@ namespace PolarShader {
                 case Variant::Tendrils:   return tendrils(X, Y);
                 case Variant::LiquidGate: return liquidGate(X, Y);
             }
-            return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
+            return PaletteSample{PatternNormU0x16(0), PatternNormU0x16(0)};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };

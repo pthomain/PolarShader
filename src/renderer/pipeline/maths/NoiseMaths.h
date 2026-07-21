@@ -32,7 +32,7 @@ namespace PolarShader {
     /**
      * @brief Normalises a 16-bit raw noise value to the full 0-65535 range.
      */
-    inline PatternNormU16 noiseNormaliseU16(NoiseRawU16 value) {
+    inline PatternNormU0x16 noiseNormaliseU16(NoiseRawU0x16 value) {
         return patternNormalize(raw(value), NOISE_MIN, NOISE_MAX);
     }
 
@@ -41,15 +41,15 @@ namespace PolarShader {
      *
      * The inputs are unsigned fl::u24x8 coordinates in noise domain space.
      */
-    NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y);
+    NoiseRawU0x16 sampleNoiseBilinear(uint32_t x, uint32_t y);
 
-    NoiseRawU16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z);
+    NoiseRawU0x16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z);
 
-    inline NoiseRawU16 sampleNoiseBilinear(fl::u24x8 x, fl::u24x8 y) {
+    inline NoiseRawU0x16 sampleNoiseBilinear(fl::u24x8 x, fl::u24x8 y) {
         return sampleNoiseBilinear(x.raw(), y.raw());
     }
 
-    inline NoiseRawU16 sampleNoiseTrilinear(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
+    inline NoiseRawU0x16 sampleNoiseTrilinear(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
         return sampleNoiseTrilinear(x.raw(), y.raw(), z.raw());
     }
 

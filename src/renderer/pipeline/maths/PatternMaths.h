@@ -26,12 +26,12 @@
 #include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
-    PatternNormU16 patternNormalize(uint16_t value, uint16_t minValue, uint16_t maxValue);
+    PatternNormU0x16 patternNormalize(uint16_t value, uint16_t minValue, uint16_t maxValue);
 
-    PatternNormU16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x);
+    PatternNormU0x16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x);
 
     namespace detail {
-        inline PatternNormU16 sampleScalarGrid(
+        inline PatternNormU0x16 sampleScalarGrid(
             const uint16_t *gridValues,
             uint16_t width,
             uint16_t height,
@@ -57,12 +57,12 @@ namespace PolarShader {
 
             uint16_t topRow = lerpU16ByQ16(topLeft, topRight, xMix);
             uint16_t bottomRow = lerpU16ByQ16(bottomLeft, bottomRight, xMix);
-            return PatternNormU16(lerpU16ByQ16(topRow, bottomRow, yMix));
+            return PatternNormU0x16(lerpU16ByQ16(topRow, bottomRow, yMix));
         }
     }
 
-    inline PatternNormU16 sampleScalarGridClamped(const uint16_t *gridValues, uint16_t width, uint16_t height, UV uv) {
-        if (!gridValues || width == 0 || height == 0) return PatternNormU16(0);
+    inline PatternNormU0x16 sampleScalarGridClamped(const uint16_t *gridValues, uint16_t width, uint16_t height, UV uv) {
+        if (!gridValues || width == 0 || height == 0) return PatternNormU0x16(0);
 
         fl::s16x16 clampedU = clampS16x16(uv.u, fl::s16x16::from_raw(0), fl::s16x16::from_raw(U0X16_MAX));
         fl::s16x16 clampedV = clampS16x16(uv.v, fl::s16x16::from_raw(0), fl::s16x16::from_raw(U0X16_MAX));
@@ -72,8 +72,8 @@ namespace PolarShader {
         return detail::sampleScalarGrid(gridValues, width, height, sampleX, sampleY, false);
     }
 
-    inline PatternNormU16 sampleScalarGridWrapped(const uint16_t *gridValues, uint16_t width, uint16_t height, UV uv) {
-        if (!gridValues || width == 0 || height == 0) return PatternNormU16(0);
+    inline PatternNormU0x16 sampleScalarGridWrapped(const uint16_t *gridValues, uint16_t width, uint16_t height, UV uv) {
+        if (!gridValues || width == 0 || height == 0) return PatternNormU0x16(0);
 
         int32_t wrappedURaw = raw(uv.u) % ANGLE_FULL_TURN_U32;
         if (wrappedURaw < 0) wrappedURaw += ANGLE_FULL_TURN_U32;

@@ -78,13 +78,13 @@ namespace PolarShader {
             return value > U0X16_MAX ? U0X16_MAX : static_cast<uint16_t>(value);
         }
 
-        PatternNormU16 unpremultiplyChannel(uint32_t channel, uint32_t maxChannel) {
-            if (maxChannel == 0u) return PatternNormU16(0);
-            if (maxChannel > U0X16_MAX) return PatternNormU16(clampAccumToU16(channel));
+        PatternNormU0x16 unpremultiplyChannel(uint32_t channel, uint32_t maxChannel) {
+            if (maxChannel == 0u) return PatternNormU0x16(0);
+            if (maxChannel > U0X16_MAX) return PatternNormU0x16(clampAccumToU16(channel));
 
             uint64_t scaled = (static_cast<uint64_t>(channel) << 16) / maxChannel;
             if (scaled > U0X16_MAX) scaled = U0X16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(scaled));
+            return PatternNormU0x16(static_cast<uint16_t>(scaled));
         }
 
         uint32_t shaderWaveGlow(uint32_t distanceRaw, uint32_t timeRaw) {
@@ -164,7 +164,7 @@ namespace PolarShader {
                     uv0LengthRaw +
                     (static_cast<uint32_t>(i) * Q16_TIME_SCALE) +
                     static_cast<uint32_t>((static_cast<uint64_t>(timeRaw) * Q16_TIME_SCALE) >> 16);
-                RgbSample colour = iqCosinePaletteQ16(fl::u16x16::from_raw(paletteTRaw), PatternNormU16(U0X16_MAX));
+                RgbSample colour = iqCosinePaletteQ16(fl::u16x16::from_raw(paletteTRaw), PatternNormU0x16(U0X16_MAX));
 
                 uint32_t glowRaw = shaderWaveGlow(dRaw, timeRaw);
 
@@ -178,7 +178,7 @@ namespace PolarShader {
             if (accB > maxChannel) maxChannel = accB;
             if (maxChannel == 0u) return RgbSample();
 
-            PatternNormU16 value(clampAccumToU16(maxChannel));
+            PatternNormU0x16 value(clampAccumToU16(maxChannel));
             return RgbSample(
                 unpremultiplyChannel(accR, maxChannel),
                 unpremultiplyChannel(accG, maxChannel),
@@ -187,7 +187,7 @@ namespace PolarShader {
             );
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };

@@ -33,10 +33,10 @@
 
 namespace PolarShader {
     /** @brief The new unified sampling interface using normalized UV coordinates. */
-    using UVMap = fl::function<PatternNormU16(UV)>;
+    using UVMap = fl::function<PatternNormU0x16(UV)>;
 
     /** @brief Pixel-addressed sampling interface for matrix/raster patterns. */
-    using RasterMap = fl::function<PatternNormU16(const RasterPoint&)>;
+    using RasterMap = fl::function<PatternNormU0x16(const RasterPoint&)>;
 
     /** @brief Pixel-addressed colour-emitting sampling interface. */
     using RasterColourMap = fl::function<PaletteSample(const RasterPoint&)>;

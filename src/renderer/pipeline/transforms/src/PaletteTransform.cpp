@@ -79,7 +79,7 @@ namespace PolarShader {
         MagnitudeRange<uint8_t> offsetRange;
         uint8_t offsetValue = 0;
         S0x16Signal clipSignal;
-        PatternNormU16 clipValue = PatternNormU16(0);
+        PatternNormU0x16 clipValue = PatternNormU0x16(0);
         bool clipInvert = false;
         u0x16 maxFeather = u0x16(0);
         bool hasClip = false;
@@ -117,7 +117,7 @@ namespace PolarShader {
                 u0x16 clipRaw = sampleClipMagnitude(state->clipSignal, elapsedMs);
                 u0x16 clipFeather = scaleClipFeather(state->maxFeather, clipRaw);
                 state->clipInvert = false;
-                state->clipValue = PatternNormU16(raw(clipRaw));
+                state->clipValue = PatternNormU0x16(raw(clipRaw));
                 context->paletteClip = state->clipValue;
                 context->paletteClipFeather = clipFeather;
                 context->paletteClipInvert = state->clipInvert;

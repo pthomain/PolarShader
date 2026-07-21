@@ -343,7 +343,7 @@ namespace PolarShader {
 
         /// Per-pixel 2D backward advection with per-pixel vector callback.
         /// vectorFn returns displacement in Q16.16 grid-cell units.
-        using TransportVectorFn = v32(*)(
+        using TransportVectorFn = Vec2I32(*)(
             uint8_t x, uint8_t y, uint8_t gridSize, const void *params
         );
 
@@ -359,7 +359,7 @@ namespace PolarShader {
                 int32_t yCenter = (static_cast<int32_t>(y) << kQ16Shift) + (S0X16_ONE >> 1);
                 for (uint8_t x = 0; x < gridSize; ++x) {
                     int32_t xCenter = (static_cast<int32_t>(x) << kQ16Shift) + (S0X16_ONE >> 1);
-                    v32 disp = vectorFn(x, y, gridSize, params);
+                    Vec2I32 disp = vectorFn(x, y, gridSize, params);
                     int32_t srcX = xCenter - disp.x;
                     int32_t srcY = yCenter - disp.y;
                     uint16_t sampled = sampleGridBilinearWrapped(source, gridSize, srcX, srcY);

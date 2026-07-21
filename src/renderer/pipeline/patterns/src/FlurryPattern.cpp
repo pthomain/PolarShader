@@ -132,7 +132,7 @@ namespace PolarShader {
     struct FlurryPattern::FlurryFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sampleScalarGridClamped(state->cells.get(), state->gridSize, state->gridSize, uv);
         }
     };

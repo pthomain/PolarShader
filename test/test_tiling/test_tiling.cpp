@@ -43,7 +43,7 @@ void test_square_tiling_basic() {
     UV captured_uv;
     auto mock_layer = [&](UV uv) { 
         captured_uv = uv;
-        return PatternNormU16(0); 
+        return PatternNormU0x16(0);
     };
     
     UVMap map(mock_layer);
@@ -59,7 +59,7 @@ void test_triangle_tiling_basic() {
     TilingTransform transform(64, false, TilingTransform::TileShape::TRIANGLE);
     
     UV cap;
-    auto mock = [&](UV uv) { cap = uv; return PatternNormU16(0); };
+    auto mock = [&](UV uv) { cap = uv; return PatternNormU0x16(0); };
     auto tiled = transform(mock);
 
     tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));
@@ -72,7 +72,7 @@ void test_hexagon_tiling_basic() {
     TilingTransform transform(64, false, TilingTransform::TileShape::HEXAGON);
     
     UV cap;
-    auto mock = [&](UV uv) { cap = uv; return PatternNormU16(0); };
+    auto mock = [&](UV uv) { cap = uv; return PatternNormU0x16(0); };
     auto tiled = transform(mock);
     
     tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));
@@ -85,7 +85,7 @@ void test_signal_tiling_basic() {
     TilingTransform transform(constant(128)); 
     
     UV cap;
-    auto mock = [&](UV uv) { cap = uv; return PatternNormU16(0); };
+    auto mock = [&](UV uv) { cap = uv; return PatternNormU0x16(0); };
     auto tiled = transform(mock);
     
     tiled(UV(fl::s16x16::from_raw(0), fl::s16x16::from_raw(0)));

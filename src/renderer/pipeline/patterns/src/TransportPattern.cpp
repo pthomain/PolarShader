@@ -114,7 +114,7 @@ namespace PolarShader {
         // Convert polar displacement (dr, dTheta) to cartesian (dx, dy) in Q16.16.
         // dr is Q16.16 grid-cell units, dTheta is Q16.16 radians-like (but we use turns).
         // dTheta is in turns * S0X16_ONE scale.
-        v32 polarToCartesian(const PolarCoord &polar, int32_t drRaw, int32_t dThetaRaw) {
+        Vec2I32 polarToCartesian(const PolarCoord &polar, int32_t drRaw, int32_t dThetaRaw) {
             // dx = dr * cos(a) - r * dTheta * sin(a)
             // dy = dr * sin(a) + r * dTheta * cos(a)
             int32_t drCos = static_cast<int32_t>((static_cast<int64_t>(drRaw) * polar.cosA) >> 16);
@@ -123,7 +123,7 @@ namespace PolarShader {
             int32_t rDThetaSin = static_cast<int32_t>((static_cast<int64_t>(rDTheta) * polar.sinA) >> 16);
             int32_t rDThetaCos = static_cast<int32_t>((static_cast<int64_t>(rDTheta) * polar.cosA) >> 16);
 
-            return v32{drCos - rDThetaSin, drSin + rDThetaCos};
+            return Vec2I32{drCos - rDThetaSin, drSin + rDThetaCos};
         }
 
         // ---- Transport mode parameters passed to vector callbacks ----
@@ -143,7 +143,7 @@ namespace PolarShader {
 
         // ---- Vector field functions per mode ----
 
-        v32 transportVector(uint8_t x, uint8_t y, uint8_t gridSize, const void *params) {
+        Vec2I32 transportVector(uint8_t x, uint8_t y, uint8_t gridSize, const void *params) {
             const auto &p = *static_cast<const TransportParams *>(params);
             PolarCoord polar = gridToPolar(x, y, gridSize);
 
@@ -233,17 +233,17 @@ namespace PolarShader {
                     // Determine quadrant of the spiral arm based on which edge is closer.
                     // Right→Down→Left→Up in clockwise sense.
                     int32_t speed = p.radialSpeedRaw;
-                    v32 disp;
+                    Vec2I32 disp;
                     if (apx >= apy) {
                         // Horizontal-dominant: right or left edge.
                         disp = (px >= 0)
-                            ? v32{0, speed}    // right edge → move down
-                            : v32{0, -speed};  // left edge → move up
+                            ? Vec2I32{0, speed}    // right edge → move down
+                            : Vec2I32{0, -speed};  // left edge → move up
                     } else {
                         // Vertical-dominant: top or bottom edge.
                         disp = (py >= 0)
-                            ? v32{-speed, 0}   // bottom → move left
-                            : v32{speed, 0};   // top → move right
+                            ? Vec2I32{-speed, 0}   // bottom → move left
+                            : Vec2I32{speed, 0};   // top → move right
                     }
                     return disp;
                 }
@@ -283,10 +283,10 @@ namespace PolarShader {
                         totalDx += radX + tanX;
                         totalDy += radY + tanY;
                     }
-                    return v32{totalDx, totalDy};
+                    return Vec2I32{totalDx, totalDy};
                 }
             }
-            return v32{0, 0};
+            return Vec2I32{0, 0};
         }
     }
 
@@ -346,7 +346,7 @@ namespace PolarShader {
     struct TransportPattern::TransportFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sampleScalarGridClamped(state->cells.get(), state->gridSize, state->gridSize, uv);
         }
     };
@@ -455,7 +455,7 @@ namespace PolarShader {
             uint16_t *result = s.cells.get();
             for (uint8_t y = 0; y < gridSize; ++y) {
                 for (uint8_t x = 0; x < gridSize; ++x) {
-                    v32 disp = transportVector(x, y, gridSize, &tp);
+                    Vec2I32 disp = transportVector(x, y, gridSize, &tp);
                     uint64_t mag2 = static_cast<uint64_t>(
                         static_cast<int64_t>(disp.x) * disp.x + static_cast<int64_t>(disp.y) * disp.y
                     );

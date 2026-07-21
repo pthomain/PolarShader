@@ -71,9 +71,9 @@ namespace PolarShader {
     struct AnnuliPattern::UVAnnuliFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             const State &s = *state;
-            if (s.counter < 0) return PatternNormU16(0u);
+            if (s.counter < 0) return PatternNormU0x16(0u);
 
             // Convert UV to polar: out.u = angle (u0x16 turns), out.v = radius (q16 [0, 1]).
             UV polar = cartesianToPolarUV(uv);
@@ -91,10 +91,10 @@ namespace PolarShader {
                 : static_cast<uint32_t>(s.ringCount - 1u - ringIndex);
             uint32_t cellIndex = fillRing * s.slicesPerRing + sliceIndex;
 
-            if (s.counter < static_cast<int32_t>(cellIndex)) return PatternNormU16(0u);
+            if (s.counter < static_cast<int32_t>(cellIndex)) return PatternNormU0x16(0u);
 
             // Filled cell: emit angle as intensity so the palette wraps as a colour wheel.
-            return PatternNormU16(angleTurns);
+            return PatternNormU0x16(angleTurns);
         }
     };
 

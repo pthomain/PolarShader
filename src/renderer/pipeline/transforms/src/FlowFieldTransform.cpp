@@ -39,7 +39,7 @@ namespace PolarShader {
             return raw(signal.sample(bipolarRange(), elapsedMs));
         }
 
-        v32 sampleCurlVector(
+        Vec2I32 sampleCurlVector(
             int64_t xRaw,
             int64_t yRaw,
             fl::s24x8 fieldScale,
@@ -53,22 +53,22 @@ namespace PolarShader {
             const uint32_t uy = static_cast<uint32_t>(syRaw + base);
             const uint32_t uz = static_cast<uint32_t>(static_cast<int64_t>(timeOffsetRaw) + base);
 
-            PatternNormU16 nX1 = noiseNormaliseU16(sampleNoiseTrilinear(
+            PatternNormU0x16 nX1 = noiseNormaliseU16(sampleNoiseTrilinear(
                 ux + FLOW_EPS + FLOW_SEED_X,
                 uy + FLOW_SEED_Y,
                 uz + FLOW_SEED_Z
             ));
-            PatternNormU16 nX0 = noiseNormaliseU16(sampleNoiseTrilinear(
+            PatternNormU0x16 nX0 = noiseNormaliseU16(sampleNoiseTrilinear(
                 ux - FLOW_EPS + FLOW_SEED_X,
                 uy + FLOW_SEED_Y,
                 uz + FLOW_SEED_Z
             ));
-            PatternNormU16 nY1 = noiseNormaliseU16(sampleNoiseTrilinear(
+            PatternNormU0x16 nY1 = noiseNormaliseU16(sampleNoiseTrilinear(
                 ux + FLOW_SEED_X,
                 uy + FLOW_EPS + FLOW_SEED_Y,
                 uz + FLOW_SEED_Z
             ));
-            PatternNormU16 nY0 = noiseNormaliseU16(sampleNoiseTrilinear(
+            PatternNormU0x16 nY0 = noiseNormaliseU16(sampleNoiseTrilinear(
                 ux + FLOW_SEED_X,
                 uy - FLOW_EPS + FLOW_SEED_Y,
                 uz + FLOW_SEED_Z
@@ -77,7 +77,7 @@ namespace PolarShader {
             const int32_t dnx = static_cast<int32_t>(raw(nX1)) - static_cast<int32_t>(raw(nX0));
             const int32_t dny = static_cast<int32_t>(raw(nY1)) - static_cast<int32_t>(raw(nY0));
 
-            return v32{
+            return Vec2I32{
                 static_cast<int32_t>((static_cast<int64_t>(dny) * strengthRaw) >> 16),
                 static_cast<int32_t>((static_cast<int64_t>(-dnx) * strengthRaw) >> 16)
             };
@@ -96,7 +96,7 @@ namespace PolarShader {
             );
         }
 
-        v32 traceCurlDisplacement(
+        Vec2I32 traceCurlDisplacement(
             int32_t startXRaw,
             int32_t startYRaw,
             fl::s24x8 fieldScale,
@@ -104,7 +104,7 @@ namespace PolarShader {
             int32_t strengthRaw
         ) {
             if (strengthRaw == 0) {
-                return v32{0, 0};
+                return Vec2I32{0, 0};
             }
 
             int32_t stepStrength = strengthRaw / FLOW_TRACE_STEPS;
@@ -114,9 +114,9 @@ namespace PolarShader {
 
             int64_t currentX = startXRaw;
             int64_t currentY = startYRaw;
-            v32 total{0, 0};
+            Vec2I32 total{0, 0};
             for (uint8_t i = 0; i < FLOW_TRACE_STEPS; ++i) {
-                v32 step = sampleCurlVector(currentX, currentY, fieldScale, timeOffsetRaw, stepStrength);
+                Vec2I32 step = sampleCurlVector(currentX, currentY, fieldScale, timeOffsetRaw, stepStrength);
                 total.x += step.x;
                 total.y += step.y;
                 currentX += step.x;
@@ -138,7 +138,7 @@ namespace PolarShader {
         fl::s24x8 maxOffset = fl::s24x8::from_raw(0);
         int32_t timeOffsetRaw{0};
         int32_t flowStrengthRaw{0};
-        std::array<v32, FLOW_GRID_W * FLOW_GRID_H> grid{};
+        std::array<Vec2I32, FLOW_GRID_W * FLOW_GRID_H> grid{};
 
         State(
             S0x16Signal phaseSpeedSignal,
@@ -219,16 +219,16 @@ namespace PolarShader {
         uint32_t gx1 = (gx0 + 1u < FLOW_GRID_W) ? (gx0 + 1u) : gx0;
         uint32_t gy1 = (gy0 + 1u < FLOW_GRID_H) ? (gy0 + 1u) : gy0;
 
-        const v32 &f00 = state.grid[gy0 * FLOW_GRID_W + gx0];
-        const v32 &f10 = state.grid[gy0 * FLOW_GRID_W + gx1];
-        const v32 &f01 = state.grid[gy1 * FLOW_GRID_W + gx0];
-        const v32 &f11 = state.grid[gy1 * FLOW_GRID_W + gx1];
+        const Vec2I32 &f00 = state.grid[gy0 * FLOW_GRID_W + gx0];
+        const Vec2I32 &f10 = state.grid[gy0 * FLOW_GRID_W + gx1];
+        const Vec2I32 &f01 = state.grid[gy1 * FLOW_GRID_W + gx0];
+        const Vec2I32 &f11 = state.grid[gy1 * FLOW_GRID_W + gx1];
 
         int32_t topX = lerpRaw(f00.x, f10.x, tx);
         int32_t topY = lerpRaw(f00.y, f10.y, tx);
         int32_t bottomX = lerpRaw(f01.x, f11.x, tx);
         int32_t bottomY = lerpRaw(f01.y, f11.y, tx);
-        v32 flow{
+        Vec2I32 flow{
             lerpRaw(topX, bottomX, ty),
             lerpRaw(topY, bottomY, ty)
         };

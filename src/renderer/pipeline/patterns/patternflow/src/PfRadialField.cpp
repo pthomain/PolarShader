@@ -62,8 +62,8 @@ namespace PolarShader {
             int32_t diff = radiusQ16 - target;
             uint16_t band = PfMath::pfBump(diff, state->halfBandRaw);
             // Hue: the polar angle sweeps colour around the flower.
-            PatternNormU16 hue = PatternNormU16(static_cast<uint16_t>(angleTurns));
-            return PaletteSample{hue, PatternNormU16(band)};
+            PatternNormU0x16 hue = PatternNormU0x16(static_cast<uint16_t>(angleTurns));
+            return PaletteSample{hue, PatternNormU0x16(band)};
         }
 
         PaletteSample rippleField(UV uv) const {
@@ -89,8 +89,8 @@ namespace PolarShader {
             uint32_t out = static_cast<uint32_t>(crest) + base;
             if (out > U0X16_MAX) out = U0X16_MAX;
             // Hue: the signed ripple wave in [-1, 1] tints crest vs trough.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(out))};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(wave, S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(static_cast<uint16_t>(out))};
         }
 
         PaletteSample chirp(UV uv) const {
@@ -110,8 +110,8 @@ namespace PolarShader {
 
             uint16_t crest = PfMath::pfBump(S0X16_ONE - wave, state->halfBandRaw);
             // Hue: the signed sweep wave tints leading vs trailing edge.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(wave, S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(crest)};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(wave, S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(crest)};
         }
 
         PaletteSample spiralArms(UV uv) const {
@@ -130,8 +130,8 @@ namespace PolarShader {
 
             uint16_t arm = PfMath::pfBump(S0X16_ONE - wave, state->halfBandRaw);
             // Hue: the polar angle sweeps colour around the galaxy.
-            PatternNormU16 hue = PatternNormU16(static_cast<uint16_t>(angleTurns));
-            return PaletteSample{hue, PatternNormU16(arm)};
+            PatternNormU0x16 hue = PatternNormU0x16(static_cast<uint16_t>(angleTurns));
+            return PaletteSample{hue, PatternNormU0x16(arm)};
         }
 
         PaletteSample sample(UV uv) const {
@@ -141,10 +141,10 @@ namespace PolarShader {
                 case Variant::Chirp: return chirp(uv);
                 case Variant::SpiralArms: return spiralArms(uv);
             }
-            return PaletteSample{PatternNormU16(0), PatternNormU16(0)};
+            return PaletteSample{PatternNormU0x16(0), PatternNormU0x16(0)};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };

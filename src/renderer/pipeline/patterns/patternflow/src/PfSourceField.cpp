@@ -70,11 +70,11 @@ namespace PolarShader {
             if (out > U0X16_MAX) out = U0X16_MAX;
 
             // Hue: the signed interference amplitude tints crest vs trough.
-            PatternNormU16 hue = PfMath::pfSignedToNorm(wv, S0X16_ONE);
-            return PaletteSample{hue, PatternNormU16(static_cast<uint16_t>(out))};
+            PatternNormU0x16 hue = PfMath::pfSignedToNorm(wv, S0X16_ONE);
+            return PaletteSample{hue, PatternNormU0x16(static_cast<uint16_t>(out))};
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sample(uv).value();
         }
     };

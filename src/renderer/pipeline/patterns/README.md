@@ -42,7 +42,7 @@ This split is required for RP2040 dual-core rendering, where both cores sample c
 
 ### 4. Adhere to the Normalization Contract
 
-A pattern's final output **must** be a `PatternNormU16` value that spans the full `0..65535` dynamic range. This ensures consistent brightness and palette mapping across all patterns.
+A pattern's final output **must** be a `PatternNormU0x16` value that spans the full `0..65535` dynamic range. This ensures consistent brightness and palette mapping across all patterns.
 
 - **Use the Central Utility:** If a pattern's native output is not already in the full `0..65535` range, it must be normalized using the canonical helper:
   ```cpp

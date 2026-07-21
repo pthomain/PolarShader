@@ -50,7 +50,7 @@ namespace PolarShader {
             return raw(PfMath::pfSignedToNorm(h, 4 * S0X16_ONE));
         }
 
-        PatternNormU16 organic(int32_t X, int32_t Y) const {
+        PatternNormU0x16 organic(int32_t X, int32_t Y) const {
             int32_t height = heightField(X, Y);
             height += state->tensionBias;                              // DC shift
             if (height < 0) height += U0X16_MAX;
@@ -65,10 +65,10 @@ namespace PolarShader {
             if (state->hardEdges) {
                 ridge = (ridge > (U0X16_MAX >> 1)) ? U0X16_MAX : 0u;
             }
-            return PatternNormU16(static_cast<uint16_t>(ridge));
+            return PatternNormU0x16(static_cast<uint16_t>(ridge));
         }
 
-        PatternNormU16 topographic(int32_t X, int32_t Y) const {
+        PatternNormU0x16 topographic(int32_t X, int32_t Y) const {
             int32_t height = heightField(X, Y);
             // Position within the current contour band, in Q16 [0, 65535].
             uint32_t prod = static_cast<uint32_t>(height) * state->contourLevels;
@@ -80,17 +80,17 @@ namespace PolarShader {
             if (state->hardEdges) {
                 line = (line > (U0X16_MAX >> 1)) ? U0X16_MAX : 0u;
             }
-            return PatternNormU16(line);
+            return PatternNormU0x16(line);
         }
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             int32_t X = raw(uv.u);
             int32_t Y = raw(uv.v);
             switch (state->variant) {
                 case Variant::Organic:     return organic(X, Y);
                 case Variant::Topographic: return topographic(X, Y);
             }
-            return PatternNormU16(0);
+            return PatternNormU0x16(0);
         }
     };
 

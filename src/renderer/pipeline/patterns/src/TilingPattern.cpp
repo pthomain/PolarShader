@@ -68,9 +68,9 @@ namespace PolarShader {
         uint8_t color_count;
         TileShape shape;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             int32_t cell_size_raw = state ? state->cell_size_raw : 0;
-            if (cell_size_raw <= 0) return PatternNormU16(0);
+            if (cell_size_raw <= 0) return PatternNormU0x16(0);
 
             uint8_t colors = (color_count < 3) ? 3 : color_count;
 
@@ -79,14 +79,14 @@ namespace PolarShader {
 
             if (shape == TileShape::SQUARE) {
                 TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cell_size_raw, shape);
-                return PatternNormU16(
+                return PatternNormU0x16(
                     mapColorValue(colorIndexForCell(shape, tile.cell_a, tile.cell_b, tile.cell_c, colors), colors)
                 );
             }
 
             if (shape == TileShape::TRIANGLE) {
                 TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cell_size_raw, shape);
-                return PatternNormU16(
+                return PatternNormU0x16(
                     mapColorValue(colorIndexForCell(shape, tile.cell_a, tile.cell_b, tile.cell_c, colors), colors)
                 );
             }
@@ -114,7 +114,7 @@ namespace PolarShader {
                 rz = -rx - ry;
             }
             
-            return PatternNormU16(
+            return PatternNormU0x16(
                 mapColorValue(colorIndexForCell(shape, rx, rz, 0, colors), colors)
             );
         }

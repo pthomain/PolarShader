@@ -173,17 +173,17 @@ namespace PolarShader {
      * Usage: Lightweight tuple for raw coordinate pairs or intermediate displacements.
      * Analysis: Useful internal utility, distinct from the unified UV coordinate system.
      */
-    struct v32 {
+    struct Vec2I32 {
         int32_t x;
         int32_t y;
     };
 
     // --- Pattern Units ---
 
-    struct NoiseRawU16_Tag {
+    struct NoiseRawU0x16_Tag {
     };
 
-    struct PatternNormU16_Tag {
+    struct PatternNormU0x16_Tag {
     };
 
     /**
@@ -192,7 +192,7 @@ namespace PolarShader {
      * Usage: Transient type in NoiseMaths before normalization.
      * Analysis: Required to distinguish "raw" unmapped data from "clean" pipeline data.
      */
-    using NoiseRawU16 = Typed<uint16_t, NoiseRawU16_Tag>;
+    using NoiseRawU0x16 = Typed<uint16_t, NoiseRawU0x16_Tag>;
 
     /**
      * @brief Strictly normalized 16-bit pattern intensity.
@@ -201,11 +201,11 @@ namespace PolarShader {
      * Usage: The standard output of every UVPattern and the standard input for palette mapping.
      * Analysis: Strictly required as the "universal currency" of the visual pipeline.
      */
-    using PatternNormU16 = Typed<uint16_t, PatternNormU16_Tag>;
+    using PatternNormU0x16 = Typed<uint16_t, PatternNormU0x16_Tag>;
 
     // --- Raw extractors ---
-    constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
-    constexpr uint16_t raw(PatternNormU16 n) { return n.raw(); }
+    constexpr uint16_t raw(NoiseRawU0x16 n) { return n.raw(); }
+    constexpr uint16_t raw(PatternNormU0x16 n) { return n.raw(); }
 
     /**
      * @brief A colour-emitting pattern leaf: a (hue, value) pair.
@@ -221,11 +221,11 @@ namespace PolarShader {
         uint32_t packed;
 
         PaletteSample() : packed(0) {}
-        PaletteSample(PatternNormU16 h, PatternNormU16 v)
+        PaletteSample(PatternNormU0x16 h, PatternNormU0x16 v)
             : packed((static_cast<uint32_t>(h.raw()) << 16) | v.raw()) {}
 
-        PatternNormU16 hue() const { return PatternNormU16(static_cast<uint16_t>(packed >> 16)); }
-        PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
+        PatternNormU0x16 hue() const { return PatternNormU0x16(static_cast<uint16_t>(packed >> 16)); }
+        PatternNormU0x16 value() const { return PatternNormU0x16(static_cast<uint16_t>(packed & 0xFFFFu)); }
     };
 
     /**
@@ -241,7 +241,7 @@ namespace PolarShader {
         uint64_t packed;
 
         RgbSample() : packed(0) {}
-        RgbSample(PatternNormU16 r, PatternNormU16 g, PatternNormU16 b, PatternNormU16 v)
+        RgbSample(PatternNormU0x16 r, PatternNormU0x16 g, PatternNormU0x16 b, PatternNormU0x16 v)
             : packed(
                 (static_cast<uint64_t>(r.raw()) << 48) |
                 (static_cast<uint64_t>(g.raw()) << 32) |
@@ -249,10 +249,10 @@ namespace PolarShader {
                 static_cast<uint64_t>(v.raw())
             ) {}
 
-        PatternNormU16 red() const { return PatternNormU16(static_cast<uint16_t>(packed >> 48)); }
-        PatternNormU16 green() const { return PatternNormU16(static_cast<uint16_t>((packed >> 32) & 0xFFFFu)); }
-        PatternNormU16 blue() const { return PatternNormU16(static_cast<uint16_t>((packed >> 16) & 0xFFFFu)); }
-        PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
+        PatternNormU0x16 red() const { return PatternNormU0x16(static_cast<uint16_t>(packed >> 48)); }
+        PatternNormU0x16 green() const { return PatternNormU0x16(static_cast<uint16_t>((packed >> 32) & 0xFFFFu)); }
+        PatternNormU0x16 blue() const { return PatternNormU0x16(static_cast<uint16_t>((packed >> 16) & 0xFFFFu)); }
+        PatternNormU0x16 value() const { return PatternNormU0x16(static_cast<uint16_t>(packed & 0xFFFFu)); }
     };
 
     // --- UV Units ---

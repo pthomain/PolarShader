@@ -103,17 +103,17 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !cells) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             const uint16_t value =
                 static_cast<uint16_t>((static_cast<uint32_t>(cells[idx]) * U0X16_MAX) / (numStates - 1u));
-            return PatternNormU16(value);
+            return PatternNormU0x16(value);
         };
     }
 
@@ -132,8 +132,8 @@ namespace PolarShader {
             const uint8_t hue8 =
                 static_cast<uint8_t>((static_cast<uint16_t>(cells[idx]) * 256u) / numStates);
             return PaletteSample{
-                PatternNormU16(raster::hue8ToPatternRaw(hue8)),
-                PatternNormU16(U0X16_MAX)
+                PatternNormU0x16(raster::hue8ToPatternRaw(hue8)),
+                PatternNormU0x16(U0X16_MAX)
             };
         };
     }
