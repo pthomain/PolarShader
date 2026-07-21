@@ -14,11 +14,11 @@
 
 | Type | Format | Definition | Usage |
 | :--- | :--- | :--- | :--- |
-| `f16` | Unsigned 0.16 | 16-bit integer [0, 1.0) | Angles (turns), alpha, scaling factors. |
-| `sf16` | Signed 0.16 | 32-bit integer [-1.0, 1.0] | Signals, oscillators, trig results (sin/cos). |
+| `u0x16` | Unsigned 0.16 | 16-bit integer [0, 1.0) | Angles (turns), alpha, scaling factors. |
+| `s0x16` | Signed 0.16 | 32-bit integer [-1.0, 1.0] | Signals, oscillators, trig results (sin/cos). |
 | `fl::u16x16` | Unsigned 16.16 | 32-bit integer | Unsigned 2D/coordinate intermediates when needed. |
 | `fl::s16x16` | Signed 16.16 | 32-bit integer | Spatial UV coordinates (allows tiling/zoom). |
-| `PatternNormU16`| Unsigned 16-bit | [0, 65535] | Universal currency for pattern intensities. |
+| `PatternNormU0x16`| Unsigned 16-bit | [0, 65535] | Universal currency for pattern intensities. |
 | `fl::s24x8` | Signed 24.8 | 32-bit integer | Internal lattice-aligned pattern calculations. |
 | `fl::u24x8` | Unsigned 24.8 | 32-bit integer | Unsigned noise-domain sampling coordinates. |
 | `UV` | 2x `fl::s16x16` | Normalized 2D vector | Standard spatial type passed between pipeline steps. |
@@ -29,7 +29,7 @@
 
 ### Rules
 1. **No Implicit Casting:** Never cast between strong types or to raw integers without using the `raw()` helper.
-2. **Semantic Boundaries:** Use `sf16` for any value that can go negative (signals), and `f16` for values that must wrap or stay positive (angles).
+2. **Semantic Boundaries:** Use `s0x16` for any value that can go negative (signals), and `u0x16` for values that must wrap or stay positive (angles).
 3. **Internal vs External:** `fl::s24x8` is an implementation detail for patterns; external APIs should only expose `UV`.
 4. **`fl::*` Naming:** `fl::u16x16`/`fl::s16x16`/`fl::u24x8`/`fl::s24x8` denote ratio/range fixed-point values and are not implicitly constrained to `[0, 1]`.
 
@@ -37,7 +37,7 @@
 
 ### Timing Terminology
 - **Elapsed Time (`TimeMillis elapsedMs`):** Canonical time source for scalar signal sampling.
-- **Progress (`f16 progress`):** Scene-normalized progress used where mapped signal APIs require it.
+- **Progress (`u0x16 progress`):** Scene-normalized progress used where mapped signal APIs require it.
 
 ### Signal Kinds
 - **Periodic (`SignalKind::PERIODIC`):**
@@ -53,7 +53,7 @@
   - `duration == 0` emits `0`.
 
 ### Value Constraints
-- **Normalization:** `Sf16Signal` public outputs are clamped to `[-1, 1]`.
+- **Normalization:** `S0x16Signal` public outputs are clamped to `[-1, 1]`.
 - **Range Coverage:** Periodic samplers (`sine`, `noise`) must span the full signed range by default.
 - **Bounded Modulation:** Use `smap(signal, floorSignal, ceilingSignal)` to constrain and rescale a signal inside dynamically sampled unipolar bounds.
   - `floorSignal` and `ceilingSignal` must be interpreted through `magnitudeRange()`.
@@ -61,7 +61,7 @@
 - **Phase Rate:** Waveform phase accumulation must treat phase velocity as a unipolar magnitude with a 1 Hz full-scale maximum.
 
 ### Signal Responsibilities
-- `Sf16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).
+- `S0x16Signal` wraps waveform evaluation and time routing (`PERIODIC` vs `APERIODIC`).
 - Accumulation logic is separated into `SignalAccumulators.h` and applied explicitly (not via mapped-signal mode flags).
 - Scalar signals are absolute by contract (no scalar `absolute`/relative mode).
 - **Signed Convention:** Signals always emit signed values. Unsigned parameter domains must be produced by range mapping, not by signal factories.

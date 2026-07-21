@@ -52,8 +52,8 @@ name         name_len bytes, UTF-8
 ```text
 led_count    u16   1..4096 (reject 0)
 per LED (led_count times):
-  angle_f16  u16   16-bit modular angle (0..65535 = full turn)
-  radius_f16 u16
+  angle_u0x16  u16   16-bit modular angle (0..65535 = full turn)
+  radius_u0x16 u16
 ```
 
 ### `0x03 RASTER_GRID` (optional, singleton, all-or-nothing)
