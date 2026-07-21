@@ -28,23 +28,23 @@
 
 namespace PolarShader {
     /**
-     * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in f16/sf16.
+     * Uniform Cartesian zoom: (x, y) -> (x * s, y * s), s in u0x16/s0x16.
      * s in 0..~1 scales towards the origin; negative values flip axes.
      *
-     * Parameters: scale (Sf16Signal, f16/sf16), mapped to the transform's zoom range.
+     * Parameters: scale (S0x16Signal, u0x16/s0x16), mapped to the transform's zoom range.
      * Recommended order: early in Cartesian chain before warps/tiling.
      */
     class ZoomTransform : public UVTransform {
     public:
-        explicit ZoomTransform(Sf16Signal scale = constant(500));
+        explicit ZoomTransform(S0x16Signal scale = constant(500));
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVLayer apply(const UVLayer &layer) const override;
 
     private:
         struct MappedInputs;
-        static MappedInputs makeInputs(Sf16Signal scale);
+        static MappedInputs makeInputs(S0x16Signal scale);
 
         struct State;
         // Pure warp applied via a DIRECT static call (see WASM ABI NOTE in Units.h).

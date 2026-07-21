@@ -28,19 +28,19 @@ namespace PolarShader {
     /**
      * Polar vortex: angle += (radius * strength).
      *
-     * Strength uses signed range mapping via BipolarRange<sf16>.
+     * Strength uses signed range mapping via BipolarRange<s0x16>.
      */
     class VortexTransform : public UVTransform {
     public:
-        explicit VortexTransform(Sf16Signal strength);
+        explicit VortexTransform(S0x16Signal strength);
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVLayer apply(const UVLayer &layer) const override;
 
     private:
         struct MappedInputs;
-        static MappedInputs makeInputs(Sf16Signal strength);
+        static MappedInputs makeInputs(S0x16Signal strength);
 
         struct State;
         // Pure warp applied via a DIRECT static call (see WASM ABI NOTE in Units.h).

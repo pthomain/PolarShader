@@ -42,7 +42,7 @@
   "dependencies": [
     {
       "name": "fastled/FastLED",
-      "version": "^3.10.0"
+      "version": "https://github.com/FastLED/FastLED.git#3.10.4"
     },
     {
       "name": "tomcombriat/FixMath",

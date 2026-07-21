@@ -37,12 +37,12 @@ namespace PolarShader {
         explicit TilingTransform(uint32_t cellSizeQ24_8, bool mirrored = false, TileShape shape = TileShape::SQUARE);
 
         explicit TilingTransform(
-            Sf16Signal cellSize,
+            S0x16Signal cellSize,
             bool mirrored = false,
             TileShape shape = TileShape::SQUARE
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         int32_t getCellSizeRaw() const;
 

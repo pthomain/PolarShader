@@ -30,11 +30,11 @@ namespace PolarShader {
             return {std::move(pattern), palette, name};
         }
 
-        PaletteTransform patternFlowPaletteTransform(Sf16Signal offset) {
+        PaletteTransform patternFlowPaletteTransform(S0x16Signal offset) {
             return PaletteTransform(
                 std::move(offset),
                 constant(0),
-                f16(32768),
+                u0x16(32768),
                 PipelineContext::PaletteTintMode::HueRemap);
         }
     }

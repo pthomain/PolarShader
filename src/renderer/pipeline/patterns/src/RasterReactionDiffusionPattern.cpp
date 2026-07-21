@@ -216,15 +216,15 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !v) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
-            return PatternNormU16(v[idx]);
+            return PatternNormU0x16(v[idx]);
         };
     }
 }

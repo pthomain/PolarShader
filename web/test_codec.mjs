@@ -89,7 +89,7 @@ function defaultParamValue(param) {
         case 'u32':
         case 'i32':
         case 'permille':
-        case 'f16':
+        case 'u0x16':
             return param.default ?? 0;
         default:
             throw new Error(`unhandled test param kind ${param.kind}`);

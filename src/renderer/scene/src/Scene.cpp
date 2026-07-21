@@ -27,7 +27,7 @@ namespace PolarShader {
           durationMs(durationMs) {
     }
 
-    void Scene::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void Scene::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         for (auto &layer: layers) {
             layer->advanceFrame(progress, elapsedMs);
         }
@@ -39,7 +39,7 @@ namespace PolarShader {
     }
 
     namespace {
-        CRGB blend(CRGB base, CRGB top, f16 alpha, BlendMode mode) {
+        CRGB blend(CRGB base, CRGB top, u0x16 alpha, BlendMode mode) {
             if (raw(alpha) == 0) return base;
 
             switch (mode) {

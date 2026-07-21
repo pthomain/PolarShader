@@ -21,32 +21,32 @@
 #include "renderer/pipeline/maths/PatternMaths.h"
 
 namespace PolarShader {
-    PatternNormU16 patternNormalize(uint16_t value, uint16_t minValue, uint16_t maxValue) {
-        if (value <= minValue) return PatternNormU16(0);
-        if (value >= maxValue) return PatternNormU16(F16_MAX);
+    PatternNormU0x16 patternNormalize(uint16_t value, uint16_t minValue, uint16_t maxValue) {
+        if (value <= minValue) return PatternNormU0x16(0);
+        if (value >= maxValue) return PatternNormU0x16(U0X16_MAX);
 
         uint16_t valueRange = static_cast<uint16_t>(maxValue - minValue);
-        if (valueRange == 0) return PatternNormU16(0);
+        if (valueRange == 0) return PatternNormU0x16(0);
 
-        return PatternNormU16(raw(toF16(static_cast<uint16_t>(value - minValue), valueRange)));
+        return PatternNormU0x16(raw(toU0x16(static_cast<uint16_t>(value - minValue), valueRange)));
     }
 
-    PatternNormU16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x) {
+    PatternNormU0x16 patternSmoothstepU16(uint16_t edge0, uint16_t edge1, uint16_t x) {
         if (edge0 >= edge1) {
-            return x <= edge0 ? PatternNormU16(0) : PatternNormU16(F16_MAX);
+            return x <= edge0 ? PatternNormU0x16(0) : PatternNormU0x16(U0X16_MAX);
         }
-        if (x <= edge0) return PatternNormU16(0);
-        if (x >= edge1) return PatternNormU16(F16_MAX);
+        if (x <= edge0) return PatternNormU0x16(0);
+        if (x >= edge1) return PatternNormU0x16(U0X16_MAX);
 
-        f16 progress = toF16(static_cast<uint16_t>(x - edge0), static_cast<uint16_t>(edge1 - edge0));
+        u0x16 progress = toU0x16(static_cast<uint16_t>(x - edge0), static_cast<uint16_t>(edge1 - edge0));
 
         uint32_t progressSquared = (static_cast<uint32_t>(raw(progress)) * raw(progress)) >> 16;
-        uint32_t smoothstepFactor = F16_MAX * 3 - (2 * raw(progress));
-        if (smoothstepFactor > F16_MAX * 3) smoothstepFactor = 0;
+        uint32_t smoothstepFactor = U0X16_MAX * 3 - (2 * raw(progress));
+        if (smoothstepFactor > U0X16_MAX * 3) smoothstepFactor = 0;
 
         uint32_t result = (progressSquared * smoothstepFactor) >> 16;
-        if (result > F16_MAX) result = F16_MAX;
+        if (result > U0X16_MAX) result = U0X16_MAX;
 
-        return PatternNormU16(static_cast<uint16_t>(result));
+        return PatternNormU0x16(static_cast<uint16_t>(result));
     }
 }

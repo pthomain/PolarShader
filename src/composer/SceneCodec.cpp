@@ -59,7 +59,7 @@ namespace PolarShader::composer {
             SIG_QUADRATIC_OUT     = 0x04, // body: u32 durationMs + u8 loopMode
             SIG_QUADRATIC_IN_OUT  = 0x05, // body: u32 durationMs + u8 loopMode
 
-            SIG_SINE              = 0x10, // body: signal phaseVelocity + i32 phaseOffset(sf16)
+            SIG_SINE              = 0x10, // body: signal phaseVelocity + i32 phaseOffset(s0x16)
             SIG_SINE_BOUNDED      = 0x11, // body: signal phaseVelocity + signal floor + signal ceiling
             SIG_SINE_BOUNDED_PH   = 0x12, // body: signal phaseVelocity + i32 phaseOffset + signal floor + signal ceiling
             SIG_TRIANGLE          = 0x13,
@@ -75,7 +75,7 @@ namespace PolarShader::composer {
             SIG_NOISE_BOUNDED     = 0x1D,
             SIG_NOISE_BOUNDED_PH  = 0x1E,
             SIG_SMAP              = 0x1F, // body: signal signal + signal floor + signal ceiling
-            SIG_SCALE             = 0x20, // body: signal signal + u16 factor (f16)
+            SIG_SCALE             = 0x20, // body: signal signal + u16 factor (u0x16)
         };
 
         // Pattern tags. NoisePattern is split into 4 tags (one per NoiseType).
@@ -95,7 +95,7 @@ namespace PolarShader::composer {
             PAT_VORONOI           = 0x0C, // body: i32 cellSize raw + u8 aliasingMode
 
             // PatternFlow bare field patterns (one tag per Variant). Body layout:
-            // static config bytes (if any) THEN ordered Sf16Signal blobs.
+            // static config bytes (if any) THEN ordered S0x16Signal blobs.
             PAT_PF_DUAL_AXIS        = 0x0D, // signals: phaseSpeed, warp, thickness
             PAT_PF_COUNTER_RIBBONS  = 0x0E, // signals: phaseSpeed, warp, thickness
             PAT_PF_QUAD_DIRECTIONAL = 0x0F, // signals: phaseSpeed, warp, thickness
@@ -228,23 +228,23 @@ namespace PolarShader::composer {
 
         constexpr uint8_t kMaxSignalDecodeDepth = 64;
 
-        Sf16Signal decodeSignal(ByteReader &r, DecodeStatus *status, uint8_t version);
-        Sf16Signal decodeSignalAtDepth(ByteReader &r,
+        S0x16Signal decodeSignal(ByteReader &r, DecodeStatus *status, uint8_t version);
+        S0x16Signal decodeSignalAtDepth(ByteReader &r,
                                        DecodeStatus *status,
                                        uint8_t version,
                                        uint8_t depth);
 
-        Sf16Signal decodeSignalBody(uint8_t tag,
+        S0x16Signal decodeSignalBody(uint8_t tag,
                                     ByteReader &r,
                                     DecodeStatus *status,
                                     uint8_t version,
                                     uint8_t depth) {
-            if (*status != DecodeStatus::OK) return Sf16Signal();
+            if (*status != DecodeStatus::OK) return S0x16Signal();
 
             switch (tag) {
                 case SIG_CONSTANT: {
                     uint16_t permille = r.readU16();
-                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
                     return constant(permille);
                 }
                 case SIG_C_RANDOM:
@@ -255,9 +255,9 @@ namespace PolarShader::composer {
                 case SIG_QUADRATIC_IN_OUT: {
                     TimeMillis duration = r.readU32();
                     uint8_t loopByte = r.readU8();
-                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
                     if (loopByte > static_cast<uint8_t>(LoopMode::SATURATE)) {
-                        setStatusIfOk(status, DecodeStatus::BAD_ENUM); return Sf16Signal();
+                        setStatusIfOk(status, DecodeStatus::BAD_ENUM); return S0x16Signal();
                     }
                     LoopMode loop = static_cast<LoopMode>(loopByte);
                     switch (tag) {
@@ -266,7 +266,7 @@ namespace PolarShader::composer {
                         case SIG_QUADRATIC_OUT:    return quadraticOut(duration, loop);
                         case SIG_QUADRATIC_IN_OUT: return quadraticInOut(duration, loop);
                     }
-                    return Sf16Signal();
+                    return S0x16Signal();
                 }
 
                 case SIG_SINE:
@@ -274,11 +274,11 @@ namespace PolarShader::composer {
                 case SIG_SQUARE:
                 case SIG_SAWTOOTH:
                 case SIG_NOISE: {
-                    Sf16Signal pv = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal pv = decodeSignalAtDepth(r, status, version, depth + 1);
                     int32_t phaseRaw = r.readI32();
-                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
-                    if (*status != DecodeStatus::OK) return Sf16Signal();
-                    sf16 phase = sf16(phaseRaw);
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
+                    if (*status != DecodeStatus::OK) return S0x16Signal();
+                    s0x16 phase = s0x16(phaseRaw);
                     switch (tag) {
                         case SIG_SINE:     return sine(std::move(pv), phase);
                         case SIG_TRIANGLE: return triangle(std::move(pv), phase);
@@ -286,7 +286,7 @@ namespace PolarShader::composer {
                         case SIG_SAWTOOTH: return sawtooth(std::move(pv), phase);
                         case SIG_NOISE:    return noise(std::move(pv), phase);
                     }
-                    return Sf16Signal();
+                    return S0x16Signal();
                 }
 
                 case SIG_SINE_BOUNDED:
@@ -294,10 +294,10 @@ namespace PolarShader::composer {
                 case SIG_SQUARE_BOUNDED:
                 case SIG_SAWTOOTH_BOUNDED:
                 case SIG_NOISE_BOUNDED: {
-                    Sf16Signal pv      = decodeSignalAtDepth(r, status, version, depth + 1);
-                    Sf16Signal floorS  = decodeSignalAtDepth(r, status, version, depth + 1);
-                    Sf16Signal ceilS   = decodeSignalAtDepth(r, status, version, depth + 1);
-                    if (*status != DecodeStatus::OK) return Sf16Signal();
+                    S0x16Signal pv      = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal floorS  = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal ceilS   = decodeSignalAtDepth(r, status, version, depth + 1);
+                    if (*status != DecodeStatus::OK) return S0x16Signal();
                     switch (tag) {
                         case SIG_SINE_BOUNDED:     return sine(std::move(pv), std::move(floorS), std::move(ceilS));
                         case SIG_TRIANGLE_BOUNDED: return triangle(std::move(pv), std::move(floorS), std::move(ceilS));
@@ -305,7 +305,7 @@ namespace PolarShader::composer {
                         case SIG_SAWTOOTH_BOUNDED: return sawtooth(std::move(pv), std::move(floorS), std::move(ceilS));
                         case SIG_NOISE_BOUNDED:    return noise(std::move(pv), std::move(floorS), std::move(ceilS));
                     }
-                    return Sf16Signal();
+                    return S0x16Signal();
                 }
 
                 case SIG_SINE_BOUNDED_PH:
@@ -313,13 +313,13 @@ namespace PolarShader::composer {
                 case SIG_SQUARE_BOUNDED_PH:
                 case SIG_SAWTOOTH_BOUNDED_PH:
                 case SIG_NOISE_BOUNDED_PH: {
-                    Sf16Signal pv = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal pv = decodeSignalAtDepth(r, status, version, depth + 1);
                     int32_t phaseRaw = r.readI32();
-                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
-                    Sf16Signal floorS = decodeSignalAtDepth(r, status, version, depth + 1);
-                    Sf16Signal ceilS  = decodeSignalAtDepth(r, status, version, depth + 1);
-                    if (*status != DecodeStatus::OK) return Sf16Signal();
-                    sf16 phase = sf16(phaseRaw);
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
+                    S0x16Signal floorS = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal ceilS  = decodeSignalAtDepth(r, status, version, depth + 1);
+                    if (*status != DecodeStatus::OK) return S0x16Signal();
+                    s0x16 phase = s0x16(phaseRaw);
                     switch (tag) {
                         case SIG_SINE_BOUNDED_PH:     return sine(std::move(pv), phase, std::move(floorS), std::move(ceilS));
                         case SIG_TRIANGLE_BOUNDED_PH: return triangle(std::move(pv), phase, std::move(floorS), std::move(ceilS));
@@ -327,56 +327,56 @@ namespace PolarShader::composer {
                         case SIG_SAWTOOTH_BOUNDED_PH: return sawtooth(std::move(pv), phase, std::move(floorS), std::move(ceilS));
                         case SIG_NOISE_BOUNDED_PH:    return noise(std::move(pv), phase, std::move(floorS), std::move(ceilS));
                     }
-                    return Sf16Signal();
+                    return S0x16Signal();
                 }
 
                 case SIG_SMAP: {
-                    Sf16Signal s     = decodeSignalAtDepth(r, status, version, depth + 1);
-                    Sf16Signal floor = decodeSignalAtDepth(r, status, version, depth + 1);
-                    Sf16Signal ceil  = decodeSignalAtDepth(r, status, version, depth + 1);
-                    if (*status != DecodeStatus::OK) return Sf16Signal();
+                    S0x16Signal s     = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal floor = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal ceil  = decodeSignalAtDepth(r, status, version, depth + 1);
+                    if (*status != DecodeStatus::OK) return S0x16Signal();
                     return smap(std::move(s), std::move(floor), std::move(ceil));
                 }
 
                 case SIG_SCALE: {
-                    Sf16Signal s = decodeSignalAtDepth(r, status, version, depth + 1);
+                    S0x16Signal s = decodeSignalAtDepth(r, status, version, depth + 1);
                     uint16_t factorRaw = r.readU16();
-                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
-                    if (*status != DecodeStatus::OK) return Sf16Signal();
-                    return scale(std::move(s), f16(factorRaw));
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
+                    if (*status != DecodeStatus::OK) return S0x16Signal();
+                    return scale(std::move(s), u0x16(factorRaw));
                 }
 
                 default:
                     setStatusIfOk(status, DecodeStatus::UNKNOWN_TAG);
-                    return Sf16Signal();
+                    return S0x16Signal();
             }
         }
 
-        Sf16Signal decodeSignalAtDepth(ByteReader &r,
+        S0x16Signal decodeSignalAtDepth(ByteReader &r,
                                        DecodeStatus *status,
                                        uint8_t version,
                                        uint8_t depth) {
-            if (*status != DecodeStatus::OK) return Sf16Signal();
+            if (*status != DecodeStatus::OK) return S0x16Signal();
             if (depth > kMaxSignalDecodeDepth) {
                 setStatusIfOk(status, DecodeStatus::BAD_ENUM);
-                return Sf16Signal();
+                return S0x16Signal();
             }
             uint8_t tag = r.readU8();
-            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
+            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
 
             uint16_t bodyLen = r.readU16();
-            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
+            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
             ByteReader body = r.subReader(bodyLen);
-            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return Sf16Signal(); }
-            Sf16Signal signal = decodeSignalBody(tag, body, status, version, depth);
+            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return S0x16Signal(); }
+            S0x16Signal signal = decodeSignalBody(tag, body, status, version, depth);
             if (*status == DecodeStatus::OK && (!body.ok() || !body.atEnd())) {
                 setStatusIfOk(status, body.ok() ? DecodeStatus::BAD_ENUM : DecodeStatus::TRUNCATED);
-                return Sf16Signal();
+                return S0x16Signal();
             }
             return signal;
         }
 
-        Sf16Signal decodeSignal(ByteReader &r, DecodeStatus *status, uint8_t version) {
+        S0x16Signal decodeSignal(ByteReader &r, DecodeStatus *status, uint8_t version) {
             return decodeSignalAtDepth(r, status, version, 0);
         }
 
@@ -387,7 +387,7 @@ namespace PolarShader::composer {
 
             switch (tag) {
                 case PAT_NOISE_BASIC: {
-                    Sf16Signal depth = decodeSignal(r, status, version);
+                    S0x16Signal depth = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return noisePattern(std::move(depth));
                 }
@@ -434,14 +434,14 @@ namespace PolarShader::composer {
                     if (modeByte > static_cast<uint8_t>(FlowFieldPattern::EmitterMode::Both)) {
                         setStatusIfOk(status, DecodeStatus::BAD_ENUM); return nullptr;
                     }
-                    Sf16Signal xDrift   = decodeSignal(r, status, version);
-                    Sf16Signal yDrift   = decodeSignal(r, status, version);
-                    Sf16Signal amp      = decodeSignal(r, status, version);
-                    Sf16Signal freq     = decodeSignal(r, status, version);
-                    Sf16Signal endSpeed = decodeSignal(r, status, version);
-                    Sf16Signal halfLife = decodeSignal(r, status, version);
-                    Sf16Signal orbSpeed = decodeSignal(r, status, version);
-                    Sf16Signal orbRad   = decodeSignal(r, status, version);
+                    S0x16Signal xDrift   = decodeSignal(r, status, version);
+                    S0x16Signal yDrift   = decodeSignal(r, status, version);
+                    S0x16Signal amp      = decodeSignal(r, status, version);
+                    S0x16Signal freq     = decodeSignal(r, status, version);
+                    S0x16Signal endSpeed = decodeSignal(r, status, version);
+                    S0x16Signal halfLife = decodeSignal(r, status, version);
+                    S0x16Signal orbSpeed = decodeSignal(r, status, version);
+                    S0x16Signal orbRad   = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return flowFieldPattern(gridSize, dotCount,
                         static_cast<FlowFieldPattern::EmitterMode>(modeByte),
@@ -457,10 +457,10 @@ namespace PolarShader::composer {
                     if (modeByte > static_cast<uint8_t>(TransportPattern::TransportMode::AttractorField)) {
                         setStatusIfOk(status, DecodeStatus::BAD_ENUM); return nullptr;
                     }
-                    Sf16Signal radial   = decodeSignal(r, status, version);
-                    Sf16Signal angular  = decodeSignal(r, status, version);
-                    Sf16Signal halfLife = decodeSignal(r, status, version);
-                    Sf16Signal emitter  = decodeSignal(r, status, version);
+                    S0x16Signal radial   = decodeSignal(r, status, version);
+                    S0x16Signal angular  = decodeSignal(r, status, version);
+                    S0x16Signal halfLife = decodeSignal(r, status, version);
+                    S0x16Signal emitter  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return transportPattern(gridSize,
                         static_cast<TransportPattern::TransportMode>(modeByte),
@@ -472,9 +472,9 @@ namespace PolarShader::composer {
                     uint8_t arms = r.readU8();
                     uint8_t cwByte = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal tightness = decodeSignal(r, status, version);
-                    Sf16Signal armThick  = decodeSignal(r, status, version);
-                    Sf16Signal rotSpeed  = decodeSignal(r, status, version);
+                    S0x16Signal tightness = decodeSignal(r, status, version);
+                    S0x16Signal armThick  = decodeSignal(r, status, version);
+                    S0x16Signal rotSpeed  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return spiralPattern(arms, cwByte != 0,
                         std::move(tightness), std::move(armThick), std::move(rotSpeed));
@@ -498,12 +498,12 @@ namespace PolarShader::composer {
                     if (shapeByte > static_cast<uint8_t>(FlurryPattern::Shape::Ball)) {
                         setStatusIfOk(status, DecodeStatus::BAD_ENUM); return nullptr;
                     }
-                    Sf16Signal xDrift   = decodeSignal(r, status, version);
-                    Sf16Signal yDrift   = decodeSignal(r, status, version);
-                    Sf16Signal amp      = decodeSignal(r, status, version);
-                    Sf16Signal freq     = decodeSignal(r, status, version);
-                    Sf16Signal endSpeed = decodeSignal(r, status, version);
-                    Sf16Signal fade     = decodeSignal(r, status, version);
+                    S0x16Signal xDrift   = decodeSignal(r, status, version);
+                    S0x16Signal yDrift   = decodeSignal(r, status, version);
+                    S0x16Signal amp      = decodeSignal(r, status, version);
+                    S0x16Signal freq     = decodeSignal(r, status, version);
+                    S0x16Signal endSpeed = decodeSignal(r, status, version);
+                    S0x16Signal fade     = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return flurryPattern(gridSize, lineCount,
                         static_cast<FlurryPattern::Shape>(shapeByte),
@@ -537,9 +537,9 @@ namespace PolarShader::composer {
                 case PAT_PF_LIQUID_GATE:
                 case PAT_PF_LATTICE:
                 case PAT_PF_MOIRE: {
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal warp       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal warp       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     switch (tag) {
                         case PAT_PF_DUAL_AXIS:        return pfDualAxis(std::move(phaseSpeed), std::move(warp), std::move(thickness));
@@ -558,9 +558,9 @@ namespace PolarShader::composer {
                 case PAT_PF_POSTERIZED: {
                     uint8_t levels = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal warp       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal warp       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfPosterized(levels, std::move(phaseSpeed), std::move(warp), std::move(thickness));
                 }
@@ -568,9 +568,9 @@ namespace PolarShader::composer {
                 case PAT_PF_CHLADNI: {
                     uint8_t modeCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal warp       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal warp       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfChladni(modeCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
                 }
@@ -578,9 +578,9 @@ namespace PolarShader::composer {
                 case PAT_PF_CHIRP: {
                     uint8_t waveCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal fold       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal fold       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfChirp(waveCount, std::move(phaseSpeed), std::move(fold), std::move(thickness));
                 }
@@ -588,9 +588,9 @@ namespace PolarShader::composer {
                 case PAT_PF_SPIRAL_ARMS: {
                     uint8_t armCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal fold       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal fold       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfSpiralArms(armCount, std::move(phaseSpeed), std::move(fold), std::move(thickness));
                 }
@@ -598,9 +598,9 @@ namespace PolarShader::composer {
                 case PAT_PF_RIPPLE_TANK: {
                     uint8_t sourceCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal warp       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal warp       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfRippleTank(sourceCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
                 }
@@ -608,9 +608,9 @@ namespace PolarShader::composer {
                 case PAT_PF_PETALS: {
                     uint8_t petalCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal fold       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal fold       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfPetals(petalCount, std::move(phaseSpeed), std::move(fold), std::move(thickness));
                 }
@@ -618,9 +618,9 @@ namespace PolarShader::composer {
                 case PAT_PF_RIPPLE: {
                     uint8_t waveCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal warp       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal warp       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return pfRipple(waveCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
                 }
@@ -631,8 +631,8 @@ namespace PolarShader::composer {
                     uint8_t contourLevels = r.readU8();
                     uint8_t hardEdges     = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal tension    = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal tension    = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return tag == PAT_PF_ORGANIC
                         ? pfOrganic(contourLevels, hardEdges != 0, std::move(phaseSpeed), std::move(tension))
@@ -648,9 +648,9 @@ namespace PolarShader::composer {
                 case PAT_PF_RADIAL_PULSE: {
                     uint8_t cellCount = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    Sf16Signal phaseSpeed = decodeSignal(r, status, version);
-                    Sf16Signal warp       = decodeSignal(r, status, version);
-                    Sf16Signal thickness  = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed = decodeSignal(r, status, version);
+                    S0x16Signal warp       = decodeSignal(r, status, version);
+                    S0x16Signal thickness  = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     switch (tag) {
                         case PAT_PF_CONCENTRIC_GRID: return pfConcentricGrid(cellCount, std::move(phaseSpeed), std::move(warp), std::move(thickness));
@@ -671,8 +671,8 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_PALETTE_GLOW: {
-                    Sf16Signal speed = constant(1000);
-                    Sf16Signal tileScale = constant(500);
+                    S0x16Signal speed = constant(1000);
+                    S0x16Signal tileScale = constant(500);
                     if (r.remaining() > 0) speed = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     if (r.remaining() > 0) tileScale = decodeSignal(r, status, version);
@@ -681,15 +681,15 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_ROCAILLE: {
-                    Sf16Signal scale = decodeSignal(r, status, version);
-                    Sf16Signal length = decodeSignal(r, status, version);
-                    Sf16Signal detail = decodeSignal(r, status, version);
-                    Sf16Signal turbulence = decodeSignal(r, status, version);
-                    Sf16Signal frequency = decodeSignal(r, status, version);
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal layers = decodeSignal(r, status, version);
-                    Sf16Signal hue = decodeSignal(r, status, version);
-                    Sf16Signal glow = decodeSignal(r, status, version);
+                    S0x16Signal scale = decodeSignal(r, status, version);
+                    S0x16Signal length = decodeSignal(r, status, version);
+                    S0x16Signal detail = decodeSignal(r, status, version);
+                    S0x16Signal turbulence = decodeSignal(r, status, version);
+                    S0x16Signal frequency = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal layers = decodeSignal(r, status, version);
+                    S0x16Signal hue = decodeSignal(r, status, version);
+                    S0x16Signal glow = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return rocaillePattern(
                         std::move(scale),
@@ -705,10 +705,10 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_PROTEAN_CLOUDS: {
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal warp = decodeSignal(r, status, version);
-                    Sf16Signal frequency = decodeSignal(r, status, version);
-                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal warp = decodeSignal(r, status, version);
+                    S0x16Signal frequency = decodeSignal(r, status, version);
+                    S0x16Signal brightness = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return proteanCloudsPattern(
                         std::move(speed),
@@ -719,11 +719,11 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_OCTGRAMS: {
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal travel = decodeSignal(r, status, version);
-                    Sf16Signal pulse = decodeSignal(r, status, version);
-                    Sf16Signal density = decodeSignal(r, status, version);
-                    Sf16Signal glow = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal travel = decodeSignal(r, status, version);
+                    S0x16Signal pulse = decodeSignal(r, status, version);
+                    S0x16Signal density = decodeSignal(r, status, version);
+                    S0x16Signal glow = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return octgramsPattern(
                         std::move(speed),
@@ -735,10 +735,10 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_ROTATING_SQUARES: {
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal thickness = decodeSignal(r, status, version);
-                    Sf16Signal pulse = decodeSignal(r, status, version);
-                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal thickness = decodeSignal(r, status, version);
+                    S0x16Signal pulse = decodeSignal(r, status, version);
+                    S0x16Signal brightness = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return rotatingSquaresPattern(
                         std::move(speed),
@@ -749,11 +749,11 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_STARRY_PLANES: {
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal planeSpacing = decodeSignal(r, status, version);
-                    Sf16Signal starSize = decodeSignal(r, status, version);
-                    Sf16Signal path = decodeSignal(r, status, version);
-                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal planeSpacing = decodeSignal(r, status, version);
+                    S0x16Signal starSize = decodeSignal(r, status, version);
+                    S0x16Signal path = decodeSignal(r, status, version);
+                    S0x16Signal brightness = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return starryPlanesPattern(
                         std::move(speed),
@@ -765,12 +765,12 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_TRIG_FIELD: {
-                    Sf16Signal zoom = decodeSignal(r, status, version);
-                    Sf16Signal yOffset = decodeSignal(r, status, version);
-                    Sf16Signal waveScale = decodeSignal(r, status, version);
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal colorSpread = decodeSignal(r, status, version);
-                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    S0x16Signal zoom = decodeSignal(r, status, version);
+                    S0x16Signal yOffset = decodeSignal(r, status, version);
+                    S0x16Signal waveScale = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal colorSpread = decodeSignal(r, status, version);
+                    S0x16Signal brightness = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return trigFieldPattern(
                         std::move(zoom),
@@ -783,11 +783,11 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_STAR_FIELD_TRAVEL: {
-                    Sf16Signal speed = decodeSignal(r, status, version);
-                    Sf16Signal density = decodeSignal(r, status, version);
-                    Sf16Signal trail = decodeSignal(r, status, version);
-                    Sf16Signal starSize = decodeSignal(r, status, version);
-                    Sf16Signal brightness = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal density = decodeSignal(r, status, version);
+                    S0x16Signal trail = decodeSignal(r, status, version);
+                    S0x16Signal starSize = decodeSignal(r, status, version);
+                    S0x16Signal brightness = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return starFieldTravelPattern(
                         std::move(speed),
@@ -930,26 +930,26 @@ namespace PolarShader::composer {
                 case TFM_ROTATION: {
                     uint8_t turnByte = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return false; }
-                    Sf16Signal angle = decodeSignal(r, status, version);
+                    S0x16Signal angle = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addTransform(RotationTransform(std::move(angle), turnByte != 0));
                     return true;
                 }
                 case TFM_TRANSLATION: {
-                    Sf16Signal dir   = decodeSignal(r, status, version);
-                    Sf16Signal speed = decodeSignal(r, status, version);
+                    S0x16Signal dir   = decodeSignal(r, status, version);
+                    S0x16Signal speed = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addTransform(TranslationTransform(std::move(dir), std::move(speed)));
                     return true;
                 }
                 case TFM_ZOOM: {
-                    Sf16Signal s = decodeSignal(r, status, version);
+                    S0x16Signal s = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addTransform(ZoomTransform(std::move(s)));
                     return true;
                 }
                 case TFM_VORTEX: {
-                    Sf16Signal s = decodeSignal(r, status, version);
+                    S0x16Signal s = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addTransform(VortexTransform(std::move(s)));
                     return true;
@@ -991,11 +991,11 @@ namespace PolarShader::composer {
                             return false;
                     }
 
-                    Sf16Signal offset = decodeSignal(r, status, version);
-                    Sf16Signal clip = decodeSignal(r, status, version);
+                    S0x16Signal offset = decodeSignal(r, status, version);
+                    S0x16Signal clip = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addPaletteTransform(PaletteTransform(
-                        std::move(offset), std::move(clip), f16(maxFeatherRaw),
+                        std::move(offset), std::move(clip), u0x16(maxFeatherRaw),
                         tintMode));
                     return true;
                 }
@@ -1006,17 +1006,17 @@ namespace PolarShader::composer {
                     if (shapeByte > static_cast<uint8_t>(TilingMaths::TileShape::HEXAGON)) {
                         setStatusIfOk(status, DecodeStatus::BAD_ENUM); return false;
                     }
-                    Sf16Signal cellSize = decodeSignal(r, status, version);
+                    S0x16Signal cellSize = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     builder.addTransform(TilingTransform(std::move(cellSize), mirrorByte != 0,
                         static_cast<TilingMaths::TileShape>(shapeByte)));
                     return true;
                 }
                 case TFM_FLOW_FIELD: {
-                    Sf16Signal phaseSpeed   = decodeSignal(r, status, version);
-                    Sf16Signal flowStrength = decodeSignal(r, status, version);
-                    Sf16Signal fieldScale   = decodeSignal(r, status, version);
-                    Sf16Signal maxOffset    = decodeSignal(r, status, version);
+                    S0x16Signal phaseSpeed   = decodeSignal(r, status, version);
+                    S0x16Signal flowStrength = decodeSignal(r, status, version);
+                    S0x16Signal fieldScale   = decodeSignal(r, status, version);
+                    S0x16Signal maxOffset    = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return false;
                     // Use the constructor's default ranges for fieldScaleRange/maxOffsetRange.
                     builder.addTransform(FlowFieldTransform(

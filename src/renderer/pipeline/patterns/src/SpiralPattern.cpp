@@ -26,28 +26,28 @@
 namespace PolarShader {
     namespace {
         // Tightness signal [0, 1] is doubled to [0, 2] full turns of winding at radius=1.
-        // Signal raw is sf16 (q16, 65536 = 1.0); raw<<1 yields q16 turn-units in [0, 131072].
+        // Signal raw is s0x16 (q16, 65536 = 1.0); raw<<1 yields q16 turn-units in [0, 131072].
 
         // Arm thickness clamped to source's [0.05, 0.90] range of arm-spacing.
-        constexpr int32_t kMinArmThicknessRaw = (SF16_ONE * 5) / 100;   // 0.05
-        constexpr int32_t kMaxArmThicknessRaw = (SF16_ONE * 90) / 100;  // 0.90
+        constexpr int32_t kMinArmThicknessRaw = (S0X16_ONE * 5) / 100;   // 0.05
+        constexpr int32_t kMaxArmThicknessRaw = (S0X16_ONE * 90) / 100;  // 0.90
 
         // Radial brightness gradient: weight = 0.6 + 0.4 * radius. Pre-computed q16 constants.
-        constexpr uint32_t kGradientBaseQ16 = (SF16_ONE * 6) / 10;   // 0.6
-        constexpr uint32_t kGradientSlopeQ16 = (SF16_ONE * 4) / 10;  // 0.4
+        constexpr uint32_t kGradientBaseQ16 = (S0X16_ONE * 6) / 10;   // 0.6
+        constexpr uint32_t kGradientSlopeQ16 = (S0X16_ONE * 4) / 10;  // 0.4
     }
 
     struct SpiralPattern::State {
         uint8_t armCount;
         bool clockwise;
-        Sf16Signal tightnessSignal;
-        Sf16Signal armThicknessSignal;
-        Sf16Signal rotationSpeedSignal;
+        S0x16Signal tightnessSignal;
+        S0x16Signal armThicknessSignal;
+        S0x16Signal rotationSpeedSignal;
 
         // Cached per-frame values (read by the per-pixel functor).
         int32_t tightnessTurnsRaw{0};   // q16 turns: tightness * radius_at_edge
         uint32_t halfArmRaw{0};         // q16 fraction of one arm-cycle (0..32768)
-        uint16_t phaseRaw{0};           // f16 turns
+        uint16_t phaseRaw{0};           // u0x16 turns
 
         TimeMillis lastElapsedMs{0u};
         bool hasLastElapsed{false};
@@ -55,9 +55,9 @@ namespace PolarShader {
         State(
             uint8_t armCount,
             bool clockwise,
-            Sf16Signal tightness,
-            Sf16Signal armThickness,
-            Sf16Signal rotationSpeed
+            S0x16Signal tightness,
+            S0x16Signal armThickness,
+            S0x16Signal rotationSpeed
         ) : armCount(armCount > 0 ? armCount : uint8_t(1)),
             clockwise(clockwise),
             tightnessSignal(std::move(tightness)),
@@ -68,13 +68,13 @@ namespace PolarShader {
     struct SpiralPattern::UVSpiralFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
-            // 1. Convert UV to polar: out.u = angle (f16 turns), out.v = radius (q16 [0, 1]).
+        PatternNormU0x16 operator()(UV uv) const {
+            // 1. Convert UV to polar: out.u = angle (u0x16 turns), out.v = radius (q16 [0, 1]).
             UV polar = cartesianToPolarUV(uv);
             uint16_t angleTurns = static_cast<uint16_t>(polar.u.raw());
             uint32_t radiusRaw = static_cast<uint32_t>(polar.v.raw());
 
-            // 2. Spiral angle = angle - tightness*radius - phase (in f16 turn domain).
+            // 2. Spiral angle = angle - tightness*radius - phase (in u0x16 turn domain).
             uint32_t tightnessOffset = static_cast<uint32_t>(
                 (static_cast<int64_t>(state->tightnessTurnsRaw) * static_cast<int64_t>(radiusRaw)) >> 16
             );
@@ -95,29 +95,29 @@ namespace PolarShader {
 
             // 5. Outside the arm window -> zero intensity.
             if (distToCentre > state->halfArmRaw) {
-                return PatternNormU16(0u);
+                return PatternNormU0x16(0u);
             }
 
             // 6. Cosine falloff: t = distToCentre / halfArm in q16, intensity = 0.5 + 0.5*cos(pi*t).
             uint32_t t_q16 = (static_cast<uint32_t>(distToCentre) << 16) / state->halfArmRaw;
             uint16_t halfTurnAngle = static_cast<uint16_t>((t_q16 * HALF_TURN_U16) >> 16);
-            int32_t cosRaw = raw(angleCosF16(f16(halfTurnAngle)));
-            uint32_t intensity = static_cast<uint32_t>((cosRaw + SF16_ONE) >> 1);  // [0, 65535]
+            int32_t cosRaw = raw(angleCosU0x16(u0x16(halfTurnAngle)));
+            uint32_t intensity = static_cast<uint32_t>((cosRaw + S0X16_ONE) >> 1);  // [0, 65535]
 
             // 7. Radial brightness gradient: weight = 0.6 + 0.4 * radius.
             uint32_t weight = kGradientBaseQ16 + ((kGradientSlopeQ16 * radiusRaw) >> 16);
 
             uint32_t out = (intensity * weight) >> 16;
-            return PatternNormU16(static_cast<uint16_t>(out));
+            return PatternNormU0x16(static_cast<uint16_t>(out));
         }
     };
 
     SpiralPattern::SpiralPattern(
         uint8_t armCount,
         bool clockwise,
-        Sf16Signal tightness,
-        Sf16Signal armThickness,
-        Sf16Signal rotationSpeed
+        S0x16Signal tightness,
+        S0x16Signal armThickness,
+        S0x16Signal rotationSpeed
     ) : state(std::make_shared<State>(
         armCount,
         clockwise,
@@ -126,7 +126,7 @@ namespace PolarShader {
         std::move(rotationSpeed)
     )) {}
 
-    void SpiralPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void SpiralPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 

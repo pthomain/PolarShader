@@ -39,14 +39,14 @@ namespace PolarShader {
     struct XORPattern::Functor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             const uint8_t x = xorCellForAxis(uv.u, state->gridSize);
             const uint8_t y = xorCellForAxis(uv.v, state->gridSize);
             const uint16_t xr = static_cast<uint16_t>(x ^ y);
             const uint16_t ramp = static_cast<uint16_t>(
-                (static_cast<uint32_t>(xr) * F16_MAX) / (state->gridSize - 1u)
+                (static_cast<uint32_t>(xr) * U0X16_MAX) / (state->gridSize - 1u)
             );
-            return PatternNormU16(static_cast<uint16_t>(ramp + state->phase));
+            return PatternNormU0x16(static_cast<uint16_t>(ramp + state->phase));
         }
     };
 
@@ -56,7 +56,7 @@ namespace PolarShader {
         state->speed = speed;
     }
 
-    void XORPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void XORPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void) progress;
         state->phase = static_cast<uint16_t>(
             (static_cast<uint32_t>(elapsedMs) * state->speed) >> 6

@@ -28,14 +28,14 @@ namespace PolarShader {
     struct PipelineContext {
         // Current elapsed time in milliseconds.
         TimeMillis timeMs = 0u;
-        // Current zoom scale in f16/sf16.
-        sf16 zoomScale = sf16(SF16_ONE);
+        // Current zoom scale in u0x16/s0x16.
+        s0x16 zoomScale = s0x16(S0X16_ONE);
         // Palette index offset applied during final palette lookup.
         uint8_t paletteOffset = 0u;
         // Optional low-end clipping for palette lookup.
-        PatternNormU16 paletteClip = PatternNormU16(0);
+        PatternNormU0x16 paletteClip = PatternNormU0x16(0);
         // Effective feather width for palette clipping after clip-proportional scaling.
-        f16 paletteClipFeather = f16(0);
+        u0x16 paletteClipFeather = u0x16(0);
 
         // When true, clip high values instead of low values.
         bool paletteClipInvert = false;

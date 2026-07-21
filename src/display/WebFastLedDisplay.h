@@ -37,6 +37,7 @@
 #include "FastLED.h"
 #include "PolarDisplaySpec.h"
 #include "WebDisplayGeometry.h"
+#include "renderer/PolarRenderer.h"
 
 namespace PolarShader {
     template<typename SPEC>

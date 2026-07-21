@@ -32,11 +32,11 @@
 
 namespace PolarShader {
     struct RotationTransform::MappedInputs {
-        Sf16Signal angleSignal;
+        S0x16Signal angleSignal;
         bool isAngleTurn;
     };
 
-    RotationTransform::MappedInputs RotationTransform::makeInputs(Sf16Signal angle, bool isAngleTurn) {
+    RotationTransform::MappedInputs RotationTransform::makeInputs(S0x16Signal angle, bool isAngleTurn) {
         return MappedInputs{
             std::move(angle),
             isAngleTurn
@@ -44,9 +44,9 @@ namespace PolarShader {
     }
 
     struct RotationTransform::State {
-        Sf16Signal angleSignal;
+        S0x16Signal angleSignal;
         bool isAngleTurn;
-        f16 angleOffset = f16(0);
+        u0x16 angleOffset = u0x16(0);
         std::unique_ptr<PhaseAccumulator> accumulator;
 
         explicit State(MappedInputs inputs)
@@ -62,12 +62,12 @@ namespace PolarShader {
         }
     };
 
-    RotationTransform::RotationTransform(Sf16Signal angle, bool isAngleTurn) {
+    RotationTransform::RotationTransform(S0x16Signal angle, bool isAngleTurn) {
         auto inputs = makeInputs(std::move(angle), isAngleTurn);
         state = std::make_shared<State>(std::move(inputs));
     }
 
-    void RotationTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void RotationTransform::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         if (state->isAngleTurn) {
             static AngleRange angleRange;
             state->angleOffset = state->angleSignal.sample(angleRange, elapsedMs);

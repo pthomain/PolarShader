@@ -154,7 +154,7 @@ void dumpPatternPgm(const PatternEntry &e) {
     auto pattern = e.make();
     auto ctx = std::make_shared<PipelineContext>();
     for (int fnum = 1; fnum <= kFrames; ++fnum) {
-        pattern->advanceFrame(f16(0), static_cast<TimeMillis>(fnum) * kStepMs);
+        pattern->advanceFrame(u0x16(0), static_cast<TimeMillis>(fnum) * kStepMs);
     }
     UVMap map = pattern->layer(ctx);
 
@@ -177,7 +177,7 @@ void dumpPatternPgm(const PatternEntry &e) {
 void dumpPresetPpm(const PfEffect &effect, const CRGBPalette16 &palette) {
     Layer layer = effect.preset(palette).build();
     for (int fnum = 1; fnum <= kFrames; ++fnum) {
-        layer.advanceFrame(f16(0), static_cast<TimeMillis>(fnum) * kStepMs);
+        layer.advanceFrame(u0x16(0), static_cast<TimeMillis>(fnum) * kStepMs);
     }
     auto cm = layer.compile();
 
@@ -193,8 +193,8 @@ void dumpPresetPpm(const PfEffect &effect, const CRGBPalette16 &palette) {
             double ang = std::atan2(dy, dx);           // [-pi, pi]
             double turns = ang / (2.0 * M_PI);
             if (turns < 0.0) turns += 1.0;              // [0, 1)
-            f16 angle(static_cast<uint16_t>(turns * 65535.0));
-            f16 radius(static_cast<uint16_t>(r * 65535.0));
+            u0x16 angle(static_cast<uint16_t>(turns * 65535.0));
+            u0x16 radius(static_cast<uint16_t>(r * 65535.0));
             CRGB c = (*cm)(RenderPoint{angle, radius, RasterPoint{}});
             rgb[idx + 0] = c.r;
             rgb[idx + 1] = c.g;

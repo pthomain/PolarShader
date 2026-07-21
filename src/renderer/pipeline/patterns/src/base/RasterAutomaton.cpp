@@ -175,7 +175,7 @@ namespace PolarShader {
         seedInitial();
     }
 
-    void RasterAutomaton::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void RasterAutomaton::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void) progress;
         if (!grid.ready) return;
 

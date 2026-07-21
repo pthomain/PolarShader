@@ -41,13 +41,13 @@
 namespace PolarShader {
     namespace PfMath {
         // sin/cos of a signed Q16 turns value. The low 16 bits wrap mod one turn.
-        // Returns sf16 in [-1, 1].
-        inline sf16 pfSinTurns(int32_t turnsQ16) {
-            return angleSinF16(f16(static_cast<uint16_t>(turnsQ16)));
+        // Returns s0x16 in [-1, 1].
+        inline s0x16 pfSinTurns(int32_t turnsQ16) {
+            return angleSinU0x16(u0x16(static_cast<uint16_t>(turnsQ16)));
         }
 
-        inline sf16 pfCosTurns(int32_t turnsQ16) {
-            return angleCosF16(f16(static_cast<uint16_t>(turnsQ16)));
+        inline s0x16 pfCosTurns(int32_t turnsQ16) {
+            return angleCosU0x16(u0x16(static_cast<uint16_t>(turnsQ16)));
         }
 
         // Scale a turns accumulator by num/den in 64-bit to avoid overflow.
@@ -56,28 +56,28 @@ namespace PolarShader {
             return static_cast<int32_t>((static_cast<int64_t>(tTurns) * num) / den);
         }
 
-        // Map a signed accumulator in [-maxAbsRaw, +maxAbsRaw] (sf16 raw units)
+        // Map a signed accumulator in [-maxAbsRaw, +maxAbsRaw] (s0x16 raw units)
         // onto the pattern intensity currency [0, 65535], clamped. maxAbsRaw > 0.
-        inline PatternNormU16 pfSignedToNorm(int32_t valueRaw, int32_t maxAbsRaw) {
-            if (maxAbsRaw <= 0) return PatternNormU16(0);
+        inline PatternNormU0x16 pfSignedToNorm(int32_t valueRaw, int32_t maxAbsRaw) {
+            if (maxAbsRaw <= 0) return PatternNormU0x16(0);
             int64_t shifted = static_cast<int64_t>(valueRaw) + maxAbsRaw;
-            int64_t out = (shifted * F16_MAX) / (2 * static_cast<int64_t>(maxAbsRaw));
+            int64_t out = (shifted * U0X16_MAX) / (2 * static_cast<int64_t>(maxAbsRaw));
             if (out < 0) out = 0;
-            else if (out > F16_MAX) out = F16_MAX;
-            return PatternNormU16(static_cast<uint16_t>(out));
+            else if (out > U0X16_MAX) out = U0X16_MAX;
+            return PatternNormU0x16(static_cast<uint16_t>(out));
         }
 
         // Map a unit value in Q16 [0, 65536] onto [0, 65535], clamped.
-        inline PatternNormU16 pfUnitToNorm(int32_t unitQ16) {
-            if (unitQ16 <= 0) return PatternNormU16(0);
-            if (unitQ16 >= static_cast<int32_t>(F16_MAX)) return PatternNormU16(F16_MAX);
-            return PatternNormU16(static_cast<uint16_t>(unitQ16));
+        inline PatternNormU0x16 pfUnitToNorm(int32_t unitQ16) {
+            if (unitQ16 <= 0) return PatternNormU0x16(0);
+            if (unitQ16 >= static_cast<int32_t>(U0X16_MAX)) return PatternNormU0x16(U0X16_MAX);
+            return PatternNormU0x16(static_cast<uint16_t>(unitQ16));
         }
 
         // Smooth symmetric bump window centred on distance 0. |d| >= halfWidth
         // yields 0; d == 0 yields full 65535. Shape is (1 - t^2)^2 with
         // t = |d| / halfWidth, a cheap stand-in for a gaussian lobe.
-        // dRaw and halfWidthRaw are in the same (sf16 raw) magnitude units.
+        // dRaw and halfWidthRaw are in the same (s0x16 raw) magnitude units.
         inline uint16_t pfBump(int32_t dRaw, int32_t halfWidthRaw) {
             if (halfWidthRaw <= 0) return 0;
             int32_t ad = dRaw < 0 ? -dRaw : dRaw;
@@ -85,9 +85,9 @@ namespace PolarShader {
             // t in Q16 [0, 65536)
             uint32_t t = (static_cast<uint64_t>(ad) << 16) / static_cast<uint32_t>(halfWidthRaw);
             uint32_t t2 = (t * t) >> 16;              // t^2, Q16
-            uint32_t one_minus = (t2 < F16_MAX) ? (F16_MAX - t2) : 0u; // (1 - t^2), Q16
+            uint32_t one_minus = (t2 < U0X16_MAX) ? (U0X16_MAX - t2) : 0u; // (1 - t^2), Q16
             uint32_t bump = (one_minus * one_minus) >> 16;            // squared, Q16
-            return static_cast<uint16_t>(bump > F16_MAX ? F16_MAX : bump);
+            return static_cast<uint16_t>(bump > U0X16_MAX ? U0X16_MAX : bump);
         }
 
         // Quantise a [0, 65535] value into `levels` flat bands spanning the range.
@@ -96,12 +96,12 @@ namespace PolarShader {
             if (levels <= 1) return value;
             uint32_t band = (static_cast<uint32_t>(value) * levels) >> 16; // 0..levels-1
             if (band >= levels) band = levels - 1;
-            return static_cast<uint16_t>((band * F16_MAX) / (levels - 1));
+            return static_cast<uint16_t>((band * U0X16_MAX) / (levels - 1));
         }
 
         // Fractional part of a signed Q16 value, as unsigned Q16 [0, 65535].
         inline uint16_t pfFractQ16(int32_t q16) {
-            return static_cast<uint16_t>(static_cast<uint32_t>(q16) & F16_MAX);
+            return static_cast<uint16_t>(static_cast<uint32_t>(q16) & U0X16_MAX);
         }
 
         // Partition a unit coordinate (Q16 [0, 65536)) into `cellCount` cells.
@@ -111,12 +111,12 @@ namespace PolarShader {
                            uint16_t &index, uint16_t &localQ16) {
             if (cellCount == 0) { index = 0; localQ16 = 0; return; }
             uint32_t c = static_cast<uint32_t>(coordQ16 < 0 ? 0 : coordQ16);
-            if (c > F16_MAX) c = F16_MAX;
+            if (c > U0X16_MAX) c = U0X16_MAX;
             uint32_t prod = c * cellCount;
             uint16_t idx = static_cast<uint16_t>(prod >> 16);
             if (idx >= cellCount) idx = cellCount - 1;
             index = idx;
-            localQ16 = static_cast<uint16_t>(prod & F16_MAX);
+            localQ16 = static_cast<uint16_t>(prod & U0X16_MAX);
         }
 
         // Small deterministic integer hash of two cell coordinates -> [0, 65535].

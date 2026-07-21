@@ -71,11 +71,11 @@ namespace PolarShader {
     struct AnnuliPattern::UVAnnuliFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             const State &s = *state;
-            if (s.counter < 0) return PatternNormU16(0u);
+            if (s.counter < 0) return PatternNormU0x16(0u);
 
-            // Convert UV to polar: out.u = angle (f16 turns), out.v = radius (q16 [0, 1]).
+            // Convert UV to polar: out.u = angle (u0x16 turns), out.v = radius (q16 [0, 1]).
             UV polar = cartesianToPolarUV(uv);
             uint16_t angleTurns = static_cast<uint16_t>(polar.u.raw());
             uint32_t radiusRaw = static_cast<uint32_t>(polar.v.raw());
@@ -91,10 +91,10 @@ namespace PolarShader {
                 : static_cast<uint32_t>(s.ringCount - 1u - ringIndex);
             uint32_t cellIndex = fillRing * s.slicesPerRing + sliceIndex;
 
-            if (s.counter < static_cast<int32_t>(cellIndex)) return PatternNormU16(0u);
+            if (s.counter < static_cast<int32_t>(cellIndex)) return PatternNormU0x16(0u);
 
             // Filled cell: emit angle as intensity so the palette wraps as a colour wheel.
-            return PatternNormU16(angleTurns);
+            return PatternNormU0x16(angleTurns);
         }
     };
 
@@ -112,7 +112,7 @@ namespace PolarShader {
         holdMs
     )) {}
 
-    void AnnuliPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void AnnuliPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 

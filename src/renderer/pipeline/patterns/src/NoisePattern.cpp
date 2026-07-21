@@ -32,12 +32,12 @@
 namespace PolarShader {
     namespace {
         constexpr uint64_t NOISE_DEPTH_FULL_SCALE_WRAP_MS = 6ull * 60ull * 60ull * 1000ull;
-        constexpr uint64_t NOISE_DEPTH_SIGNAL_FULL_SCALE = static_cast<uint64_t>(F16_MAX);
+        constexpr uint64_t NOISE_DEPTH_SIGNAL_FULL_SCALE = static_cast<uint64_t>(U0X16_MAX);
 
-        const BipolarRange<sf16> &noiseDepthSpeedSignalRange() {
-            static const BipolarRange<sf16> range{
-                sf16(SF16_MIN),
-                sf16(SF16_MAX)
+        const BipolarRange<s0x16> &noiseDepthSpeedSignalRange() {
+            static const BipolarRange<s0x16> range{
+                s0x16(S0X16_MIN),
+                s0x16(S0X16_MAX)
             };
             return range;
         }
@@ -52,7 +52,7 @@ namespace PolarShader {
         fl::u8 octaves;
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             uint32_t offset = NOISE_DOMAIN_OFFSET << 8;
             uint32_t depth = state ? state->depth : 0u;
 
@@ -77,11 +77,11 @@ namespace PolarShader {
         }
     };
 
-    PatternNormU16 NoisePattern::noiseLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
+    PatternNormU0x16 NoisePattern::noiseLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
         return noiseNormaliseU16(sampleNoiseTrilinear(x.raw(), y.raw(), z.raw()));
     }
 
-    PatternNormU16 NoisePattern::fBmLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z, fl::u8 octaveCount) {
+    PatternNormU0x16 NoisePattern::fBmLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z, fl::u8 octaveCount) {
         uint32_t r = 0;
         uint16_t amplitude = U16_HALF;
         for (int o = 0; o < octaveCount; o++) {
@@ -93,33 +93,33 @@ namespace PolarShader {
             amplitude >>= 1;
         }
         if (r > UINT16_MAX) r = UINT16_MAX;
-        return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(r)));
+        return noiseNormaliseU16(NoiseRawU0x16(static_cast<uint16_t>(r)));
     }
 
-    PatternNormU16 NoisePattern::turbulenceLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
-        NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(x.raw(), y.raw(), z.raw()));
+    PatternNormU0x16 NoisePattern::turbulenceLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
+        NoiseRawU0x16 noise_raw = NoiseRawU0x16(sampleNoiseTrilinear(x.raw(), y.raw(), z.raw()));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
         uint32_t doubled = static_cast<uint32_t>(mag) << 1;
-        if (doubled > SF16_MAX) doubled = SF16_MAX;
-        return noiseNormaliseU16(NoiseRawU16(static_cast<uint16_t>(doubled)));
+        if (doubled > S0X16_MAX) doubled = S0X16_MAX;
+        return noiseNormaliseU16(NoiseRawU0x16(static_cast<uint16_t>(doubled)));
     }
 
-    PatternNormU16 NoisePattern::ridgedLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
-        NoiseRawU16 noise_raw = NoiseRawU16(sampleNoiseTrilinear(x.raw(), y.raw(), z.raw()));
+    PatternNormU0x16 NoisePattern::ridgedLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z) {
+        NoiseRawU0x16 noise_raw = NoiseRawU0x16(sampleNoiseTrilinear(x.raw(), y.raw(), z.raw()));
         int16_t r = static_cast<int16_t>(raw(noise_raw)) - U16_HALF;
         uint16_t mag = static_cast<uint16_t>(r ^ (r >> 15)) - static_cast<uint16_t>(r >> 15);
         mag = std::min(mag, static_cast<uint16_t>(U16_HALF - 1));
         uint32_t doubled = static_cast<uint32_t>(mag) << 1;
-        if (doubled > SF16_MAX) doubled = SF16_MAX;
-        uint16_t inverted = static_cast<uint16_t>(SF16_MAX - doubled);
-        return noiseNormaliseU16(NoiseRawU16(inverted));
+        if (doubled > S0X16_MAX) doubled = S0X16_MAX;
+        uint16_t inverted = static_cast<uint16_t>(S0X16_MAX - doubled);
+        return noiseNormaliseU16(NoiseRawU0x16(inverted));
     }
 
     NoisePattern::NoisePattern(
         NoiseType noiseType,
         fl::u8 octaveCount,
-        Sf16Signal depthSpeedSignal
+        S0x16Signal depthSpeedSignal
     )
         : type(noiseType),
           octaves(octaveCount),
@@ -127,7 +127,7 @@ namespace PolarShader {
         state.depth = random32Seed();
     }
 
-    void NoisePattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void NoisePattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void) progress;
         if (!state.hasLastElapsed) {
             state.lastElapsedMs = elapsedMs;
@@ -146,7 +146,7 @@ namespace PolarShader {
 
         if (deltaMs <= 0 || !depthSpeedSignal) return;
 
-        const sf16 signedSpeed = depthSpeedSignal.sample(noiseDepthSpeedSignalRange(), elapsedMs);
+        const s0x16 signedSpeed = depthSpeedSignal.sample(noiseDepthSpeedSignalRange(), elapsedMs);
         const uint64_t speed = static_cast<uint64_t>(raw(toUnsignedClamped(signedSpeed)));
         const uint64_t denominator = NOISE_DEPTH_SIGNAL_FULL_SCALE * NOISE_DEPTH_FULL_SCALE_WRAP_MS;
         const uint64_t numerator =

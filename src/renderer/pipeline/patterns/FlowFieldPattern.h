@@ -60,29 +60,29 @@ namespace PolarShader {
             uint8_t gridSize = 32,
             uint8_t dotCount = 3,
             EmitterMode mode = EmitterMode::Both,
-            Sf16Signal xDrift = constant(50),
-            Sf16Signal yDrift = constant(75),
-            Sf16Signal amplitude = constant(100),
-            Sf16Signal frequency = constant(60),
-            Sf16Signal endpointSpeed = constant(500),
-            Sf16Signal halfLife = constant(600),
-            Sf16Signal orbitSpeed = constant(300),
-            Sf16Signal orbitRadius = constant(500)
+            S0x16Signal xDrift = constant(50),
+            S0x16Signal yDrift = constant(75),
+            S0x16Signal amplitude = constant(100),
+            S0x16Signal frequency = constant(60),
+            S0x16Signal endpointSpeed = constant(500),
+            S0x16Signal halfLife = constant(600),
+            S0x16Signal orbitSpeed = constant(300),
+            S0x16Signal orbitRadius = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
         /// Trigger a noise punch on the X axis (columns).
         void triggerNoisePunchX(
-            fl::s16x16 center, fl::s16x16 width, sf16 amplitude,
+            fl::s16x16 center, fl::s16x16 width, s0x16 amplitude,
             NoisePunchShape shape = NoisePunchShape::HalfSine
         );
 
         /// Trigger a noise punch on the Y axis (rows).
         void triggerNoisePunchY(
-            fl::s16x16 center, fl::s16x16 width, sf16 amplitude,
+            fl::s16x16 center, fl::s16x16 width, s0x16 amplitude,
             NoisePunchShape shape = NoisePunchShape::HalfSine
         );
     };

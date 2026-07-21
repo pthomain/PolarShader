@@ -44,7 +44,7 @@ namespace PolarShader {
         // Must point to a string with static storage duration (presets use literals).
         const char *name;
         std::shared_ptr<PipelineContext> context = std::make_shared<PipelineContext>();
-        f16 alpha{0xFFFFu};
+        u0x16 alpha{0xFFFFu};
         BlendMode blendMode{BlendMode::Normal};
 
     public:
@@ -68,12 +68,12 @@ namespace PolarShader {
          *   minimizing memory allocations and copies on microcontrollers.
          */
 
-        LayerBuilder &setAlpha(f16 a) & {
+        LayerBuilder &setAlpha(u0x16 a) & {
             alpha = a;
             return *this;
         }
 
-        LayerBuilder &&setAlpha(f16 a) && {
+        LayerBuilder &&setAlpha(u0x16 a) && {
             alpha = a;
             return std::move(*this);
         }

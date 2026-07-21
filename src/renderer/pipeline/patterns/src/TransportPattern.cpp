@@ -43,7 +43,7 @@ namespace PolarShader {
         // Attractor constants.
         constexpr uint8_t kAttractorCount = 3;
         constexpr fl::s16x16 kAttractorSwirlRatio = s16x16FromFraction(1, 2); // tangential/radial
-        constexpr int32_t kAttractorMinDist2 = SF16_ONE; // prevent singularity
+        constexpr int32_t kAttractorMinDist2 = S0X16_ONE; // prevent singularity
 
         const MagnitudeRange<fl::s16x16> &radialSpeedRange() {
             static const MagnitudeRange range(fl::s16x16::from_raw(0), kMaxRadialSpeed);
@@ -64,17 +64,17 @@ namespace PolarShader {
 
         struct PolarCoord {
             int32_t radiusRaw; // Q16.16, distance from center in grid cells
-            f16 angle;         // f16 turns [0, 65535] = [0, 2pi)
-            int32_t cosA;      // sf16 raw of cos(angle)
-            int32_t sinA;      // sf16 raw of sin(angle)
+            u0x16 angle;         // u0x16 turns [0, 65535] = [0, 2pi)
+            int32_t cosA;      // s0x16 raw of cos(angle)
+            int32_t sinA;      // s0x16 raw of sin(angle)
         };
 
         // Convert grid cell (x, y) to polar relative to grid center.
-        // Returns radius in Q16.16 grid-cell units, angle as f16.
+        // Returns radius in Q16.16 grid-cell units, angle as u0x16.
         PolarCoord gridToPolar(uint8_t x, uint8_t y, uint8_t gridSize) {
             int32_t halfRaw = (static_cast<int32_t>(gridSize - 1u) << kQ16Shift) >> 1;
-            int32_t dxRaw = (static_cast<int32_t>(x) << kQ16Shift) + (SF16_ONE >> 1) - halfRaw;
-            int32_t dyRaw = (static_cast<int32_t>(y) << kQ16Shift) + (SF16_ONE >> 1) - halfRaw;
+            int32_t dxRaw = (static_cast<int32_t>(x) << kQ16Shift) + (S0X16_ONE >> 1) - halfRaw;
+            int32_t dyRaw = (static_cast<int32_t>(y) << kQ16Shift) + (S0X16_ONE >> 1) - halfRaw;
 
             // Radius = sqrt(dx² + dy²).
             uint64_t r2 = static_cast<uint64_t>(
@@ -103,18 +103,18 @@ namespace PolarShader {
                 dyScaled = 0;
             }
 
-            f16 angle = angleAtan2TurnsApprox(dyScaled, dxScaled);
+            u0x16 angle = angleAtan2TurnsApprox(dyScaled, dxScaled);
 
-            int32_t cosA = raw(angleCosF16(angle));
-            int32_t sinA = raw(angleSinF16(angle));
+            int32_t cosA = raw(angleCosU0x16(angle));
+            int32_t sinA = raw(angleSinU0x16(angle));
 
             return PolarCoord{radiusRaw, angle, cosA, sinA};
         }
 
         // Convert polar displacement (dr, dTheta) to cartesian (dx, dy) in Q16.16.
         // dr is Q16.16 grid-cell units, dTheta is Q16.16 radians-like (but we use turns).
-        // dTheta is in turns * SF16_ONE scale.
-        v32 polarToCartesian(const PolarCoord &polar, int32_t drRaw, int32_t dThetaRaw) {
+        // dTheta is in turns * S0X16_ONE scale.
+        Vec2I32 polarToCartesian(const PolarCoord &polar, int32_t drRaw, int32_t dThetaRaw) {
             // dx = dr * cos(a) - r * dTheta * sin(a)
             // dy = dr * sin(a) + r * dTheta * cos(a)
             int32_t drCos = static_cast<int32_t>((static_cast<int64_t>(drRaw) * polar.cosA) >> 16);
@@ -123,7 +123,7 @@ namespace PolarShader {
             int32_t rDThetaSin = static_cast<int32_t>((static_cast<int64_t>(rDTheta) * polar.sinA) >> 16);
             int32_t rDThetaCos = static_cast<int32_t>((static_cast<int64_t>(rDTheta) * polar.cosA) >> 16);
 
-            return v32{drCos - rDThetaSin, drSin + rDThetaCos};
+            return Vec2I32{drCos - rDThetaSin, drSin + rDThetaCos};
         }
 
         // ---- Transport mode parameters passed to vector callbacks ----
@@ -132,7 +132,7 @@ namespace PolarShader {
             TransportPattern::TransportMode mode;
             uint8_t gridSize;
             int32_t radialSpeedRaw;    // Q16.16 grid-cell displacement per frame
-            int32_t angularSpeedRaw;   // Q16.16 angular displacement (turns * SF16_ONE)
+            int32_t angularSpeedRaw;   // Q16.16 angular displacement (turns * S0X16_ONE)
             int32_t timeRaw;           // Q16.16 accumulated time
             // Shockwave state.
             int32_t shockwaveRadiusRaw;
@@ -143,7 +143,7 @@ namespace PolarShader {
 
         // ---- Vector field functions per mode ----
 
-        v32 transportVector(uint8_t x, uint8_t y, uint8_t gridSize, const void *params) {
+        Vec2I32 transportVector(uint8_t x, uint8_t y, uint8_t gridSize, const void *params) {
             const auto &p = *static_cast<const TransportParams *>(params);
             PolarCoord polar = gridToPolar(x, y, gridSize);
 
@@ -170,10 +170,10 @@ namespace PolarShader {
 
                 case TransportPattern::TransportMode::PolarPulse: {
                     // Radial pulsation: dr = sin(time * angularSpeed) * amplitude.
-                    f16 pulsePhase(static_cast<uint16_t>(
+                    u0x16 pulsePhase(static_cast<uint16_t>(
                         (static_cast<int64_t>(p.timeRaw) * p.angularSpeedRaw) >> 16
                     ));
-                    int32_t pulseSin = raw(angleSinF16(pulsePhase));
+                    int32_t pulseSin = raw(angleSinU0x16(pulsePhase));
                     int32_t dr = static_cast<int32_t>((static_cast<int64_t>(pulseSin) * p.radialSpeedRaw) >> 16);
                     return polarToCartesian(polar, dr, 0);
                 }
@@ -191,7 +191,7 @@ namespace PolarShader {
                     } else {
                         // (1 - x²)² approximation.
                         int32_t x2 = static_cast<int32_t>((static_cast<int64_t>(xNorm) * xNorm) >> 16);
-                        int32_t oneMinusX2 = SF16_ONE - x2;
+                        int32_t oneMinusX2 = S0X16_ONE - x2;
                         if (oneMinusX2 < 0) oneMinusX2 = 0;
                         strength = static_cast<int32_t>((static_cast<int64_t>(oneMinusX2) * oneMinusX2) >> 16);
                     }
@@ -209,9 +209,9 @@ namespace PolarShader {
                         int32_t rScaled = static_cast<int32_t>(
                             (static_cast<int64_t>(rCurrent) * raw(kFractalAngleScale)) >> 16
                         );
-                        f16 rPhase(static_cast<uint16_t>(rScaled + p.timeRaw));
+                        u0x16 rPhase(static_cast<uint16_t>(rScaled + p.timeRaw));
                         int32_t angleDelta = static_cast<int32_t>(
-                            (static_cast<int64_t>(raw(angleSinF16(rPhase))) * p.angularSpeedRaw) >> 16
+                            (static_cast<int64_t>(raw(angleSinU0x16(rPhase))) * p.angularSpeedRaw) >> 16
                         );
                         totalDTheta += angleDelta;
                         totalDr += raw(kFractalRadiusStep);
@@ -225,25 +225,25 @@ namespace PolarShader {
                 case TransportPattern::TransportMode::SquareSpiral: {
                     // Grid-aligned spiral: determine which arm the pixel is on.
                     int32_t halfRaw = (static_cast<int32_t>(gridSize - 1u) << kQ16Shift) >> 1;
-                    int32_t px = (static_cast<int32_t>(x) << kQ16Shift) + (SF16_ONE >> 1) - halfRaw;
-                    int32_t py = (static_cast<int32_t>(y) << kQ16Shift) + (SF16_ONE >> 1) - halfRaw;
+                    int32_t px = (static_cast<int32_t>(x) << kQ16Shift) + (S0X16_ONE >> 1) - halfRaw;
+                    int32_t py = (static_cast<int32_t>(y) << kQ16Shift) + (S0X16_ONE >> 1) - halfRaw;
                     int32_t apx = px < 0 ? -px : px;
                     int32_t apy = py < 0 ? -py : py;
 
                     // Determine quadrant of the spiral arm based on which edge is closer.
                     // Right→Down→Left→Up in clockwise sense.
                     int32_t speed = p.radialSpeedRaw;
-                    v32 disp;
+                    Vec2I32 disp;
                     if (apx >= apy) {
                         // Horizontal-dominant: right or left edge.
                         disp = (px >= 0)
-                            ? v32{0, speed}    // right edge → move down
-                            : v32{0, -speed};  // left edge → move up
+                            ? Vec2I32{0, speed}    // right edge → move down
+                            : Vec2I32{0, -speed};  // left edge → move up
                     } else {
                         // Vertical-dominant: top or bottom edge.
                         disp = (py >= 0)
-                            ? v32{-speed, 0}   // bottom → move left
-                            : v32{speed, 0};   // top → move right
+                            ? Vec2I32{-speed, 0}   // bottom → move left
+                            : Vec2I32{speed, 0};   // top → move right
                     }
                     return disp;
                 }
@@ -251,8 +251,8 @@ namespace PolarShader {
                 case TransportPattern::TransportMode::AttractorField: {
                     int32_t totalDx = 0;
                     int32_t totalDy = 0;
-                    int32_t pxRaw = (static_cast<int32_t>(x) << kQ16Shift) + (SF16_ONE >> 1);
-                    int32_t pyRaw = (static_cast<int32_t>(y) << kQ16Shift) + (SF16_ONE >> 1);
+                    int32_t pxRaw = (static_cast<int32_t>(x) << kQ16Shift) + (S0X16_ONE >> 1);
+                    int32_t pyRaw = (static_cast<int32_t>(y) << kQ16Shift) + (S0X16_ONE >> 1);
 
                     for (uint8_t i = 0; i < kAttractorCount; ++i) {
                         int32_t dx = p.attractorX[i] - pxRaw;
@@ -283,10 +283,10 @@ namespace PolarShader {
                         totalDx += radX + tanX;
                         totalDy += radY + tanY;
                     }
-                    return v32{totalDx, totalDy};
+                    return Vec2I32{totalDx, totalDy};
                 }
             }
-            return v32{0, 0};
+            return Vec2I32{0, 0};
         }
     }
 
@@ -298,10 +298,10 @@ namespace PolarShader {
         bool velocityGlow;
         std::unique_ptr<uint16_t[]> cells;
         std::unique_ptr<uint16_t[]> scratch;
-        Sf16Signal radialSpeedSignal;
-        Sf16Signal angularSpeedSignal;
-        Sf16Signal halfLifeSignal;
-        Sf16Signal emitterSpeedSignal;
+        S0x16Signal radialSpeedSignal;
+        S0x16Signal angularSpeedSignal;
+        S0x16Signal halfLifeSignal;
+        S0x16Signal emitterSpeedSignal;
         fl::s16x16 radialSpeed{fl::s16x16::from_raw(0)};
         fl::s16x16 angularSpeed{fl::s16x16::from_raw(0)};
         uint16_t halfLifeMs{860u};
@@ -318,10 +318,10 @@ namespace PolarShader {
             uint8_t size,
             TransportMode mode,
             bool glow,
-            Sf16Signal radialSpeed,
-            Sf16Signal angularSpeed,
-            Sf16Signal halfLife,
-            Sf16Signal emitterSpeed
+            S0x16Signal radialSpeed,
+            S0x16Signal angularSpeed,
+            S0x16Signal halfLife,
+            S0x16Signal emitterSpeed
         ) : gridSize(size),
             mode(mode),
             velocityGlow(glow),
@@ -346,7 +346,7 @@ namespace PolarShader {
     struct TransportPattern::TransportFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sampleScalarGridClamped(state->cells.get(), state->gridSize, state->gridSize, uv);
         }
     };
@@ -356,10 +356,10 @@ namespace PolarShader {
     TransportPattern::TransportPattern(
         uint8_t gridSize,
         TransportMode mode,
-        Sf16Signal radialSpeed,
-        Sf16Signal angularSpeed,
-        Sf16Signal halfLife,
-        Sf16Signal emitterSpeed,
+        S0x16Signal radialSpeed,
+        S0x16Signal angularSpeed,
+        S0x16Signal halfLife,
+        S0x16Signal emitterSpeed,
         bool velocityGlow
     ) : state(std::make_shared<State>(
         std::max<uint8_t>(kMinGridSize, std::min<uint8_t>(gridSize, kMaxGridSize)),
@@ -374,7 +374,7 @@ namespace PolarShader {
 
     // ---- advanceFrame ----
 
-    void TransportPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void TransportPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         State &s = *state;
 
@@ -431,18 +431,18 @@ namespace PolarShader {
             fl::s16x16 gc = gridCenter;
             fl::s16x16 orbRadius = scaleByGridSize(gridSize, s16x16FromFraction(3, 8));
             for (uint8_t i = 0; i < kAttractorCount; ++i) {
-                f16 phX(static_cast<uint16_t>(raw(s.timeQ16 * s.emitterSpeed) + s.attractorPhases[i * 2]));
-                f16 phY(static_cast<uint16_t>(raw(s.timeQ16 * s.emitterSpeed) + s.attractorPhases[i * 2 + 1]));
+                u0x16 phX(static_cast<uint16_t>(raw(s.timeQ16 * s.emitterSpeed) + s.attractorPhases[i * 2]));
+                u0x16 phY(static_cast<uint16_t>(raw(s.timeQ16 * s.emitterSpeed) + s.attractorPhases[i * 2 + 1]));
                 tp.attractorX[i] = raw(gc) + static_cast<int32_t>(
-                    (static_cast<int64_t>(raw(orbRadius)) * raw(angleSinF16(phX))) >> 16
+                    (static_cast<int64_t>(raw(orbRadius)) * raw(angleSinU0x16(phX))) >> 16
                 );
                 tp.attractorY[i] = raw(gc) + static_cast<int32_t>(
-                    (static_cast<int64_t>(raw(orbRadius)) * raw(angleCosF16(phY))) >> 16
+                    (static_cast<int64_t>(raw(orbRadius)) * raw(angleCosU0x16(phY))) >> 16
                 );
             }
         }
 
-        f16 fadeFactor = halfLifeFade(dtMs, s.halfLifeMs);
+        u0x16 fadeFactor = halfLifeFade(dtMs, s.halfLifeMs);
         uint16_t *scratch = s.scratch.get();
 
         advectGrid2DBackward(cells, scratch, gridSize, transportVector, &tp, fadeFactor);
@@ -455,7 +455,7 @@ namespace PolarShader {
             uint16_t *result = s.cells.get();
             for (uint8_t y = 0; y < gridSize; ++y) {
                 for (uint8_t x = 0; x < gridSize; ++x) {
-                    v32 disp = transportVector(x, y, gridSize, &tp);
+                    Vec2I32 disp = transportVector(x, y, gridSize, &tp);
                     uint64_t mag2 = static_cast<uint64_t>(
                         static_cast<int64_t>(disp.x) * disp.x + static_cast<int64_t>(disp.y) * disp.y
                     );

@@ -24,50 +24,50 @@
 
 namespace PolarShader {
     SampleSignal sampleNoise() {
-        return [](f16 phase) -> sf16 {
-            NoiseRawU16 rawNoise = NoiseRawU16(inoise16(angleToFastLedPhase(phase)));
-            return toSigned(f16(raw(rawNoise)));
+        return [](u0x16 phase) -> s0x16 {
+            NoiseRawU0x16 rawNoise = NoiseRawU0x16(inoise16(angleToFastLedPhase(phase)));
+            return toSigned(u0x16(raw(rawNoise)));
         };
     }
 
     SampleSignal32 sampleNoise32() {
-        return [](uint32_t phase) -> sf16 {
+        return [](uint32_t phase) -> s0x16 {
             // inoise16 for 1D uses a 32-bit coordinate (16.16)
-            NoiseRawU16 rawNoise = NoiseRawU16(inoise16(phase << 5));
-            return toSigned(f16(raw(rawNoise)));
+            NoiseRawU0x16 rawNoise = NoiseRawU0x16(inoise16(phase << 5));
+            return toSigned(u0x16(raw(rawNoise)));
         };
     }
 
     SampleSignal sampleSine() {
-        return [](f16 phase) -> sf16 {
+        return [](u0x16 phase) -> s0x16 {
             // sin16 expects 0-65535 for a full circle.
             // Result is signed 16-bit [-32768, 32767].
             int32_t s = sin16(raw(phase));
-            return sf16(s << 1);
+            return s0x16(s << 1);
         };
     }
 
     SampleSignal sampleTriangle() {
-        return [](f16 phase) -> sf16 {
+        return [](u0x16 phase) -> s0x16 {
             uint32_t p = raw(phase);
             if (p < 0x8000) {
                 // 0 -> -1, 0.25 -> 0, 0.5 -> 1
-                return sf16(static_cast<int32_t>(p << 2) - 65536);
+                return s0x16(static_cast<int32_t>(p << 2) - 65536);
             } else {
                 // 0.5 -> 1, 0.75 -> 0, 1.0 -> -1
-                return sf16(196608 - static_cast<int32_t>(p << 2));
+                return s0x16(196608 - static_cast<int32_t>(p << 2));
             }
         };
     }
 
     SampleSignal sampleSquare() {
-        return [](f16 phase) -> sf16 {
-            return (raw(phase) < 0x8000) ? sf16(SF16_MAX) : sf16(SF16_MIN);
+        return [](u0x16 phase) -> s0x16 {
+            return (raw(phase) < 0x8000) ? s0x16(S0X16_MAX) : s0x16(S0X16_MIN);
         };
     }
 
     SampleSignal sampleSawtooth() {
-        return [](f16 phase) -> sf16 {
+        return [](u0x16 phase) -> s0x16 {
             return toSigned(phase);
         };
     }

@@ -54,7 +54,7 @@ namespace PolarShader {
             }
         }
 
-        T map(sf16 t) const override {
+        T map(s0x16 t) const override {
             int64_t span = max_raw - min_raw;
             if (span == 0) return detail::make_range_value<T, Rep>(static_cast<Rep>(min_raw));
 

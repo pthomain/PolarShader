@@ -490,8 +490,8 @@ namespace {
         TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
         TEST_ASSERT_NOT_NULL(decoded.get());
         decoded->compile();
-        decoded->advanceFrame(f16(0xFFFFu), 1000);
-        ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
+        decoded->advanceFrame(u0x16(0xFFFFu), 1000);
+        ::CRGB sample = decoded->sample(0, u0x16(0x4000u), u0x16(0x4000u));
         (void) sample;
     }
 
@@ -508,16 +508,16 @@ namespace {
         if (rasterDisplay) {
             decoded->compile(RasterDisplayInfo{true, 4, 4, 16});
             const RenderPoint point{
-                f16(0x4000u),
-                f16(0x4000u),
+                u0x16(0x4000u),
+                u0x16(0x4000u),
                 RasterPoint{true, 5, 1, 1, 4, 4}
             };
             ::CRGB sample = decoded->sample(0, point);
             (void) sample;
         } else {
             decoded->compile();
-            decoded->advanceFrame(f16(0xFFFFu), 1000);
-            ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
+            decoded->advanceFrame(u0x16(0xFFFFu), 1000);
+            ::CRGB sample = decoded->sample(0, u0x16(0x4000u), u0x16(0x4000u));
             (void) sample;
         }
     }
@@ -541,13 +541,13 @@ namespace {
         s.compile();
         // progress = 1.0 (UINT16_MAX) since composer scenes have infinite
         // duration; elapsedMs drives signals.
-        s.advanceFrame(f16(0xFFFFu), elapsedMs);
+        s.advanceFrame(u0x16(0xFFFFu), elapsedMs);
         // 4×4 sample grid in (angle, radius)
         std::size_t i = 0;
         for (uint16_t aIdx = 0; aIdx < 4; ++aIdx) {
             for (uint16_t rIdx = 0; rIdx < 4; ++rIdx) {
-                f16 angle  = f16(static_cast<uint16_t>((aIdx * 0xFFFFu) / 3));
-                f16 radius = f16(static_cast<uint16_t>((rIdx * 0xFFFFu) / 3));
+                u0x16 angle  = u0x16(static_cast<uint16_t>((aIdx * 0xFFFFu) / 3));
+                u0x16 radius = u0x16(static_cast<uint16_t>((rIdx * 0xFFFFu) / 3));
                 out[i++] = s.sample(0, angle, radius);
             }
         }
@@ -583,7 +583,7 @@ namespace {
         b.addPaletteTransform(PaletteTransform(
             constant(100),
             constant(0),
-            f16(32768),
+            u0x16(32768),
             PipelineContext::PaletteTintMode::HueRemap));
         b.addTransform(ZoomTransform(constant(200)));
         b.addTransform(RotationTransform(constant(50), true));
@@ -595,12 +595,12 @@ namespace {
 
     std::unique_ptr<Scene> buildReferenceNestedSmap() {
         // tilingPattern + zoom transform whose scale signal is
-        // smap(sine(constant(50), sf16(0)), constant(100), constant(900)).
+        // smap(sine(constant(50), s0x16(0)), constant(100), constant(900)).
         // sine with explicit 0 phase offset is deterministic.
         const ::CRGBPalette16 *p = paletteById(2);
         LayerBuilder b(tilingPattern(32, 4, TilingPattern::TileShape::HEXAGON), *p, "ref");
-        Sf16Signal nested = smap(
-            sine(constant(50), sf16(0)),
+        S0x16Signal nested = smap(
+            sine(constant(50), s0x16(0)),
             constant(100),
             constant(900)
         );
@@ -627,7 +627,7 @@ namespace {
         b.addPaletteTransform(PaletteTransform(
             sine(constant(120)),
             constant(0),
-            f16(32768),
+            u0x16(32768),
             PipelineContext::PaletteTintMode::HueRemap));
         b.addTransform(ZoomTransform(constant(400)));
         b.addTransform(RotationTransform(constant(60), true));
@@ -1110,8 +1110,8 @@ void test_decode_raster_conway_compiles_with_raster_display() {
 
     decoded->compile(RasterDisplayInfo{true, 3, 3, 9});
     const RenderPoint center{
-        f16(0),
-        f16(0),
+        u0x16(0),
+        u0x16(0),
         RasterPoint{true, 4, 1, 1, 3, 3}
     };
     const ::CRGB sample = decoded->sample(0, center);
@@ -1234,8 +1234,8 @@ void test_decode_golden_fixture() {
 
     // Sanity: scene compiles and renders something.
     decoded->compile();
-    decoded->advanceFrame(f16(0xFFFFu), 1000);
-    ::CRGB sample = decoded->sample(0, f16(0x4000u), f16(0x4000u));
+    decoded->advanceFrame(u0x16(0xFFFFu), 1000);
+    ::CRGB sample = decoded->sample(0, u0x16(0x4000u), u0x16(0x4000u));
     (void) sample;  // value depends on noise sampler but call must not crash
 }
 

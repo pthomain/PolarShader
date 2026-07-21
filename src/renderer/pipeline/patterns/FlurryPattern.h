@@ -49,15 +49,15 @@ namespace PolarShader {
             uint8_t gridSize = 32,
             uint8_t lineCount = 1,
             Shape shape = Shape::Line,
-            Sf16Signal xDrift = constant(50),
-            Sf16Signal yDrift = constant(75),
-            Sf16Signal amplitude = constant(100),
-            Sf16Signal frequency = constant(60),
-            Sf16Signal endpointSpeed = constant(40),
-            Sf16Signal fade = constant(700)
+            S0x16Signal xDrift = constant(50),
+            S0x16Signal yDrift = constant(75),
+            S0x16Signal amplitude = constant(100),
+            S0x16Signal frequency = constant(60),
+            S0x16Signal endpointSpeed = constant(40),
+            S0x16Signal fade = constant(700)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

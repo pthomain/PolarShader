@@ -58,7 +58,7 @@ namespace PolarShader {
     }
 
     inline fl::s16x16 fractQ16(fl::s16x16 value) {
-        return fl::s16x16::from_raw(static_cast<int32_t>(static_cast<uint32_t>(raw(value)) & F16_MAX));
+        return fl::s16x16::from_raw(static_cast<int32_t>(static_cast<uint32_t>(raw(value)) & U0X16_MAX));
     }
 
     inline Vec2Q16 fractQ16(Vec2Q16 value) {
@@ -105,21 +105,21 @@ namespace PolarShader {
                 }
             }
 
-            int64_t result = static_cast<int64_t>(intPart) * SF16_ONE + static_cast<int32_t>(frac);
+            int64_t result = static_cast<int64_t>(intPart) * S0X16_ONE + static_cast<int32_t>(frac);
             if (result > INT32_MAX) result = INT32_MAX;
             if (result < INT32_MIN) result = INT32_MIN;
             return static_cast<int32_t>(result);
         }
 
         inline uint32_t exp2Q16Raw(int32_t exponentRaw, uint32_t maxRaw) {
-            int32_t intPart = exponentRaw / SF16_ONE;
-            int32_t frac = exponentRaw % SF16_ONE;
+            int32_t intPart = exponentRaw / S0X16_ONE;
+            int32_t frac = exponentRaw % S0X16_ONE;
             if (frac < 0) {
-                frac += SF16_ONE;
+                frac += S0X16_ONE;
                 --intPart;
             }
 
-            uint64_t result = SF16_ONE;
+            uint64_t result = S0X16_ONE;
             uint16_t mask = 0x8000u;
             for (uint8_t i = 0; i < 16; ++i) {
                 if (static_cast<uint32_t>(frac) & mask) {
@@ -146,7 +146,7 @@ namespace PolarShader {
         int64_t exponent = -((static_cast<int64_t>(raw(x)) * shader_detail::LOG2_E_Q16) >> 16);
         if (exponent < INT32_MIN) exponent = INT32_MIN;
         if (exponent > INT32_MAX) exponent = INT32_MAX;
-        return fl::u16x16::from_raw(shader_detail::exp2Q16Raw(static_cast<int32_t>(exponent), SF16_ONE));
+        return fl::u16x16::from_raw(shader_detail::exp2Q16Raw(static_cast<int32_t>(exponent), S0X16_ONE));
     }
 
     inline fl::u16x16 powQ16(fl::u16x16 x, uint16_t exponentPermille) {
@@ -160,11 +160,11 @@ namespace PolarShader {
         return fl::u16x16::from_raw(shader_detail::exp2Q16Raw(static_cast<int32_t>(exponent), UINT32_MAX));
     }
 
-    inline RgbSample iqCosinePaletteQ16(fl::u16x16 t, PatternNormU16 value) {
+    inline RgbSample iqCosinePaletteQ16(fl::u16x16 t, PatternNormU0x16 value) {
         uint32_t turns = raw(t);
-        PatternNormU16 r = PatternNormU16(raw(toUnsignedClamped(angleCosF16(f16(static_cast<uint16_t>(turns + 17236u))))));
-        PatternNormU16 g = PatternNormU16(raw(toUnsignedClamped(angleCosF16(f16(static_cast<uint16_t>(turns + 27263u))))));
-        PatternNormU16 b = PatternNormU16(raw(toUnsignedClamped(angleCosF16(f16(static_cast<uint16_t>(turns + 36504u))))));
+        PatternNormU0x16 r = PatternNormU0x16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 17236u))))));
+        PatternNormU0x16 g = PatternNormU0x16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 27263u))))));
+        PatternNormU0x16 b = PatternNormU0x16(raw(toUnsignedClamped(angleCosU0x16(u0x16(static_cast<uint16_t>(turns + 36504u))))));
         return RgbSample(r, g, b, value);
     }
 }

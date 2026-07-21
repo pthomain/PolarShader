@@ -30,7 +30,7 @@ namespace PolarShader {
         return (static_cast<uint32_t>(random16()) << 16) | random16();
     }
 
-    NoiseRawU16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
+    NoiseRawU0x16 sampleNoiseBilinear(uint32_t x, uint32_t y) {
         // FastLED's inoise16 samples integer lattice points; we interpolate between
         // grid corners to support smooth fl::s24x8/fl::u24x8 coordinates without blocky stepping.
         uint32_t x_int = x >> 8;
@@ -51,10 +51,10 @@ namespace PolarShader {
         int32_t nxy = nx0 + ((nx1 - nx0) * y_frac >> 16);
         if (nxy < 0) nxy = 0;
         if (nxy > UINT16_MAX) nxy = UINT16_MAX;
-        return NoiseRawU16(static_cast<uint16_t>(nxy));
+        return NoiseRawU0x16(static_cast<uint16_t>(nxy));
     }
 
-    NoiseRawU16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z) {
+    NoiseRawU0x16 sampleNoiseTrilinear(uint32_t x, uint32_t y, uint32_t z) {
         // 3D variant of the same idea: trilinear interpolation over 8 corners
         // so animated depth (z) and fractional x/y produce continuous noise.
         uint32_t x_int = x >> 8;
@@ -88,6 +88,6 @@ namespace PolarShader {
         int32_t nxyz = nxy0 + ((nxy1 - nxy0) * z_frac >> 16);
         if (nxyz < 0) nxyz = 0;
         if (nxyz > UINT16_MAX) nxyz = UINT16_MAX;
-        return NoiseRawU16(static_cast<uint16_t>(nxyz));
+        return NoiseRawU0x16(static_cast<uint16_t>(nxyz));
     }
 }

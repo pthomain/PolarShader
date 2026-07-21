@@ -30,19 +30,19 @@ namespace PolarShader {
         // ---- Constexpr fixed-point builders ----
 
         constexpr fl::s16x16 s16x16FromFraction(uint16_t numerator, uint16_t denominator) {
-            return fl::s16x16::from_raw(raw(toF16(numerator, denominator)));
+            return fl::s16x16::from_raw(raw(toU0x16(numerator, denominator)));
         }
 
         constexpr fl::s16x16 s16x16FromMixed(uint16_t whole, uint16_t numerator, uint16_t denominator) {
-            return fl::s16x16::from_raw(static_cast<int32_t>(whole) * SF16_ONE + raw(toF16(numerator, denominator)));
+            return fl::s16x16::from_raw(static_cast<int32_t>(whole) * S0X16_ONE + raw(toU0x16(numerator, denominator)));
         }
 
         // ---- Shared constants ----
 
         constexpr uint8_t kQ16Shift = 16;
-        constexpr uint16_t kQ16FractionMask = F16_MAX;
+        constexpr uint16_t kQ16FractionMask = U0X16_MAX;
         constexpr uint32_t kQ16FractionSpan = ANGLE_FULL_TURN_U32;
-        constexpr uint16_t kFullIntensity = F16_MAX;
+        constexpr uint16_t kFullIntensity = U0X16_MAX;
         constexpr uint8_t kMinGridSize = 4;
         constexpr uint8_t kMaxGridSize = 64;
         constexpr fl::s16x16 kGridHalf = s16x16FromFraction(1, 2);
@@ -55,12 +55,12 @@ namespace PolarShader {
         // ---- Grid drawing primitives ----
 
         // Blend a scalar cell toward full intensity by the given fractional weight.
-        inline uint16_t blendTowardWhite(uint16_t current, f16 weight) {
+        inline uint16_t blendTowardWhite(uint16_t current, u0x16 weight) {
             return lerpU16ByQ16(current, kFullIntensity, weight);
         }
 
         // Draw into one grid cell if the target coordinate is inside the simulation buffer.
-        inline void blendPixel(uint16_t *cells, uint8_t gridSize, int32_t x, int32_t y, f16 weight) {
+        inline void blendPixel(uint16_t *cells, uint8_t gridSize, int32_t x, int32_t y, u0x16 weight) {
             if (x < 0 || y < 0 || x >= gridSize || y >= gridSize || raw(weight) == 0u) return;
             size_t index = static_cast<size_t>(y) * gridSize + static_cast<size_t>(x);
             cells[index] = blendTowardWhite(cells[index], weight);
@@ -72,7 +72,7 @@ namespace PolarShader {
             uint8_t gridSize,
             fl::s16x16 xPos,
             fl::s16x16 yPos,
-            f16 intensity = f16(kFullIntensity)
+            u0x16 intensity = u0x16(kFullIntensity)
         ) {
             int32_t baseX = raw(xPos) >> kQ16Shift;
             int32_t baseY = raw(yPos) >> kQ16Shift;
@@ -81,16 +81,16 @@ namespace PolarShader {
             uint32_t invFracX = kQ16FractionSpan - fracX;
             uint32_t invFracY = kQ16FractionSpan - fracY;
 
-            f16 topLeftWeight(clampU16(
+            u0x16 topLeftWeight(clampU16(
                 static_cast<uint32_t>((static_cast<uint64_t>(invFracX) * invFracY * raw(intensity)) >> (kQ16Shift * 2))
             ));
-            f16 topRightWeight(clampU16(
+            u0x16 topRightWeight(clampU16(
                 static_cast<uint32_t>((static_cast<uint64_t>(fracX) * invFracY * raw(intensity)) >> (kQ16Shift * 2))
             ));
-            f16 bottomLeftWeight(clampU16(
+            u0x16 bottomLeftWeight(clampU16(
                 static_cast<uint32_t>((static_cast<uint64_t>(invFracX) * fracY * raw(intensity)) >> (kQ16Shift * 2))
             ));
-            f16 bottomRightWeight(clampU16(
+            u0x16 bottomRightWeight(clampU16(
                 static_cast<uint32_t>((static_cast<uint64_t>(fracX) * fracY * raw(intensity)) >> (kQ16Shift * 2))
             ));
 
@@ -107,34 +107,34 @@ namespace PolarShader {
             fl::s16x16 yPos,
             fl::s16x16 radius,
             fl::s16x16 softEdge,
-            f16 intensity
+            u0x16 intensity
         ) {
             fl::s16x16 edgeRadius = radius + softEdge;
-            int32_t minX = std::max<int32_t>(0, (raw(xPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
+            int32_t minX = std::max<int32_t>(0, (raw(xPos - edgeRadius - fl::s16x16::from_raw(S0X16_ONE)) >> kQ16Shift));
             int32_t maxX = std::min<int32_t>(
                 gridSize - 1,
-                (raw(xPos + edgeRadius + fl::s16x16::from_raw(SF16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
+                (raw(xPos + edgeRadius + fl::s16x16::from_raw(S0X16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
             );
-            int32_t minY = std::max<int32_t>(0, (raw(yPos - edgeRadius - fl::s16x16::from_raw(SF16_ONE)) >> kQ16Shift));
+            int32_t minY = std::max<int32_t>(0, (raw(yPos - edgeRadius - fl::s16x16::from_raw(S0X16_ONE)) >> kQ16Shift));
             int32_t maxY = std::min<int32_t>(
                 gridSize - 1,
-                (raw(yPos + edgeRadius + fl::s16x16::from_raw(SF16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
+                (raw(yPos + edgeRadius + fl::s16x16::from_raw(S0X16_ONE) - fl::s16x16::from_raw(1)) >> kQ16Shift)
             );
 
             for (int32_t py = minY; py <= maxY; ++py) {
                 for (int32_t px = minX; px <= maxX; ++px) {
-                    fl::s16x16 dx = fl::s16x16::from_raw(((px << kQ16Shift) + (SF16_ONE >> 1)) - raw(xPos));
-                    fl::s16x16 dy = fl::s16x16::from_raw(((py << kQ16Shift) + (SF16_ONE >> 1)) - raw(yPos));
+                    fl::s16x16 dx = fl::s16x16::from_raw(((px << kQ16Shift) + (S0X16_ONE >> 1)) - raw(xPos));
+                    fl::s16x16 dy = fl::s16x16::from_raw(((py << kQ16Shift) + (S0X16_ONE >> 1)) - raw(yPos));
                     fl::s16x16 distance = fl::s16x16::sqrt(dx * dx + dy * dy);
                     int32_t weightRaw = raw(edgeRadius - distance);
                     if (weightRaw <= 0) continue;
-                    if (weightRaw > SF16_ONE) weightRaw = SF16_ONE;
+                    if (weightRaw > S0X16_ONE) weightRaw = S0X16_ONE;
                     blendPixel(
                         cells,
                         gridSize,
                         px,
                         py,
-                        f16(scaleU16ByF16(static_cast<uint16_t>(weightRaw), intensity))
+                        u0x16(scaleU16ByU0x16(static_cast<uint16_t>(weightRaw), intensity))
                     );
                 }
             }
@@ -146,7 +146,7 @@ namespace PolarShader {
             uint8_t gridSize,
             fl::s16x16 xPos,
             fl::s16x16 yPos,
-            f16 intensity
+            u0x16 intensity
         ) {
             drawSoftDisc(cells, gridSize, xPos, yPos, kEndpointDiscRadius, kEndpointDiscSoftEdge, intensity);
         }
@@ -154,7 +154,7 @@ namespace PolarShader {
         // ---- Noise profile sampling ----
 
         // Sample a stable 1D noise profile by treating the coordinate as a single animated noise axis.
-        inline sf16 sampleProfileNoise(fl::s16x16 coord, uint32_t seedOffset) {
+        inline s0x16 sampleProfileNoise(fl::s16x16 coord, uint32_t seedOffset) {
             static const SampleSignal32 sampler = sampleNoise32();
             return sampler(static_cast<uint32_t>(raw(coord)) + seedOffset);
         }
@@ -177,7 +177,7 @@ namespace PolarShader {
             fl::s16x16 sampleCoord = fl::s16x16::from_raw(sampleCoordRaw);
             uint8_t lowerIndex = static_cast<uint8_t>(raw(sampleCoord) >> kQ16Shift);
             uint8_t upperIndex = static_cast<uint8_t>((lowerIndex + 1u) % laneLength);
-            f16 mix(static_cast<uint16_t>(raw(sampleCoord) & kQ16FractionMask));
+            u0x16 mix(static_cast<uint16_t>(raw(sampleCoord) & kQ16FractionMask));
 
             return lerpU16ByQ16(
                 sourceCells[laneBaseIndex + static_cast<size_t>(lowerIndex) * laneStride],
@@ -194,18 +194,18 @@ namespace PolarShader {
 
         // ---- Half-life fade ----
 
-        /// Framerate-independent fade: pow(0.5, dt / halfLife) as f16.
+        /// Framerate-independent fade: pow(0.5, dt / halfLife) as u0x16.
         /// Uses a 17-entry constexpr LUT for pow(0.5, x) where x in [0, 1].
         /// dt and halfLifeMs are in milliseconds.
-        inline f16 halfLifeFade(TimeMillis dtMs, uint16_t halfLifeMs) {
-            if (halfLifeMs == 0u) return f16(0);
-            if (dtMs == 0u) return f16(F16_MAX);
+        inline u0x16 halfLifeFade(TimeMillis dtMs, uint16_t halfLifeMs) {
+            if (halfLifeMs == 0u) return u0x16(0);
+            if (dtMs == 0u) return u0x16(U0X16_MAX);
 
             // Compute ratio = dt / halfLife in Q4.12 fixed-point.
             // Max dt is 200ms (clamped), max ratio is ~2.0 in Q4.12 = 8192.
             uint32_t ratioQ12 = (static_cast<uint32_t>(dtMs) << 12) / static_cast<uint32_t>(halfLifeMs);
 
-            // pow(0.5, i/16) for i in [0..16], as f16 values.
+            // pow(0.5, i/16) for i in [0..16], as u0x16 values.
             // LUT[0] = pow(0.5, 0) = 1.0 = 65535
             // LUT[16] = pow(0.5, 1) = 0.5 = 32768
             static constexpr uint16_t kHalfLifeLUT[17] = {
@@ -229,18 +229,18 @@ namespace PolarShader {
             uint32_t lutIndex = lutScaled >> 12;
             if (lutIndex > 15u) lutIndex = 15u;
             uint32_t lutFrac = (lutScaled >> 4) & 0xFFu; // 8-bit interpolation fraction
-            uint16_t lutFracF16 = static_cast<uint16_t>(lutFrac << 8); // scale to Q0.16
+            uint16_t lutFracU0x16 = static_cast<uint16_t>(lutFrac << 8); // scale to Q0.16
 
             uint16_t base = kHalfLifeLUT[lutIndex];
             uint16_t next = kHalfLifeLUT[lutIndex + 1u];
-            uint16_t interpolated = lerpU16ByQ16(base, next, f16(lutFracF16));
+            uint16_t interpolated = lerpU16ByQ16(base, next, u0x16(lutFracU0x16));
 
             // Apply integer halving: result >>= intPart.
             // Cap to prevent zero for very large ratios.
-            if (intPart >= 16u) return f16(0);
+            if (intPart >= 16u) return u0x16(0);
             uint32_t result = static_cast<uint32_t>(interpolated) >> intPart;
 
-            return f16(static_cast<uint16_t>(result));
+            return u0x16(static_cast<uint16_t>(result));
         }
 
         // ---- Lissajous emitter ----
@@ -281,15 +281,15 @@ namespace PolarShader {
             fl::s16x16 timeQ16,
             fl::s16x16 speed
         ) {
-            f16 aXPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointA.xRate)) + kLissajousEndpointA.xPhase));
-            f16 aYPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointA.yRate)) + kLissajousEndpointA.yPhase));
-            f16 bXPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointB.xRate)) + kLissajousEndpointB.xPhase));
-            f16 bYPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointB.yRate)) + kLissajousEndpointB.yPhase));
+            u0x16 aXPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointA.xRate)) + kLissajousEndpointA.xPhase));
+            u0x16 aYPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointA.yRate)) + kLissajousEndpointA.yPhase));
+            u0x16 bXPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointB.xRate)) + kLissajousEndpointB.xPhase));
+            u0x16 bYPh(static_cast<uint16_t>(raw(timeQ16 * (speed * kLissajousEndpointB.yRate)) + kLissajousEndpointB.yPhase));
 
-            fl::s16x16 ax = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointA.xAmplitude), angleSinF16(aXPh));
-            fl::s16x16 ay = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointA.yAmplitude), angleSinF16(aYPh));
-            fl::s16x16 bx = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointB.xAmplitude), angleSinF16(bXPh));
-            fl::s16x16 by = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointB.yAmplitude), angleSinF16(bYPh));
+            fl::s16x16 ax = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointA.xAmplitude), angleSinU0x16(aXPh));
+            fl::s16x16 ay = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointA.yAmplitude), angleSinU0x16(aYPh));
+            fl::s16x16 bx = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointB.xAmplitude), angleSinU0x16(bXPh));
+            fl::s16x16 by = gridCenter + mulS16x16(scaleByGridSize(gridSize, kLissajousEndpointB.yAmplitude), angleSinU0x16(bYPh));
 
             fl::s16x16 ldx = bx - ax;
             fl::s16x16 ldy = by - ay;
@@ -300,11 +300,11 @@ namespace PolarShader {
             int32_t steps = std::max<int32_t>(1, (maxDelta * kLineSampleDensity) >> kQ16Shift);
             for (int32_t step = 0; step <= steps; ++step) {
                 uint32_t mixRaw = (static_cast<uint64_t>(step) * kFullIntensity) / static_cast<uint32_t>(steps);
-                f16 mix(static_cast<uint16_t>(mixRaw));
+                u0x16 mix(static_cast<uint16_t>(mixRaw));
                 drawSubpixelPoint(cells, gridSize, lerpS16x16(ax, bx, mix), lerpS16x16(ay, by, mix));
             }
-            drawEndpointGlow(cells, gridSize, ax, ay, f16(kFullIntensity));
-            drawEndpointGlow(cells, gridSize, bx, by, f16(kFullIntensity));
+            drawEndpointGlow(cells, gridSize, ax, ay, u0x16(kFullIntensity));
+            drawEndpointGlow(cells, gridSize, bx, by, u0x16(kFullIntensity));
         }
 
         // ---- 2D backward advection ----
@@ -336,14 +336,14 @@ namespace PolarShader {
             uint16_t v01 = source[static_cast<size_t>(y1) * gridSize + x0];
             uint16_t v11 = source[static_cast<size_t>(y1) * gridSize + x1];
 
-            uint16_t top = lerpU16ByQ16(v00, v10, f16(fx));
-            uint16_t bot = lerpU16ByQ16(v01, v11, f16(fx));
-            return lerpU16ByQ16(top, bot, f16(fy));
+            uint16_t top = lerpU16ByQ16(v00, v10, u0x16(fx));
+            uint16_t bot = lerpU16ByQ16(v01, v11, u0x16(fx));
+            return lerpU16ByQ16(top, bot, u0x16(fy));
         }
 
         /// Per-pixel 2D backward advection with per-pixel vector callback.
         /// vectorFn returns displacement in Q16.16 grid-cell units.
-        using TransportVectorFn = v32(*)(
+        using TransportVectorFn = Vec2I32(*)(
             uint8_t x, uint8_t y, uint8_t gridSize, const void *params
         );
 
@@ -353,17 +353,17 @@ namespace PolarShader {
             uint8_t gridSize,
             TransportVectorFn vectorFn,
             const void *params,
-            f16 fadeFactor
+            u0x16 fadeFactor
         ) {
             for (uint8_t y = 0; y < gridSize; ++y) {
-                int32_t yCenter = (static_cast<int32_t>(y) << kQ16Shift) + (SF16_ONE >> 1);
+                int32_t yCenter = (static_cast<int32_t>(y) << kQ16Shift) + (S0X16_ONE >> 1);
                 for (uint8_t x = 0; x < gridSize; ++x) {
-                    int32_t xCenter = (static_cast<int32_t>(x) << kQ16Shift) + (SF16_ONE >> 1);
-                    v32 disp = vectorFn(x, y, gridSize, params);
+                    int32_t xCenter = (static_cast<int32_t>(x) << kQ16Shift) + (S0X16_ONE >> 1);
+                    Vec2I32 disp = vectorFn(x, y, gridSize, params);
                     int32_t srcX = xCenter - disp.x;
                     int32_t srcY = yCenter - disp.y;
                     uint16_t sampled = sampleGridBilinearWrapped(source, gridSize, srcX, srcY);
-                    dest[static_cast<size_t>(y) * gridSize + x] = scaleU16ByF16(sampled, fadeFactor);
+                    dest[static_cast<size_t>(y) * gridSize + x] = scaleU16ByU0x16(sampled, fadeFactor);
                 }
             }
         }

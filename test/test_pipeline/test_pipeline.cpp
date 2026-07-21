@@ -85,19 +85,19 @@
 using namespace PolarShader;
 
 void test_range_wraps_across_zero() {
-    AngleRange range(f16(0xC000u), f16(0x4000u));
-    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(sf16(SF16_MIN))));
-    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(sf16(0))));
-    TEST_ASSERT_EQUAL_UINT16(0x4000u, raw(range.map(sf16(SF16_MAX))));
+    AngleRange range(u0x16(0xC000u), u0x16(0x4000u));
+    TEST_ASSERT_EQUAL_UINT16(0xC000u, raw(range.map(s0x16(S0X16_MIN))));
+    TEST_ASSERT_EQUAL_UINT16(0x0000u, raw(range.map(s0x16(0))));
+    TEST_ASSERT_EQUAL_UINT16(0x4000u, raw(range.map(s0x16(S0X16_MAX))));
 }
 
 // Global variable to capture progress
-static f16 captured_progress(0);
+static u0x16 captured_progress(0);
 
 namespace {
     class ProgressCapturePattern : public UVPattern {
     public:
-        void advanceFrame(f16 progress, TimeMillis) override {
+        void advanceFrame(u0x16 progress, TimeMillis) override {
             captured_progress = progress;
         }
     };
@@ -228,7 +228,7 @@ void test_scene_manager_lifecycle() {
 void test_palette_glow_pattern_emits_rgb_samples() {
     PaletteGlowPattern pattern;
     auto context = std::make_shared<PipelineContext>();
-    pattern.advanceFrame(f16(0), 1000);
+    pattern.advanceFrame(u0x16(0), 1000);
 
     UV probe(
         fl::s16x16::from_raw(0x8000),
@@ -257,8 +257,8 @@ namespace {
 
     uint16_t referenceChannel(double value) {
         if (value <= 0.0) return 0;
-        if (value >= 1.0) return F16_MAX;
-        return static_cast<uint16_t>((value * static_cast<double>(F16_MAX)) + 0.5);
+        if (value >= 1.0) return U0X16_MAX;
+        return static_cast<uint16_t>((value * static_cast<double>(U0X16_MAX)) + 0.5);
     }
 
     ReferenceRgb16 shadertoyReference(UV input, double timeSeconds, double aspect) {
@@ -343,7 +343,7 @@ void test_palette_glow_pattern_matches_shadertoy_reference_points() {
     PaletteGlowPattern pattern;
     auto context = std::make_shared<PipelineContext>();
     context->rasterDisplay = RasterDisplayInfo{true, width, height, static_cast<uint32_t>(width) * height};
-    pattern.advanceFrame(f16(0), elapsedMs);
+    pattern.advanceFrame(u0x16(0), elapsedMs);
 
     UVLayer layer = pattern.uvLayer(context);
     TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(layer.kind));
@@ -370,8 +370,8 @@ void test_palette_glow_speed_signal_scales_elapsed_time() {
 
     PaletteGlowPattern fullSpeed(constant(1000));
     PaletteGlowPattern halfSpeed(constant(500));
-    fullSpeed.advanceFrame(f16(0), 1000);
-    halfSpeed.advanceFrame(f16(0), 2000);
+    fullSpeed.advanceFrame(u0x16(0), 1000);
+    halfSpeed.advanceFrame(u0x16(0), 2000);
 
     TEST_ASSERT_EQUAL_UINT64(
         fullSpeed.uvLayer(context).rgb(probe).packed,
@@ -380,8 +380,8 @@ void test_palette_glow_speed_signal_scales_elapsed_time() {
 
     PaletteGlowPattern atStart(constant(1000));
     PaletteGlowPattern stopped(constant(0));
-    atStart.advanceFrame(f16(0), 0);
-    stopped.advanceFrame(f16(0), 2000);
+    atStart.advanceFrame(u0x16(0), 0);
+    stopped.advanceFrame(u0x16(0), 2000);
 
     TEST_ASSERT_EQUAL_UINT64(
         atStart.uvLayer(context).rgb(probe).packed,
@@ -398,8 +398,8 @@ void test_palette_glow_tile_scale_signal_changes_loop_scale() {
 
     PaletteGlowPattern defaultScale(constant(1000), constant(500));
     PaletteGlowPattern lowScale(constant(1000), constant(0));
-    defaultScale.advanceFrame(f16(0), 1000);
-    lowScale.advanceFrame(f16(0), 1000);
+    defaultScale.advanceFrame(u0x16(0), 1000);
+    lowScale.advanceFrame(u0x16(0), 1000);
 
     TEST_ASSERT_TRUE(defaultScale.uvLayer(context).rgb(probe).packed != lowScale.uvLayer(context).rgb(probe).packed);
 }
@@ -420,7 +420,7 @@ void test_requested_rgb_patterns_emit_rgb_samples() {
     };
 
     for (UVPattern *pattern: patterns) {
-        pattern->advanceFrame(f16(0), 1000);
+        pattern->advanceFrame(u0x16(0), 1000);
         UVLayer layer = pattern->uvLayer(context);
         TEST_ASSERT_EQUAL_INT(static_cast<int>(UVLayerKind::Rgb), static_cast<int>(layer.kind));
         TEST_ASSERT_TRUE(hasVisibleRgb(layer));
@@ -433,53 +433,53 @@ void test_requested_rgb_pattern_signals_change_output() {
 
     RocaillePattern rocailleDefault;
     RocaillePattern rocailleSmallScale(constant(0));
-    rocailleDefault.advanceFrame(f16(0), 1000);
-    rocailleSmallScale.advanceFrame(f16(0), 1000);
+    rocailleDefault.advanceFrame(u0x16(0), 1000);
+    rocailleSmallScale.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(rocailleDefault.uvLayer(context), rocailleSmallScale.uvLayer(context)));
 
     ProteanCloudsPattern proteanDefault;
     ProteanCloudsPattern proteanDark(constant(1000), constant(500), constant(500), constant(0));
-    proteanDefault.advanceFrame(f16(0), 1000);
-    proteanDark.advanceFrame(f16(0), 1000);
+    proteanDefault.advanceFrame(u0x16(0), 1000);
+    proteanDark.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(proteanDefault.uvLayer(context), proteanDark.uvLayer(context)));
 
     OctgramsPattern octgramsDefault;
     OctgramsPattern octgramsDense(constant(1000), constant(500), constant(500), constant(0), constant(500));
-    octgramsDefault.advanceFrame(f16(0), 1000);
-    octgramsDense.advanceFrame(f16(0), 1000);
+    octgramsDefault.advanceFrame(u0x16(0), 1000);
+    octgramsDense.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(octgramsDefault.uvLayer(context), octgramsDense.uvLayer(context)));
 
     RotatingSquaresPattern squaresDefault;
     RotatingSquaresPattern squaresDark(constant(1000), constant(375), constant(333), constant(0));
-    squaresDefault.advanceFrame(f16(0), 1000);
-    squaresDark.advanceFrame(f16(0), 1000);
+    squaresDefault.advanceFrame(u0x16(0), 1000);
+    squaresDark.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(squaresDefault.uvLayer(context), squaresDark.uvLayer(context)));
 
     StarryPlanesPattern starryDefault;
     StarryPlanesPattern starryDark(constant(1000), constant(500), constant(400), constant(500), constant(0));
-    starryDefault.advanceFrame(f16(0), 1000);
-    starryDark.advanceFrame(f16(0), 1000);
+    starryDefault.advanceFrame(u0x16(0), 1000);
+    starryDark.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(starryDefault.uvLayer(context), starryDark.uvLayer(context)));
 
     TrigFieldPattern trigDefault;
     TrigFieldPattern trigDark(constant(379), constant(0), constant(364), constant(500), constant(500), constant(0));
-    trigDefault.advanceFrame(f16(0), 1000);
-    trigDark.advanceFrame(f16(0), 1000);
+    trigDefault.advanceFrame(u0x16(0), 1000);
+    trigDark.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(trigDefault.uvLayer(context), trigDark.uvLayer(context)));
 
     StarFieldTravelPattern starFieldDefault;
     StarFieldTravelPattern starFieldDark(constant(250), constant(500), constant(500), constant(400), constant(0));
-    starFieldDefault.advanceFrame(f16(0), 1000);
-    starFieldDark.advanceFrame(f16(0), 1000);
+    starFieldDefault.advanceFrame(u0x16(0), 1000);
+    starFieldDark.advanceFrame(u0x16(0), 1000);
     TEST_ASSERT_TRUE(hasDifferentRgb(starFieldDefault.uvLayer(context), starFieldDark.uvLayer(context)));
 }
 
 void test_star_field_travel_new_planes_fade_in() {
-    TEST_ASSERT_EQUAL_UINT32(0u, starFieldTravelBirthFadeRaw(SF16_ONE));
-    TEST_ASSERT_LESS_THAN_UINT32(SF16_ONE / 8, starFieldTravelBirthFadeRaw(SF16_ONE - Q16_0_01));
-    TEST_ASSERT_GREATER_THAN_UINT32(SF16_ONE / 2, starFieldTravelBirthFadeRaw(SF16_ONE - Q16_0_07));
-    TEST_ASSERT_EQUAL_UINT32(SF16_ONE, starFieldTravelBirthFadeRaw(SF16_ONE - Q16_0_12));
-    TEST_ASSERT_EQUAL_UINT32(SF16_ONE, starFieldTravelBirthFadeRaw(Q16_0_50));
+    TEST_ASSERT_EQUAL_UINT32(0u, starFieldTravelBirthFadeRaw(S0X16_ONE));
+    TEST_ASSERT_LESS_THAN_UINT32(S0X16_ONE / 8, starFieldTravelBirthFadeRaw(S0X16_ONE - Q16_0_01));
+    TEST_ASSERT_GREATER_THAN_UINT32(S0X16_ONE / 2, starFieldTravelBirthFadeRaw(S0X16_ONE - Q16_0_07));
+    TEST_ASSERT_EQUAL_UINT32(S0X16_ONE, starFieldTravelBirthFadeRaw(S0X16_ONE - Q16_0_12));
+    TEST_ASSERT_EQUAL_UINT32(S0X16_ONE, starFieldTravelBirthFadeRaw(Q16_0_50));
 }
 #endif
 
@@ -499,7 +499,7 @@ void test_reaction_diffusion_compiled_sampler_tracks_front_buffer() {
         }
     }
 
-    pattern.advanceFrame(f16(0), 0);
+    pattern.advanceFrame(u0x16(0), 0);
 
     UVMap fresh = pattern.layer(context);
     bool foundChangedSample = false;
@@ -761,11 +761,11 @@ void test_conway_step_interval_uses_elapsed_time() {
     RasterMap map = pattern.rasterLayer(context);
     RasterPoint center = rasterPoint(1, 1, 3, 3);
 
-    TEST_ASSERT_EQUAL_UINT16(F16_MAX, raw(map(center)));
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 99);
-    TEST_ASSERT_EQUAL_UINT16(F16_MAX, raw(map(center)));
-    pattern.advanceFrame(f16(0), 100);
+    TEST_ASSERT_EQUAL_UINT16(U0X16_MAX, raw(map(center)));
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 99);
+    TEST_ASSERT_EQUAL_UINT16(U0X16_MAX, raw(map(center)));
+    pattern.advanceFrame(u0x16(0), 100);
     TEST_ASSERT_EQUAL_UINT16(0, raw(map(center)));
 }
 
@@ -780,8 +780,8 @@ void test_conway_catch_up_is_capped() {
     uint8_t scratch[W * H] = {};
     sampleRasterMap(map, expected, W, H);
 
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 6);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 6);
 
     for (uint8_t i = 0; i < 4; ++i) {
         stepCellsInPlace(expected, scratch, W, H);
@@ -803,12 +803,12 @@ void test_conway_reseeds_when_static() {
     RasterMap map = pattern.rasterLayer(context);
     RasterPoint center = rasterPoint(1, 1, 3, 3);
 
-    TEST_ASSERT_EQUAL_UINT16(F16_MAX, raw(map(center)));
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 1);
+    TEST_ASSERT_EQUAL_UINT16(U0X16_MAX, raw(map(center)));
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 1);
     TEST_ASSERT_EQUAL_UINT16(0, raw(map(center)));
-    pattern.advanceFrame(f16(0), 2);
-    TEST_ASSERT_EQUAL_UINT16(F16_MAX, raw(map(center)));
+    pattern.advanceFrame(u0x16(0), 2);
+    TEST_ASSERT_EQUAL_UINT16(U0X16_MAX, raw(map(center)));
 }
 
 void test_conway_colour_survives_and_births_inherit() {
@@ -828,8 +828,8 @@ void test_conway_colour_survives_and_births_inherit() {
     copyCells(expectedCells, initialCells, W * H);
     stepCellsInPlace(expectedCells, scratch, W, H);
 
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 1);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 1);
     sampleRasterColourMap(map, actualCells, actualHues, W, H);
 
     bool sawSurvivor = false;
@@ -892,7 +892,7 @@ namespace {
     uint8_t recoverCyclicState(uint16_t value, uint8_t numStates) {
         for (uint8_t s = 0; s < numStates; ++s) {
             const uint16_t expected =
-                static_cast<uint16_t>((static_cast<uint32_t>(s) * F16_MAX) / (numStates - 1u));
+                static_cast<uint16_t>((static_cast<uint32_t>(s) * U0X16_MAX) / (numStates - 1u));
             if (expected == value) return s;
         }
         return 0;
@@ -950,8 +950,8 @@ void test_cyclic_ca_step_advances_on_threshold() {
         }
     }
 
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 120);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 120);
 
     for (uint16_t y = 0; y < H; ++y) {
         for (uint16_t x = 0; x < W; ++x) {
@@ -973,8 +973,8 @@ void test_cyclic_ca_is_deterministic() {
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 
     for (uint8_t i = 0; i < 3; ++i) {
-        first.advanceFrame(f16(0), static_cast<TimeMillis>(120 * (i + 1)));
-        second.advanceFrame(f16(0), static_cast<TimeMillis>(120 * (i + 1)));
+        first.advanceFrame(u0x16(0), static_cast<TimeMillis>(120 * (i + 1)));
+        second.advanceFrame(u0x16(0), static_cast<TimeMillis>(120 * (i + 1)));
     }
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 }
@@ -982,8 +982,8 @@ void test_cyclic_ca_is_deterministic() {
 void test_brians_brain_cycles_firing_to_dying_to_off() {
     const uint16_t W = 8;
     const uint16_t H = 8;
-    const uint16_t kFiring = F16_MAX;
-    const uint16_t kDying = F16_MAX / 3u;
+    const uint16_t kFiring = U0X16_MAX;
+    const uint16_t kDying = U0X16_MAX / 3u;
     auto context = rasterContext(W, H);
     BriansBrainPattern pattern(90, 77, 500);
     RasterMap map = pattern.rasterLayer(context);
@@ -1003,8 +1003,8 @@ void test_brians_brain_cycles_firing_to_dying_to_off() {
     TEST_ASSERT_TRUE(sawFiring);
 
     // After one step every firing cell must have decayed to the dying state.
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 90);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 90);
     for (uint16_t y = 0; y < H; ++y) {
         for (uint16_t x = 0; x < W; ++x) {
             const uint32_t idx = static_cast<uint32_t>(y) * W + x;
@@ -1015,7 +1015,7 @@ void test_brians_brain_cycles_firing_to_dying_to_off() {
     }
 
     // After a second step those dying cells must fall to off.
-    pattern.advanceFrame(f16(0), 180);
+    pattern.advanceFrame(u0x16(0), 180);
     for (uint16_t y = 0; y < H; ++y) {
         for (uint16_t x = 0; x < W; ++x) {
             const uint32_t idx = static_cast<uint32_t>(y) * W + x;
@@ -1045,8 +1045,8 @@ void test_life_seeds_rule_has_no_survivors() {
     TEST_ASSERT_TRUE(sawAlive);
 
     // Seeds has an empty survival set: no live cell can persist across a step.
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 200);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 200);
     for (uint16_t y = 0; y < H; ++y) {
         for (uint16_t x = 0; x < W; ++x) {
             const uint32_t idx = static_cast<uint32_t>(y) * W + x;
@@ -1084,8 +1084,8 @@ void test_life_highlife_birth_and_survival_masks() {
         }
     }
 
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 200);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 200);
 
     for (uint16_t y = 0; y < H; ++y) {
         for (uint16_t x = 0; x < W; ++x) {
@@ -1136,8 +1136,8 @@ void test_elementary_ca_applies_rule_and_scrolls() {
         expected[bottom + x] = newRow[x];
     }
 
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 90);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 90);
 
     for (uint16_t y = 0; y < H; ++y) {
         for (uint16_t x = 0; x < W; ++x) {
@@ -1165,12 +1165,12 @@ void test_matrix_rain_heads_advance_and_light_up() {
     }
 
     // One step advances every column head and lights exactly one cell per column.
-    pattern.advanceFrame(f16(0), 0);
-    pattern.advanceFrame(f16(0), 60);
+    pattern.advanceFrame(u0x16(0), 0);
+    pattern.advanceFrame(u0x16(0), 60);
     for (uint16_t x = 0; x < W; ++x) {
         uint8_t lit = 0;
         for (uint16_t y = 0; y < H; ++y) {
-            if (raw(map(rasterPoint(x, y, W, H))) == F16_MAX) ++lit;
+            if (raw(map(rasterPoint(x, y, W, H))) == U0X16_MAX) ++lit;
         }
         TEST_ASSERT_EQUAL_UINT8(1, lit);
     }
@@ -1183,8 +1183,8 @@ void test_matrix_rain_is_deterministic() {
     RasterMap firstMap = first.rasterLayer(context);
     RasterMap secondMap = second.rasterLayer(context);
     for (uint8_t i = 0; i < 4; ++i) {
-        first.advanceFrame(f16(0), static_cast<TimeMillis>(60 * (i + 1)));
-        second.advanceFrame(f16(0), static_cast<TimeMillis>(60 * (i + 1)));
+        first.advanceFrame(u0x16(0), static_cast<TimeMillis>(60 * (i + 1)));
+        second.advanceFrame(u0x16(0), static_cast<TimeMillis>(60 * (i + 1)));
     }
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 }
@@ -1217,8 +1217,8 @@ void test_ripple_is_deterministic() {
     RasterMap firstMap = first.rasterLayer(context);
     RasterMap secondMap = second.rasterLayer(context);
     for (uint8_t i = 0; i < 5; ++i) {
-        first.advanceFrame(f16(0), static_cast<TimeMillis>(40 * (i + 1)));
-        second.advanceFrame(f16(0), static_cast<TimeMillis>(40 * (i + 1)));
+        first.advanceFrame(u0x16(0), static_cast<TimeMillis>(40 * (i + 1)));
+        second.advanceFrame(u0x16(0), static_cast<TimeMillis>(40 * (i + 1)));
     }
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 }
@@ -1239,13 +1239,13 @@ void test_palette_glow_rgb_1000_frame_perf_guard() {
     volatile uint32_t sink = 0;
 
     for (uint16_t frame = 0; frame < frames; ++frame) {
-        layer.advanceFrame(f16(0), static_cast<TimeMillis>(frame) * 16u);
+        layer.advanceFrame(u0x16(0), static_cast<TimeMillis>(frame) * 16u);
         auto start = std::chrono::steady_clock::now();
         for (uint16_t y = 0; y < height; ++y) {
-            uint16_t radius = static_cast<uint16_t>((static_cast<uint32_t>(y) * F16_MAX) / (height - 1u));
+            uint16_t radius = static_cast<uint16_t>((static_cast<uint32_t>(y) * U0X16_MAX) / (height - 1u));
             for (uint16_t x = 0; x < width; ++x) {
-                uint16_t angle = static_cast<uint16_t>((static_cast<uint32_t>(x) * F16_MAX) / width);
-                CRGB color = (*map)(RenderPoint{f16(angle), f16(radius), RasterPoint{}});
+                uint16_t angle = static_cast<uint16_t>((static_cast<uint32_t>(x) * U0X16_MAX) / width);
+                CRGB color = (*map)(RenderPoint{u0x16(angle), u0x16(radius), RasterPoint{}});
                 sink += static_cast<uint32_t>(color.r) + color.g + color.b;
             }
         }

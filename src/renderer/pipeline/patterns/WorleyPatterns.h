@@ -31,7 +31,7 @@ namespace PolarShader {
      *
      * The cell size defines the lattice spacing in fl::s24x8/fl::u24x8 units and is clamped to
      * at least WorleyCellUnit (one unit). Distances are computed as squared
-     * distances (no sqrt) and normalized to the PatternNormU16 domain.
+     * distances (no sqrt) and normalized to the PatternNormU0x16 domain.
      */
     class WorleyBasePattern : public UVPattern {
     protected:
@@ -54,9 +54,9 @@ namespace PolarShader {
 
         Distances computeDistances(fl::s24x8 x, fl::s24x8 y) const;
 
-        PatternNormU16 normalizeDistance(uint64_t dist) const;
+        PatternNormU0x16 normalizeDistance(uint64_t dist) const;
 
-        PatternNormU16 softenValue(PatternNormU16 value) const;
+        PatternNormU0x16 softenValue(PatternNormU0x16 value) const;
     };
 
     /**
@@ -78,9 +78,9 @@ namespace PolarShader {
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        PatternNormU16 sampleFast(fl::s24x8 x, fl::s24x8 y) const;
+        PatternNormU0x16 sampleFast(fl::s24x8 x, fl::s24x8 y) const;
 
-        PatternNormU16 samplePrecise(fl::s24x8 x, fl::s24x8 y) const;
+        PatternNormU0x16 samplePrecise(fl::s24x8 x, fl::s24x8 y) const;
     };
 
     /**
@@ -105,14 +105,14 @@ namespace PolarShader {
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 
     private:
-        PatternNormU16 sampleIdFast(fl::s24x8 x, fl::s24x8 y) const;
+        PatternNormU0x16 sampleIdFast(fl::s24x8 x, fl::s24x8 y) const;
 
-        PatternNormU16 sampleFastestId(
+        PatternNormU0x16 sampleFastestId(
             fl::s24x8 x0, fl::s24x8 y0,
             fl::s24x8 x1, fl::s24x8 y1
         ) const;
 
-        PatternNormU16 samplePrecise(fl::s24x8 x, fl::s24x8 y) const;
+        PatternNormU0x16 samplePrecise(fl::s24x8 x, fl::s24x8 y) const;
     };
 }
 

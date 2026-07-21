@@ -22,6 +22,7 @@
 #define POLAR_SHADER_PIPELINE_SCENE_H
 
 #include <array>
+#include <vector>
 #include <renderer/layer/Layer.h>
 
 namespace PolarShader {
@@ -36,24 +37,24 @@ namespace PolarShader {
     class Scene {
         struct CompositedLayer {
             std::unique_ptr<ColourMap> map;
-            f16 alpha;
+            u0x16 alpha;
             BlendMode blendMode;
         };
 
         fl::vector<std::shared_ptr<Layer>> layers;
-        std::array<fl::vector<CompositedLayer>, 2> compiledLayers;
+        std::array<std::vector<CompositedLayer>, 2> compiledLayers;
         TimeMillis durationMs;
 
     public:
         Scene(fl::vector<std::shared_ptr<Layer>> layers, TimeMillis durationMs = UINT32_MAX);
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs);
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs);
 
         void compile(const RasterDisplayInfo &rasterDisplay = RasterDisplayInfo{});
 
         CRGB sample(uint8_t coreIndex, const RenderPoint &point) const;
 
-        CRGB sample(uint8_t coreIndex, f16 angle, f16 radius) const {
+        CRGB sample(uint8_t coreIndex, u0x16 angle, u0x16 radius) const {
             return sample(coreIndex, RenderPoint{angle, radius, RasterPoint{}});
         }
 

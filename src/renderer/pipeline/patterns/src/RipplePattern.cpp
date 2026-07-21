@@ -126,20 +126,20 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !cur) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             int32_t mag = cur[idx];
             if (mag < 0) mag = -mag;
-            // Amplitude range 0..4095 maps to the full 0..F16_MAX brightness.
-            const uint16_t value = mag > 4095 ? static_cast<uint16_t>(F16_MAX)
+            // Amplitude range 0..4095 maps to the full 0..U0X16_MAX brightness.
+            const uint16_t value = mag > 4095 ? static_cast<uint16_t>(U0X16_MAX)
                                               : static_cast<uint16_t>(mag << 4);
-            return PatternNormU16(value);
+            return PatternNormU0x16(value);
         };
     }
 }

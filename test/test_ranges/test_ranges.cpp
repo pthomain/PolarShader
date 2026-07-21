@@ -15,59 +15,59 @@
 
 using namespace PolarShader;
 
-/** @brief Verify AngleRange wrapping for values > 1.0 (SF16_MAX). */
+/** @brief Verify AngleRange wrapping for values > 1.0 (S0X16_MAX). */
 void test_angle_range_wrap_positive() {
-    AngleRange range(f16(0), f16(F16_MAX));
+    AngleRange range(u0x16(0), u0x16(U0X16_MAX));
     
-    // SF16_MAX is ~1.0, should map to ~F16_MAX
+    // S0X16_MAX is ~1.0, should map to ~U0X16_MAX
     // Note: Due to fixed-point scaling (65535 * 65535 >> 16), result is 65534.
-    TEST_ASSERT_UINT16_WITHIN(1, F16_MAX, raw(range.map(sf16(SF16_MAX))));
+    TEST_ASSERT_UINT16_WITHIN(1, U0X16_MAX, raw(range.map(s0x16(S0X16_MAX))));
     
-    // Test with raw value > SF16_MAX (out of bounds)
+    // Test with raw value > S0X16_MAX (out of bounds)
     // toUnsignedWrapped should wrap it.
-    // SF16_MAX + 1 is 65536. (65536 + 65536) / 2 = 65536. uint16_t(65536) = 0.
-    TEST_ASSERT_EQUAL_UINT16(0, raw(range.map(sf16(65536))));
+    // S0X16_MAX + 1 is 65536. (65536 + 65536) / 2 = 65536. uint16_t(65536) = 0.
+    TEST_ASSERT_EQUAL_UINT16(0, raw(range.map(s0x16(65536))));
 }
 
 /** @brief Verify AngleRange wrapping behavior when min > max (inverted span). */
 void test_angle_range_inverted_span() {
     // Range from 270 (0xC000) to 90 (0x4000) degrees. Span = 180 deg (0x8000).
-    AngleRange range(f16(0xC000), f16(0x4000));
+    AngleRange range(u0x16(0xC000), u0x16(0x4000));
     
-    // t=0 (midpoint of sf16 -> 0x8000 unsigned) -> 0xC000 + 0x4000 = 0x10000 -> 0x0000
-    TEST_ASSERT_EQUAL_UINT16(0x0000, raw(range.map(sf16(0))));
+    // t=0 (midpoint of s0x16 -> 0x8000 unsigned) -> 0xC000 + 0x4000 = 0x10000 -> 0x0000
+    TEST_ASSERT_EQUAL_UINT16(0x0000, raw(range.map(s0x16(0))));
     
-    // t=1.0 (SF16_MAX -> 0xFFFF unsigned) -> 0xC000 + ~0x8000 = ~0x14000 -> ~0x4000
-    TEST_ASSERT_UINT16_WITHIN(10, 0x4000, raw(range.map(sf16(SF16_MAX))));
+    // t=1.0 (S0X16_MAX -> 0xFFFF unsigned) -> 0xC000 + ~0x8000 = ~0x14000 -> ~0x4000
+    TEST_ASSERT_UINT16_WITHIN(10, 0x4000, raw(range.map(s0x16(S0X16_MAX))));
     
-    // t=-1.0 (SF16_MIN -> 0x0000 unsigned) -> 0xC000
-    TEST_ASSERT_EQUAL_UINT16(0xC000, raw(range.map(sf16(SF16_MIN))));
+    // t=-1.0 (S0X16_MIN -> 0x0000 unsigned) -> 0xC000
+    TEST_ASSERT_EQUAL_UINT16(0xC000, raw(range.map(s0x16(S0X16_MIN))));
 }
 
 /** @brief Verify MagnitudeRange clamping for out-of-bounds inputs. */
 void test_magnitude_range_clamping() {
-    MagnitudeRange<sf16> range(sf16(0), sf16(1000));
+    MagnitudeRange<s0x16> range(s0x16(0), s0x16(1000));
     
     // Lower bound
-    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(sf16(SF16_MIN))));
-    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(sf16(SF16_MIN - 1))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(s0x16(S0X16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(0, raw(range.map(s0x16(S0X16_MIN - 1))));
     
     // Upper bound
-    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(sf16(SF16_MAX))));
-    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(sf16(SF16_MAX + 1))));
+    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(s0x16(S0X16_MAX))));
+    TEST_ASSERT_EQUAL_INT32(1000, raw(range.map(s0x16(S0X16_MAX + 1))));
 }
 
 /** @brief Verify BipolarRange clamping for out-of-bounds inputs. */
 void test_bipolar_range_clamping() {
-    BipolarRange<sf16> range(sf16(-500), sf16(500));
+    BipolarRange<s0x16> range(s0x16(-500), s0x16(500));
     
     // Lower bound
-    TEST_ASSERT_EQUAL_INT32(-500, raw(range.map(sf16(SF16_MIN))));
-    TEST_ASSERT_EQUAL_INT32(-500, raw(range.map(sf16(SF16_MIN - 1))));
+    TEST_ASSERT_EQUAL_INT32(-500, raw(range.map(s0x16(S0X16_MIN))));
+    TEST_ASSERT_EQUAL_INT32(-500, raw(range.map(s0x16(S0X16_MIN - 1))));
     
     // Upper bound
-    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(sf16(SF16_MAX))));
-    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(sf16(SF16_MAX + 1))));
+    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(s0x16(S0X16_MAX))));
+    TEST_ASSERT_EQUAL_INT32(500, raw(range.map(s0x16(S0X16_MAX + 1))));
 }
 
 /** @brief Verify UVRange clamping for out-of-bounds inputs. */
@@ -76,13 +76,13 @@ void test_uv_range_clamping() {
     UV max(fl::s16x16::from_raw(1000), fl::s16x16::from_raw(2000));
     UVRange range(min, max);
     
-    // Lower bound (SF16_MIN -> 0.0)
-    UV res_min = range.map(sf16(SF16_MIN - 100));
+    // Lower bound (S0X16_MIN -> 0.0)
+    UV res_min = range.map(s0x16(S0X16_MIN - 100));
     TEST_ASSERT_EQUAL_INT32(0, raw(res_min.u));
     TEST_ASSERT_EQUAL_INT32(0, raw(res_min.v));
     
-    // Upper bound (SF16_MAX -> 1.0)
-    UV res_max = range.map(sf16(SF16_MAX + 100));
+    // Upper bound (S0X16_MAX -> 1.0)
+    UV res_max = range.map(s0x16(S0X16_MAX + 100));
     TEST_ASSERT_INT32_WITHIN(1, 1000, raw(res_max.u));
     TEST_ASSERT_INT32_WITHIN(1, 2000, raw(res_max.v));
 }

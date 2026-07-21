@@ -36,7 +36,7 @@ namespace PolarShader {
         return aRaw + static_cast<int32_t>((static_cast<int64_t>(bRaw - aRaw) * tRaw) >> 16);
     }
 
-    constexpr uint16_t lerpU16ByQ16(uint16_t a, uint16_t b, f16 t) {
+    constexpr uint16_t lerpU16ByQ16(uint16_t a, uint16_t b, u0x16 t) {
         uint32_t tRaw = raw(t);
         uint32_t oneMinusT = 65536u - tRaw;
         uint32_t value = (
@@ -55,15 +55,15 @@ namespace PolarShader {
         return static_cast<uint16_t>(value > 65535u ? 65535u : value);
     }
 
-    inline fl::s16x16 mulS16x16(fl::s16x16 value, sf16 scale) {
+    inline fl::s16x16 mulS16x16(fl::s16x16 value, s0x16 scale) {
         return fl::s16x16::from_raw(mulQ16Raw(raw(value), raw(scale)));
     }
 
-    inline fl::s16x16 mulS16x16(sf16 scale, fl::s16x16 value) {
+    inline fl::s16x16 mulS16x16(s0x16 scale, fl::s16x16 value) {
         return mulS16x16(value, scale);
     }
 
-    inline fl::s16x16 lerpS16x16(fl::s16x16 a, fl::s16x16 b, f16 t) {
+    inline fl::s16x16 lerpS16x16(fl::s16x16 a, fl::s16x16 b, u0x16 t) {
         return fl::s16x16::from_raw(lerpQ16Raw(raw(a), raw(b), raw(t)));
     }
 
@@ -71,7 +71,7 @@ namespace PolarShader {
         return fl::s16x16::from_raw(clampI32(raw(value), raw(minValue), raw(maxValue)));
     }
 
-    constexpr uint16_t scaleU16ByF16(uint16_t value, f16 scale) {
+    constexpr uint16_t scaleU16ByU0x16(uint16_t value, u0x16 scale) {
         return static_cast<uint16_t>(mulUnsignedQ16Raw(value, raw(scale)));
     }
 }

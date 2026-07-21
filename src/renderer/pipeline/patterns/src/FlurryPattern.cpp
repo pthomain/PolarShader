@@ -32,8 +32,8 @@ namespace PolarShader {
         constexpr uint8_t kMinLineCount = 1;
         constexpr uint8_t kMaxLineCount = 8;
 
-        constexpr f16 kFadeBase = perMil(900); // 0.9
-        constexpr f16 kFadeSpan = perMil(99); // 0.99 - avoid overflow
+        constexpr u0x16 kFadeBase = perMil(900); // 0.9
+        constexpr u0x16 kFadeSpan = perMil(99); // 0.99 - avoid overflow
 
         constexpr fl::s16x16 kBallDiscRadius = s16x16FromMixed(1, 1, 4); // 1.25
         constexpr fl::s16x16 kBallDiscSoftEdge = s16x16FromFraction(3, 4); // 0.75
@@ -44,13 +44,13 @@ namespace PolarShader {
         constexpr fl::s16x16 kLineRateSpread = s16x16FromFraction(3, 100); // 0.03
         constexpr fl::s16x16 kLineAmplitudeSpread = s16x16FromFraction(1, 20); // 0.05
 
-        const MagnitudeRange<f16> &fadeRange() {
-            static const MagnitudeRange range(kFadeBase, f16(raw(kFadeBase) + raw(kFadeSpan)));
+        const MagnitudeRange<u0x16> &fadeRange() {
+            static const MagnitudeRange range(kFadeBase, u0x16(raw(kFadeBase) + raw(kFadeSpan)));
             return range;
         }
 
-        f16 intensityPerLine(uint8_t lineCount) {
-            return f16(clampU16(std::max<uint32_t>(1u, kFullIntensity / static_cast<uint32_t>(lineCount))));
+        u0x16 intensityPerLine(uint8_t lineCount) {
+            return u0x16(clampU16(std::max<uint32_t>(1u, kFullIntensity / static_cast<uint32_t>(lineCount))));
         }
 
         uint16_t phaseOffsetForLine(uint8_t lineIndex, uint16_t stride, uint16_t basePhase) {
@@ -61,7 +61,7 @@ namespace PolarShader {
             int32_t doubledIndex = static_cast<int32_t>(lineIndex) * 2;
             int32_t doubledCenter = static_cast<int32_t>(lineCount) - 1;
             return fl::s16x16::from_raw(
-                static_cast<int32_t>(((doubledIndex - doubledCenter) * SF16_ONE) / 2)
+                static_cast<int32_t>(((doubledIndex - doubledCenter) * S0X16_ONE) / 2)
             );
         }
 
@@ -73,26 +73,26 @@ namespace PolarShader {
         Shape shape;
         std::unique_ptr<uint16_t[]> cells;
         std::unique_ptr<uint16_t[]> rowPass;
-        std::unique_ptr<sf16[]> columnShiftProfile;
-        std::unique_ptr<sf16[]> rowShiftProfile;
+        std::unique_ptr<s0x16[]> columnShiftProfile;
+        std::unique_ptr<s0x16[]> rowShiftProfile;
         uint32_t xProfileNoiseSeed;
         uint32_t yProfileNoiseSeed;
-        Sf16Signal xDriftSignal;
-        Sf16Signal xAmplitudeSignal;
-        Sf16Signal xFrequencySignal;
-        Sf16Signal yDriftSignal;
-        Sf16Signal yAmplitudeSignal;
-        Sf16Signal yFrequencySignal;
-        Sf16Signal endpointSpeedSignal;
-        Sf16Signal fadeSignal;
+        S0x16Signal xDriftSignal;
+        S0x16Signal xAmplitudeSignal;
+        S0x16Signal xFrequencySignal;
+        S0x16Signal yDriftSignal;
+        S0x16Signal yAmplitudeSignal;
+        S0x16Signal yFrequencySignal;
+        S0x16Signal endpointSpeedSignal;
+        S0x16Signal fadeSignal;
         fl::s16x16 xDrift{fl::s16x16::from_raw(0)};
-        f16 xAmplitude{f16(0)};
+        u0x16 xAmplitude{u0x16(0)};
         fl::s16x16 xFrequency{fl::s16x16::from_raw(0)};
         fl::s16x16 yDrift{fl::s16x16::from_raw(0)};
-        f16 yAmplitude{f16(0)};
+        u0x16 yAmplitude{u0x16(0)};
         fl::s16x16 yFrequency{fl::s16x16::from_raw(0)};
         fl::s16x16 endpointSpeed{fl::s16x16::from_raw(0)};
-        f16 fadeFactor{f16(0)};
+        u0x16 fadeFactor{u0x16(0)};
         fl::s16x16 timeQ16{fl::s16x16::from_raw(0)};
         TimeMillis lastElapsedMs{0u};
         bool hasLastElapsed{false};
@@ -101,19 +101,19 @@ namespace PolarShader {
             uint8_t size,
             uint8_t lines,
             Shape patternShape,
-            Sf16Signal xDrift,
-            Sf16Signal yDrift,
-            Sf16Signal amplitude,
-            Sf16Signal frequency,
-            Sf16Signal endpointSpeed,
-            Sf16Signal fade
+            S0x16Signal xDrift,
+            S0x16Signal yDrift,
+            S0x16Signal amplitude,
+            S0x16Signal frequency,
+            S0x16Signal endpointSpeed,
+            S0x16Signal fade
         ) : gridSize(size),
             lineCount(lines),
             shape(patternShape),
             cells(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
             rowPass(std::make_unique<uint16_t[]>(static_cast<size_t>(size) * size)),
-            columnShiftProfile(std::make_unique<sf16[]>(size)),
-            rowShiftProfile(std::make_unique<sf16[]>(size)),
+            columnShiftProfile(std::make_unique<s0x16[]>(size)),
+            rowShiftProfile(std::make_unique<s0x16[]>(size)),
             xProfileNoiseSeed(random32()),
             yProfileNoiseSeed(random32()),
             xDriftSignal(std::move(xDrift)),
@@ -132,7 +132,7 @@ namespace PolarShader {
     struct FlurryPattern::FlurryFunctor {
         const State *state;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             return sampleScalarGridClamped(state->cells.get(), state->gridSize, state->gridSize, uv);
         }
     };
@@ -141,12 +141,12 @@ namespace PolarShader {
         uint8_t gridSize,
         uint8_t lineCount,
         Shape shape,
-        Sf16Signal xDrift,
-        Sf16Signal yDrift,
-        Sf16Signal amplitude,
-        Sf16Signal frequency,
-        Sf16Signal endpointSpeed,
-        Sf16Signal fade
+        S0x16Signal xDrift,
+        S0x16Signal yDrift,
+        S0x16Signal amplitude,
+        S0x16Signal frequency,
+        S0x16Signal endpointSpeed,
+        S0x16Signal fade
     ) : state(std::make_shared<State>(
         std::max<uint8_t>(kMinGridSize, std::min<uint8_t>(gridSize, kMaxGridSize)),
         std::max<uint8_t>(kMinLineCount, std::min<uint8_t>(lineCount, kMaxLineCount)),
@@ -160,7 +160,7 @@ namespace PolarShader {
     )) {
     }
 
-    void FlurryPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void FlurryPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void) progress;
         State &patternState = *state;
 
@@ -190,11 +190,11 @@ namespace PolarShader {
             fl::s16x16 profileCoord = fl::s16x16::from_raw(static_cast<int32_t>(index) * raw(kBaseNoiseFrequency));
             fl::s16x16 xProfileCoord = profileCoord * patternState.xFrequency;
             fl::s16x16 yProfileCoord = profileCoord * patternState.yFrequency;
-            sf16 columnShift = scaleSf16(
+            s0x16 columnShift = scaleS0x16(
                 sampleProfileNoise(xProfileCoord + xPhase, patternState.xProfileNoiseSeed),
                 patternState.xAmplitude
             );
-            sf16 rowShift = scaleSf16(
+            s0x16 rowShift = scaleS0x16(
                 sampleProfileNoise(yProfileCoord + yPhase, patternState.yProfileNoiseSeed),
                 patternState.yAmplitude
             );
@@ -204,31 +204,31 @@ namespace PolarShader {
 
         fl::s16x16 gridCenter = fl::s16x16::from_raw(static_cast<int32_t>(gridSize - 1u) * raw(kGridHalf));
         uint16_t *cells = patternState.cells.get();
-        f16 lineIntensity = intensityPerLine(patternState.lineCount);
+        u0x16 lineIntensity = intensityPerLine(patternState.lineCount);
         for (uint8_t lineIndex = 0; lineIndex < patternState.lineCount; ++lineIndex) {
             fl::s16x16 lineOffset = lineCenteredOffset(lineIndex, patternState.lineCount);
-            fl::s16x16 rateMultiplier = fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kLineRateSpread);
+            fl::s16x16 rateMultiplier = fl::s16x16::from_raw(S0X16_ONE) + (lineOffset * kLineRateSpread);
             fl::s16x16 amplitudeMultiplier =
-                fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kLineAmplitudeSpread);
+                fl::s16x16::from_raw(S0X16_ONE) + (lineOffset * kLineAmplitudeSpread);
 
             fl::s16x16 endpointAXRate = patternState.endpointSpeed * (kLissajousEndpointA.xRate * rateMultiplier);
             fl::s16x16 endpointAYRate = patternState.endpointSpeed * (kLissajousEndpointA.yRate * rateMultiplier);
             fl::s16x16 endpointBXRate = patternState.endpointSpeed * (kLissajousEndpointB.xRate * rateMultiplier);
             fl::s16x16 endpointBYRate = patternState.endpointSpeed * (kLissajousEndpointB.yRate * rateMultiplier);
 
-            f16 endpointAXPhase(static_cast<uint16_t>(
+            u0x16 endpointAXPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointAXRate) +
                 phaseOffsetForLine(lineIndex, kLinePhaseStride, kLissajousEndpointA.xPhase)
             ));
-            f16 endpointAYPhase(static_cast<uint16_t>(
+            u0x16 endpointAYPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointAYRate) +
                 phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kLissajousEndpointA.yPhase)
             ));
-            f16 endpointBXPhase(static_cast<uint16_t>(
+            u0x16 endpointBXPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointBXRate) +
                 phaseOffsetForLine(lineIndex, kLineSecondaryPhaseStride, kLissajousEndpointB.xPhase)
             ));
-            f16 endpointBYPhase(static_cast<uint16_t>(
+            u0x16 endpointBYPhase(static_cast<uint16_t>(
                 raw(patternState.timeQ16 * endpointBYRate) +
                 phaseOffsetForLine(lineIndex, kLinePhaseStride, kLissajousEndpointB.yPhase)
             ));
@@ -236,31 +236,31 @@ namespace PolarShader {
             fl::s16x16 endpointAX = gridCenter +
                                     mulS16x16(
                                         scaleByGridSize(gridSize, kLissajousEndpointA.xAmplitude * amplitudeMultiplier),
-                                        angleSinF16(endpointAXPhase)
+                                        angleSinU0x16(endpointAXPhase)
                                     );
             fl::s16x16 endpointAY = gridCenter +
                                     mulS16x16(
                                         scaleByGridSize(gridSize, kLissajousEndpointA.yAmplitude * amplitudeMultiplier),
-                                        angleSinF16(endpointAYPhase)
+                                        angleSinU0x16(endpointAYPhase)
                                     );
             fl::s16x16 endpointBX = gridCenter +
                                     mulS16x16(
                                         scaleByGridSize(gridSize, kLissajousEndpointB.xAmplitude * amplitudeMultiplier),
-                                        angleSinF16(endpointBXPhase)
+                                        angleSinU0x16(endpointBXPhase)
                                     );
             fl::s16x16 endpointBY = gridCenter +
                                     mulS16x16(
                                         scaleByGridSize(gridSize, kLissajousEndpointB.yAmplitude * amplitudeMultiplier),
-                                        angleSinF16(endpointBYPhase)
+                                        angleSinU0x16(endpointBYPhase)
                                     );
 
             if (patternState.shape == Shape::Ball) {
                 fl::s16x16 ballX = (endpointAX + endpointBX) * kGridHalf;
                 fl::s16x16 ballY = (endpointAY + endpointBY) * kGridHalf;
                 fl::s16x16 ballRadius =
-                    kBallDiscRadius * (fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kBallRadiusSpread));
+                    kBallDiscRadius * (fl::s16x16::from_raw(S0X16_ONE) + (lineOffset * kBallRadiusSpread));
                 fl::s16x16 ballSoftEdge =
-                    kBallDiscSoftEdge * (fl::s16x16::from_raw(SF16_ONE) + (lineOffset * kBallRadiusSpread));
+                    kBallDiscSoftEdge * (fl::s16x16::from_raw(S0X16_ONE) + (lineOffset * kBallRadiusSpread));
                 drawSoftDisc(
                     cells,
                     gridSize,
@@ -284,7 +284,7 @@ namespace PolarShader {
                     uint32_t mixRaw = static_cast<uint32_t>(
                         (static_cast<uint64_t>(step) * kFullIntensity) / static_cast<uint32_t>(lineStepCount)
                     );
-                    f16 mix(static_cast<uint16_t>(mixRaw));
+                    u0x16 mix(static_cast<uint16_t>(mixRaw));
                     drawSubpixelPoint(
                         cells,
                         gridSize,
@@ -327,7 +327,7 @@ namespace PolarShader {
                     y,
                     columnShift
                 );
-                cells[static_cast<size_t>(y) * gridSize + x] = scaleU16ByF16(advected, patternState.fadeFactor);
+                cells[static_cast<size_t>(y) * gridSize + x] = scaleU16ByU0x16(advected, patternState.fadeFactor);
             }
         }
     }

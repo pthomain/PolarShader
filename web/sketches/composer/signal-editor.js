@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025 Pierre Thomain
 //
-// Recursive Sf16Signal editor. Each slot renders as
+// Recursive S0x16Signal editor. Each slot renders as
 //   [type dropdown] [params row]
 // where each param of kind 'signal' is itself a SignalSlot (recursion).
 // The model is a plain object: { id: 'sine', params: { phaseVelocity: {...}, phaseOffset: 0 } }.
@@ -86,12 +86,12 @@ function renderParamControl(p, signal, onChange) {
         return wrap;
     }
 
-    // Numeric: 'permille', 'f16', 'u8', 'u16', 'u32', 'i32'.
-    // permille and f16 get a slider; the rest get a number input.
+    // Numeric: 'permille', 'u0x16', 'u8', 'u16', 'u32', 'i32'.
+    // permille and u0x16 get a slider; the rest get a number input.
     // Bound match the C++ helper expectations:
     //   - permille → constant(uint16_t) takes 0..1000 (1000 = 1.0)
-    //   - f16      → raw f16 fraction, full uint16 range (65535 ≈ 1.0)
-    const isSlider = p.kind === 'permille' || p.kind === 'f16';
+    //   - u0x16      → raw u0x16 fraction, full uint16 range (65535 ≈ 1.0)
+    const isSlider = p.kind === 'permille' || p.kind === 'u0x16';
     const input = document.createElement('input');
     input.type = isSlider ? 'range' : 'number';
     if (isSlider) {
@@ -122,7 +122,7 @@ function renderParamControl(p, signal, onChange) {
     return wrap;
 }
 
-// Render one Sf16Signal slot. Returns a DOM element. `model` is the
+// Render one S0x16Signal slot. Returns a DOM element. `model` is the
 // signal object; mutations (id change, param change) call onChange(next)
 // with the new model so the parent can update its tree.
 export function renderSignalSlot(model, onChange) {

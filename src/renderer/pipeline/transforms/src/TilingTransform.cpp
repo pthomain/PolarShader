@@ -29,7 +29,7 @@ namespace PolarShader {
         int32_t cellSizeRaw;
         bool mirrored;
         TileShape shape;
-        Sf16Signal cellSizeSignal;
+        S0x16Signal cellSizeSignal;
         bool hasSignal;
     };
 
@@ -38,13 +38,13 @@ namespace PolarShader {
             TilingMaths::normalizeCellSizeRaw(static_cast<int64_t>(cellSizeQ24_8), TilingMaths::MIN_CELL_SIZE_RAW),
             mirrored,
             shape,
-            Sf16Signal(),
+            S0x16Signal(),
             false
         })) {
     }
 
     TilingTransform::TilingTransform(
-        Sf16Signal cellSize,
+        S0x16Signal cellSize,
         bool mirrored,
         TileShape shape
     ) : state(std::make_shared<State>(State{
@@ -55,7 +55,7 @@ namespace PolarShader {
             true
         })) {}
 
-    void TilingTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void TilingTransform::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         if (state->hasSignal && state->cellSizeSignal) {
             state->cellSizeRaw = sampleTilingCellSizeRaw(

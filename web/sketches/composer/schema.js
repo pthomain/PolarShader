@@ -11,11 +11,11 @@
 //   'u8'         single byte 0..255             → number input
 //   'u16'        little-endian uint16 0..65535  → number input
 //   'u32'        little-endian uint32           → number input
-//   'i32'        little-endian int32 (sf16 raw) → number input
+//   'i32'        little-endian int32 (s0x16 raw) → number input
 //   'bool'       single byte 0/1                → checkbox
 //   'enum'       single byte index into options → dropdown
 //   'permille'   uint16 with UI label "permille" (1000 = 1.0)   → slider 0..1000
-//   'f16'        uint16 raw f16 fraction (65535 ≈ 1.0)          → slider 0..65535
+//   'u0x16'        uint16 raw u0x16 fraction (65535 ≈ 1.0)          → slider 0..65535
 //   'signal'     recursive Signal blob          → SignalEditor
 // ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ const aperiodicParams = [
 
 const periodicBaseParams = [
     { name: 'phaseVelocity', kind: 'signal' },
-    { name: 'phaseOffset',   kind: 'i32',    default: 0, label: 'phase (raw sf16)' },
+    { name: 'phaseOffset',   kind: 'i32',    default: 0, label: 'phase (raw s0x16)' },
 ];
 
 const noiseBaseParams = [
@@ -66,7 +66,7 @@ const periodicBoundedParams = [
 
 const periodicBoundedPhaseParams = [
     { name: 'phaseVelocity', kind: 'signal' },
-    { name: 'phaseOffset',   kind: 'i32',    default: 0, label: 'phase (raw sf16)' },
+    { name: 'phaseOffset',   kind: 'i32',    default: 0, label: 'phase (raw s0x16)' },
     { name: 'floor',         kind: 'signal' },
     { name: 'ceiling',       kind: 'signal' },
 ];
@@ -106,7 +106,7 @@ export const SIGNALS = {
     scale:              { tag: 0x20, label: 'scale',           kind: 'modulator',
                           params: [
                               { name: 'signal', kind: 'signal' },
-                              { name: 'factor', kind: 'f16', default: 32768, label: 'factor (raw f16)' },
+                              { name: 'factor', kind: 'u0x16', default: 32768, label: 'factor (raw u0x16)' },
                           ] },
 };
 
@@ -123,7 +123,7 @@ export const DEFAULT_SIGNAL = () => ({ id: 'constant', params: { permille: 500 }
 // ─────────────────────────────────────────────────────────────────────
 // Pattern definitions. Tag values are PAT_* in SceneCodec.cpp.
 // `config` = static-config bytes encoded BEFORE the signals.
-// `signals` = ordered Sf16Signal slots encoded AFTER the config.
+// `signals` = ordered S0x16Signal slots encoded AFTER the config.
 // ─────────────────────────────────────────────────────────────────────
 
 export const PATTERNS = {
@@ -640,7 +640,7 @@ export const TRANSFORMS = {
     paletteClip: {
         tag: 0x09, label: 'Palette', transformDomain: 'palette',
         config: [
-            { name: 'maxFeather', kind: 'f16',  default: 32768, label: 'max feather (raw f16)' },
+            { name: 'maxFeather', kind: 'u0x16',  default: 32768, label: 'max feather (raw u0x16)' },
             // Single wire byte as a 3-way tint mode:
             //   0 = hue-remap (tint through palette, offset = phase)
             //   1 = colour-mask (single colour at offset, value = alpha)

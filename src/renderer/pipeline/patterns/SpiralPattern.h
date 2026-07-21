@@ -32,7 +32,7 @@ namespace PolarShader {
      *
      * Per-pixel formula: intensity = cos(pi * |angle - tightness*r - phase| / halfArm)
      * mapped through a cosine falloff window, with a centre-to-edge brightness gradient.
-     * Tightness, arm thickness, and rotation speed are all Sf16Signal-driven.
+     * Tightness, arm thickness, and rotation speed are all S0x16Signal-driven.
      *
      * Parameter ranges:
      *   tightness     [0, 1] -> [0, 2] full turns of winding from centre to edge
@@ -52,12 +52,12 @@ namespace PolarShader {
         SpiralPattern(
             uint8_t armCount = 2,
             bool clockwise = true,
-            Sf16Signal tightness = constant(720),
-            Sf16Signal armThickness = constant(500),
-            Sf16Signal rotationSpeed = constant(300)
+            S0x16Signal tightness = constant(720),
+            S0x16Signal armThickness = constant(500),
+            S0x16Signal rotationSpeed = constant(300)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

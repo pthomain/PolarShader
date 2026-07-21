@@ -26,7 +26,7 @@
 #include "renderer/pipeline/signals/ranges/MagnitudeRange.h"
 
 namespace PolarShader {
-    inline int32_t sampleTilingCellSizeRaw(const Sf16Signal &signal, TimeMillis elapsedMs, int32_t fallback) {
+    inline int32_t sampleTilingCellSizeRaw(const S0x16Signal &signal, TimeMillis elapsedMs, int32_t fallback) {
         if (!signal) {
             return TilingMaths::normalizeCellSizeRaw(fallback, TilingMaths::MIN_CELL_SIZE_RAW);
         }

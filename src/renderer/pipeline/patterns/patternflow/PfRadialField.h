@@ -64,12 +64,12 @@ namespace PolarShader {
         explicit PfRadialField(
             Variant variant = Variant::Petals,
             uint8_t petalCount = 6,
-            Sf16Signal phaseSpeed = constant(500),
-            Sf16Signal fold = constant(500),
-            Sf16Signal thickness = constant(500)
+            S0x16Signal phaseSpeed = constant(500),
+            S0x16Signal fold = constant(500),
+            S0x16Signal thickness = constant(500)
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
 

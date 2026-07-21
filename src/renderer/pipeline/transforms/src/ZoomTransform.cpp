@@ -32,17 +32,17 @@
 namespace PolarShader {
     namespace {
         // Default Zoom scale boundaries
-        const int32_t MIN_SCALE_RAW = SF16_ONE >> 2; // (1/4)x
-        const int32_t MAX_SCALE_RAW = SF16_ONE << 3; // 8x (Zoomed Out)
+        const int32_t MIN_SCALE_RAW = S0X16_ONE >> 2; // (1/4)x
+        const int32_t MAX_SCALE_RAW = S0X16_ONE << 3; // 8x (Zoomed Out)
     }
 
     struct ZoomTransform::MappedInputs {
-        Sf16Signal scaleSignal;
-        MagnitudeRange<sf16> range;
+        S0x16Signal scaleSignal;
+        MagnitudeRange<s0x16> range;
     };
 
-    ZoomTransform::MappedInputs ZoomTransform::makeInputs(Sf16Signal scale) {
-        MagnitudeRange range{sf16(MIN_SCALE_RAW), sf16(MAX_SCALE_RAW)};
+    ZoomTransform::MappedInputs ZoomTransform::makeInputs(S0x16Signal scale) {
+        MagnitudeRange range{s0x16(MIN_SCALE_RAW), s0x16(MAX_SCALE_RAW)};
         return MappedInputs{
             std::move(scale),
             std::move(range)
@@ -50,9 +50,9 @@ namespace PolarShader {
     }
 
     struct ZoomTransform::State {
-        Sf16Signal scaleSignal;
-        MagnitudeRange<sf16> range;
-        sf16 scaleValue;
+        S0x16Signal scaleSignal;
+        MagnitudeRange<s0x16> range;
+        s0x16 scaleValue;
         int32_t minScaleRaw;
         int32_t maxScaleRaw;
         TimeMillis lastLogMs;
@@ -60,7 +60,7 @@ namespace PolarShader {
         explicit State(MappedInputs inputs)
             : scaleSignal(std::move(inputs.scaleSignal)),
               range(std::move(inputs.range)),
-              scaleValue(sf16(0)),
+              scaleValue(s0x16(0)),
               minScaleRaw(0),
               maxScaleRaw(0),
               lastLogMs(0) {
@@ -69,12 +69,12 @@ namespace PolarShader {
         }
     };
 
-    ZoomTransform::ZoomTransform(Sf16Signal scale) {
+    ZoomTransform::ZoomTransform(S0x16Signal scale) {
         auto inputs = makeInputs(std::move(scale));
         state = std::make_shared<State>(std::move(inputs));
     }
 
-    void ZoomTransform::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void ZoomTransform::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         state->scaleValue = state->scaleSignal.sample(state->range, elapsedMs);
         if (context) {
             context->zoomScale = state->scaleValue;
@@ -89,7 +89,7 @@ namespace PolarShader {
         int64_t y = (static_cast<int64_t>(uv.v.raw()) << 1) - 0x00010000;
         int32_t scale = raw(state.scaleValue);
 
-        // Apply f16/sf16 scale
+        // Apply u0x16/s0x16 scale
         int64_t sx = x * static_cast<int64_t>(scale);
         int64_t sy = y * static_cast<int64_t>(scale);
 

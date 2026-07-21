@@ -42,7 +42,7 @@ This split is required for RP2040 dual-core rendering, where both cores sample c
 
 ### 4. Adhere to the Normalization Contract
 
-A pattern's final output **must** be a `PatternNormU16` value that spans the full `0..65535` dynamic range. This ensures consistent brightness and palette mapping across all patterns.
+A pattern's final output **must** be a `PatternNormU0x16` value that spans the full `0..65535` dynamic range. This ensures consistent brightness and palette mapping across all patterns.
 
 - **Use the Central Utility:** If a pattern's native output is not already in the full `0..65535` range, it must be normalized using the canonical helper:
   ```cpp
@@ -78,5 +78,5 @@ Polar patterns must treat the `angle` coordinate as a wraparound domain to preve
   #include "renderer/pipeline/maths/PolarMaths.h"
 
   // Calculate the shortest distance between the current angle and a target spoke angle
-  f16 dist_to_spoke = PolarMaths::shortest_angle_dist(current_angle, spoke_angle);
+  u0x16 dist_to_spoke = PolarMaths::shortest_angle_dist(current_angle, spoke_angle);
   ```

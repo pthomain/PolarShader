@@ -52,25 +52,25 @@ namespace PolarShader {
 
         NoiseType type;
         fl::u8 octaves;
-        Sf16Signal depthSpeedSignal;
+        S0x16Signal depthSpeedSignal;
         State state;
 
-        static PatternNormU16 noiseLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
+        static PatternNormU0x16 noiseLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
 
-        static PatternNormU16 fBmLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z, fl::u8 octaveCount);
+        static PatternNormU0x16 fBmLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z, fl::u8 octaveCount);
 
-        static PatternNormU16 turbulenceLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
+        static PatternNormU0x16 turbulenceLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
 
-        static PatternNormU16 ridgedLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
+        static PatternNormU0x16 ridgedLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
 
     public:
         explicit NoisePattern(
             NoiseType noiseType = NoiseType::Basic,
             fl::u8 octaveCount = 4,
-            Sf16Signal depthSpeedSignal = cRandom()
+            S0x16Signal depthSpeedSignal = cRandom()
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

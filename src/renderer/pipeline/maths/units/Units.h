@@ -114,13 +114,13 @@ namespace PolarShader {
     // Represents the midpoint of a 16-bit unsigned integer range, often used for remapping.
     inline constexpr uint16_t U16_HALF = 0x8000;
 
-    // The maximum positive value for an sf16 signed integer stored in a 32-bit raw format.
-    inline constexpr int32_t SF16_MIN = -(1 << 16);
-    inline constexpr int32_t SF16_MAX = (1 << 16) - 1;
-    inline constexpr int32_t SF16_ONE = 1 << 16;
+    // The maximum positive value for a s0x16 signed integer stored in a 32-bit raw format.
+    inline constexpr int32_t S0X16_MIN = -(1 << 16);
+    inline constexpr int32_t S0X16_MAX = (1 << 16) - 1;
+    inline constexpr int32_t S0X16_ONE = 1 << 16;
 
-    // The maximum value for an f16 unsigned fraction, representing the value closest to 1.0.
-    inline constexpr uint16_t F16_MAX = 0xFFFF;
+    // The maximum value for a u0x16 unsigned fraction, representing the value closest to 1.0.
+    inline constexpr uint16_t U0X16_MAX = 0xFFFF;
 
     // Full turn in the 16-bit angle domain.
     inline constexpr uint32_t ANGLE_FULL_TURN_U32 = 1u << 16;
@@ -133,33 +133,33 @@ namespace PolarShader {
 
     // --- Scalar Units ---
 
-    struct f16Tag {
+    struct u0x16Tag {
     };
 
-    struct sf16Tag {
+    struct s0x16Tag {
     };
 
     /**
-     * @brief Unsigned fixed-point fraction in f16 (Q0.16) format.
+     * @brief Unsigned fixed-point fraction in u0x16 (Q0.16) format.
      *
      * Definition: 16-bit integer where 0 represents 0.0 and 65535 represents ~1.0.
      * Usage: Used for angles (mod 2^16), alpha blending, and unsigned scaling factors.
      * Analysis: Strictly required for circular math and operations where negative values are semantically invalid.
      */
-    using f16 = Typed<uint16_t, f16Tag>;
+    using u0x16 = Typed<uint16_t, u0x16Tag>;
 
     /**
-     * @brief Signed fixed-point scalar in sf16 (Q0.16) format stored in a 32-bit container.
+     * @brief Signed fixed-point scalar in s0x16 (Q0.16) format stored in a 32-bit container.
      *
      * Definition: Signed integer where 65536 represents 1.0 and -65536 represents -1.0.
      * Usage: The primary currency for signals, oscillators, and trigonometric outputs (sine/cosine).
      * Analysis: Strictly required for the signal engine to support bidirectional modulation (e.g. oscillating around zero).
      */
-    using sf16 = Typed<int32_t, sf16Tag>;
+    using s0x16 = Typed<int32_t, s0x16Tag>;
 
     // --- Raw extractors ---
-    constexpr uint16_t raw(f16 f) { return f.raw(); }
-    constexpr int32_t raw(sf16 v) { return v.raw(); }
+    constexpr uint16_t raw(u0x16 f) { return f.raw(); }
+    constexpr int32_t raw(s0x16 v) { return v.raw(); }
     constexpr int32_t raw(fl::s16x16 v) { return v.raw(); }
     constexpr uint32_t raw(fl::u16x16 v) { return v.raw(); }
     constexpr int32_t raw(fl::s24x8 v) { return v.raw(); }
@@ -173,17 +173,17 @@ namespace PolarShader {
      * Usage: Lightweight tuple for raw coordinate pairs or intermediate displacements.
      * Analysis: Useful internal utility, distinct from the unified UV coordinate system.
      */
-    struct v32 {
+    struct Vec2I32 {
         int32_t x;
         int32_t y;
     };
 
     // --- Pattern Units ---
 
-    struct NoiseRawU16_Tag {
+    struct NoiseRawU0x16_Tag {
     };
 
-    struct PatternNormU16_Tag {
+    struct PatternNormU0x16_Tag {
     };
 
     /**
@@ -192,7 +192,7 @@ namespace PolarShader {
      * Usage: Transient type in NoiseMaths before normalization.
      * Analysis: Required to distinguish "raw" unmapped data from "clean" pipeline data.
      */
-    using NoiseRawU16 = Typed<uint16_t, NoiseRawU16_Tag>;
+    using NoiseRawU0x16 = Typed<uint16_t, NoiseRawU0x16_Tag>;
 
     /**
      * @brief Strictly normalized 16-bit pattern intensity.
@@ -201,11 +201,11 @@ namespace PolarShader {
      * Usage: The standard output of every UVPattern and the standard input for palette mapping.
      * Analysis: Strictly required as the "universal currency" of the visual pipeline.
      */
-    using PatternNormU16 = Typed<uint16_t, PatternNormU16_Tag>;
+    using PatternNormU0x16 = Typed<uint16_t, PatternNormU0x16_Tag>;
 
     // --- Raw extractors ---
-    constexpr uint16_t raw(NoiseRawU16 n) { return n.raw(); }
-    constexpr uint16_t raw(PatternNormU16 n) { return n.raw(); }
+    constexpr uint16_t raw(NoiseRawU0x16 n) { return n.raw(); }
+    constexpr uint16_t raw(PatternNormU0x16 n) { return n.raw(); }
 
     /**
      * @brief A colour-emitting pattern leaf: a (hue, value) pair.
@@ -221,11 +221,11 @@ namespace PolarShader {
         uint32_t packed;
 
         PaletteSample() : packed(0) {}
-        PaletteSample(PatternNormU16 h, PatternNormU16 v)
+        PaletteSample(PatternNormU0x16 h, PatternNormU0x16 v)
             : packed((static_cast<uint32_t>(h.raw()) << 16) | v.raw()) {}
 
-        PatternNormU16 hue() const { return PatternNormU16(static_cast<uint16_t>(packed >> 16)); }
-        PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
+        PatternNormU0x16 hue() const { return PatternNormU0x16(static_cast<uint16_t>(packed >> 16)); }
+        PatternNormU0x16 value() const { return PatternNormU0x16(static_cast<uint16_t>(packed & 0xFFFFu)); }
     };
 
     /**
@@ -241,7 +241,7 @@ namespace PolarShader {
         uint64_t packed;
 
         RgbSample() : packed(0) {}
-        RgbSample(PatternNormU16 r, PatternNormU16 g, PatternNormU16 b, PatternNormU16 v)
+        RgbSample(PatternNormU0x16 r, PatternNormU0x16 g, PatternNormU0x16 b, PatternNormU0x16 v)
             : packed(
                 (static_cast<uint64_t>(r.raw()) << 48) |
                 (static_cast<uint64_t>(g.raw()) << 32) |
@@ -249,10 +249,10 @@ namespace PolarShader {
                 static_cast<uint64_t>(v.raw())
             ) {}
 
-        PatternNormU16 red() const { return PatternNormU16(static_cast<uint16_t>(packed >> 48)); }
-        PatternNormU16 green() const { return PatternNormU16(static_cast<uint16_t>((packed >> 32) & 0xFFFFu)); }
-        PatternNormU16 blue() const { return PatternNormU16(static_cast<uint16_t>((packed >> 16) & 0xFFFFu)); }
-        PatternNormU16 value() const { return PatternNormU16(static_cast<uint16_t>(packed & 0xFFFFu)); }
+        PatternNormU0x16 red() const { return PatternNormU0x16(static_cast<uint16_t>(packed >> 48)); }
+        PatternNormU0x16 green() const { return PatternNormU0x16(static_cast<uint16_t>((packed >> 32) & 0xFFFFu)); }
+        PatternNormU0x16 blue() const { return PatternNormU0x16(static_cast<uint16_t>((packed >> 16) & 0xFFFFu)); }
+        PatternNormU0x16 value() const { return PatternNormU0x16(static_cast<uint16_t>(packed & 0xFFFFu)); }
     };
 
     // --- UV Units ---

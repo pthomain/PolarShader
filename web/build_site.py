@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import struct
+import importlib.util
 from pathlib import Path
 import os
 import re
@@ -33,34 +33,19 @@ DIST_ROOT = WORK_ROOT / "dist"
 HOME_ROOT = WORK_ROOT / ".home"
 FASTLED_CACHE_ROOT = WORK_ROOT / ".fastled"
 
-# Why FASTLED_REVISION is pinned to a master commit:
-#   - PolarShader's pipeline (src/renderer/pipeline/maths/units/Units.h,
-#     FixedPointMaths.h, etc.) uses fl::s16x16 / fl::u16x16 / fl::s24x8 /
-#     fl::u24x8 unconditionally as part of its public type system.
-#   - These types live under src/fl/math/fixed_point/ on FastLED master and
-#     are NOT present in the latest tagged release (3.10.3, 2025-09-20), so
-#     a release-tagged WASM build fails with "no type named 's16x16' in
-#     namespace 'fl'".
-#   - The embedded targets already track FastLED master via platformio.ini
-#     (lib_deps: https://github.com/FastLED/FastLED.git#master), so this
-#     keeps the WASM build aligned with the same source of truth.
+# PolarShader uses FastLED fixed-point types (fl::s16x16 / fl::u16x16 /
+# fl::s24x8 / fl::u24x8), which are available in FastLED 3.10.4 and later.
+# Keep this version aligned with the embedded PlatformIO dependency pins.
 #
-# TODO: revert to a tagged FastLED release once one ships the fl::s16x16 /
-# fl::u16x16 / fl::s24x8 / fl::u24x8 fixed-point types. When the next FastLED
-# release exposes these types, switch back to a tagged-release URL
-# (https://github.com/FastLED/FastLED/archive/refs/tags/<version>.zip) and
-# rename FASTLED_REVISION back to FASTLED_VERSION.
-#
-# POLARSHADER_FASTLED_REVISION_OVERRIDE lets an external orchestrator pin a
-# different FastLED commit (e.g. to share a single revision across multiple
-# projects that consume PolarShader). MUST be read here, before
-# FASTLED_ARCHIVE_URL and FASTLED_LIBRARY_ROOT are derived from it.
-FASTLED_REVISION = os.environ.get(
-    "POLARSHADER_FASTLED_REVISION_OVERRIDE",
-    "cec6034926407cdc89e0c570aba3ad2bf8f0b907",  # master @ 2026-05-03
+# POLARSHADER_FASTLED_VERSION_OVERRIDE lets an external orchestrator pin a
+# different FastLED release tag. MUST be read here, before FASTLED_ARCHIVE_URL
+# and FASTLED_LIBRARY_ROOT are derived from it.
+FASTLED_VERSION = os.environ.get(
+    "POLARSHADER_FASTLED_VERSION_OVERRIDE",
+    "3.10.4",
 )
-FASTLED_ARCHIVE_URL = f"https://github.com/FastLED/FastLED/archive/{FASTLED_REVISION}.zip"
-FASTLED_LIBRARY_ROOT = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_REVISION}"
+FASTLED_ARCHIVE_URL = f"https://github.com/FastLED/FastLED/archive/refs/tags/{FASTLED_VERSION}.zip"
+FASTLED_LIBRARY_ROOT = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_VERSION}"
 PLACEHOLDER_FRONTEND_MARKER = 'module._extern_setup();'
 MINIMAL_FRONTEND_MARKERS = (
     "const canvas = document.getElementById('canvas');",
@@ -80,12 +65,12 @@ EXCLUDED_SOURCE_DIRS = {
     "native",
 }
 
-EXCLUDED_AMALGAMATED_SOURCE_PATHS = {
+EXCLUDED_STAGED_SOURCE_PATHS = {
     "display/src/SmartMatrixDisplay.cpp",
     # Native-only PGM/PPM dumper: ships its own main() and includes
     # native/Arduino.h (a dir excluded from staging). platformio.ini keeps it
     # out of every env except native_pf_snapshot; exclude it here too so the
-    # WASM unity build never links a second main.
+    # WASM build never links a second main.
     "tools/pf_snapshot.cpp",
 }
 
@@ -154,6 +139,19 @@ def reset_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def ignore_staged_source_files(source_dir: str, names: list[str]) -> set[str]:
+    ignored: set[str] = set()
+    source_path = Path(source_dir)
+    for name in names:
+        try:
+            relative_path = (source_path / name).relative_to(SOURCE_ROOT).as_posix()
+        except ValueError:
+            continue
+        if relative_path in EXCLUDED_STAGED_SOURCE_PATHS:
+            ignored.add(name)
+    return ignored
+
+
 def copy_tree_without_platform_entrypoints(stage_dir: Path) -> None:
     for child in SOURCE_ROOT.iterdir():
         if child.name in EXCLUDED_SOURCE_DIRS:
@@ -164,7 +162,7 @@ def copy_tree_without_platform_entrypoints(stage_dir: Path) -> None:
             shutil.copytree(
                 child,
                 destination,
-                ignore=shutil.ignore_patterns("SmartMatrixDisplay.cpp"),
+                ignore=ignore_staged_source_files,
             )
             continue
 
@@ -174,39 +172,18 @@ def copy_tree_without_platform_entrypoints(stage_dir: Path) -> None:
         shutil.copy2(child, destination)
 
 
-def list_amalgamated_source_files(stage_dir: Path) -> list[str]:
-    source_files: list[str] = []
-    for source_path in sorted(stage_dir.rglob("*.cpp")):
-        relative_path = source_path.relative_to(stage_dir).as_posix()
-        if relative_path in EXCLUDED_AMALGAMATED_SOURCE_PATHS:
-            continue
-        source_files.append(relative_path)
-    return source_files
-
-
 def stage_sketch(sketch: Sketch) -> Path:
     stage_dir = STAGE_ROOT / sketch.name
     reset_directory(stage_dir)
     copy_tree_without_platform_entrypoints(stage_dir)
 
-    # The fastled CLI generates a single sketch.cpp by concatenating only
-    # the .ino files in the staged dir (see fastled-wasm v2.0.6
-    # toolchain/emscripten.py: _create_sketch_wrapper). Other .cpp files
-    # are detected but never passed to em++, so anything we do not pull
-    # into the .ino is silently dropped from the link. We therefore
-    # amalgamate every project .cpp into the staged .ino as a unity build.
-    sketch_includes = "\n".join(
-        f'#include "{rel_path}"' for rel_path in list_amalgamated_source_files(stage_dir)
-    )
     sketch_prelude = os.environ.get("POLARSHADER_SKETCH_PRELUDE_OVERRIDE", "")
     if sketch_prelude and not sketch_prelude.endswith("\n"):
         sketch_prelude += "\n"
     user_sketch = sketch.source_file.read_text(encoding="utf-8")
     (stage_dir / f"{sketch.name}.ino").write_text(
-        "// Auto-generated by web/build_site.py: project sources amalgamated\n"
-        "// below because the fastled CLI only compiles the sketch's .ino.\n"
         f"{sketch_prelude}"
-        f"{sketch_includes}\n\n{user_sketch}",
+        f"{user_sketch}",
         encoding="utf-8",
     )
     return stage_dir
@@ -246,21 +223,21 @@ def download_fastled_source(destination_dir: Path) -> None:
         shutil.rmtree(destination_dir)
 
     with tempfile.TemporaryDirectory(dir=FASTLED_CACHE_ROOT) as temp_dir_name:
-        archive_path = Path(temp_dir_name) / f"FastLED-{FASTLED_REVISION}.zip"
+        archive_path = Path(temp_dir_name) / f"FastLED-{FASTLED_VERSION}.zip"
         with urllib.request.urlopen(FASTLED_ARCHIVE_URL) as response, archive_path.open("wb") as archive_file:
             shutil.copyfileobj(response, archive_file)
 
         with zipfile.ZipFile(archive_path) as archive:
             archive.extractall(FASTLED_CACHE_ROOT)
 
-    extracted_dir = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_REVISION}"
+    extracted_dir = FASTLED_CACHE_ROOT / f"FastLED-{FASTLED_VERSION}"
     if extracted_dir != destination_dir:
         extracted_dir.rename(destination_dir)
 
 
 def ensure_fastled_library() -> Path:
-    # FASTLED_REVISION is encoded in FASTLED_LIBRARY_ROOT, so directory
-    # presence is a sufficient cache check (a different revision lands in
+    # FASTLED_VERSION is encoded in FASTLED_LIBRARY_ROOT, so directory
+    # presence is a sufficient cache check (a different version lands in
     # a different directory).
     if (FASTLED_LIBRARY_ROOT / "library.json").exists():
         return normalize_fastled_library(FASTLED_LIBRARY_ROOT)
@@ -270,12 +247,17 @@ def ensure_fastled_library() -> Path:
 
 
 def fastled_cli_version(executable: Path) -> str | None:
+    HOME_ROOT.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    env["HOME"] = str(HOME_ROOT)
+
     try:
         completed = subprocess.run(
             [str(executable), "--version"],
             check=True,
             capture_output=True,
             text=True,
+            env=env,
         )
     except (OSError, subprocess.CalledProcessError):
         return None
@@ -330,40 +312,105 @@ def resolve_fastled_executable() -> str:
     )
 
 
-def detect_clang_toolchain_platform_arch() -> tuple[str, str]:
-    if sys.platform == "win32":
-        platform_name = "win"
-    elif sys.platform == "darwin":
-        platform_name = "darwin"
-    else:
-        platform_name = "linux"
+def locate_fastled_frontend_source(fastled_library: Path) -> Path:
+    package_spec = importlib.util.find_spec("fastled")
+    candidates: list[Path] = []
+    if package_spec is not None and package_spec.origin is not None:
+        candidates.append(Path(package_spec.origin).resolve().parent / "frontend")
+    candidates.append(fastled_library / "src" / "platforms" / "wasm" / "compiler")
 
-    machine = getattr(os, "uname", lambda: None)()
-    machine_name = machine.machine.lower() if machine is not None else ""
-    if not machine_name:
-        machine_name = "amd64" if struct.calcsize("P") * 8 == 64 else "x86"
+    for candidate in candidates:
+        if (candidate / "app.ts").exists() and (candidate / "index.html").exists():
+            return candidate
 
-    if machine_name in ("x86_64", "amd64"):
-        arch = "x86_64"
-    elif machine_name in ("arm64", "aarch64"):
-        arch = "arm64"
-    else:
-        arch = machine_name
-
-    return platform_name, arch
+    raise FileNotFoundError(
+        "Could not find FastLED frontend sources in the installed fastled CLI "
+        f"package or under {fastled_library}."
+    )
 
 
-def ensure_emscripten_installation() -> Path:
-    from clang_tool_chain.installers.emscripten import ensure_emscripten_available
-    from clang_tool_chain.path_utils import get_emscripten_install_dir
+def locate_esbuild_executable(env: dict[str, str]) -> Path:
+    env_path = env.get("FASTLED_ESBUILD_PATH")
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.is_file():
+            return candidate
 
-    platform_name, arch = detect_clang_toolchain_platform_arch()
-    ensure_emscripten_available(platform_name, arch)
-    install_dir = get_emscripten_install_dir(platform_name, arch)
-    config_path = install_dir / ".emscripten"
-    if not config_path.exists():
-        raise FileNotFoundError(f"Expected Emscripten config at {config_path}")
-    return install_dir
+    exe_name = "esbuild.exe" if os.name == "nt" else "esbuild"
+    for candidate in sorted((HOME_ROOT / ".fastled" / "toolchains" / "esbuild").rglob(exe_name)):
+        if candidate.is_file():
+            return candidate
+
+    path_candidate = shutil.which(exe_name, path=env.get("PATH"))
+    if path_candidate is not None:
+        return Path(path_candidate)
+
+    raise FileNotFoundError(
+        "FastLED CLI failed before generating frontend assets, and no esbuild "
+        "binary was found in the CLI-managed toolchain cache."
+    )
+
+
+def run_esbuild(esbuild: Path, frontend_dir: Path, source: Path, output: Path) -> None:
+    three_module = frontend_dir / "vendor" / "three" / "build" / "three.module.js"
+    subprocess.run(
+        [
+            str(esbuild),
+            str(source),
+            "--bundle",
+            "--format=esm",
+            "--platform=browser",
+            "--target=es2021",
+            "--sourcemap",
+            "--charset=utf8",
+            "--log-level=warning",
+            f"--outfile={output}",
+            f"--alias:three={three_module}",
+        ],
+        cwd=frontend_dir,
+        check=True,
+    )
+
+
+def build_fastled_frontend_fallback(
+    stage_dir: Path,
+    fastled_library: Path,
+    env: dict[str, str],
+) -> bool:
+    output_dir = stage_dir / "fastled_js"
+    wasm_build_dir = stage_dir / ".build" / "wasm"
+    if not ((output_dir / "fastled.js").exists() and (output_dir / "fastled.wasm").exists()):
+        if not ((wasm_build_dir / "fastled.js").exists() and (wasm_build_dir / "fastled.wasm").exists()):
+            return False
+        output_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(wasm_build_dir / "fastled.js", output_dir / "fastled.js")
+        shutil.copy2(wasm_build_dir / "fastled.wasm", output_dir / "fastled.wasm")
+
+    frontend_dir = locate_fastled_frontend_source(fastled_library)
+    esbuild = locate_esbuild_executable(env)
+
+    index_text = (frontend_dir / "index.html").read_text(encoding="utf-8")
+    index_text = index_text.replace('src="./app.ts"', 'src="./app.js"')
+    (output_dir / "index.html").write_text(index_text, encoding="utf-8")
+    shutil.copy2(frontend_dir / "index.css", output_dir / "index.css")
+    shutil.copy2(
+        frontend_dir / "modules" / "audio" / "audio_worklet_processor.js",
+        output_dir / "audio_worklet_processor.js",
+    )
+    if (frontend_dir / "assets").exists():
+        if (output_dir / "assets").exists():
+            shutil.rmtree(output_dir / "assets")
+        shutil.copytree(frontend_dir / "assets", output_dir / "assets")
+    (output_dir / "files.json").write_text("[]\n", encoding="utf-8")
+
+    run_esbuild(esbuild, frontend_dir, frontend_dir / "app.ts", output_dir / "app.js")
+    run_esbuild(
+        esbuild,
+        frontend_dir,
+        frontend_dir / "modules" / "core" / "fastled_background_worker.ts",
+        output_dir / "fastled_background_worker.js",
+    )
+    return True
 
 
 def run_fastled_compile(stage_dir: Path) -> None:
@@ -380,31 +427,21 @@ def run_fastled_compile(stage_dir: Path) -> None:
         str(fastled_library),
     ]
 
-    original_home = os.environ.get("HOME")
-    os.environ["HOME"] = str(HOME_ROOT)
-    try:
-        emscripten_install_dir = ensure_emscripten_installation()
-    finally:
-        if original_home is None:
-            os.environ.pop("HOME", None)
-        else:
-            os.environ["HOME"] = original_home
-
     env = dict(os.environ)
     env["HOME"] = str(HOME_ROOT)
-    env["EMSCRIPTEN"] = str(emscripten_install_dir / "emscripten")
-    env["EMSCRIPTEN_ROOT"] = env["EMSCRIPTEN"]
-    env["EM_CONFIG"] = str(emscripten_install_dir / ".emscripten")
-    env["EMSDK_PYTHON"] = sys.executable
-    env["EMCC_SKIP_SANITY_CHECK"] = "1"
-    env["PATH"] = f"{emscripten_install_dir / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+    env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
 
-    subprocess.run(
-        command,
-        cwd=stage_dir,
-        check=True,
-        env=env,
-    )
+    try:
+        subprocess.run(
+            command,
+            cwd=stage_dir,
+            check=True,
+            env=env,
+        )
+    except subprocess.CalledProcessError:
+        if build_fastled_frontend_fallback(stage_dir, fastled_library, env):
+            return
+        raise
 
 
 def find_build_output(stage_dir: Path) -> Path:
@@ -437,6 +474,42 @@ def validate_frontend_output(output_dir: Path) -> None:
         raise RuntimeError(
             "FastLED frontend assets were not built; refusing to publish the minimal fallback page."
         )
+
+
+def generated_main_script(dist_sketch_dir: Path) -> Path:
+    for name in ("index.js", "app.js"):
+        path = dist_sketch_dir / name
+        if path.exists():
+            return path
+    raise FileNotFoundError(
+        f"Generated main script not found under {dist_sketch_dir}. "
+        "Expected index.js or app.js."
+    )
+
+
+def graphics_manager_patch_paths(dist_sketch_dir: Path) -> list[Path]:
+    asset_dir = dist_sketch_dir / "assets"
+    asset_paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
+    if asset_paths:
+        return asset_paths
+
+    bundled_paths = [
+        dist_sketch_dir / name
+        for name in ("index.js", "app.js", "fastled_background_worker.js")
+        if (dist_sketch_dir / name).exists()
+    ]
+    paths = [
+        path
+        for path in bundled_paths
+        if "GraphicsManagerThreeJS" in path.read_text(encoding="utf-8")
+    ]
+    if paths:
+        return paths
+
+    raise FileNotFoundError(
+        f"ThreeJS graphics manager not found under {dist_sketch_dir}. "
+        "The graphics patches need updating for FastLED's generated output."
+    )
 
 
 def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -> None:
@@ -898,7 +971,7 @@ _MAIN_SETUP_ANCHOR = (
     "      fastLEDController.setup();\n"
     '      console.log("🔧 fastLEDController.setup() completed successfully");'
 )
-_MAIN_SETUP_INJECT = (
+_MAIN_SETUP_INJECT_PREFIX = (
     """      if (typeof moduleInstance._composer_set_initial_display === "function") {
         const rawDisplay = urlParams.get("display") || urlParams.get("ps_display");
         let composerDisplay = 0;
@@ -909,7 +982,10 @@ _MAIN_SETUP_INJECT = (
         moduleInstance._composer_set_initial_display(composerDisplay);
       }
 """
-    + _MAIN_SETUP_ANCHOR
+)
+_MAIN_SETUP_ANCHORS = (
+    _MAIN_SETUP_ANCHOR,
+    "      state.fastLEDController.setup();",
 )
 
 
@@ -922,9 +998,7 @@ def patch_main_worker_ready_hook(dist_sketch_dir: Path) -> None:
     after worker start so composer can detect/replay into the worker-owned
     canvas.
     """
-    index_path = dist_sketch_dir / "index.js"
-    if not index_path.exists():
-        raise FileNotFoundError(f"Generated index.js not found: {index_path}")
+    index_path = generated_main_script(dist_sketch_dir)
     text = index_path.read_text(encoding="utf-8")
     if "__polarComposerWorkerReady" in text:
         return
@@ -944,19 +1018,19 @@ def patch_main_initial_display_hook(dist_sketch_dir: Path) -> None:
     main module. Its screenmap is captured during fastLEDController.setup(), so
     the startup display must be selected before that call.
     """
-    index_path = dist_sketch_dir / "index.js"
-    if not index_path.exists():
-        raise FileNotFoundError(f"Generated index.js not found: {index_path}")
+    index_path = generated_main_script(dist_sketch_dir)
     text = index_path.read_text(encoding="utf-8")
     if "_composer_set_initial_display(composerDisplay)" in text:
         return
-    if _MAIN_SETUP_ANCHOR not in text:
-        raise RuntimeError(
-            f"Cannot patch {index_path}: main setup anchor not found. "
-            "FastLED's setup flow changed; update patch_main_initial_display_hook."
-        )
-    text = text.replace(_MAIN_SETUP_ANCHOR, _MAIN_SETUP_INJECT, 1)
-    index_path.write_text(text, encoding="utf-8")
+    for anchor in _MAIN_SETUP_ANCHORS:
+        if anchor in text:
+            text = text.replace(anchor, _MAIN_SETUP_INJECT_PREFIX + anchor, 1)
+            index_path.write_text(text, encoding="utf-8")
+            return
+    raise RuntimeError(
+        f"Cannot patch {index_path}: main setup anchor not found. "
+        "FastLED's setup flow changed; update patch_main_initial_display_hook."
+    )
 
 
 _THREEJS_BLOOM_REPLACEMENTS = (
@@ -981,15 +1055,7 @@ _THREEJS_BLOOM_REPLACEMENTS = (
 
 def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
     """Reduce FastLED's generated ThreeJS bloom strength to 25% of default."""
-    asset_dir = dist_sketch_dir / "assets"
-    paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
-    if not paths:
-        raise FileNotFoundError(
-            f"ThreeJS graphics manager not found under {asset_dir}. "
-            "The bloom patch needs updating for FastLED's generated output."
-        )
-
-    for path in paths:
+    for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
         for old, new in _THREEJS_BLOOM_REPLACEMENTS:
             if old not in text:
@@ -1067,15 +1133,7 @@ _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
 
 def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
     """Add a runtime setBloomEnabled() switch to the ThreeJS graphics manager."""
-    asset_dir = dist_sketch_dir / "assets"
-    paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
-    if not paths:
-        raise FileNotFoundError(
-            f"ThreeJS graphics manager not found under {asset_dir}. "
-            "The bloom toggle patch needs updating for FastLED's generated output."
-        )
-
-    for path in paths:
+    for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
         if "setBloomEnabled(enabled)" in text:
             continue
@@ -1138,18 +1196,7 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "  }\n"
     + _THREEJS_LED_MATERIAL_HELPER_ANCHOR
 )
-_THREEJS_LED_MATERIAL_REPLACEMENTS = (
-    (
-        "    this.LED_SCALE = 1;\n"
-        "    this.SCREEN_WIDTH = 0;\n",
-        "    this.LED_SCALE = 1;\n"
-        "    this.SPARSE_LED_SCALE = 1.5;\n"
-        "    this.SCREEN_WIDTH = 0;\n",
-    ),
-    (
-        "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;\n",
-        "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
-    ),
+_THREEJS_CAN_MERGE_REPLACEMENTS = (
     (
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
         "    if (!canMergeGeometries) {\n",
@@ -1158,58 +1205,158 @@ _THREEJS_LED_MATERIAL_REPLACEMENTS = (
         "    if (!canMergeGeometries) {\n",
     ),
     (
-        "              stripDiameter * this.LED_SCALE,\n",
-        "              stripDiameter * ledScale,\n",
-    ),
-    (
-        "            const w = stripDiameter * this.LED_SCALE;\n"
-        "            const h = stripDiameter * this.LED_SCALE;\n",
-        "            const w = stripDiameter * ledScale;\n"
-        "            const h = stripDiameter * ledScale;\n",
-    ),
-    (
-        "          const material = new THREE.MeshBasicMaterial({ color: 0 });\n",
-        "          const material = this._createLedMaterial(isDenseScreenMap, 0);\n",
-    ),
-    (
-        "        const material = new THREE.MeshBasicMaterial({\n"
-        "          color: 16777215,\n"
-        "          vertexColors: true\n"
-        "        });\n",
-        "        const material = this._createLedMaterial(isDenseScreenMap, 16777215, true);\n",
+        "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;\n"
+        "    if (!canMergeGeometries) {\n",
+        "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;\n"
+        "    const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        "    if (!canMergeGeometries) {\n",
     ),
 )
 
 
-def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
-    """Render sparse FastLED screen-map LEDs with radial alpha falloff."""
-    asset_dir = dist_sketch_dir / "assets"
-    paths = sorted(asset_dir.glob("graphics_manager_threejs-*.js"))
-    if not paths:
-        raise FileNotFoundError(
-            f"ThreeJS graphics manager not found under {asset_dir}. "
-            "The LED gradient patch needs updating for FastLED's generated output."
+def replace_or_fail(text: str, path: Path, old: str, new: str, description: str) -> str:
+    if old not in text:
+        if new in text:
+            return text
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: {description}"
+        )
+    return text.replace(old, new)
+
+
+def replace_first_variant(
+    text: str,
+    path: Path,
+    replacements: tuple[tuple[str, str], ...],
+    already: str,
+    description: str,
+) -> str:
+    if already in text:
+        return text
+    for old, new in replacements:
+        if old in text:
+            return text.replace(old, new, 1)
+    raise RuntimeError(
+        f"Cannot patch LED gradient in {path}: expected snippet not found: {description}"
+    )
+
+
+def reindent_js_block(block: str, indent: str) -> str:
+    lines = block.splitlines(keepends=True)
+    return "".join(
+        indent + line[2:] if line.startswith("  ") else line
+        for line in lines
+    )
+
+
+def insert_led_material_helper(text: str, path: Path) -> str:
+    match = re.search(
+        r"(?m)^(\s*)/\*\*\n\1 \* Creates LED objects for each pixel in the frame data\n",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: material helper anchor not found."
         )
 
-    for path in paths:
+    indent = match.group(1)
+    anchor = reindent_js_block(_THREEJS_LED_MATERIAL_HELPER_ANCHOR, indent)
+    helper = reindent_js_block(_THREEJS_LED_MATERIAL_HELPER, indent)
+    return text.replace(anchor, helper, 1)
+
+
+def insert_sparse_led_scale(text: str, path: Path) -> str:
+    if "this.SPARSE_LED_SCALE = 1.5;" in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)this\.LED_SCALE = 1;\n\1this\.SCREEN_WIDTH = 0;\n",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: LED_SCALE initialization"
+        )
+    indent = match.group(1)
+    replacement = (
+        f"{indent}this.LED_SCALE = 1;\n"
+        f"{indent}this.SPARSE_LED_SCALE = 1.5;\n"
+        f"{indent}this.SCREEN_WIDTH = 0;\n"
+    )
+    return text[:match.start()] + replacement + text[match.end():]
+
+
+def insert_led_scale_local(text: str, path: Path) -> str:
+    if "const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;" in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)const canMergeGeometries = this\.useMergedGeometry && BufferGeometryUtils && (?:true|!DISABLE_MERGE_GEOMETRIES);\n\1if \(!canMergeGeometries\) \{\n",
+        text,
+    )
+    if match is None:
+        text = replace_first_variant(
+            text,
+            path,
+            _THREEJS_CAN_MERGE_REPLACEMENTS,
+            "const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;",
+            "canMergeGeometries initialization",
+        )
+        return text
+    indent = match.group(1)
+    replacement = match.group(0).replace(
+        f"{indent}if (!canMergeGeometries) {{\n",
+        f"{indent}const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        f"{indent}if (!canMergeGeometries) {{\n",
+    )
+    return text[:match.start()] + replacement + text[match.end():]
+
+
+def replace_merged_led_material(text: str, path: Path) -> str:
+    replacement_marker = "const material = this._createLedMaterial(isDenseScreenMap, 16777215, true);"
+    if replacement_marker in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)const material = new THREE\.MeshBasicMaterial\(\{\n\1  color: 16777215,\n\1  vertexColors: true\n\1\}\);\n",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: merged LED material creation"
+        )
+    indent = match.group(1)
+    replacement = f"{indent}{replacement_marker}\n"
+    return text[:match.start()] + replacement + text[match.end():]
+
+
+def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
+    """Render sparse FastLED screen-map LEDs with radial alpha falloff."""
+    for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
         if "_createLedMaterial(isDenseScreenMap" not in text:
-            if _THREEJS_LED_MATERIAL_HELPER_ANCHOR not in text:
-                raise RuntimeError(
-                    f"Cannot patch LED gradient in {path}: material helper anchor not found."
-                )
-            text = text.replace(
-                _THREEJS_LED_MATERIAL_HELPER_ANCHOR,
-                _THREEJS_LED_MATERIAL_HELPER,
-                1,
-            )
-        for old, new in _THREEJS_LED_MATERIAL_REPLACEMENTS:
-            if old in text:
-                text = text.replace(old, new)
-            elif new not in text:
-                raise RuntimeError(
-                    f"Cannot patch LED gradient in {path}: expected snippet not found: {old.strip()}"
-                )
+            text = insert_led_material_helper(text, path)
+        text = insert_sparse_led_scale(text, path)
+        text = replace_or_fail(
+            text,
+            path,
+            "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;\n",
+            "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+            "visual radius calculation",
+        )
+        text = insert_led_scale_local(text, path)
+        text = replace_or_fail(
+            text,
+            path,
+            "stripDiameter * this.LED_SCALE",
+            "stripDiameter * ledScale",
+            "LED geometry scale",
+        )
+        text = replace_or_fail(
+            text,
+            path,
+            "          const material = new THREE.MeshBasicMaterial({ color: 0 });\n",
+            "          const material = this._createLedMaterial(isDenseScreenMap, 0);\n",
+            "single LED material creation",
+        )
+        text = replace_merged_led_material(text, path)
         path.write_text(text, encoding="utf-8")
 
 

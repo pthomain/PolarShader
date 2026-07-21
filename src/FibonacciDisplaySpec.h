@@ -39,7 +39,7 @@ namespace PolarShader {
      *
      * Geometry (screen convention, angle raw 0..65535 == 0..2PI):
      *   angle(deg) = 30*armSlot + 15*cell + 225   (+/- tangential offset)
-     *   radius     = RADIUS_F16[cell]              (normalised, rim == 1.0)
+     *   radius     = RADIUS_U0X16[cell]              (normalised, rim == 1.0)
      * where the arm slot maps the wired segment through the assembly swap
      * (segments 0 and 1 are physically exchanged) and a reversed placement
      * order so that clockwise the arm start indices read
@@ -76,7 +76,7 @@ namespace PolarShader {
 
         PolarCoords toPolarCoords(uint16_t pixelIndex) const override {
             if (pixelIndex >= NB_LEDS) {
-                return {f16(0), f16(0)};
+                return {u0x16(0), u0x16(0)};
             }
 
             const uint16_t arm = pixelIndex / LEDS_PER_ARM;
@@ -115,12 +115,12 @@ namespace PolarShader {
             const uint16_t angle_raw = static_cast<uint16_t>(
                 (static_cast<int32_t>(baseRaw) + offsetRaw) & 0xFFFF);
 
-            return {f16(angle_raw), f16(RADIUS_F16[cell])};
+            return {u0x16(angle_raw), u0x16(RADIUS_U0X16[cell])};
         }
 
-        // Normalised cell radii (f16 raw, rim == 65535). Log-spiral growth
+        // Normalised cell radii (u0x16 raw, rim == 65535). Log-spiral growth
         // radius(cell) = (Rmax/Rmin)^((cell-19)/20), so cell 19 == 1.0.
-        static constexpr uint16_t RADIUS_F16[CELLS_PER_ARM] = {
+        static constexpr uint16_t RADIUS_U0X16[CELLS_PER_ARM] = {
             12635u, 13778u, 15025u, 16385u, 17868u, 19485u, 21248u, 23171u, 25268u, 27555u,
             30049u, 32768u, 35734u, 38968u, 42495u, 46341u, 50535u, 55109u, 60096u, 65535u,
         };

@@ -119,19 +119,19 @@ namespace PolarShader {
         configure(context);
         return [this](const RasterPoint &point) {
             if (!ready() || !point.valid || !cells) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
             if (point.width != width() || point.height != height() ||
                 point.x >= width() || point.y >= height()) {
-                return PatternNormU16(0);
+                return PatternNormU0x16(0);
             }
 
             const uint32_t idx = static_cast<uint32_t>(point.y) * width() + point.x;
             switch (cells[idx]) {
-                case kWwHead: return PatternNormU16(F16_MAX);
-                case kWwTail: return PatternNormU16(F16_MAX * 3u / 4u);
-                case kWwConductor: return PatternNormU16(F16_MAX / 4u);
-                default: return PatternNormU16(0);
+                case kWwHead: return PatternNormU0x16(U0X16_MAX);
+                case kWwTail: return PatternNormU0x16(U0X16_MAX * 3u / 4u);
+                case kWwConductor: return PatternNormU0x16(U0X16_MAX / 4u);
+                default: return PatternNormU0x16(0);
             }
         };
     }
@@ -151,18 +151,18 @@ namespace PolarShader {
             switch (cells[idx]) {
                 case kWwHead:
                     return PaletteSample{
-                        PatternNormU16(raster::hue8ToPatternRaw(kWwHeadHue)),
-                        PatternNormU16(F16_MAX)
+                        PatternNormU0x16(raster::hue8ToPatternRaw(kWwHeadHue)),
+                        PatternNormU0x16(U0X16_MAX)
                     };
                 case kWwTail:
                     return PaletteSample{
-                        PatternNormU16(raster::hue8ToPatternRaw(kWwTailHue)),
-                        PatternNormU16(F16_MAX * 3u / 4u)
+                        PatternNormU0x16(raster::hue8ToPatternRaw(kWwTailHue)),
+                        PatternNormU0x16(U0X16_MAX * 3u / 4u)
                     };
                 case kWwConductor:
                     return PaletteSample{
-                        PatternNormU16(raster::hue8ToPatternRaw(kWwConductorHue)),
-                        PatternNormU16(F16_MAX / 4u)
+                        PatternNormU0x16(raster::hue8ToPatternRaw(kWwConductorHue)),
+                        PatternNormU0x16(U0X16_MAX / 4u)
                     };
                 default:
                     return PaletteSample{};

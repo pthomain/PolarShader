@@ -33,16 +33,16 @@ namespace PolarShader {
         }
 
         uint16_t mapColorValue(uint8_t index, uint8_t colors) {
-            if (colors <= 1) return SF16_MAX;
+            if (colors <= 1) return S0X16_MAX;
             uint32_t denominator = static_cast<uint32_t>(colors > 1 ? colors - 1 : colors);
-            if (denominator == 0) return SF16_MAX;
-            uint32_t numerator = static_cast<uint32_t>(index) * SF16_MAX;
+            if (denominator == 0) return S0X16_MAX;
+            uint32_t numerator = static_cast<uint32_t>(index) * S0X16_MAX;
             uint16_t value = static_cast<uint16_t>(numerator / denominator);
             return value;
         }
 
-        int32_t hexRoundF16(int32_t v_f16) {
-            return (v_f16 >= 0) ? (v_f16 + 32768) >> 16 : -(((-v_f16) + 32767) >> 16);
+        int32_t hexRoundU0x16(int32_t v_u0x16) {
+            return (v_u0x16 >= 0) ? (v_u0x16 + 32768) >> 16 : -(((-v_u0x16) + 32767) >> 16);
         }
 
         int32_t abs32(int32_t value) {
@@ -68,9 +68,9 @@ namespace PolarShader {
         uint8_t color_count;
         TileShape shape;
 
-        PatternNormU16 operator()(UV uv) const {
+        PatternNormU0x16 operator()(UV uv) const {
             int32_t cell_size_raw = state ? state->cell_size_raw : 0;
-            if (cell_size_raw <= 0) return PatternNormU16(0);
+            if (cell_size_raw <= 0) return PatternNormU0x16(0);
 
             uint8_t colors = (color_count < 3) ? 3 : color_count;
 
@@ -79,14 +79,14 @@ namespace PolarShader {
 
             if (shape == TileShape::SQUARE) {
                 TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cell_size_raw, shape);
-                return PatternNormU16(
+                return PatternNormU0x16(
                     mapColorValue(colorIndexForCell(shape, tile.cell_a, tile.cell_b, tile.cell_c, colors), colors)
                 );
             }
 
             if (shape == TileShape::TRIANGLE) {
                 TilingMaths::TileSample tile = TilingMaths::sampleTile(x_raw, y_raw, cell_size_raw, shape);
-                return PatternNormU16(
+                return PatternNormU0x16(
                     mapColorValue(colorIndexForCell(shape, tile.cell_a, tile.cell_b, tile.cell_c, colors), colors)
                 );
             }
@@ -95,18 +95,18 @@ namespace PolarShader {
             int64_t q_num = static_cast<int64_t>(x_raw) * 43691;
             int64_t r_num = static_cast<int64_t>(y_raw) * 37837 - static_cast<int64_t>(x_raw) * 21845;
             
-            int32_t q_f16 = static_cast<int32_t>(q_num / cell_size_raw);
-            int32_t r_f16 = static_cast<int32_t>(r_num / cell_size_raw);
-            int32_t s_f16 = -q_f16 - r_f16;
+            int32_t q_u0x16 = static_cast<int32_t>(q_num / cell_size_raw);
+            int32_t r_u0x16 = static_cast<int32_t>(r_num / cell_size_raw);
+            int32_t s_u0x16 = -q_u0x16 - r_u0x16;
 
             // Find primary center
-            int32_t rx = hexRoundF16(q_f16);
-            int32_t rz = hexRoundF16(r_f16);
-            int32_t ry = hexRoundF16(s_f16);
+            int32_t rx = hexRoundU0x16(q_u0x16);
+            int32_t rz = hexRoundU0x16(r_u0x16);
+            int32_t ry = hexRoundU0x16(s_u0x16);
 
-            int32_t dq0 = q_f16 - (rx << 16);
-            int32_t dr0 = r_f16 - (rz << 16);
-            int32_t ds0 = s_f16 - (ry << 16);
+            int32_t dq0 = q_u0x16 - (rx << 16);
+            int32_t dr0 = r_u0x16 - (rz << 16);
+            int32_t ds0 = s_u0x16 - (ry << 16);
 
             if (abs32(dq0) > abs32(dr0) && abs32(dq0) > abs32(ds0)) {
                 rx = -ry - rz;
@@ -114,7 +114,7 @@ namespace PolarShader {
                 rz = -rx - ry;
             }
             
-            return PatternNormU16(
+            return PatternNormU0x16(
                 mapColorValue(colorIndexForCell(shape, rx, rz, 0, colors), colors)
             );
         }
@@ -132,7 +132,7 @@ namespace PolarShader {
     }
 
     TilingPattern::TilingPattern(
-        Sf16Signal cellSize,
+        S0x16Signal cellSize,
         uint8_t colorCount,
         TileShape shape
     ) : cell_size_signal(std::move(cellSize)),
@@ -141,7 +141,7 @@ namespace PolarShader {
         shape(shape) {
     }
 
-    void TilingPattern::advanceFrame(f16 progress, TimeMillis elapsedMs) {
+    void TilingPattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void)progress;
         if (cell_size_signal) {
             state.cell_size_raw = sampleTilingCellSizeRaw(

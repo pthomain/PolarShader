@@ -61,14 +61,14 @@ namespace PolarShader {
         TransportPattern(
             uint8_t gridSize = 32,
             TransportMode mode = TransportMode::SpiralInward,
-            Sf16Signal radialSpeed = constant(300),
-            Sf16Signal angularSpeed = constant(200),
-            Sf16Signal halfLife = constant(600),
-            Sf16Signal emitterSpeed = constant(500),
+            S0x16Signal radialSpeed = constant(300),
+            S0x16Signal angularSpeed = constant(200),
+            S0x16Signal halfLife = constant(600),
+            S0x16Signal emitterSpeed = constant(500),
             bool velocityGlow = false
         );
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVMap layer(const std::shared_ptr<PipelineContext> &context) const override;
     };

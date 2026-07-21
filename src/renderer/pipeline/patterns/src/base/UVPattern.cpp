@@ -27,13 +27,13 @@ namespace PolarShader {
     }
 
     UVPattern::UVPattern()
-        : layerValue([](UV) { return PatternNormU16(0); }) {
+        : layerValue([](UV) { return PatternNormU0x16(0); }) {
     }
 
     UVPattern::UVPattern(UVMap layer)
         : layerValue(std::move(layer)) {
         if (!layerValue) {
-            layerValue = [](UV) { return PatternNormU16(0); };
+            layerValue = [](UV) { return PatternNormU0x16(0); };
         }
     }
 

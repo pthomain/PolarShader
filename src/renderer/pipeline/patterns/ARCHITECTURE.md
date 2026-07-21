@@ -32,7 +32,7 @@ This document defines the "Definition of Done" for any new pattern in the PolarS
     - Do not sample signals, mutate shared state, or depend on copy/move side effects in the compiled sampler.
     - `PipelineContext` may be read during sampling only for values that are stable for the current frame, such as palette settings or zoom scale.
 
-8.  **NORMALIZATION**: The final output MUST be a `PatternNormU16` (0-65535).
+8.  **NORMALIZATION**: The final output MUST be a `PatternNormU0x16` (0-65535).
     - Normalize continuous fields to the full range.
     - Categorical IDs should not be normalized.
     - Use `patternNormalize(value, min, max)` for consistent remapping.

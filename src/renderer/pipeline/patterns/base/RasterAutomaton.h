@@ -69,7 +69,7 @@ namespace PolarShader {
     class RasterAutomaton : public UVPattern {
     public:
         PatternDomain domain() const override { return PatternDomain::RasterGrid; }
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
     protected:
         RasterAutomaton(uint16_t stepIntervalMs, uint16_t seed);

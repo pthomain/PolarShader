@@ -26,22 +26,22 @@
 
 namespace PolarShader {
     /**
-     * Polar rotation driven by an angle signal (f16/sf16 turns).
+     * Polar rotation driven by an angle signal (u0x16/s0x16 turns).
      *
      * Signals that emit relative deltas are resolved before being mapped into
      * an angular offset so the transform follows the resolved value every frame.
      */
     class RotationTransform : public UVTransform {
     public:
-        explicit RotationTransform(Sf16Signal angle, bool isAngleTurn = false);
+        explicit RotationTransform(S0x16Signal angle, bool isAngleTurn = false);
 
-        void advanceFrame(f16 progress, TimeMillis elapsedMs) override;
+        void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;
 
         UVLayer apply(const UVLayer &layer) const override;
 
     private:
         struct MappedInputs;
-        static MappedInputs makeInputs(Sf16Signal angle, bool isAngleTurn);
+        static MappedInputs makeInputs(S0x16Signal angle, bool isAngleTurn);
 
         struct State;
         // Pure warp applied via a DIRECT static call (see WASM ABI NOTE in Units.h).
