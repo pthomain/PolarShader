@@ -32,6 +32,7 @@
 #include "FibonacciDisplaySpec.h"
 #include "Matrix128x128DisplaySpec.h"
 #include "RoundDisplaySpec.h"
+#include "display/LoadedDisplaySpec.h"
 #include "renderer/pipeline/maths/units/Units.h"
 
 namespace PolarShader {
@@ -202,6 +203,46 @@ namespace PolarShader {
 
         geometry.diameter = detail::deriveLedDiameter(geometry.points);
         return geometry;
+    }
+
+    // Runtime-loaded (.PDS) display. Mirrors the built-ins: raster displays lay
+    // out on their rectangular (col, row) grid; polar-only displays project
+    // (angle, radius) → cartesian like Fibonacci.
+    inline WebDisplayGeometry buildLoadedWebGeometry(const LoadedDisplaySpec &spec) {
+        WebDisplayGeometry geometry;
+        geometry.points.reserve(spec.nbLeds());
+
+        if (spec.hasRaster) {
+            geometry.centerX = static_cast<float>(spec.rasterWidth > 0 ? spec.rasterWidth - 1 : 0) * 0.5f;
+            geometry.centerY = static_cast<float>(spec.rasterHeight > 0 ? spec.rasterHeight - 1 : 0) * 0.5f;
+            for (const auto &cell : spec.rasterCells) {
+                geometry.points.push_back({
+                    static_cast<float>(cell.x),
+                    static_cast<float>(cell.y)
+                });
+            }
+        } else {
+            // Unit-rim polar projection (absolute scale is irrelevant — the LED
+            // diameter is derived from nearest-neighbour spacing).
+            constexpr float rimRadius = 100.0f;
+            geometry.centerX = rimRadius;
+            geometry.centerY = rimRadius;
+            for (const auto &led : spec.leds) {
+                const float angle = (2.0f * detail::PI_F * static_cast<float>(raw(led.first))) / 65536.0f;
+                const float radius = (static_cast<float>(raw(led.second)) / 65535.0f) * rimRadius;
+                geometry.points.push_back({
+                    geometry.centerX + (std::cos(angle) * radius),
+                    geometry.centerY + (std::sin(angle) * radius)
+                });
+            }
+        }
+
+        geometry.diameter = detail::deriveLedDiameter(geometry.points);
+        return geometry;
+    }
+
+    inline WebDisplayGeometry buildWebGeometry(const LoadedDisplaySpec &spec) {
+        return buildLoadedWebGeometry(spec);
     }
 
     inline WebDisplayGeometry buildWebGeometry(const FabricDisplaySpec &) {

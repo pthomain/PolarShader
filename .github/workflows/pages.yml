@@ -47,8 +47,14 @@ jobs:
       - name: Test Python PSC validator
         run: python -m unittest web.test_local_server.PscValidationTest
 
+      - name: Test Python PDS validator
+        run: python scripts/test_pds_v1.py
+
       - name: Test composer codec
         run: node --test web/test_codec.mjs
+
+      - name: Test PDS codec
+        run: node --test web/test_pds_codec.mjs
 
       - name: Build static site
         run: python web/build_site.py

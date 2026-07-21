@@ -32,6 +32,8 @@
 #include "composer/EmbeddedPscPlaylist.h"
 #include "composer/SceneCodec.h"
 #include "composer/PaletteTable.h"
+#include "display/DisplaySpecCodec.h"
+#include "display/WebDisplayGeometry.h"
 #include "renderer/scene/Scene.h"
 #include "renderer/layer/Layer.h"
 #include "renderer/layer/LayerBuilder.h"
@@ -510,7 +512,7 @@ namespace {
             const RenderPoint point{
                 u0x16(0x4000u),
                 u0x16(0x4000u),
-                RasterPoint{true, 5, 1, 1, 4, 4}
+                RasterPoint{true, 1, 1, 4, 4}
             };
             ::CRGB sample = decoded->sample(0, point);
             (void) sample;
@@ -1112,7 +1114,7 @@ void test_decode_raster_conway_compiles_with_raster_display() {
     const RenderPoint center{
         u0x16(0),
         u0x16(0),
-        RasterPoint{true, 4, 1, 1, 3, 3}
+        RasterPoint{true, 1, 1, 3, 3}
     };
     const ::CRGB sample = decoded->sample(0, center);
     TEST_ASSERT_TRUE(sample.r != 0 || sample.g != 0 || sample.b != 0);
@@ -1723,6 +1725,331 @@ void test_decode_bad_palette_tint_mode() {
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// .PDS display-spec codec
+// ═════════════════════════════════════════════════════════════════════
+
+namespace pds_test {
+    // Little-endian byte helpers for crafting raw .PDS blobs inline.
+    inline void put16(std::vector<uint8_t> &b, uint16_t v) {
+        b.push_back(static_cast<uint8_t>(v & 0xFF));
+        b.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+    }
+    inline void put32(std::vector<uint8_t> &b, uint32_t v) {
+        b.push_back(static_cast<uint8_t>(v & 0xFF));
+        b.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+        b.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
+        b.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
+    }
+
+    struct RawSection {
+        uint8_t type;
+        uint8_t flags;
+        std::vector<uint8_t> body;
+    };
+
+    inline std::vector<uint8_t> frame(const std::vector<RawSection> &sections,
+                                      uint8_t version = PDS_VERSION) {
+        std::vector<uint8_t> b = {0x50, 0x44, 0x53, 0x00, version,
+                                  static_cast<uint8_t>(sections.size())};
+        for (const auto &s : sections) {
+            b.push_back(s.type);
+            b.push_back(s.flags);
+            put32(b, static_cast<uint32_t>(s.body.size()));
+            b.insert(b.end(), s.body.begin(), s.body.end());
+        }
+        return b;
+    }
+
+    inline std::vector<uint8_t> geometryBody(uint16_t ledCount) {
+        std::vector<uint8_t> b;
+        put16(b, ledCount);
+        for (uint16_t i = 0; i < ledCount; ++i) {
+            put16(b, static_cast<uint16_t>(i * 7));
+            put16(b, static_cast<uint16_t>(i * 11));
+        }
+        return b;
+    }
+
+    inline std::vector<uint8_t> fastledBody() {
+        std::vector<uint8_t> b;
+        b.push_back(static_cast<uint8_t>(PdsBackendKind::FASTLED));
+        put16(b, 4); // target_id len
+        const char *id = "xiao";
+        b.insert(b.end(), id, id + 4);
+        b.push_back(0);          // chipset WS2812 (clockless)
+        put16(b, 5);             // data_pin
+        put16(b, 0xFFFF);        // clock_pin none
+        b.push_back(2);          // rgb_order GRB
+        b.push_back(200);        // brightness
+        b.push_back(16);         // refresh_ms
+        put32(b, 0);             // color_correction
+        return b;
+    }
+
+    // Build a valid in-memory spec (polar-only FastLED).
+    inline LoadedDisplaySpec makePolarFastLed(uint16_t ledCount) {
+        LoadedDisplaySpec s;
+        s.sourceKind = 0;
+        s.name = "custom";
+        for (uint16_t i = 0; i < ledCount; ++i) {
+            s.leds.push_back({u0x16(static_cast<uint16_t>(i * 7)),
+                              u0x16(static_cast<uint16_t>(i * 11))});
+        }
+        s.output.backend_kind = static_cast<uint8_t>(PdsBackendKind::FASTLED);
+        s.output.fastled.target_id = "xiao";
+        s.output.fastled.chipset = 0;
+        s.output.fastled.data_pin = 5;
+        s.output.fastled.clock_pin = 0xFFFF;
+        s.output.fastled.rgb_order = 2;
+        s.output.fastled.brightness = 200;
+        s.output.fastled.refresh_ms = 16;
+        return s;
+    }
+
+    // Dense raster SmartMatrix (128-style: (64*2)/2 = 64 → 64×64).
+    inline LoadedDisplaySpec makeDenseSmartMatrix(uint16_t w, uint16_t h) {
+        LoadedDisplaySpec s;
+        s.name = "matrix";
+        s.hasRaster = true;
+        s.rasterWidth = w;
+        s.rasterHeight = h;
+        for (uint16_t y = 0; y < h; ++y) {
+            for (uint16_t x = 0; x < w; ++x) {
+                s.leds.push_back({u0x16(static_cast<uint16_t>(x)), u0x16(static_cast<uint16_t>(y))});
+                s.rasterCells.push_back({x, y});
+            }
+        }
+        s.output.backend_kind = static_cast<uint8_t>(PdsBackendKind::SMARTMATRIX);
+        s.output.smartmatrix.target_id = "teensy41_matrix";
+        s.output.smartmatrix.panel_width = 64;
+        s.output.smartmatrix.panel_height = 64;
+        s.output.smartmatrix.chain_width = 2;
+        s.output.smartmatrix.chain_height = 2;
+        s.output.smartmatrix.subsample = 2;
+        s.output.smartmatrix.refresh_depth = 36;
+        s.output.smartmatrix.dma_buffer_rows = 4;
+        s.output.smartmatrix.panel_type = 2;
+        return s;
+    }
+}  // namespace pds_test
+
+static void expectReject(const std::vector<uint8_t> &bytes, DisplaySpecDecodeStatus want) {
+    DisplaySpecDecodeStatus st = DisplaySpecDecodeStatus::OK;
+    auto spec = decodeDisplaySpec(bytes.data(), bytes.size(), &st);
+    TEST_ASSERT_NULL(spec.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(want), static_cast<int>(st));
+}
+
+void test_pds_roundtrip_polar_fastled() {
+    LoadedDisplaySpec original = pds_test::makePolarFastLed(241);
+    auto bytes = encodeDisplaySpec(original);
+    DisplaySpecDecodeStatus st;
+    auto decoded = decodeDisplaySpec(bytes.data(), bytes.size(), &st);
+    TEST_ASSERT_EQUAL(static_cast<int>(DisplaySpecDecodeStatus::OK), static_cast<int>(st));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_EQUAL_UINT16(241, decoded->nbLeds());
+    TEST_ASSERT_FALSE(decoded->hasRaster);
+    for (uint16_t i = 0; i < 241; ++i) {
+        TEST_ASSERT_EQUAL_UINT16(raw(original.leds[i].first), raw(decoded->leds[i].first));
+        TEST_ASSERT_EQUAL_UINT16(raw(original.leds[i].second), raw(decoded->leds[i].second));
+    }
+    TEST_ASSERT_EQUAL(static_cast<int>(PdsBackendKind::FASTLED),
+                      static_cast<int>(decoded->output.backend_kind));
+    TEST_ASSERT_EQUAL_UINT16(5, decoded->output.fastled.data_pin);
+    TEST_ASSERT_EQUAL_UINT8(200, decoded->output.fastled.brightness);
+    // Re-encode is byte identical.
+    auto bytes2 = encodeDisplaySpec(*decoded);
+    TEST_ASSERT_EQUAL_UINT32(bytes.size(), bytes2.size());
+    TEST_ASSERT_EQUAL_MEMORY(bytes.data(), bytes2.data(), bytes.size());
+}
+
+void test_pds_roundtrip_raster_smartmatrix() {
+    LoadedDisplaySpec original = pds_test::makeDenseSmartMatrix(64, 64);
+    auto bytes = encodeDisplaySpec(original);
+    DisplaySpecDecodeStatus st;
+    auto decoded = decodeDisplaySpec(bytes.data(), bytes.size(), &st);
+    TEST_ASSERT_EQUAL(static_cast<int>(DisplaySpecDecodeStatus::OK), static_cast<int>(st));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    TEST_ASSERT_TRUE(decoded->hasRaster);
+    TEST_ASSERT_EQUAL_UINT16(64, decoded->rasterWidth);
+    TEST_ASSERT_EQUAL_UINT16(64, decoded->rasterHeight);
+    TEST_ASSERT_EQUAL_UINT16(4096, decoded->nbLeds());
+    // A raster render point carries valid raster coords.
+    RenderPoint rp = decoded->toRenderPoint(65);
+    TEST_ASSERT_TRUE(rp.raster.valid);
+    TEST_ASSERT_EQUAL_UINT16(1, rp.raster.x);
+    TEST_ASSERT_EQUAL_UINT16(1, rp.raster.y);
+}
+
+void test_pds_web_geometry_raster_grid() {
+    LoadedDisplaySpec spec = pds_test::makeDenseSmartMatrix(8, 4);
+    WebDisplayGeometry geo = buildWebGeometry(spec);
+    TEST_ASSERT_EQUAL_UINT32(32, geo.points.size());
+    // First cell at origin, laid out on the rectangular grid (not polar).
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, geo.points[0].x);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, geo.points[0].y);
+    TEST_ASSERT_EQUAL_FLOAT(3.5f, geo.centerX);
+    TEST_ASSERT_EQUAL_FLOAT(1.5f, geo.centerY);
+}
+
+void test_pds_reject_bad_magic() {
+    auto bytes = encodeDisplaySpec(pds_test::makePolarFastLed(4));
+    bytes[0] = 'X';
+    expectReject(bytes, DisplaySpecDecodeStatus::BAD_MAGIC);
+}
+
+void test_pds_reject_bad_version() {
+    auto bytes = encodeDisplaySpec(pds_test::makePolarFastLed(4));
+    bytes[4] = 0x02;
+    expectReject(bytes, DisplaySpecDecodeStatus::BAD_VERSION);
+}
+
+void test_pds_reject_trailing_bytes() {
+    auto bytes = encodeDisplaySpec(pds_test::makePolarFastLed(4));
+    bytes.push_back(0xAB);
+    expectReject(bytes, DisplaySpecDecodeStatus::TRAILING_BYTES);
+}
+
+void test_pds_reject_missing_geometry() {
+    using namespace pds_test;
+    auto bytes = frame({{0x01, PDS_SECTION_FLAG_CRITICAL, {0, 0}}});
+    expectReject(bytes, DisplaySpecDecodeStatus::MISSING_GEOMETRY);
+}
+
+void test_pds_reject_empty_geometry() {
+    using namespace pds_test;
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(0)}});
+    expectReject(bytes, DisplaySpecDecodeStatus::EMPTY_GEOMETRY);
+}
+
+void test_pds_reject_dup_section() {
+    using namespace pds_test;
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)},
+                        {0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)}});
+    expectReject(bytes, DisplaySpecDecodeStatus::DUP_SECTION);
+}
+
+void test_pds_reject_section_order() {
+    using namespace pds_test;
+    auto bytes = frame({{0x04, PDS_SECTION_FLAG_CRITICAL, fastledBody()},
+                        {0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)}});
+    expectReject(bytes, DisplaySpecDecodeStatus::BAD_SECTION_ORDER);
+}
+
+void test_pds_reject_unknown_critical_section() {
+    using namespace pds_test;
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)},
+                        {0x7F, PDS_SECTION_FLAG_CRITICAL, {1, 2, 3}}});
+    expectReject(bytes, DisplaySpecDecodeStatus::UNKNOWN_CRITICAL_SECTION);
+}
+
+void test_pds_reject_bad_section_flags() {
+    using namespace pds_test;
+    auto bytes = frame({{0x02, 0x02 /* reserved bit set */, geometryBody(2)}});
+    expectReject(bytes, DisplaySpecDecodeStatus::BAD_SECTION_FLAGS);
+}
+
+void test_pds_reject_section_trailing_bytes() {
+    using namespace pds_test;
+    auto body = geometryBody(2);
+    body.push_back(0x99); // extra byte inside a known section body
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, body}});
+    expectReject(bytes, DisplaySpecDecodeStatus::SECTION_TRAILING_BYTES);
+}
+
+void test_pds_accept_unknown_noncritical_positions() {
+    using namespace pds_test;
+    RawSection unk{0x7F, 0x00, {9, 9, 9}};
+    RawSection geo{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(3)};
+    RawSection out{0x04, PDS_SECTION_FLAG_CRITICAL, fastledBody()};
+    // before, between, after known sections
+    for (const auto &blob : {frame({unk, geo, out}),
+                             frame({geo, unk, out}),
+                             frame({geo, out, unk})}) {
+        DisplaySpecDecodeStatus st;
+        auto spec = decodeDisplaySpec(blob.data(), blob.size(), &st);
+        TEST_ASSERT_EQUAL(static_cast<int>(DisplaySpecDecodeStatus::OK), static_cast<int>(st));
+        TEST_ASSERT_NOT_NULL(spec.get());
+        TEST_ASSERT_EQUAL_UINT16(3, spec->nbLeds());
+    }
+}
+
+void test_pds_absent_output_is_none() {
+    using namespace pds_test;
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)}});
+    DisplaySpecDecodeStatus st;
+    auto spec = decodeDisplaySpec(bytes.data(), bytes.size(), &st);
+    TEST_ASSERT_EQUAL(static_cast<int>(DisplaySpecDecodeStatus::OK), static_cast<int>(st));
+    TEST_ASSERT_NOT_NULL(spec.get());
+    TEST_ASSERT_EQUAL(static_cast<int>(PdsBackendKind::NONE),
+                      static_cast<int>(spec->output.backend_kind));
+}
+
+void test_pds_reject_bad_output_enum() {
+    using namespace pds_test;
+    auto body = fastledBody();
+    body[7] = 99; // chipset byte (after backend_kind + u16 len + 4 name bytes)
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)},
+                        {0x04, PDS_SECTION_FLAG_CRITICAL, body}});
+    expectReject(bytes, DisplaySpecDecodeStatus::BAD_OUTPUT_ENUM);
+}
+
+void test_pds_reject_fastled_no_data_pin() {
+    using namespace pds_test;
+    auto body = fastledBody();
+    // data_pin occupies bytes [8],[9] (backend(1)+len(2)+name(4)+chipset(1)).
+    body[8] = 0xFF;
+    body[9] = 0xFF;
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)},
+                        {0x04, PDS_SECTION_FLAG_CRITICAL, body}});
+    expectReject(bytes, DisplaySpecDecodeStatus::BAD_OUTPUT_CONFIG);
+}
+
+void test_pds_unknown_backend_roundtrip_identical() {
+    using namespace pds_test;
+    std::vector<uint8_t> outBody;
+    outBody.push_back(7); // unknown backend_kind
+    const uint8_t raw[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    outBody.insert(outBody.end(), raw, raw + 4);
+    auto bytes = frame({{0x02, PDS_SECTION_FLAG_CRITICAL, geometryBody(2)},
+                        {0x04, PDS_SECTION_FLAG_CRITICAL, outBody}});
+    DisplaySpecDecodeStatus st;
+    auto spec = decodeDisplaySpec(bytes.data(), bytes.size(), &st);
+    TEST_ASSERT_EQUAL(static_cast<int>(DisplaySpecDecodeStatus::OK), static_cast<int>(st));
+    TEST_ASSERT_NOT_NULL(spec.get());
+    TEST_ASSERT_EQUAL_UINT8(7, spec->output.backend_kind);
+    TEST_ASSERT_EQUAL_UINT32(4, spec->output.rawBody.size());
+    auto reencoded = encodeDisplaySpec(*spec);
+    TEST_ASSERT_EQUAL_UINT32(bytes.size(), reencoded.size());
+    TEST_ASSERT_EQUAL_MEMORY(bytes.data(), reencoded.data(), bytes.size());
+}
+
+void test_pds_deployability() {
+    // Dense SmartMatrix + FastLED are deployable.
+    LoadedDisplaySpec sm = pds_test::makeDenseSmartMatrix(8, 4);
+    TEST_ASSERT_EQUAL(static_cast<int>(DeployStatus::DEPLOYABLE),
+                      static_cast<int>(validateDeployability(sm)));
+    LoadedDisplaySpec fl = pds_test::makePolarFastLed(10);
+    TEST_ASSERT_EQUAL(static_cast<int>(DeployStatus::DEPLOYABLE),
+                      static_cast<int>(validateDeployability(fl)));
+    // NONE backend → not deployable, but still decodes.
+    LoadedDisplaySpec none = pds_test::makePolarFastLed(10);
+    none.output.backend_kind = static_cast<uint8_t>(PdsBackendKind::NONE);
+    TEST_ASSERT_EQUAL(static_cast<int>(DeployStatus::NO_BACKEND),
+                      static_cast<int>(validateDeployability(none)));
+    // SmartMatrix without dense raster → not deployable.
+    LoadedDisplaySpec sparse = pds_test::makeDenseSmartMatrix(8, 4);
+    sparse.rasterCells[0] = sparse.rasterCells[1]; // duplicate cell
+    TEST_ASSERT_EQUAL(static_cast<int>(DeployStatus::RASTER_NOT_DENSE),
+                      static_cast<int>(validateDeployability(sparse)));
+    // Unknown backend → unsupported.
+    LoadedDisplaySpec unk = pds_test::makePolarFastLed(10);
+    unk.output.backend_kind = 7;
+    TEST_ASSERT_EQUAL(static_cast<int>(DeployStatus::UNSUPPORTED_BACKEND),
+                      static_cast<int>(validateDeployability(unk)));
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // Test harness
 // ═════════════════════════════════════════════════════════════════════
 
@@ -1771,6 +2098,25 @@ void setup() {
     RUN_TEST(test_decode_rejects_excessive_signal_nesting);
     RUN_TEST(test_decode_bad_pattern_enum);
     RUN_TEST(test_decode_bad_palette_tint_mode);
+    RUN_TEST(test_pds_roundtrip_polar_fastled);
+    RUN_TEST(test_pds_roundtrip_raster_smartmatrix);
+    RUN_TEST(test_pds_web_geometry_raster_grid);
+    RUN_TEST(test_pds_reject_bad_magic);
+    RUN_TEST(test_pds_reject_bad_version);
+    RUN_TEST(test_pds_reject_trailing_bytes);
+    RUN_TEST(test_pds_reject_missing_geometry);
+    RUN_TEST(test_pds_reject_empty_geometry);
+    RUN_TEST(test_pds_reject_dup_section);
+    RUN_TEST(test_pds_reject_section_order);
+    RUN_TEST(test_pds_reject_unknown_critical_section);
+    RUN_TEST(test_pds_reject_bad_section_flags);
+    RUN_TEST(test_pds_reject_section_trailing_bytes);
+    RUN_TEST(test_pds_accept_unknown_noncritical_positions);
+    RUN_TEST(test_pds_absent_output_is_none);
+    RUN_TEST(test_pds_reject_bad_output_enum);
+    RUN_TEST(test_pds_reject_fastled_no_data_pin);
+    RUN_TEST(test_pds_unknown_backend_roundtrip_identical);
+    RUN_TEST(test_pds_deployability);
     UNITY_END();
 }
 
@@ -1820,6 +2166,25 @@ int main() {
     RUN_TEST(test_decode_rejects_excessive_signal_nesting);
     RUN_TEST(test_decode_bad_pattern_enum);
     RUN_TEST(test_decode_bad_palette_tint_mode);
+    RUN_TEST(test_pds_roundtrip_polar_fastled);
+    RUN_TEST(test_pds_roundtrip_raster_smartmatrix);
+    RUN_TEST(test_pds_web_geometry_raster_grid);
+    RUN_TEST(test_pds_reject_bad_magic);
+    RUN_TEST(test_pds_reject_bad_version);
+    RUN_TEST(test_pds_reject_trailing_bytes);
+    RUN_TEST(test_pds_reject_missing_geometry);
+    RUN_TEST(test_pds_reject_empty_geometry);
+    RUN_TEST(test_pds_reject_dup_section);
+    RUN_TEST(test_pds_reject_section_order);
+    RUN_TEST(test_pds_reject_unknown_critical_section);
+    RUN_TEST(test_pds_reject_bad_section_flags);
+    RUN_TEST(test_pds_reject_section_trailing_bytes);
+    RUN_TEST(test_pds_accept_unknown_noncritical_positions);
+    RUN_TEST(test_pds_absent_output_is_none);
+    RUN_TEST(test_pds_reject_bad_output_enum);
+    RUN_TEST(test_pds_reject_fastled_no_data_pin);
+    RUN_TEST(test_pds_unknown_backend_roundtrip_identical);
+    RUN_TEST(test_pds_deployability);
     return UNITY_END();
 }
 #endif

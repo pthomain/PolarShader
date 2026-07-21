@@ -26,6 +26,8 @@
 #include "FibonacciDisplaySpec.h"
 #include "Matrix128x128DisplaySpec.h"
 #include "RoundDisplaySpec.h"
+#include "display/DisplaySpecCodec.h"
+#include "display/LoadedDisplaySpec.h"
 #include "display/WebDisplayGeometry.h"
 #include "display/WebFastLedDisplay.h"
 #include "composer/SceneCodec.h"
@@ -46,6 +48,7 @@ namespace {
     constexpr uint8_t DISPLAY_FABRIC_32X8  = 2;
     constexpr uint8_t DISPLAY_SMARTMATRIX  = 3;
     constexpr uint8_t DISPLAY_FIBONACCI    = 4;
+    constexpr uint8_t DISPLAY_LOADED       = 5;
 
 #ifndef COMPOSER_INITIAL_DISPLAY
 #define COMPOSER_INITIAL_DISPLAY DISPLAY_FABRIC
@@ -58,7 +61,14 @@ namespace {
     std::unique_ptr<WebFastLedDisplay<Matrix128x128DisplaySpec>> smartMatrixDisplay;
     std::unique_ptr<WebFastLedDisplay<RoundDisplaySpec>>       roundDisplay;
     std::unique_ptr<WebFastLedDisplay<FibonacciDisplaySpec>>   fibonacciDisplay;
+    std::unique_ptr<WebFastLedDisplay<LoadedDisplaySpec>>      loadedDisplay;
     uint8_t activeDisplay = COMPOSER_INITIAL_DISPLAY;
+
+    // Backing store for a runtime-loaded .PDS display. The decoded spec and
+    // its web geometry must outlive `loadedDisplay`, which holds references
+    // into both.
+    std::unique_ptr<LoadedDisplaySpec> loadedSpec;
+    std::unique_ptr<WebDisplayGeometry> loadedGeometry;
 
     // Most-recent successfully-decoded scene blob. Empty until the JS
     // side pushes its first valid scene; in that interim the display
@@ -91,9 +101,28 @@ namespace {
         }, seq, phase);
     }
 
+    void resetBuiltInDisplays() {
+        fabricDisplay.reset();
+        fabric32x8Display.reset();
+        smartMatrixDisplay.reset();
+        roundDisplay.reset();
+        fibonacciDisplay.reset();
+    }
+
     void buildActiveDisplay() {
         // FabricDisplaySpec / RoundDisplaySpec are stateless config
         // objects; instantiating them inline is cheap.
+        if (activeDisplay == DISPLAY_LOADED) {
+            resetBuiltInDisplays();
+            // loadedSpec/loadedGeometry are populated by the load endpoint
+            // before this runs. Guard against a stray call with no spec.
+            if (loadedSpec && loadedGeometry) {
+                loadedDisplay = std::make_unique<WebFastLedDisplay<LoadedDisplaySpec>>(
+                    *loadedSpec, *loadedGeometry, ROUND_BRIGHTNESS, REFRESH_MS);
+            }
+            return;
+        }
+        loadedDisplay.reset();
         if (activeDisplay == DISPLAY_ROUND) {
             fabricDisplay.reset();
             fabric32x8Display.reset();
@@ -175,6 +204,8 @@ namespace {
             replaceSceneWithPhase(*smartMatrixDisplay, std::move(scene), preserveElapsed, seq);
         } else if (activeDisplay == DISPLAY_FIBONACCI && fibonacciDisplay) {
             replaceSceneWithPhase(*fibonacciDisplay, std::move(scene), preserveElapsed, seq);
+        } else if (activeDisplay == DISPLAY_LOADED && loadedDisplay) {
+            replaceSceneWithPhase(*loadedDisplay, std::move(scene), preserveElapsed, seq);
         } else if (fabricDisplay) {
             replaceSceneWithPhase(*fabricDisplay, std::move(scene), preserveElapsed, seq);
         } else {
@@ -276,6 +307,33 @@ void composer_set_display(uint8_t which) {
     composer_set_display_seq(which, 0);
 }
 
+// Loads a runtime .PDS blob as the active display (in-place swap, no page
+// reload). Returns 0 on success, non-zero DisplaySpecDecodeStatus on
+// failure. On failure the current display is left untouched. On success
+// the most-recent valid scene blob is replayed onto the new geometry.
+EMSCRIPTEN_KEEPALIVE
+int composer_load_display_pds(const uint8_t *bytes, uint32_t len, uint32_t seq) {
+    postComposerPhase(seq, "load-pds-enter");
+    DisplaySpecDecodeStatus status = DisplaySpecDecodeStatus::OK;
+    auto spec = decodeDisplaySpec(bytes, len, &status);
+    if (!spec) {
+        postComposerPhase(seq, "load-pds-decode-failed");
+        return static_cast<int>(status);
+    }
+    postComposerPhase(seq, "load-pds-decode-ok");
+
+    auto geometry = std::make_unique<WebDisplayGeometry>(buildWebGeometry(*spec));
+    loadedSpec = std::move(spec);
+    loadedGeometry = std::move(geometry);
+    activeDisplay = DISPLAY_LOADED;
+    postComposerPhase(seq, "load-pds-build-start");
+    buildActiveDisplay();
+    postComposerPhase(seq, "load-pds-build-end");
+    replayBlob(seq);
+    postComposerPhase(seq, "load-pds-ok");
+    return 0;
+}
+
 // 0 = fabric, 1 = round, 2 = fabric 32x8, 3 = SmartMatrix 128x128, 4 = fibonacci. Intended for generated JS to call before setup(),
 // so the initial FastLED screen map matches the iframe URL.
 EMSCRIPTEN_KEEPALIVE
@@ -312,6 +370,8 @@ void loop() {
         smartMatrixDisplay->loop();
     } else if (activeDisplay == DISPLAY_FIBONACCI && fibonacciDisplay) {
         fibonacciDisplay->loop();
+    } else if (activeDisplay == DISPLAY_LOADED && loadedDisplay) {
+        loadedDisplay->loop();
     } else if (fabricDisplay) {
         fabricDisplay->loop();
     }

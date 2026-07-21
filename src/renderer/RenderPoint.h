@@ -35,7 +35,6 @@ namespace PolarShader {
 
     struct RasterPoint {
         bool valid{false};
-        uint16_t index{0};
         uint16_t x{0};
         uint16_t y{0};
         uint16_t width{0};

@@ -110,7 +110,6 @@ namespace PolarShader {
             const uint16_t mHeight = matrixHeight();
             if (pixelIndex < nbLeds() && mWidth > 0 && mHeight > 0) {
                 point.raster.valid = true;
-                point.raster.index = pixelIndex;
                 point.raster.x = pixelIndex % mWidth;
                 point.raster.y = pixelIndex / mWidth;
                 point.raster.width = mWidth;

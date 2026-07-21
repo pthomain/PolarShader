@@ -20,7 +20,7 @@ const MAX_SIGNAL_RECURSION_DEPTH = 64;
 // ByteWriter — grows a Uint8Array and writes LE primitives.
 // ─────────────────────────────────────────────────────────────────────
 
-class ByteWriter {
+export class ByteWriter {
     constructor() {
         this.bytes = [];
     }
@@ -52,15 +52,16 @@ class ByteWriter {
 // ByteReader — bounds-checked reads. Throws on truncation.
 // ─────────────────────────────────────────────────────────────────────
 
-class ByteReader {
-    constructor(bytes) {
+export class ByteReader {
+    constructor(bytes, formatLabel = 'PSC') {
         this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         this.pos = 0;
+        this.formatLabel = formatLabel;
     }
 
     _need(n) {
         if (this.pos + n > this.view.byteLength) {
-            throw new Error('PSC blob truncated');
+            throw new Error(`${this.formatLabel} blob truncated`);
         }
     }
 
@@ -77,7 +78,7 @@ class ByteReader {
     }
 
     subReader(n) {
-        return new ByteReader(this.bytes(n));
+        return new ByteReader(this.bytes(n), this.formatLabel);
     }
 
     get remaining() {

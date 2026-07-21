@@ -550,7 +550,6 @@ namespace {
     RasterPoint rasterPoint(uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
         return RasterPoint{
             true,
-            static_cast<uint16_t>(static_cast<uint32_t>(y) * width + x),
             x,
             y,
             width,
@@ -881,7 +880,10 @@ void test_display_specs_report_raster_points() {
     TEST_ASSERT_EQUAL_UINT16(raw(fabricPolar.second), raw(fabricPoint.radius));
     TEST_ASSERT_EQUAL_UINT16(FabricDisplaySpec::WIDTH - 1, fabricPoint.raster.x);
     TEST_ASSERT_EQUAL_UINT16(1, fabricPoint.raster.y);
-    TEST_ASSERT_EQUAL_UINT16((FabricDisplaySpec::WIDTH * 2) - 1, fabricPoint.raster.index);
+    // Index is derived from x/y/width rather than stored on RasterPoint.
+    const uint16_t fabricDerivedIndex =
+        static_cast<uint16_t>(fabricPoint.raster.y * fabricPoint.raster.width + fabricPoint.raster.x);
+    TEST_ASSERT_EQUAL_UINT16((FabricDisplaySpec::WIDTH * 2) - 1, fabricDerivedIndex);
 
     RoundDisplaySpec round;
     RenderPoint roundPoint = round.toRenderPoint(0);
