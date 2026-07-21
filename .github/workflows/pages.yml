@@ -33,6 +33,14 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install fastled CLI system dependencies
+        # The fastled 2.0.13 CLI ships a compiled binary that links an embedded
+        # webview; without libwebkit2gtk it exits 127 (missing
+        # libwebkit2gtk-4.1.so.0) and the build reports "fastled CLI not found".
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0
+
       - name: Install FastLED WASM CLI
         run: python -m pip install -r web/requirements.txt
 
