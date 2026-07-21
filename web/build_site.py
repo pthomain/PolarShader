@@ -246,10 +246,16 @@ def ensure_fastled_library() -> Path:
     return normalize_fastled_library(FASTLED_LIBRARY_ROOT)
 
 
-def fastled_cli_version(executable: Path) -> str | None:
+def fastled_cli_version(
+    executable: Path, diagnostics: list[str] | None = None
+) -> str | None:
     HOME_ROOT.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     env["HOME"] = str(HOME_ROOT)
+
+    def note(reason: str) -> None:
+        if diagnostics is not None:
+            diagnostics.append(f"{executable}: {reason}")
 
     try:
         completed = subprocess.run(
@@ -259,7 +265,13 @@ def fastled_cli_version(executable: Path) -> str | None:
             text=True,
             env=env,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except OSError as error:
+        note(f"could not run `fastled --version` ({error})")
+        return None
+    except subprocess.CalledProcessError as error:
+        detail = (error.stderr or error.stdout or "").strip().replace("\n", " ")
+        suffix = f" — {detail}" if detail else ""
+        note(f"`fastled --version` exited {error.returncode}{suffix}")
         return None
 
     version_output = "\n".join(
@@ -268,6 +280,7 @@ def fastled_cli_version(executable: Path) -> str | None:
         if output.strip()
     )
     if not version_output:
+        note("`fastled --version` produced no output")
         return None
 
     version_match = re.search(r"\b\d+\.\d+\.\d+(?:[A-Za-z0-9._+-]*)\b", version_output)
@@ -287,13 +300,14 @@ def resolve_fastled_executable() -> str:
 
     checked_paths: set[str] = set()
     mismatched_versions: list[tuple[Path, str]] = []
+    probe_diagnostics: list[str] = []
     for candidate_path in candidate_paths:
         candidate_key = str(candidate_path)
         if candidate_key in checked_paths:
             continue
         checked_paths.add(candidate_key)
 
-        version = fastled_cli_version(candidate_path)
+        version = fastled_cli_version(candidate_path, probe_diagnostics)
         if version is None:
             continue
         if version == FASTLED_CLI_VERSION:
@@ -305,10 +319,14 @@ def resolve_fastled_executable() -> str:
         mismatched_path, mismatched_version = mismatched_versions[0]
         mismatch_hint = f" Found {mismatched_path} reporting version {mismatched_version}."
 
+    probe_hint = ""
+    if not mismatched_versions and probe_diagnostics:
+        probe_hint = " Probe details: " + "; ".join(probe_diagnostics)
+
     raise SystemExit(
         f"fastled CLI {FASTLED_CLI_VERSION} not found for {sys.executable}. "
         f"Install it with `{sys.executable} -m pip install -r {REQUIREMENTS_PATH}`."
-        f"{mismatch_hint}"
+        f"{mismatch_hint}{probe_hint}"
     )
 
 
