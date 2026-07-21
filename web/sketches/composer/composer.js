@@ -14,6 +14,7 @@ import {
     DEFAULT_PALETTE_TRANSFORM,
 } from './schema.js';
 import { encodeScene, decodeScene } from './codec.js';
+import { decodePds } from './pds-codec.js';
 import { renderSignalSlot } from './signal-editor.js';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -77,6 +78,34 @@ function readBootSceneState() {
 const bootSceneState = readBootSceneState();
 const sceneStore = createSceneStore(bootSceneState?.scene ?? DEFAULT_SCENE());
 
+// Display id for a runtime-loaded .PDS display. Must match DISPLAY_LOADED in
+// composer.ino. Built-ins are 0..4; a custom display gets this sentinel so the
+// selector and raster-capability checks can tell it apart.
+const DISPLAY_LOADED = 5;
+const LOADED_DISPLAY_STORAGE_KEY = 'polarComposerLoadedDisplay:v1';
+
+// Restore a previously-loaded .PDS display across reloads. Decodes the stored
+// bytes so raster capability (hasRaster) is known before the WASM module boots.
+function readLoadedDisplayState() {
+    try {
+        const raw = sessionStorage.getItem(LOADED_DISPLAY_STORAGE_KEY);
+        const saved = raw ? JSON.parse(raw) : null;
+        if (!Array.isArray(saved?.bytes)) return null;
+        const bytes = new Uint8Array(saved.bytes);
+        const spec = decodePds(bytes);
+        return {
+            bytes,
+            name: spec.name || saved.name || 'custom',
+            sourceKind: spec.sourceKind ?? 0,
+            hasRaster: Boolean(spec.raster),
+        };
+    } catch {
+        return null;
+    }
+}
+
+const loadedDisplayState = readLoadedDisplayState();
+
 function displayIdFromParam(raw) {
     if (raw === '1' || raw === 'round' || raw === 'polar') return 1;
     if (raw === '2' || raw === 'fabric32x8') return 2;
@@ -94,7 +123,8 @@ const state = {
     pushTimer: null,             // debounce timer handle for scene pushes
     latestEvent: null,           // most-recent scene-store emission
     debugLogEl: null,            // FastLED-side debug console
-    displayId: initialDisplayId(), // active display geometry (0 = fabric, 1 = round, 2 = fabric 32x8, 3 = SmartMatrix)
+    displayId: loadedDisplayState ? DISPLAY_LOADED : initialDisplayId(), // active display geometry (0 = fabric, 1 = round, 2 = fabric 32x8, 3 = SmartMatrix, 5 = loaded .pds)
+    loadedDisplay: loadedDisplayState, // { bytes, name, sourceKind, hasRaster } when a custom .pds is active
     renderSeq: 0,                // monotonic command generation for scene pushes / reloads
     latestSceneSeq: 0,           // sequence assigned to the newest scene-store emission
     lastGoodBootBytes: bootSceneState?.bytes ?? null,
@@ -219,6 +249,7 @@ const PATTERN_DOMAIN_LABELS = {
 };
 
 function displaySupportsGrid(displayId) {
+    if (displayId === DISPLAY_LOADED) return state.loadedDisplay?.hasRaster === true;
     return DISPLAYS.find((display) => display.id === displayId)?.matrix === true;
 }
 
@@ -1509,6 +1540,118 @@ function saveLastGoodBootSceneState() {
     persistBootSceneBytes(state.lastGoodBootBytes);
 }
 
+// Persist the active custom .PDS so a reload restores it (the built-in display
+// selector uses a full page reload + ?display=, which can't carry a custom id).
+function persistLoadedDisplay(loaded) {
+    try {
+        sessionStorage.setItem(LOADED_DISPLAY_STORAGE_KEY, JSON.stringify({
+            name: loaded.name,
+            bytes: Array.from(loaded.bytes),
+        }));
+    } catch (e) {
+        logDebug('error', `failed to save loaded display: ${e?.message ?? e}`);
+    }
+}
+
+function clearLoadedDisplay() {
+    state.loadedDisplay = null;
+    try {
+        sessionStorage.removeItem(LOADED_DISPLAY_STORAGE_KEY);
+    } catch { /* ignore */ }
+}
+
+// Push a runtime .PDS display to the active renderer (worker-first, main-module
+// fallback) — mirrors callApplyScene's routing. Returns { status, target, detail }.
+async function callLoadDisplay(bytes, seq) {
+    if (state.workerRendererFatal) {
+        return { status: -1, target: 'worker', detail: 'worker renderer is recovering from a prior trap', seq };
+    }
+    const workerManager = getWorkerManager() ?? await waitForWorkerManager(2000);
+    if (!isCurrentRenderSeq(seq)) return { status: -1, target: 'none', detail: 'stale load skipped', seq };
+    if (workerManager) {
+        state.workerRendererSeen = true;
+        installWorkerPhaseTap();
+        const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        let response;
+        try {
+            response = await workerManager.sendMessageWithResponse(
+                { type: 'composer_load_display', payload: { bytes: buffer, seq } },
+                [buffer]
+            );
+        } catch (e) {
+            return { status: -1, target: 'worker', detail: `worker load rejected: ${e?.message ?? e}`, seq };
+        }
+        if (response == null) return { status: -1, target: 'worker', detail: 'worker returned no response', seq };
+        if (response.stale) return { status: -1, target: 'worker', detail: response.reason ?? 'stale load', seq: response.seq ?? seq };
+        const status = typeof response.status === 'number' ? response.status : (response.ok ? 0 : -1);
+        return { status, target: 'worker', detail: response.reason ?? null, seq: response.seq ?? seq };
+    }
+
+    if (state.workerRendererSeen) {
+        return { status: -1, target: 'worker', detail: 'worker renderer disappeared after owning the visible canvas', seq };
+    }
+
+    const M = getWasmModule();
+    if (M && M._composer_load_display_pds && M._malloc) {
+        let ptr = 0;
+        try {
+            if (!isCurrentRenderSeq(seq)) return { status: -1, target: 'main', detail: 'stale load skipped', seq };
+            ptr = M._malloc(bytes.length);
+            if (bytes.length > 0 && !ptr) return { status: -1, target: 'main', detail: 'malloc returned null', seq };
+            M.HEAPU8.set(bytes, ptr);
+            const status = M._composer_load_display_pds(ptr, bytes.length, seq);
+            return { status, target: 'main', seq };
+        } catch (e) {
+            return { status: -1, target: 'main', detail: `load threw: ${e?.message ?? e}`, seq };
+        } finally {
+            if (ptr) safelyFreeWasm(M, ptr, 'free after main load failed');
+        }
+    }
+
+    return { status: -1, target: 'none', detail: 'no worker and no main-thread module', seq };
+}
+
+// Decode + validate a .PDS blob, then push it as the active display. On success:
+// switch state to the custom display, persist it, re-gate raster patterns, and
+// replay the current scene onto the new geometry. On failure the current display
+// is left untouched.
+async function loadDisplayFromBytes(bytes, sourceName) {
+    let spec;
+    try {
+        spec = decodePds(bytes);
+    } catch (e) {
+        showStatus(`display load error: ${e.message}`, true);
+        logDebug('error', `failed to decode .pds "${sourceName}": ${e.message}`);
+        return;
+    }
+    const seq = nextRenderSeq();
+    const result = await callLoadDisplay(bytes, seq);
+    if (result.status !== 0) {
+        const detail = result.detail ? ` — ${result.detail}` : '';
+        showStatus(`display load failed: code ${result.status}`, true);
+        logDebug('error', `.pds load rejected via ${result.target}: code ${result.status}${detail}`);
+        return;
+    }
+    state.loadedDisplay = {
+        bytes: new Uint8Array(bytes),
+        name: spec.name || sourceName || 'custom',
+        sourceKind: spec.sourceKind ?? 0,
+        hasRaster: Boolean(spec.raster),
+    };
+    state.displayId = DISPLAY_LOADED;
+    persistLoadedDisplay(state.loadedDisplay);
+    // A raster scene on a non-raster display renders black; swap to a UV-safe
+    // default if the loaded display can't show the current pattern's domain.
+    ensurePatternTypeAvailableForDisplay();
+    const label = `Custom: ${state.loadedDisplay.name}`;
+    showStatus(`loaded display ${label} (${state.loadedDisplay.hasRaster ? 'raster' : 'radial'})`, false);
+    logDebug('display', `loaded custom display "${state.loadedDisplay.name}" via ${result.target} seq ${seq}`);
+    rebuildPanel();
+    const sceneSeq = nextRenderSeq();
+    state.latestSceneSeq = sceneSeq;
+    await pushSceneNow(state.latestEvent, sceneSeq);
+}
+
 function logDebug(kind, detail) {
     if (!state.debugLogEl) return;
     const row = document.createElement('div');
@@ -2324,10 +2467,21 @@ function renderTopSection() {
         const o = document.createElement('option'); o.value = d.id; o.textContent = d.name;
         dispSel.appendChild(o);
     }
+    // A runtime-loaded .pds display has no built-in id; surface it as a synthetic
+    // "Custom: <name>" option so the selector reflects the active geometry.
+    if (state.displayId === DISPLAY_LOADED && state.loadedDisplay) {
+        const o = document.createElement('option');
+        o.value = DISPLAY_LOADED;
+        o.textContent = `Custom: ${state.loadedDisplay.name}`;
+        dispSel.appendChild(o);
+    }
     dispSel.value = state.displayId;
     dispSel.addEventListener('change', () => {
         const which = parseInt(dispSel.value, 10);
         if (which === state.displayId) return;
+        // Leaving a custom display for a built-in: drop the persisted .pds so a
+        // reload lands on the chosen built-in, not the custom display.
+        clearLoadedDisplay();
         state.displayId = which;
         saveLastGoodBootSceneState();
         const seq = nextRenderSeq();
@@ -2337,6 +2491,31 @@ function renderTopSection() {
         reloadForDisplay(which);
     });
     dispRow.appendChild(dispSel);
+    const loadDisplayBtn = document.createElement('button');
+    loadDisplayBtn.textContent = 'Load display';
+    loadDisplayBtn.title = 'Load a custom .pds display (in-place, no reload)';
+    const displayIn = document.createElement('input');
+    displayIn.type = 'file';
+    displayIn.accept = '.pds,application/octet-stream';
+    displayIn.style.display = 'none';
+    loadDisplayBtn.addEventListener('click', () => displayIn.click());
+    displayIn.addEventListener('change', () => {
+        const f = displayIn.files?.[0];
+        displayIn.value = '';
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const bytes = new Uint8Array(ev.target.result);
+            void loadDisplayFromBytes(bytes, f.name);
+        };
+        reader.onerror = () => {
+            showStatus(`display load error: ${reader.error?.message ?? 'file read failed'}`, true);
+            console.error(`[composer] FileReader failed to read "${f.name}":`, reader.error);
+        };
+        reader.readAsArrayBuffer(f);
+    });
+    dispRow.appendChild(loadDisplayBtn);
+    dispRow.appendChild(displayIn);
     section.appendChild(dispRow);
 
     const brightnessRow = document.createElement('div'); brightnessRow.className = 'top-row';
@@ -2937,6 +3116,18 @@ function rePushOnWorkerInit() {
             pollTimer = null;
         }
         logDebug('worker', `${reason} - syncing scene`);
+        // A custom .pds display only lives on whichever module handled the load.
+        // If the worker came up after a main-thread-fallback load (or a reload
+        // restored the display from sessionStorage), push the .pds into the
+        // worker before the scene so it renders on the custom geometry.
+        if (state.displayId === DISPLAY_LOADED && state.loadedDisplay) {
+            const loadSeq = nextRenderSeq();
+            const loadResult = await callLoadDisplay(state.loadedDisplay.bytes, loadSeq);
+            if (loadResult.status !== 0) {
+                logDebug('error', `worker .pds resync failed via ${loadResult.target}: code ${loadResult.status}`
+                    + (loadResult.detail ? ` — ${loadResult.detail}` : ''));
+            }
+        }
         const sceneSeq = nextRenderSeq();
         state.latestSceneSeq = sceneSeq;
         await pushSceneNow(state.latestEvent, sceneSeq);
@@ -2982,6 +3173,7 @@ function composerBridgeReady() {
     const M = getWasmModule();
     return !!(M && typeof M._composer_apply_scene === 'function'
           && typeof M._composer_set_display === 'function'
+          && typeof M._composer_load_display_pds === 'function'
           && typeof M._malloc === 'function'
           && M.HEAPU8);
 }

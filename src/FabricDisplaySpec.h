@@ -62,7 +62,6 @@ namespace PolarShader {
             uint16_t linearIndex = row * WIDTH + col;
             RenderPoint point = makePolarRenderPoint(MatrixDisplaySpec::toPolarCoords(linearIndex));
             point.raster.valid = true;
-            point.raster.index = linearIndex;
             point.raster.x = col;
             point.raster.y = row;
             point.raster.width = WIDTH;

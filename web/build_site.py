@@ -20,6 +20,7 @@ WEB_ROOT = REPO_ROOT / "web"
 SOURCE_ROOT = REPO_ROOT / "src"
 SKETCH_ROOT = WEB_ROOT / "sketches"
 LANDING_PAGE = WEB_ROOT / "index.html"
+DISPLAYS_DIR = REPO_ROOT / "displays"
 REQUIREMENTS_PATH = WEB_ROOT / "requirements.txt"
 # POLARSHADER_WORK_ROOT_OVERRIDE lets an external orchestrator reparent the
 # four write roots (.stage/, .home/, .fastled/, dist/) under a directory of
@@ -72,6 +73,9 @@ EXCLUDED_STAGED_SOURCE_PATHS = {
     # out of every env except native_pf_snapshot; exclude it here too so the
     # WASM build never links a second main.
     "tools/pf_snapshot.cpp",
+    # Native-only .PDS fixture generator: ships its own main(). Kept out of
+    # every env except native_export_pds; exclude from the WASM unity build too.
+    "tools/export_pds.cpp",
 }
 
 
@@ -128,7 +132,7 @@ if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
 # dir alongside the FastLED-built page and inject <link>/<script> tags.
 COMPOSER_PANEL_ASSETS = {
     "css":     ("composer.css",),
-    "modules": ("schema.js", "codec.js", "stepper.js", "signal-editor.js", "composer.js"),
+    "modules": ("schema.js", "codec.js", "pds-codec.js", "stepper.js", "signal-editor.js", "composer.js"),
 }
 SKETCHES_WITH_PANEL = {"composer": COMPOSER_PANEL_ASSETS}
 
@@ -624,6 +628,9 @@ _WORKER_CASE_INJECT = (
     '      case "composer_set_display":\n'
     "        response = handleComposerSetDisplay(payload);\n"
     "        break;\n"
+    '      case "composer_load_display":\n'
+    "        response = handleComposerLoadDisplay(payload);\n"
+    "        break;\n"
     '      case "composer_set_bloom":\n'
     "        response = handleComposerSetBloom(payload);\n"
     "        break;\n"
@@ -882,6 +889,54 @@ function handleComposerSetDisplay(payload) {
       reason: 'set_display threw in worker: ' + (e && e.message ? e.message : e)
     };
   }
+}
+
+// Injected by PolarShader build_site.py (patch_render_worker): load a runtime
+// .PDS display blob on this worker's module. Mirrors handleComposerSetDisplay:
+// the C++ side decodes the blob, rebuilds the display as a LoadedDisplaySpec and
+// replays the last-applied scene, so the new geometry's screenmap must then be
+// pushed to the renderer to re-lay the pixels. A decode failure leaves the
+// current display untouched (non-zero status).
+function handleComposerLoadDisplay(payload) {
+  const seq = composerCommandSeq(payload);
+  const gate = enterComposerCommand(seq, "load");
+  if (!gate.ok) return { ok: false, stale: true, seq, reason: gate.reason };
+
+  const Module = workerState.fastledModule;
+  composerPhase(seq, "worker-load-enter");
+  if (!Module) return { ok: false, seq, reason: 'worker module not ready' };
+  if (!Module._composer_load_display_pds) return { ok: false, seq, reason: 'missing _composer_load_display_pds export' };
+  if (!Module._malloc || !Module._free || !Module.HEAPU8) return { ok: false, seq, reason: 'missing _malloc/_free/HEAPU8' };
+  const bytes = new Uint8Array(payload && payload.bytes ? payload.bytes : []);
+  let ptr = 0;
+  let status = -1;
+  try {
+    composerPhase(seq, "worker-load-malloc-start", { byteLength: bytes.length });
+    ptr = Module._malloc(bytes.length);
+    if (bytes.length > 0 && !ptr) return { ok: false, seq, reason: 'malloc returned null' };
+    Module.HEAPU8.set(bytes, ptr);
+    composerPhase(seq, "wasm-load-start", { byteLength: bytes.length });
+    status = Module._composer_load_display_pds(ptr, bytes.length, seq);
+    composerPhase(seq, "wasm-load-end", { status });
+  } catch (e) {
+    if (ptr) { try { Module._free(ptr); } catch (_) {} }
+    return { ok: false, seq, status: -1, reason: 'load threw in worker: ' + (e && e.message ? e.message : e) };
+  }
+  if (ptr) {
+    try { Module._free(ptr); } catch (e) {
+      return { ok: false, seq, status, reason: 'free after worker load failed: ' + (e && e.message ? e.message : e) };
+    }
+  }
+  if (status !== 0) {
+    return { ok: false, seq, status, reason: 'PDS decode rejected in worker (status ' + status + ')' };
+  }
+  const refresh = refreshWorkerScreenMap(seq);
+  if (!refresh.ok) {
+    return { ok: false, seq, status, displayApplied: true, screenMapOk: false,
+      reason: 'display loaded, but screenmap refresh failed: ' + refresh.reason };
+  }
+  composerPhase(seq, "worker-load-ok", { screenMapCount: refresh.screenMapCount });
+  return { ok: true, seq, status: 0, displayApplied: true, screenMapOk: true, screenMapCount: refresh.screenMapCount };
 }
 
 // Injected by PolarShader build_site.py (patch_render_worker): toggle the ThreeJS
@@ -1378,6 +1433,18 @@ def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
         path.write_text(text, encoding="utf-8")
 
 
+def copy_display_fixtures(dist_sketch_dir: Path) -> None:
+    """Copy the generated displays/*.pds fixtures into the dist sketch dir so
+    the composer's "Load display" UI can fetch the built-ins at ./displays/*.pds."""
+    src_dir = DISPLAYS_DIR
+    if not src_dir.is_dir():
+        return
+    dst_dir = dist_sketch_dir / "displays"
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    for pds in sorted(src_dir.glob("*.pds")):
+        shutil.copy2(pds, dst_dir / pds.name)
+
+
 def build_site() -> None:
     reset_directory(STAGE_ROOT)
     reset_directory(DIST_ROOT)
@@ -1391,6 +1458,7 @@ def build_site() -> None:
         shutil.copytree(output_dir, dist_sketch_dir)
         if sketch.name in SKETCHES_WITH_PANEL:
             inject_panel_assets(sketch, dist_sketch_dir, SKETCHES_WITH_PANEL[sketch.name])
+            copy_display_fixtures(dist_sketch_dir)
             patch_render_worker(dist_sketch_dir)
             patch_main_initial_display_hook(dist_sketch_dir)
             patch_main_worker_ready_hook(dist_sketch_dir)

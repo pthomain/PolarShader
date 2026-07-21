@@ -26,18 +26,18 @@ It targets platforms such as:
 
 ## Core Design Goals
 
-- All fixed-point — custom Q-format types (f16, sf16, fl::s16x16, fl::s24x8, fl::u24x8) with strong typing to prevent unit mixing
+- All fixed-point — custom Q-format types (u0x16, s0x16, fl::s16x16, fl::s24x8, fl::u24x8) with strong typing to prevent unit mixing
 - Unified UV space — all spatial transforms operate on normalized fl::s16x16 (Q16.16 signed) coordinates, agnostic to polar vs
   cartesian
 - Composable pipeline — transforms are small, single-responsibility, and stackable in any order via PipelineStep variant
-- Explicit motion — all animation driven by Sf16Signal + PhaseAccumulator, no hidden state
+- Explicit motion — all animation driven by S0x16Signal + PhaseAccumulator, no hidden state
 - Dual-core safe frame lifecycle — state changes happen in `advanceFrame()`, render sampling is read-only
 - Zero heap allocation in hot paths — scene compilation may allocate on scene changes, never in the per-frame render loop
 
 ### 1. Deterministic Fixed-Point Arithmetic
 
 - No `float`, no `double`
-- Explicit Q-formats (`f16/sf16 (Q0.16)`, `fl::u16x16/fl::s16x16 (Q16.16)`, `Q1.15`)
+- Explicit Q-formats (`u0x16/s0x16 (Q0.16)`, `fl::u16x16/fl::s16x16 (Q16.16)`, `Q1.15`)
 - Fully deterministic across frames, compilers, and MCUs
 - Predictable overflow, wrap, and saturation behavior
 
@@ -125,7 +125,7 @@ This split is required for dual-core rendering. Anything that samples signals, a
 
 ### Signals
 
-PolarShader uses `Sf16Signal` factories for time-varying scalar control values.
+PolarShader uses `S0x16Signal` factories for time-varying scalar control values.
 
 Signal kinds:
 
@@ -147,9 +147,9 @@ Factory families:
 
 Output contract:
 
-* `Sf16Signal` emits values in `[-1, 1]`.
+* `S0x16Signal` emits values in `[-1, 1]`.
 * Periodic factories span `[-1, 1]` by default.
-* Use `smap(signal, floorSignal, ceilingSignal)` to remap a signal into a bounded unipolar interval before it is converted back to signed `sf16`.
+* Use `smap(signal, floorSignal, ceilingSignal)` to remap a signal into a bounded unipolar interval before it is converted back to signed `s0x16`.
     - `floorSignal` and `ceilingSignal` are sampled through the unsigned magnitude domain.
     - If the sampled floor exceeds the sampled ceiling, the bounds are swapped for that sample.
 * Internal waveform phase integration uses magnitude-domain phase velocity with a 1 Hz full-scale maximum.
@@ -160,7 +160,7 @@ Output contract:
 
 PolarShader clearly distinguishes:
 
-* **`f16` angle samples**
+* **`u0x16` angle samples**
   A wrapped turn-domain angle (0..65535 -> 0..1 turn)
 
 * **`PhaseAccumulator` internal phase state**
@@ -195,8 +195,8 @@ This ensures:
 
 | Type           | Signed | Format | Typical Use                                                          |
 |:---------------|:-------|:-------|:---------------------------------------------------------------------|
-| `f16`          | No     | Q0.16  | Unit fractions and wrapped angle-like values in `[0, 1)` domains     |
-| `sf16`         | Yes    | Q0.16  | Signed scalar signals/modulation in `[-1, 1]`                        |
+| `u0x16`        | No     | Q0.16  | Unit fractions and wrapped angle-like values in `[0, 1)` domains     |
+| `s0x16`        | Yes    | Q0.16  | Signed scalar signals/modulation in `[-1, 1]`                        |
 | `fl::u16x16`   | No     | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
 | `fl::s16x16`   | Yes    | Q16.16 | UV transform/composition space with high fractional precision        |
 | `fl::u24x8`    | No     | Q24.8  | Unsigned Cartesian/noise-domain coordinates and depth sampling       |
