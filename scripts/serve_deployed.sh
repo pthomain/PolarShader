@@ -31,7 +31,7 @@ FILES=(
   index.html index.css app.js index.js
   fastled.js fastled.wasm files.json
   composer.css composer.js schema.js codec.js pds-codec.js
-  stepper.js signal-editor.js boot-diagnostics.js
+  stepper.js signal-editor.js coi-serviceworker.js boot-diagnostics.js
 )
 
 echo "Mirroring $BASE -> $DEST"

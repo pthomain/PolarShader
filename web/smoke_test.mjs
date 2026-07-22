@@ -63,7 +63,16 @@ const server = createServer(async (req, res) => {
       return;
     }
     const body = await readFile(filePath);
-    res.writeHead(200, { "content-type": MIME[extname(filePath)] || "application/octet-stream" });
+    res.writeHead(200, {
+      "content-type": MIME[extname(filePath)] || "application/octet-stream",
+      // Grant cross-origin isolation directly (as a real headers-capable host
+      // would), so the pthread WASM gets its SharedArrayBuffer on first load —
+      // no coi-serviceworker reload to wait on. Mirrors the isolation the SW
+      // synthesizes on GitHub Pages.
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-embedder-policy": "require-corp",
+      "cross-origin-resource-policy": "cross-origin",
+    });
     res.end(body);
   } catch {
     res.writeHead(404).end("not found");

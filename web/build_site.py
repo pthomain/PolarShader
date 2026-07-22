@@ -139,10 +139,14 @@ COMPOSER_PANEL_ASSETS = {
     "css":     ("composer.css",),
     "modules": ("schema.js", "codec.js", "pds-codec.js", "stepper.js", "signal-editor.js", "composer.js"),
     # Classic (non-module) scripts injected into <head> so they run before the
-    # FastLED app.js and the composer modules. boot-diagnostics installs global
-    # error handlers + a fail-safe reveal so a failing boot shows a readable
-    # banner instead of a silent white screen.
-    "head_scripts": ("boot-diagnostics.js",),
+    # FastLED app.js and the composer modules, in this order:
+    #   - coi-serviceworker: grants cross-origin isolation on GitHub Pages (which
+    #     can't send COOP/COEP headers) so FastLED's pthread WASM gets a
+    #     SharedArrayBuffer instead of throwing a blank-screen boot error. Runs
+    #     first so its one-time reload happens before the heavy WASM boot.
+    #   - boot-diagnostics: global error handlers + fail-safe reveal so a failing
+    #     boot shows a readable banner instead of a silent white screen.
+    "head_scripts": ("coi-serviceworker.js", "boot-diagnostics.js"),
 }
 SKETCHES_WITH_PANEL = {"composer": COMPOSER_PANEL_ASSETS}
 
