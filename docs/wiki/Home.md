@@ -14,6 +14,7 @@ New here? Start with **[Getting Started](Getting-Started.md)**, or
 - **[Getting Started](Getting-Started.md)** — install prerequisites, run the local composer, build and save your first scene.
 - **[Web Composer Guide](Web-Composer-Guide.md)** — the composer UI in depth: displays, scenes, playlists, embed mode, and hosted-vs-local differences.
 - **[Deploying to Hardware](Deploying-to-Hardware.md)** — PlatformIO targets, the deploy flow, and how playlists are embedded into firmware.
+- **[Exporting GIFs and WebP](Exporting-GIFs-and-WebP.md)** — render any composition into a seamlessly looping GIF, WebP, or animated PNG.
 
 ### Concepts & reference
 - **[Core Concepts](Core-Concepts.md)** — the Scene / Layer / Pattern / Transform / Signal model and the key design choices (fixed-point, unified UV space, dual-core rendering).
