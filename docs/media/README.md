@@ -7,7 +7,7 @@ file exists, convert its comment into a real `![alt](path)` image tag.
 
 | File | Used in | What it should show |
 |------|---------|---------------------|
-| `hero.webp` | `README.md` (top) | The composer animating a scene on a round display — the "what is this" hook. |
+| `banner.webp` | `README.md` (top) | Hero banner: a scene animating on a round display beside the baked-in "PolarShader" title. |
 | `composer-ui.gif` | `README.md` (See it in action) | Editing patterns/transforms/signals live in the composer panel. |
 | `display-round.gif` | `README.md` (See it in action) | A scene rendered on the 241-pixel round display. |
 | `display-matrix.gif` | `README.md` (See it in action) | A scene rendered on a matrix display (e.g. 32×8 or 128×128). |
