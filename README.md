@@ -1,6 +1,6 @@
 <img src="docs/media/hero.webp" alt="PolarShader scene animating on a round display" width="160" align="right" />
 
-# PolarShader
+### PolarShader
 
 **A deterministic, fixed-point LED shader engine for microcontrollers — design in the browser, flash to your board.**
 
