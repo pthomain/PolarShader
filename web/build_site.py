@@ -76,6 +76,11 @@ EXCLUDED_STAGED_SOURCE_PATHS = {
     # Native-only .PDS fixture generator: ships its own main(). Kept out of
     # every env except native_export_pds; exclude from the WASM unity build too.
     "tools/export_pds.cpp",
+    # Native-only .PSC -> frames exporter: ships its own main() and includes
+    # native/Arduino.h (a dir excluded from staging). Built only by the
+    # native_psc_render env; exclude from the WASM unity build so it never links
+    # a second main or pulls in native-only headers.
+    "tools/psc_render.cpp",
 }
 
 
