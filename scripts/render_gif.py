@@ -57,7 +57,7 @@ def make_sprite(radius: int, glow: float) -> np.ndarray:
     return sprite.astype(np.float32)
 
 
-def make_glow_sprite(radius: int) -> np.ndarray:
+def make_glow_sprite(radius: int, falloff: float = 1.0) -> np.ndarray:
     # Soft Gaussian glow: a tight bright core plus a wide, low halo. Because the
     # halo reaches well beyond the LED, neighbouring LEDs' sprites overlap and
     # their colours blend additively — mimicking the WASM renderer's bloom pass.
@@ -74,7 +74,13 @@ def make_glow_sprite(radius: int) -> np.ndarray:
     w = np.clip((1.0 - d) / 0.3, 0.0, 1.0)  # 1 for d<0.7, ramps to 0 at d=1
     window = w * w * (3.0 - 2.0 * w)        # smoothstep
     sprite *= window
-    return (sprite / sprite.max()).astype(np.float32)
+    sprite /= sprite.max()
+    # `falloff` > 1 reshapes the normalised profile so intensity drops faster
+    # near the core (a sharper, less blurry glow) while the footprint radius —
+    # and thus the spread that lets neighbours blend — stays exactly the same.
+    if falloff != 1.0:
+        sprite = sprite ** falloff
+    return sprite.astype(np.float32)
 
 
 def make_disc_alpha(radius: int, core_frac: float) -> np.ndarray:
@@ -296,7 +302,7 @@ def render(args: argparse.Namespace) -> None:
     py = ((coords[:, 1] * 0.5 + 0.5) * span + margin).astype(np.int32)
 
     if args.style == "glow":
-        sprite = make_glow_sprite(args.dot_radius)
+        sprite = make_glow_sprite(args.dot_radius, args.glow_falloff)
     elif args.style == "disc":
         sprite = make_disc_alpha(args.dot_radius, args.core_frac)
     else:
@@ -463,6 +469,9 @@ def main() -> None:
     p.add_argument("--round-bg", action="store_true",
                    help="fill a black round background disc; alpha = the circle (glow always on black)")
     p.add_argument("--glow", type=float, default=2.2, help="falloff exponent (>1 sharper)")
+    p.add_argument("--glow-falloff", type=float, default=1.0,
+                   help="glow-style profile exponent: >1 drops off faster near the "
+                        "core (sharper, less blurry) at the same spread")
     p.add_argument("--gamma", type=float, default=1.8, help="output gamma (bloom)")
     p.add_argument("--brightness", type=float, default=1.0, help="linear gain before tone-map")
     p.add_argument("--full-value", action="store_true",
