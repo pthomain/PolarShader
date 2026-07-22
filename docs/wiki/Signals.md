@@ -11,7 +11,7 @@ Sources live in `src/renderer/pipeline/signals/Signals.h`.
 - Every signal emits values in `[-1, 1]`.
 - Periodic factories span the full `[-1, 1]` by default.
 - Use **`smap(signal, floor, ceiling)`** to remap a signal into a bounded interval before it's converted
-  back to signed `sf16`. `floor`/`ceiling` are themselves sampled through the unsigned magnitude domain;
+  back to signed `s0x16`. `floor`/`ceiling` are themselves sampled through the unsigned magnitude domain;
   if the sampled floor exceeds the ceiling, the bounds are swapped for that sample.
 
 ## Periodic factories
@@ -43,7 +43,7 @@ Sources live in `src/renderer/pipeline/signals/Signals.h`.
 
 Signals feed integrators rather than being applied directly frame-by-frame:
 
-- **`f16` angle samples** are wrapped turn-domain angles (`0..65535 → 0..1` turn).
+- **`u0x16` angle samples** are wrapped turn-domain angles (`0..65535 → 0..1` turn).
 - **`PhaseAccumulator`** holds a higher-precision integrated phase for smooth periodic motion, avoiding
   quantization jitter and hidden precision loss.
 

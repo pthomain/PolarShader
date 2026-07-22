@@ -57,8 +57,8 @@ The type system uses FastLED's `fl` fixed-point types plus two angle/signal-doma
 
 | Type | Signed | Format | Typical use |
 |------|--------|--------|-------------|
-| `f16` | No | Q0.16 | Unit fractions and wrapped angle-like values in `[0, 1)` |
-| `sf16` | Yes | Q0.16 | Signed scalar signals / modulation in `[-1, 1]` |
+| `u0x16` | No | Q0.16 | Unit fractions and wrapped angle-like values in `[0, 1)` |
+| `s0x16` | Yes | Q0.16 | Signed scalar signals / modulation in `[-1, 1]` |
 | `fl::u16x16` | No | Q16.16 | Unsigned high-precision ratio / range values |
 | `fl::s16x16` | Yes | Q16.16 | UV transform / composition space (high fractional precision) |
 | `fl::u24x8` | No | Q24.8 | Unsigned Cartesian / noise-domain coordinates, depth sampling |
@@ -80,13 +80,13 @@ transform library works across round LED rings and matrix grids without duplicat
 
 Angles are `uint16_t` where `65536` = one full turn (so `32768` = half a turn). Wrapping is automatic via
 unsigned modular arithmetic — no `% 360` or `% 2π` — and trig uses FastLED's `sin16`/`cos16` lookups.
-Angles are a distinct type from `f16` fractions, so the compiler stops you from using one as the other.
+Angles are a distinct type from `u0x16` fractions, so the compiler stops you from using one as the other.
 
 ### Phase vs angle, and motion as integration
 
 Motion is never implicit. It always goes through explicit integrators:
 
-- **`f16` angle samples** are wrapped turn-domain angles (`0..65535 → 0..1` turn).
+- **`u0x16` angle samples** are wrapped turn-domain angles (`0..65535 → 0..1` turn).
 - **`PhaseAccumulator`** holds a higher-precision integrated phase for smooth periodic motion (rotation),
   avoiding quantization jitter and hidden precision loss.
 - Mapped-signal and Cartesian integrators handle translation and domain-warp drift.
