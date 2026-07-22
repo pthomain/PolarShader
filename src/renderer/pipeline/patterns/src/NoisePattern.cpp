@@ -63,6 +63,21 @@ namespace PolarShader {
             fl::u24x8 yu = fl::u24x8::from_raw(static_cast<uint32_t>(uv.v.raw()) + offset);
             fl::u24x8 zu = fl::u24x8::from_raw(depth + offset);
 
+            // Two-path cross-dissolve (Basic noise only): evaluate the field at
+            // two offset depths and blend so the loop returns seamlessly.
+            if (state && state->loopActive && type == NoiseType::Basic) {
+                fl::u24x8 zuA = fl::u24x8::from_raw(state->depthA + offset);
+                fl::u24x8 zuB = fl::u24x8::from_raw(state->depthB + offset);
+                const uint32_t a = raw(noiseLayerImpl(xu, yu, zuA));
+                const uint32_t b = raw(noiseLayerImpl(xu, yu, zuB));
+                int64_t out = static_cast<int64_t>(a) +
+                    (((static_cast<int64_t>(b) - static_cast<int64_t>(a)) *
+                      static_cast<int64_t>(state->blendWeight)) >> 16);
+                if (out < 0) out = 0;
+                if (out > 65535) out = 65535;
+                return PatternNormU0x16::from_raw(static_cast<uint16_t>(out));
+            }
+
             switch (type) {
                 case NoiseType::FBM:
                     return fBmLayerImpl(xu, yu, zu, octaves);
@@ -119,16 +134,56 @@ namespace PolarShader {
     NoisePattern::NoisePattern(
         NoiseType noiseType,
         fl::u8 octaveCount,
-        S0x16Signal depthSpeedSignal
+        S0x16Signal depthSpeedSignal,
+        bool loopEnabled,
+        uint16_t loopPeriodMs
     )
         : type(noiseType),
           octaves(octaveCount),
-          depthSpeedSignal(depthSpeedSignal ? std::move(depthSpeedSignal) : cRandom()) {
+          depthSpeedSignal(depthSpeedSignal ? std::move(depthSpeedSignal) : cRandom()),
+          loopEnabled(loopEnabled),
+          loopPeriodMs(loopPeriodMs) {
         state.depth = random32Seed();
     }
 
     void NoisePattern::advanceFrame(u0x16 progress, TimeMillis elapsedMs) {
         (void) progress;
+
+        // Two-path cross-dissolve loop. Runs BEFORE the first-frame early return
+        // below because it is a pure function of the absolute elapsed time (no
+        // delta priming needed): out(phi) = lerp(noise(zA), noise(zB), w(phi))
+        // with zA = base + phi*L, zB = zA - L, and a monotonic 0->1 weight.
+        if (loopEnabled && loopPeriodMs > 0) {
+            if (!state.loopInitialized) {
+                // Sample the speed signal ONCE at the fixed epoch elapsedMs = 0,
+                // so a cold first call at any time chooses the same span as a
+                // warmed scene (the loop stays a pure function of absolute time).
+                const s0x16 signedSpeed =
+                    depthSpeedSignal ? depthSpeedSignal.sample(noiseDepthSpeedSignalRange(), 0u)
+                                     : s0x16(0);
+                const uint64_t speed = static_cast<uint64_t>(raw(toUnsignedClamped(signedSpeed)));
+                const uint64_t denominator = NOISE_DEPTH_SIGNAL_FULL_SCALE * NOISE_DEPTH_FULL_SCALE_WRAP_MS;
+                const uint64_t span =
+                    speed * static_cast<uint64_t>(UINT32_MAX) * static_cast<uint64_t>(loopPeriodMs) / denominator;
+                state.loopSpan = static_cast<uint32_t>(span);
+                state.loopBaseDepth = state.depth;
+                state.loopInitialized = true;
+            }
+
+            const uint16_t phi_raw = static_cast<uint16_t>(
+                static_cast<uint64_t>(elapsedMs % loopPeriodMs) * 65535u / loopPeriodMs);
+            state.depthA = state.loopBaseDepth +
+                static_cast<uint32_t>((static_cast<uint64_t>(phi_raw) * state.loopSpan) >> 16);
+            state.depthB = state.depthA - state.loopSpan;
+
+            int32_t w = 32767 - static_cast<int32_t>(cos16(static_cast<uint16_t>(phi_raw >> 1)));
+            if (w < 0) w = 0;
+            if (w > 65535) w = 65535;
+            state.blendWeight = static_cast<uint16_t>(w);
+            state.loopActive = true;
+            return;
+        }
+
         if (!state.hasLastElapsed) {
             state.lastElapsedMs = elapsedMs;
             state.hasLastElapsed = true;

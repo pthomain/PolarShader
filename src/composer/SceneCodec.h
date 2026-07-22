@@ -56,6 +56,7 @@ namespace PolarShader::composer {
         TRUNCATED,
         UNKNOWN_TAG,
         BAD_ENUM,
+        BAD_VALUE,
     };
 
     // Decode the bytes into a fresh Scene. Returns nullptr on failure;

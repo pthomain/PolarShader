@@ -222,6 +222,12 @@ static inline int16_t cos16(uint16_t theta) {
     return (int16_t)(cos(angle) * 32767.0);
 }
 
+// inoise16: the native default is a fast fake hash (deterministic but NOT
+// FastLED-accurate). The GIF exporter needs bit-accurate noise, so when
+// POLAR_SHADER_REAL_NOISE is defined it links the vendored FastLED 3.10.4
+// implementation (src/tools/thirdparty/RealNoise16.h) with identical
+// fixed-width signatures instead.
+#ifndef POLAR_SHADER_REAL_NOISE
 // Simple linear congruent generator or just return 0 for now
 static inline uint16_t inoise16(uint32_t x) {
     x ^= x >> 16;
@@ -235,9 +241,27 @@ static inline uint16_t inoise16(uint32_t x, uint32_t y) {
 static inline uint16_t inoise16(uint32_t x, uint32_t y, uint32_t z) {
     return (uint16_t)((x * 2053u) ^ (y * 3037u) ^ (z * 4093u) + 13849u);
 }
+#else
+uint16_t inoise16(uint32_t x);
+uint16_t inoise16(uint32_t x, uint32_t y);
+uint16_t inoise16(uint32_t x, uint32_t y, uint32_t z);
+#endif
+
+// Shared RNG state. A function-local static in an inline function has a single
+// instance across all translation units (unlike a file-scope static, which
+// would give one seed per TU), so randomSeed() resets the same generator that
+// every TU's random16() reads.
+inline uint32_t &nativeRandState() {
+    static uint32_t seed = 42;
+    return seed;
+}
+
+static inline void randomSeed(uint32_t seed) {
+    nativeRandState() = seed;
+}
 
 static inline uint16_t random16() {
-    static uint32_t seed = 42;
+    uint32_t &seed = nativeRandState();
     seed = (seed * 1103515245 + 12345) & 0x7fffffff;
     return (uint16_t)(seed >> 16);
 }

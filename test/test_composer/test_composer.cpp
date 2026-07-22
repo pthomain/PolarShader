@@ -139,6 +139,7 @@ namespace {
         PAT_PF_CHIRP          = 0x39,
         PAT_PF_SPIRAL_ARMS    = 0x3A,
         PAT_PF_RIPPLE_TANK    = 0x3B,
+        PAT_NOISE_BASIC_LOOP  = 0x3C,
     };
 
     enum : uint8_t {
@@ -937,6 +938,45 @@ void test_decode_default_noise_succeeds() {
     auto decoded = decodeScene(w.data(), w.size(), &status);
     TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
     TEST_ASSERT_NOT_NULL(decoded.get());
+}
+
+void test_decode_noise_basic_loop_golden() {
+    // PAT_NOISE_BASIC_LOOP: u16 loopPeriodMs (10000) then depthSpeed signal.
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,   // magic "PSC\0"
+        0x01,                      // version 1
+        0x00,                      // palette 0
+        0x3C, 0x07, 0x00,          // PAT_NOISE_BASIC_LOOP, body length 7
+        0x10, 0x27,                // loopPeriodMs = 10000 (LE)
+        0x00, 0x02, 0x00, 0x26, 0x02, // SIG_CONSTANT, len 2, 550
+        0x00,                      // transform count
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    decoded->compile();
+    decoded->advanceFrame(u0x16(0x8000u), 5000);
+    ::CRGB sample = decoded->sample(0, u0x16(0x4000u), u0x16(0x4000u));
+    (void) sample;
+}
+
+void test_decode_noise_basic_loop_rejects_zero_period() {
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,   // magic "PSC\0"
+        0x01,                      // version 1
+        0x00,                      // palette 0
+        0x3C, 0x07, 0x00,          // PAT_NOISE_BASIC_LOOP, body length 7
+        0x00, 0x00,                // loopPeriodMs = 0 (rejected)
+        0x00, 0x02, 0x00, 0x26, 0x02, // SIG_CONSTANT, len 2, 550
+        0x00,                      // transform count
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_VALUE), static_cast<int>(status));
+    TEST_ASSERT_NULL(decoded.get());
 }
 
 void test_decode_all_signal_tags_compile() {
@@ -2065,6 +2105,8 @@ void setup() {
     RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
+    RUN_TEST(test_decode_noise_basic_loop_golden);
+    RUN_TEST(test_decode_noise_basic_loop_rejects_zero_period);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
     RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
@@ -2133,6 +2175,8 @@ int main() {
     RUN_TEST(test_decode_palette_changed_pf_concentric_grid_repro);
     RUN_TEST(test_decode_crandom_succeeds);
     RUN_TEST(test_decode_default_noise_succeeds);
+    RUN_TEST(test_decode_noise_basic_loop_golden);
+    RUN_TEST(test_decode_noise_basic_loop_rejects_zero_period);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
     RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);

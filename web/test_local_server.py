@@ -132,6 +132,32 @@ class PscValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(psc_v1.PscValidationError, "bad enum value 4"):
             psc_v1.validate_psc_scene(payload)
 
+    def test_validator_accepts_noise_basic_loop(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x01,
+            0x00,
+            0x3C, 0x07, 0x00,
+            0x10, 0x27,                        # loopPeriodMs = 10000
+            0x00, 0x02, 0x00, 0x26, 0x02,      # depthSpeed constant 550
+            0x00,
+        ])
+        info = psc_v1.validate_psc_scene(payload)
+        self.assertEqual(info.pattern_tag, 0x3C)
+
+    def test_validator_rejects_zero_period_noise_basic_loop(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x01,
+            0x00,
+            0x3C, 0x07, 0x00,
+            0x00, 0x00,                        # loopPeriodMs = 0 (rejected)
+            0x00, 0x02, 0x00, 0x26, 0x02,
+            0x00,
+        ])
+        with self.assertRaisesRegex(psc_v1.PscValidationError, "below min 1"):
+            psc_v1.validate_psc_scene(payload)
+
     def test_validator_rejects_legacy_palette_transform(self) -> None:
         tag, error = local_server._psc_pattern_tag(LEGACY_PALETTE_TRANSFORM_PSC)
         self.assertEqual(tag, 0)

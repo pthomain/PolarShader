@@ -1933,7 +1933,7 @@ async function setWorkerBloom(enabled) {
 }
 
 const STATUS_LABELS = [
-    'OK', 'BAD_MAGIC', 'BAD_VERSION', 'TRUNCATED', 'UNKNOWN_TAG', 'BAD_ENUM',
+    'OK', 'BAD_MAGIC', 'BAD_VERSION', 'TRUNCATED', 'UNKNOWN_TAG', 'BAD_ENUM', 'BAD_VALUE',
 ];
 
 function showStatus(text, isError) {
@@ -2101,10 +2101,14 @@ function renderConfigControl(c, configObj, setValue) {
 
     const input = document.createElement('input');
     input.type = 'number';
+    if (c.min != null) input.min = c.min;
+    if (c.max != null) input.max = c.max;
     input.value = configObj[c.name] ?? c.default ?? 0;
     input.addEventListener('input', () => {
-        const v = parseInt(input.value, 10);
-        if (!Number.isNaN(v)) setValue(c.name, v);
+        let v = parseInt(input.value, 10);
+        if (Number.isNaN(v)) return;
+        v = Math.min(c.max ?? v, Math.max(c.min ?? v, v));
+        setValue(c.name, v);
     });
     wrap.appendChild(input);
     return wrap;

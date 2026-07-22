@@ -48,11 +48,24 @@ namespace PolarShader {
             uint64_t depthRemainder = 0u;
             TimeMillis lastElapsedMs = 0u;
             bool hasLastElapsed = false;
+
+            // Two-path cross-dissolve loop (Basic noise only). Persistent fields
+            // are initialized once from a fixed epoch; per-frame fields are
+            // recomputed each advanceFrame from the absolute elapsed time.
+            uint32_t loopBaseDepth = 0u;
+            uint32_t loopSpan = 0u;      // L: depth travelled over one period
+            bool loopInitialized = false;
+            uint32_t depthA = 0u;
+            uint32_t depthB = 0u;
+            uint16_t blendWeight = 0u;   // u0x16, 0 -> depthB, 65535 -> depthA
+            bool loopActive = false;
         };
 
         NoiseType type;
         fl::u8 octaves;
         S0x16Signal depthSpeedSignal;
+        bool loopEnabled;
+        uint16_t loopPeriodMs;
         State state;
 
         static PatternNormU0x16 noiseLayerImpl(fl::u24x8 x, fl::u24x8 y, fl::u24x8 z);
@@ -67,7 +80,9 @@ namespace PolarShader {
         explicit NoisePattern(
             NoiseType noiseType = NoiseType::Basic,
             fl::u8 octaveCount = 4,
-            S0x16Signal depthSpeedSignal = cRandom()
+            S0x16Signal depthSpeedSignal = cRandom(),
+            bool loopEnabled = false,
+            uint16_t loopPeriodMs = 0
         );
 
         void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;

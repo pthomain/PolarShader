@@ -65,6 +65,16 @@ namespace PolarShader {
         );
     }
 
+    std::unique_ptr<UVPattern> noiseLoopPattern(S0x16Signal depthSpeedSignal, uint16_t loopPeriodMs) {
+        return std::make_unique<NoisePattern>(
+            NoisePattern::NoiseType::Basic,
+            4,
+            std::move(depthSpeedSignal),
+            true,
+            loopPeriodMs
+        );
+    }
+
     std::unique_ptr<UVPattern> fbmNoisePattern(fl::u8 octaves) {
         return std::make_unique<NoisePattern>(NoisePattern::NoiseType::FBM, octaves);
     }

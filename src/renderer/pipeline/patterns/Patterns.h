@@ -68,6 +68,13 @@ namespace PolarShader {
     // Base noise pattern (inoise16) with signed cartesian input.
     std::unique_ptr<UVPattern> noisePattern(S0x16Signal depthSpeedSignal = cRandom());
 
+    // Base noise pattern that loops seamlessly over loopPeriodMs via a two-path
+    // 3D cross-dissolve (also runs live on hardware).
+    std::unique_ptr<UVPattern> noiseLoopPattern(
+        S0x16Signal depthSpeedSignal,
+        uint16_t loopPeriodMs
+    );
+
     // fBm noise pattern with configurable octaves (default 4).
     std::unique_ptr<UVPattern> fbmNoisePattern(
         fl::u8 octaves = 4
