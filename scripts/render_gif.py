@@ -98,6 +98,84 @@ def _hex_rgb(s: str) -> tuple[int, int, int]:
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
 
 
+# --- Looping 2D Perlin noise for the shader-filled title ----------------------
+# Classic Ken Perlin gradient noise, vectorised over a numpy grid. We animate it
+# by walking a third (time) axis and loop it seamlessly with the SAME two-path
+# cross-dissolve NoisePattern uses on hardware: sample the field at z and at
+# z - span, and blend by a raised-cosine weight so frame N wraps onto frame 0.
+
+_GRAD3 = np.array([
+    [1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0],
+    [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1],
+    [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1],
+], dtype=np.float64)
+
+
+def _perm_table(seed: int) -> np.ndarray:
+    p = np.arange(256, dtype=np.int32)
+    np.random.default_rng(seed).shuffle(p)
+    return np.concatenate([p, p])  # doubled so index+offset never overruns
+
+
+def _fade(t: np.ndarray) -> np.ndarray:
+    return t * t * t * (t * (t * 6 - 15) + 10)
+
+
+def _perlin3(x: np.ndarray, y: np.ndarray, z: float, perm: np.ndarray) -> np.ndarray:
+    xi = np.floor(x).astype(np.int32) & 255
+    yi = np.floor(y).astype(np.int32) & 255
+    zi = int(np.floor(z)) & 255
+    xf, yf = x - np.floor(x), y - np.floor(y)
+    zf = z - np.floor(z)
+    u, v, w = _fade(xf), _fade(yf), _fade(zf)
+
+    def grad(ix, iy, iz, fx, fy, fz):
+        g = _GRAD3[perm[perm[perm[ix] + iy] + iz] % 12]
+        return g[..., 0] * fx + g[..., 1] * fy + g[..., 2] * fz
+
+    x1, y1, z1 = (xi + 1) & 255, (yi + 1) & 255, (zi + 1) & 255
+    n000 = grad(xi, yi, zi, xf, yf, zf)
+    n100 = grad(x1, yi, zi, xf - 1, yf, zf)
+    n010 = grad(xi, y1, zi, xf, yf - 1, zf)
+    n110 = grad(x1, y1, zi, xf - 1, yf - 1, zf)
+    n001 = grad(xi, yi, z1, xf, yf, zf - 1)
+    n101 = grad(x1, yi, z1, xf - 1, yf, zf - 1)
+    n011 = grad(xi, y1, z1, xf, yf - 1, zf - 1)
+    n111 = grad(x1, y1, z1, xf - 1, yf - 1, zf - 1)
+    x00 = n000 + u * (n100 - n000)
+    x10 = n010 + u * (n110 - n010)
+    x01 = n001 + u * (n101 - n001)
+    x11 = n011 + u * (n111 - n011)
+    return (x00 + v * (x10 - x00)) + w * ((x01 + v * (x11 - x01)) - (x00 + v * (x10 - x00)))
+
+
+def _loop_noise_field(x: np.ndarray, y: np.ndarray, phi: float,
+                      span: float, perm: np.ndarray) -> np.ndarray:
+    # phi in [0,1) is the loop phase. Two paths a raised-cosine apart cancel the
+    # seam: at phi=0 weight=0 (all z0); at phi->1 weight=1 lands back on z0.
+    z0 = 0.0
+    za = z0 + phi * span
+    zb = za - span
+    weight = 0.5 * (1.0 - math.cos(math.pi * phi))
+    a = _perlin3(x, y, za, perm)
+    b = _perlin3(x, y, zb, perm)
+    field = a + weight * (b - a)
+    return np.clip(field * 1.4 + 0.5, 0.0, 1.0)  # ~[-.36,.36] -> [0,1]
+
+
+def _colorize(field: np.ndarray) -> np.ndarray:
+    # Vivid shader ramp echoing the LED palette (indigo -> cyan -> magenta -> gold).
+    stops = np.array([0.0, 0.34, 0.67, 1.0])
+    cols = np.array([[20, 20, 90], [0, 190, 205], [225, 40, 165], [250, 220, 70]],
+                    dtype=np.float64)
+    rgb = np.stack([np.interp(field, stops, cols[:, c]) for c in range(3)], axis=-1)
+    # Pin every pixel to full brightness: scale so the brightest channel hits 255.
+    # Hue/saturation are preserved; only value is forced to 100%.
+    peak = np.maximum(rgb.max(axis=-1, keepdims=True), 1.0)
+    rgb = rgb * (255.0 / peak)
+    return rgb.astype(np.uint8)
+
+
 def compose_banner(images: list[Image.Image], args: argparse.Namespace) -> list[Image.Image]:
     # Turn the square LED frames into a self-contained hero banner: a dark
     # rounded card with the animation inset on the left and the baked title on
@@ -145,12 +223,42 @@ def compose_banner(images: list[Image.Image], args: argparse.Namespace) -> list[
         [0, 0, W * ss - 1, H * ss - 1], radius=radius * ss, fill=255)
     mask = big.resize((W, H), Image.LANCZOS)
 
+    # Optionally fill one word of the title (default "Shader") with looping 2D
+    # Perlin noise instead of a flat colour. Everything before it stays solid.
+    word = args.shader_noise_word if args.shader_noise else None
+    noise_ctx = None
+    if word and word in title:
+        head = title[: title.index(word)]        # solid part, e.g. "Polar"
+        sx = tx + font.getlength(head)            # x where the noise word begins
+        gmask = Image.new("L", (W, H), 0)         # antialiased glyph coverage
+        ImageDraw.Draw(gmask).text((sx, ty), word, font=font, fill=255)
+        bbox = gmask.getbbox()
+        if bbox is not None:
+            gx0, gy0, gx1, gy1 = bbox
+            gy, gx = np.mgrid[gy0:gy1, gx0:gx1].astype(np.float64)
+            freq = args.shader_noise_freq / H      # cells per pixel
+            perm = _perm_table(args.shader_noise_seed)
+            noise_ctx = (head, sx, word, gmask, gx0, gy0, gx * freq, gy * freq, perm)
+
+    n_frames = len(images)
     cw, ch = W + 2 * margin, H + 2 * margin  # transparent margin around the pill
     out: list[Image.Image] = []
-    for im in images:
+    for i, im in enumerate(images):
         pill = Image.new("RGBA", (W, H), bg + (255,))
         pill.alpha_composite(im.convert("RGBA"), (0, 0))
-        ImageDraw.Draw(pill).text((tx, ty), title, font=font, fill=fg + (255,))
+        draw = ImageDraw.Draw(pill)
+        if noise_ctx is None:
+            draw.text((tx, ty), title, font=font, fill=fg + (255,))
+        else:
+            head, sx, w_word, gmask, gx0, gy0, nx, ny, perm = noise_ctx
+            draw.text((tx, ty), head, font=font, fill=fg + (255,))
+            phi = i / n_frames
+            field = _loop_noise_field(nx, ny, phi, args.shader_noise_span, perm)
+            tile = Image.fromarray(_colorize(field)).convert("RGBA")
+            patch = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            patch.paste(tile, (gx0, gy0))
+            patch.putalpha(gmask)                 # keep colour only inside glyphs
+            pill.alpha_composite(patch)
         pill.putalpha(mask)  # AA rounded alpha (content is opaque, so alpha == mask)
         card = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
         card.alpha_composite(pill, (margin, margin))
@@ -372,6 +480,16 @@ def main() -> None:
                    help="TrueType font path for the banner title")
     p.add_argument("--banner-margin", type=int, default=8,
                    help="transparent margin in pixels around the pill banner")
+    p.add_argument("--shader-noise", action="store_true",
+                   help="fill the shader word of the title with looping 2D Perlin noise")
+    p.add_argument("--shader-noise-word", default="Shader",
+                   help="which word of the title to noise-fill")
+    p.add_argument("--shader-noise-freq", type=float, default=3.0,
+                   help="noise cells across the title height (higher = finer)")
+    p.add_argument("--shader-noise-span", type=float, default=8.0,
+                   help="noise z travelled over one loop (higher = more motion)")
+    p.add_argument("--shader-noise-seed", type=int, default=1,
+                   help="permutation seed for the title noise")
     p.add_argument("--quality", type=int, default=80, help="WebP quality 0-100 (lossy)")
     p.add_argument("--lossless", action="store_true", help="WebP lossless mode")
     p.add_argument("--colors", type=int, default=128, help="GIF palette depth (<=256)")
