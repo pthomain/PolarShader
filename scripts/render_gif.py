@@ -182,16 +182,42 @@ def _colorize(field: np.ndarray) -> np.ndarray:
     return rgb.astype(np.uint8)
 
 
+def _pill_mask(w: int, h: int, radius: float, exponent: float, ss: int = 4) -> Image.Image:
+    # Antialiased coverage mask for a rounded rectangle whose corners follow a
+    # superellipse |dx/r|^n + |dy/r|^n = 1. n=2 is a plain circular arc (G1: the
+    # curvature jumps from 0 on the straight edge to 1/r on the arc). n>2 gives a
+    # "squircle" corner where curvature eases in smoothly (G2). radius == h/2
+    # collapses the straight vertical edges into a pill. Coverage comes from
+    # block-averaging an ss-times supersampled inside/outside test, so edges are
+    # smooth without a separate resize.
+    xs = (np.arange(w * ss) + 0.5) / ss
+    ys = (np.arange(h * ss) + 0.5) / ss
+    gx, gy = np.meshgrid(xs, ys)
+    r = float(radius)
+    if r <= 0:
+        inside = np.ones_like(gx, dtype=bool)
+    else:
+        dx = np.maximum(np.maximum(r - gx, gx - (w - r)), 0.0)
+        dy = np.maximum(np.maximum(r - gy, gy - (h - r)), 0.0)
+        dist = (dx ** exponent + dy ** exponent) ** (1.0 / exponent)
+        inside = dist <= r
+    cov = inside.reshape(h, ss, w, ss).mean(axis=(1, 3))
+    return Image.fromarray((cov * 255.0).astype(np.uint8), "L")
+
+
 def compose_banner(images: list[Image.Image], args: argparse.Namespace) -> list[Image.Image]:
     # Turn the square LED frames into a self-contained hero banner: a dark
     # rounded card with the animation inset on the left and the baked title on
     # the right. Baking the title means the card can be dropped straight into the
     # README (no markdown heading) and reads on any page background — the card's
     # own dark fill keeps the light title legible in GitHub light and dark modes.
-    disc = images[0].size[1]                 # square frame edge == pill height
+    disc = images[0].size[1]                 # square frame edge == content height
     W, H = args.banner_width, disc
     margin = args.banner_margin
-    radius = H // 2                           # full pill: ends are semicircles
+    grow = args.banner_pad                    # extra inner padding: grows pill outward
+    Wp, Hp = W + 2 * grow, H + 2 * grow       # padded pill size
+    radius = Hp * args.pill_radius_frac       # 0.5 => full pill; <0.5 => rounded rect
+    expo = args.pill_exponent                 # 2 => circular arc; >2 => G2 squircle
     bg = _hex_rgb(args.banner_bg)
     fg = _hex_rgb(args.title_color)
 
@@ -221,13 +247,8 @@ def compose_banner(images: list[Image.Image], args: argparse.Namespace) -> list[
     tx = text_x0 + (region_w - tw) // 2 - tb[0]
     ty = (H - th) // 2 - tb[1]
 
-    # Antialiased pill mask: draw at 4x then downsample so the rounded ends have
-    # smooth, sub-pixel edges instead of a jagged 1-bit outline.
-    ss = 4
-    big = Image.new("L", (W * ss, H * ss), 0)
-    ImageDraw.Draw(big).rounded_rectangle(
-        [0, 0, W * ss - 1, H * ss - 1], radius=radius * ss, fill=255)
-    mask = big.resize((W, H), Image.LANCZOS)
+    # Antialiased pill/squircle mask over the padded pill.
+    mask = _pill_mask(Wp, Hp, radius, expo)
 
     # Optionally fill one word of the title (default "Shader") with looping 2D
     # Perlin noise instead of a flat colour. Everything before it stays solid.
@@ -247,24 +268,24 @@ def compose_banner(images: list[Image.Image], args: argparse.Namespace) -> list[
             noise_ctx = (head, sx, word, gmask, gx0, gy0, gx * freq, gy * freq, perm)
 
     n_frames = len(images)
-    cw, ch = W + 2 * margin, H + 2 * margin  # transparent margin around the pill
+    cw, ch = Wp + 2 * margin, Hp + 2 * margin  # transparent margin around the pill
     out: list[Image.Image] = []
     for i, im in enumerate(images):
-        pill = Image.new("RGBA", (W, H), bg + (255,))
-        pill.alpha_composite(im.convert("RGBA"), (0, 0))
+        pill = Image.new("RGBA", (Wp, Hp), bg + (255,))
+        pill.alpha_composite(im.convert("RGBA"), (grow, grow))
         draw = ImageDraw.Draw(pill)
         if noise_ctx is None:
-            draw.text((tx, ty), title, font=font, fill=fg + (255,))
+            draw.text((tx + grow, ty + grow), title, font=font, fill=fg + (255,))
         else:
             head, sx, w_word, gmask, gx0, gy0, nx, ny, perm = noise_ctx
-            draw.text((tx, ty), head, font=font, fill=fg + (255,))
+            draw.text((tx + grow, ty + grow), head, font=font, fill=fg + (255,))
             phi = i / n_frames
             field = _loop_noise_field(nx, ny, phi, args.shader_noise_span, perm)
             tile = Image.fromarray(_colorize(field)).convert("RGBA")
             patch = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             patch.paste(tile, (gx0, gy0))
             patch.putalpha(gmask)                 # keep colour only inside glyphs
-            pill.alpha_composite(patch)
+            pill.alpha_composite(patch, (grow, grow))
         pill.putalpha(mask)  # AA rounded alpha (content is opaque, so alpha == mask)
         card = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
         card.alpha_composite(pill, (margin, margin))
@@ -489,6 +510,12 @@ def main() -> None:
                    help="TrueType font path for the banner title")
     p.add_argument("--banner-margin", type=int, default=8,
                    help="transparent margin in pixels around the pill banner")
+    p.add_argument("--banner-pad", type=int, default=0,
+                   help="extra inner padding: grows the pill outward around the content")
+    p.add_argument("--pill-exponent", type=float, default=2.0,
+                   help="corner superellipse exponent: 2=circular arc, >2=G2 squircle")
+    p.add_argument("--pill-radius-frac", type=float, default=0.5,
+                   help="corner radius as a fraction of pill height (0.5=full pill)")
     p.add_argument("--shader-noise", action="store_true",
                    help="fill the shader word of the title with looping 2D Perlin noise")
     p.add_argument("--shader-noise-word", default="Shader",
