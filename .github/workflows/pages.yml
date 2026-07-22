@@ -59,6 +59,16 @@ jobs:
       - name: Build static site
         run: python web/build_site.py
 
+      - name: Composer shell smoke test
+        # Loads the built composer in headless Chromium and asserts the shell
+        # renders (body revealed, menu bar visible, boot diagnostics active, no
+        # uncaught errors) — catches the "silent blank page" regression before
+        # it ships. Scoped to the shell; the WASM render worker is not exercised.
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+          node web/smoke_test.mjs web/dist
+
       - name: Prevent Jekyll processing
         run: touch web/dist/.nojekyll
 

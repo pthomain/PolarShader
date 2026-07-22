@@ -138,6 +138,11 @@ if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
 COMPOSER_PANEL_ASSETS = {
     "css":     ("composer.css",),
     "modules": ("schema.js", "codec.js", "pds-codec.js", "stepper.js", "signal-editor.js", "composer.js"),
+    # Classic (non-module) scripts injected into <head> so they run before the
+    # FastLED app.js and the composer modules. boot-diagnostics installs global
+    # error handlers + a fail-safe reveal so a failing boot shows a readable
+    # banner instead of a silent white screen.
+    "head_scripts": ("boot-diagnostics.js",),
 }
 SKETCHES_WITH_PANEL = {"composer": COMPOSER_PANEL_ASSETS}
 
@@ -556,7 +561,8 @@ def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -
     import hashlib
 
     sketch_src_dir = sketch.source_file.parent
-    asset_names = list(assets["css"]) + list(assets["modules"])
+    head_scripts = list(assets.get("head_scripts", ()))
+    asset_names = list(assets["css"]) + list(assets["modules"]) + head_scripts
 
     # Compute a single hash over all panel sources so the same redeploy
     # invalidates every URL together. (Per-file hashes would also work but
@@ -610,6 +616,19 @@ def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -
 
     index_path = dist_sketch_dir / "index.html"
     text = index_path.read_text(encoding="utf-8")
+
+    # Head scripts run before app.js: publish the build id, then load the
+    # classic diagnostics bootstrap. Injected into <head> so its global error
+    # handlers are installed before the WASM/UI boot can throw.
+    if head_scripts:
+        head_inject = f'    <script>window.__PS_BUILD__ = "{cache_buster}";</script>\n' + "".join(
+            f'    <script src="./{name}?v={cache_buster}"></script>\n'
+            for name in head_scripts
+        )
+        if "</head>" not in text:
+            raise RuntimeError(f"Cannot inject head scripts — no </head> in {index_path}")
+        text = text.replace("</head>", head_inject + "</head>", 1)
+
     if "</body>" not in text:
         raise RuntimeError(f"Cannot inject panel assets — no </body> in {index_path}")
     text = text.replace("</body>", inject + "</body>", 1)
