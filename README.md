@@ -1,8 +1,8 @@
+<img src="docs/media/hero.webp" alt="PolarShader scene animating on a round display" width="160" align="right" />
+
 # PolarShader
 
 **A deterministic, fixed-point LED shader engine for microcontrollers — design in the browser, flash to your board.**
-
-<!-- hero GIF: docs/media/hero.gif — the composer animating a scene on a round display -->
 
 PolarShader turns a cheap microcontroller (Seeeduino XIAO SAMD21, XIAO RP2040, or Teensy 4.1) into a
 real-time LED shader engine. You build animated effects for round, matrix, and phyllotaxis displays by
