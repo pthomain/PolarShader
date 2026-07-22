@@ -1225,6 +1225,116 @@ void test_ripple_is_deterministic() {
     assertRasterMapsEqual(firstMap, secondMap, 6, 6);
 }
 
+namespace {
+    const UV kNoiseLoopProbes[] = {
+        UV(fl::s16x16::from_raw(0x8000), fl::s16x16::from_raw(0x8000)),
+        UV(fl::s16x16::from_raw(0x4000), fl::s16x16::from_raw(0xC000)),
+        UV(fl::s16x16::from_raw(0xC000), fl::s16x16::from_raw(0x4000)),
+        UV(fl::s16x16::from_raw(0x2000), fl::s16x16::from_raw(0x6000)),
+    };
+
+    long noiseFieldSum(UVPattern &pattern, const std::shared_ptr<PipelineContext> &ctx) {
+        UVMap map = pattern.layer(ctx);
+        long total = 0;
+        for (const UV &probe: kNoiseLoopProbes) total += static_cast<long>(raw(map(probe)));
+        return total;
+    }
+
+    long absDiff(long a, long b) {
+        long d = a - b;
+        return d < 0 ? -d : d;
+    }
+}
+
+// The seam must close: sampling toward the end of the period must approach the
+// t=0 field, and that wrap step must be on par with interior frame steps. A
+// wrong (oscillating) weight would make field[N-1] diverge from field[0] and
+// blow past the bound. Do NOT compare field(0) vs field(period) directly — the
+// modulo makes that trivially equal and hides the bug.
+void test_noise_loop_seam_is_continuous() {
+    randomSeed(12345);
+    auto pattern = noiseLoopPattern(constant(800), 10000);
+    auto ctx = std::make_shared<PipelineContext>();
+
+    constexpr int N = 250;  // 25 fps over a 10 s period
+    constexpr TimeMillis periodMs = 10000;
+    long field[N];
+    for (int f = 0; f < N; ++f) {
+        TimeMillis t = static_cast<TimeMillis>((static_cast<uint64_t>(f) * periodMs) / N);
+        pattern->advanceFrame(u0x16(0), t);
+        field[f] = noiseFieldSum(*pattern, ctx);
+    }
+
+    long deltas[N - 1];
+    for (int i = 0; i < N - 1; ++i) deltas[i] = absDiff(field[i + 1], field[i]);
+    std::sort(deltas, deltas + (N - 1));
+    long median = deltas[(N - 1) / 2];
+
+    long wrap = absDiff(field[0], field[N - 1]);
+    long bound = median + median / 2;  // 1.5x median
+    if (bound < 256) bound = 256;      // absolute floor for near-static fields
+    TEST_ASSERT_LESS_OR_EQUAL_INT(bound, wrap);
+}
+
+// The loop path is a pure function of the absolute elapsed time, so a single
+// cold advanceFrame at a nonzero time must produce the same field as a pattern
+// warmed up frame-by-frame to the same time. This regresses the "loop branch
+// runs before the !hasLastElapsed early return" fix. Both patterns are seeded
+// identically so their random base depth matches.
+void test_noise_loop_first_frame_matches_warmed() {
+    constexpr TimeMillis t = 3456;
+    auto ctx = std::make_shared<PipelineContext>();
+
+    randomSeed(777);
+    auto cold = noiseLoopPattern(constant(650), 10000);
+    cold->advanceFrame(u0x16(0), t);  // single cold call at nonzero elapsed time
+    long fCold = noiseFieldSum(*cold, ctx);
+
+    randomSeed(777);
+    auto warm = noiseLoopPattern(constant(650), 10000);
+    constexpr int steps = 40;
+    for (int i = 1; i <= steps; ++i) {
+        TimeMillis ti = static_cast<TimeMillis>((static_cast<uint64_t>(i) * t) / steps);
+        warm->advanceFrame(u0x16(0), ti);
+    }
+    long fWarm = noiseFieldSum(*warm, ctx);
+
+    TEST_ASSERT_EQUAL_INT(fWarm, fCold);
+}
+
+// A noise SIGNAL built with a non-zero loop period must close its seam via the
+// same two-path cross-dissolve the looping noise pattern uses: the wrap step
+// from the last sampled frame back to t=0 must be no worse than ordinary
+// per-frame motion (i.e. not an outlier). Near the seam the output tracks a
+// single noise path moving at the full span rate, so seam-region steps are
+// inherently larger than mid-loop steps where the two paths partly cancel; the
+// honest bound is therefore the max interior step, not the median. Without the
+// cross-dissolve the free-running coordinate lands on an unrelated noise value
+// at the wrap and the step balloons far past that bound. A fixed non-zero phase
+// keeps the field deterministic (zero would pick a random phase).
+void test_noise_signal_loop_seam_is_continuous() {
+    S0x16Signal sig = noise(constant(800), s0x16(1234), 10000);
+
+    constexpr int N = 250;  // 25 fps over a 10 s period
+    constexpr TimeMillis periodMs = 10000;
+    long field[N];
+    for (int f = 0; f < N; ++f) {
+        TimeMillis t = static_cast<TimeMillis>((static_cast<uint64_t>(f) * periodMs) / N);
+        field[f] = static_cast<long>(raw(sig.sample(bipolarRange(), t)));
+    }
+
+    long maxInterior = 0;
+    for (int i = 0; i < N - 1; ++i) {
+        long d = absDiff(field[i + 1], field[i]);
+        if (d > maxInterior) maxInterior = d;
+    }
+
+    long wrap = absDiff(field[0], field[N - 1]);
+    long bound = maxInterior;
+    if (bound < 256) bound = 256;  // absolute floor for near-static fields
+    TEST_ASSERT_LESS_OR_EQUAL_INT(bound, wrap);
+}
+
 #ifndef ARDUINO
 void test_palette_glow_rgb_1000_frame_perf_guard() {
     constexpr uint16_t width = Matrix128x128DisplaySpec::DISPLAY_WIDTH;
@@ -1306,6 +1416,9 @@ void setup() {
     RUN_TEST(test_ripple_seeds_single_droplet);
     RUN_TEST(test_ripple_is_deterministic);
     RUN_TEST(test_display_specs_report_raster_points);
+    RUN_TEST(test_noise_loop_seam_is_continuous);
+    RUN_TEST(test_noise_loop_first_frame_matches_warmed);
+    RUN_TEST(test_noise_signal_loop_seam_is_continuous);
 
     UNITY_END();
 
@@ -1355,6 +1468,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ripple_seeds_single_droplet);
     RUN_TEST(test_ripple_is_deterministic);
     RUN_TEST(test_display_specs_report_raster_points);
+    RUN_TEST(test_noise_loop_seam_is_continuous);
+    RUN_TEST(test_noise_loop_first_frame_matches_warmed);
+    RUN_TEST(test_noise_signal_loop_seam_is_continuous);
     RUN_TEST(test_palette_glow_rgb_1000_frame_perf_guard);
 
     return UNITY_END();

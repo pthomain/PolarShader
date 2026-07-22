@@ -169,6 +169,7 @@ PATTERN_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {
     0x39: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x3A: (_sig("u8", "signal", "signal", "signal"), "uv"),
     0x3B: (_sig("u8", "signal", "signal", "signal"), "uv"),
+    0x3C: (_sig(("u16min", 1), "signal"), "uv"),
 }
 
 TRANSFORM_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {
@@ -204,6 +205,10 @@ def _read_params(
             value = reader.u8()
             if value > param[1]:
                 raise PscValidationError(f"bad enum value {value}")
+        elif isinstance(param, tuple) and param[0] == "u16min":
+            value = reader.u16()
+            if value < param[1]:
+                raise PscValidationError(f"u16 value {value} below min {param[1]}")
         else:
             raise AssertionError(f"unknown PSC validator param {param!r}")
 

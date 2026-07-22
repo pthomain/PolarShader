@@ -140,6 +140,7 @@ namespace PolarShader::composer {
             PAT_PF_CHIRP            = 0x39, // u8 waveCount; signals: phaseSpeed, fold, thickness
             PAT_PF_SPIRAL_ARMS      = 0x3A, // u8 armCount; signals: phaseSpeed, fold, thickness
             PAT_PF_RIPPLE_TANK      = 0x3B, // u8 sourceCount; signals: phaseSpeed, warp, thickness
+            PAT_NOISE_BASIC_LOOP    = 0x3C, // u16 loopPeriodMs; signal depthSpeed
         };
 
         enum TransformTag : uint8_t {
@@ -228,6 +229,11 @@ namespace PolarShader::composer {
 
         constexpr uint8_t kMaxSignalDecodeDepth = 64;
 
+        // Loop period (scene duration) threaded into noise signals so they loop
+        // seamlessly in looping mode. Set at the top of decodeSceneWithDuration
+        // before any signal is decoded; 0 means non-looping (live playback).
+        TimeMillis g_signalLoopPeriodMs = 0;
+
         S0x16Signal decodeSignal(ByteReader &r, DecodeStatus *status, uint8_t version);
         S0x16Signal decodeSignalAtDepth(ByteReader &r,
                                        DecodeStatus *status,
@@ -284,7 +290,7 @@ namespace PolarShader::composer {
                         case SIG_TRIANGLE: return triangle(std::move(pv), phase);
                         case SIG_SQUARE:   return square(std::move(pv), phase);
                         case SIG_SAWTOOTH: return sawtooth(std::move(pv), phase);
-                        case SIG_NOISE:    return noise(std::move(pv), phase);
+                        case SIG_NOISE:    return noise(std::move(pv), phase, g_signalLoopPeriodMs);
                     }
                     return S0x16Signal();
                 }
@@ -303,7 +309,7 @@ namespace PolarShader::composer {
                         case SIG_TRIANGLE_BOUNDED: return triangle(std::move(pv), std::move(floorS), std::move(ceilS));
                         case SIG_SQUARE_BOUNDED:   return square(std::move(pv), std::move(floorS), std::move(ceilS));
                         case SIG_SAWTOOTH_BOUNDED: return sawtooth(std::move(pv), std::move(floorS), std::move(ceilS));
-                        case SIG_NOISE_BOUNDED:    return noise(std::move(pv), std::move(floorS), std::move(ceilS));
+                        case SIG_NOISE_BOUNDED:    return noise(std::move(pv), std::move(floorS), std::move(ceilS), g_signalLoopPeriodMs);
                     }
                     return S0x16Signal();
                 }
@@ -325,7 +331,7 @@ namespace PolarShader::composer {
                         case SIG_TRIANGLE_BOUNDED_PH: return triangle(std::move(pv), phase, std::move(floorS), std::move(ceilS));
                         case SIG_SQUARE_BOUNDED_PH:   return square(std::move(pv), phase, std::move(floorS), std::move(ceilS));
                         case SIG_SAWTOOTH_BOUNDED_PH: return sawtooth(std::move(pv), phase, std::move(floorS), std::move(ceilS));
-                        case SIG_NOISE_BOUNDED_PH:    return noise(std::move(pv), phase, std::move(floorS), std::move(ceilS));
+                        case SIG_NOISE_BOUNDED_PH:    return noise(std::move(pv), phase, std::move(floorS), std::move(ceilS), g_signalLoopPeriodMs);
                     }
                     return S0x16Signal();
                 }
@@ -390,6 +396,14 @@ namespace PolarShader::composer {
                     S0x16Signal depth = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return noisePattern(std::move(depth));
+                }
+                case PAT_NOISE_BASIC_LOOP: {
+                    uint16_t loopPeriodMs = r.readU16();
+                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+                    if (loopPeriodMs == 0) { setStatusIfOk(status, DecodeStatus::BAD_VALUE); return nullptr; }
+                    S0x16Signal depth = decodeSignal(r, status, version);
+                    if (*status != DecodeStatus::OK) return nullptr;
+                    return noiseLoopPattern(std::move(depth), loopPeriodMs);
                 }
                 case PAT_NOISE_FBM: {
                     uint8_t octaves = r.readU8();
@@ -1090,6 +1104,11 @@ namespace PolarShader::composer {
             if (statusOut) *statusOut = *status;
             return nullptr;
         }
+
+        // Looping mode is signalled by a finite scene duration; propagate it to
+        // noise signals so they cross-dissolve into a seamless loop. UINT32_MAX
+        // (live playback via decodeScene) keeps signals free-running.
+        g_signalLoopPeriodMs = (durationMs == UINT32_MAX) ? 0 : durationMs;
 
         // Pattern
         std::unique_ptr<UVPattern> pattern = decodePattern(r, status, version);

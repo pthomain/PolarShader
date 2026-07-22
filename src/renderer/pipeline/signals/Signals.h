@@ -99,23 +99,29 @@ namespace PolarShader {
      * @brief Animated noise signal driven by a phase velocity signal.
      * @param phaseVelocity Magnitude-domain rate where `constant(1000)` = 1.0 and `constant(500)` = 0.5.
      * @param phaseOffset Signed turn offset wrapped into the internal phase domain; zero selects a random offset.
+     * @param loopPeriodMs When non-zero, the noise loops seamlessly over this period via a two-path
+     *        cross-dissolve (same technique as the looping noise pattern); the random phase offset
+     *        decorrelates each looping signal. Zero keeps the classic free-running noise.
      */
     S0x16Signal noise(
         S0x16Signal phaseVelocity = constant(550),
-        s0x16 phaseOffset = randomPhaseOffset()
+        s0x16 phaseOffset = randomPhaseOffset(),
+        TimeMillis loopPeriodMs = 0
     );
 
     S0x16Signal noise(
         S0x16Signal phaseVelocity,
         S0x16Signal floor,
-        S0x16Signal ceiling = constant(1000)
+        S0x16Signal ceiling = constant(1000),
+        TimeMillis loopPeriodMs = 0
     );
 
     S0x16Signal noise(
         S0x16Signal phaseVelocity,
         s0x16 phaseOffset,
         S0x16Signal floor,
-        S0x16Signal ceiling = constant(1000)
+        S0x16Signal ceiling = constant(1000),
+        TimeMillis loopPeriodMs = 0
     );
 
     /**

@@ -96,7 +96,17 @@ export class ByteReader {
 // Param encoders/decoders by kind
 // ─────────────────────────────────────────────────────────────────────
 
+function checkBounds(paramSchema, value) {
+    if (paramSchema.min != null && value < paramSchema.min) {
+        throw new Error(`${paramSchema.name} (${value}) below min ${paramSchema.min}`);
+    }
+    if (paramSchema.max != null && value > paramSchema.max) {
+        throw new Error(`${paramSchema.name} (${value}) above max ${paramSchema.max}`);
+    }
+}
+
 function writeParam(w, paramSchema, value, version) {
+    if (paramSchema.kind !== 'signal') checkBounds(paramSchema, value);
     switch (paramSchema.kind) {
         case 'u8':       w.u8(value | 0); break;
         case 'u16':      w.u16(value | 0); break;
@@ -113,19 +123,22 @@ function writeParam(w, paramSchema, value, version) {
 }
 
 function readParam(r, paramSchema, version, depth = 0) {
+    let v;
     switch (paramSchema.kind) {
-        case 'u8':       return r.u8();
-        case 'u16':      return r.u16();
-        case 'u32':      return r.u32();
-        case 'i32':      return r.i32();
+        case 'u8':       v = r.u8(); break;
+        case 'u16':      v = r.u16(); break;
+        case 'u32':      v = r.u32(); break;
+        case 'i32':      v = r.i32(); break;
         case 'bool':     return r.u8() !== 0 ? 1 : 0;
         case 'enum':     return r.u8();
         case 'tintMode': return r.u8();
-        case 'permille': return r.u16();
-        case 'u0x16':      return r.u16();
+        case 'permille': v = r.u16(); break;
+        case 'u0x16':      v = r.u16(); break;
         case 'signal':   return readSignal(r, version, depth + 1);
         default: throw new Error(`unknown param kind ${paramSchema.kind}`);
     }
+    checkBounds(paramSchema, v);
+    return v;
 }
 
 // ─────────────────────────────────────────────────────────────────────

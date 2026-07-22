@@ -160,10 +160,58 @@ namespace PolarShader {
 
     S0x16Signal noise(
         S0x16Signal phaseVelocity,
-        s0x16 phaseOffset
+        s0x16 phaseOffset,
+        TimeMillis loopPeriodMs
     ) {
         phaseOffset = resolveNoisePhaseOffset(phaseOffset);
         const uint32_t phaseOffsetRaw = static_cast<uint32_t>(raw(wrapPhaseOffset(phaseOffset))) << 16;
+
+        if (loopPeriodMs > 0) {
+            // Seamless loop via a two-path cross-dissolve (same technique as the
+            // looping noise pattern): out(phi) = lerp(noise(cA), noise(cB), w(phi))
+            // with cA = base + phi*span, cB = cA - span, and a monotonic 0->1
+            // weight, so out(0) == out(1). The random phaseOffset (base) gives each
+            // looping signal its own path through the field.
+            return S0x16Signal(
+                SignalKind::PERIODIC,
+                [
+                    phaseVelocity = std::move(phaseVelocity),
+                    phaseOffsetRaw,
+                    loopPeriodMs,
+                    sampler = sampleNoise32(),
+                    span = static_cast<uint32_t>(0),
+                    spanReady = false
+                ](TimeMillis elapsedMs) mutable -> s0x16 {
+                    if (!spanReady) {
+                        // Sample velocity ONCE at epoch 0 so the span (hence the
+                        // seam) is a fixed function of absolute time, matching the
+                        // pattern's loop. At phaseVelocity 1.0 the coordinate
+                        // advances by 1 per millisecond, so one period spans P*v.
+                        const uint32_t vel = static_cast<uint32_t>(
+                            raw(phaseVelocity.sample(magnitudeRange(), 0u)));
+                        span = static_cast<uint32_t>(
+                            (static_cast<uint64_t>(loopPeriodMs) * vel) >> 16);
+                        spanReady = true;
+                    }
+
+                    const uint16_t phi_raw = static_cast<uint16_t>(
+                        static_cast<uint64_t>(elapsedMs % loopPeriodMs) * 65535u / loopPeriodMs);
+                    const uint32_t coordA = phaseOffsetRaw +
+                        static_cast<uint32_t>((static_cast<uint64_t>(phi_raw) * span) >> 16);
+                    const uint32_t coordB = coordA - span;
+
+                    int32_t w = 32767 - static_cast<int32_t>(cos16(static_cast<uint16_t>(phi_raw >> 1)));
+                    if (w < 0) w = 0;
+                    if (w > 65535) w = 65535;
+
+                    const int32_t a = raw(sampler(coordA));
+                    const int32_t b = raw(sampler(coordB));
+                    const int32_t out = a + static_cast<int32_t>(
+                        (static_cast<int64_t>(b - a) * w) >> 16);
+                    return s0x16(out);
+                }
+            );
+        }
 
         return S0x16Signal(
             SignalKind::PERIODIC,
@@ -186,10 +234,11 @@ namespace PolarShader {
     S0x16Signal noise(
         S0x16Signal phaseVelocity,
         S0x16Signal floor,
-        S0x16Signal ceiling
+        S0x16Signal ceiling,
+        TimeMillis loopPeriodMs
     ) {
         return withBounds(
-            noise(std::move(phaseVelocity)),
+            noise(std::move(phaseVelocity), randomPhaseOffset(), loopPeriodMs),
             std::move(floor),
             std::move(ceiling)
         );
@@ -199,10 +248,11 @@ namespace PolarShader {
         S0x16Signal phaseVelocity,
         s0x16 phaseOffset,
         S0x16Signal floor,
-        S0x16Signal ceiling
+        S0x16Signal ceiling,
+        TimeMillis loopPeriodMs
     ) {
         return withBounds(
-            noise(std::move(phaseVelocity), phaseOffset),
+            noise(std::move(phaseVelocity), phaseOffset, loopPeriodMs),
             std::move(floor),
             std::move(ceiling)
         );

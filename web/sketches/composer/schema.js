@@ -132,6 +132,11 @@ export const PATTERNS = {
         config: [],
         signals: [{ name: 'depthSpeed' }],
     },
+    noiseBasicLoop: {
+        tag: 0x3C, label: 'Noise — Basic (Loop)',
+        config: [{ name: 'loopPeriodMs', kind: 'u16', default: 10000, min: 1, max: 65535, label: 'loop period (ms)' }],
+        signals: [{ name: 'depthSpeed' }],
+    },
     noiseFbm: {
         tag: 0x01, label: 'Noise — FBM',
         config: [{ name: 'octaves', kind: 'u8', default: 4 }],

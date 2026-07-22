@@ -79,6 +79,16 @@ own `(hue, value)` colour, so the palette transform acts as a hue-remap tint:
 
 The three signals are `phaseSpeed`, then `warp`/`fold`, then `thickness`.
 
+### Looping Noise
+
+- `0x3C` Noise — Basic (Loop): a seam-free variant of the basic Perlin
+  noise pattern (`0x00`). Its body is a `u16` `loopPeriodMs` (little-endian)
+  followed by the `depthSpeed` signal. The pattern cross-dissolves two
+  offset noise depths so the field returns to its start after
+  `loopPeriodMs`. `loopPeriodMs` must be `>= 1`; a zero period is rejected
+  by the C++ decoder (`DecodeStatus::BAD_VALUE`), the web codec, and the
+  Python validator.
+
 ### Raster Patterns
 
 Tags `0x2B`–`0x35` are grid-based patterns that render on a raster

@@ -304,6 +304,52 @@ test('decodeScene accepts paletteGlow without tileScale signal', () => {
     assert.equal(decoded.pattern.signals.tileScale.params.permille, 500);
 });
 
+const NOISE_LOOP_FIXTURE = [
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x3c, 0x07, 0x00,          // noiseBasicLoop, body length 7
+    0x10, 0x27,                // loopPeriodMs = 10000 (LE)
+    0x00, 0x02, 0x00, 0x26, 0x02, // depthSpeed constant 550
+    0x00,                      // no transforms
+];
+
+function noiseLoopScene(loopPeriodMs) {
+    return {
+        paletteId: 0,
+        pattern: {
+            id: 'noiseBasicLoop',
+            config: { loopPeriodMs },
+            signals: { depthSpeed: { id: 'constant', params: { permille: 550 } } },
+        },
+        transforms: [],
+    };
+}
+
+test('noiseBasicLoop encodes exact golden bytes', () => {
+    assert.deepEqual(Array.from(encodeScene(noiseLoopScene(10000))), NOISE_LOOP_FIXTURE);
+});
+
+test('noiseBasicLoop decodes golden bytes and round-trips', () => {
+    const scene = decodeScene(bytes(NOISE_LOOP_FIXTURE));
+    assert.equal(scene.pattern.id, 'noiseBasicLoop');
+    assert.equal(scene.pattern.config.loopPeriodMs, 10000);
+    assert.equal(scene.pattern.signals.depthSpeed.params.permille, 550);
+    assertStableRoundTrip(scene, 'noiseBasicLoop');
+});
+
+test('noiseBasicLoop encode rejects zero and out-of-range loopPeriodMs', () => {
+    assertThrowsMessage(() => encodeScene(noiseLoopScene(0)), /loopPeriodMs.*below min 1/);
+    assertThrowsMessage(() => encodeScene(noiseLoopScene(70000)), /loopPeriodMs.*above max 65535/);
+});
+
+test('noiseBasicLoop decode rejects zero loopPeriodMs', () => {
+    const bad = bytes([...NOISE_LOOP_FIXTURE]);
+    bad[9] = 0x00;  // loopPeriodMs low byte
+    bad[10] = 0x00; // loopPeriodMs high byte
+    assertThrowsMessage(() => decodeScene(bad), /loopPeriodMs.*below min 1/);
+});
+
 test('all current patterns round-trip through the web codec', () => {
     for (const id of Object.keys(PATTERNS)) {
         assertStableRoundTrip({
