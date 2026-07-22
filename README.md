@@ -1,253 +1,84 @@
-# PolarShader, a shader-like rendering library for Arduino.
+<p align="center">
+  <img src="docs/media/banner.webp" alt="PolarShader — a scene animating on a round display beside the PolarShader title" width="480" />
+</p>
 
-PolarShader is a deterministic, fixed-point LED rendering engine for microcontrollers (Seeeduino XIAO SAMD21, XIAO
-RP2040, Teensy 4.1).
-It renders animated patterns onto LED arrays (like circular/ring displays) using a composable pipeline — all without
-floating-point math.
+**A deterministic, fixed-point LED shader engine for microcontrollers — design in the browser, flash to your board.**
 
----
+PolarShader turns a cheap microcontroller (Seeeduino XIAO SAMD21, XIAO RP2040, or Teensy 4.1) into a
+real-time LED shader engine. You build animated effects for round, matrix, and phyllotaxis displays by
+**stacking small transforms and signals** over a procedural pattern — the same way you'd layer nodes in
+a shader graph — and it all runs in **fixed-point math with no floating point**, so animation stays
+smooth and identical across boards and reboots.
 
-## What PolarShader Is
+## ▶ Try it live
 
-PolarShader is a **domain-specific rendering engine** for LED effects where:
+**[Open the composer in your browser →](https://pthomain.github.io/PolarShader/composer/)** — no install,
+nothing to build.
 
-- The **polar domain** (angle + radius) is first-class
-- All math is **fixed-point** (no floats, no per-frame heap churn)
-- Effects are built by **composing transforms**, not by writing monolithic loops
-- Motion and modulation are **explicit, typed, and deterministic**
+The hosted composer is for **designing, downloading, and loading** compositions in the browser. **Saving
+to a playlist and flashing to a board require running the composer locally** via `web/serve.sh` (see
+[Create & deploy locally](#-create--deploy-locally) below) — those actions talk to a local server that
+the static GitHub Pages build doesn't provide.
 
-It targets platforms such as:
+## Why it's different
 
-- RP2040
-- SAMD21 / SAMD51
-- ESP32 (when deterministic timing matters)
+- **Fixed-point, deterministic** — no `float`/`double`; identical output across compilers, MCUs, and reboots.
+- **Unified UV space** — every transform works on one normalized coordinate space, polar or matrix alike.
+- **Composable transforms** — small, single-responsibility warps you can stack, reorder, and reuse.
+- **Explicit, signal-driven motion** — animation comes from typed signals + integrators, never hidden state.
+- **Dual-core-safe** — on RP2040, per-core sampler chains render in parallel from one prepared frame.
 
----
+→ Full walkthrough in **[Core Concepts](docs/wiki/Core-Concepts.md)**.
 
-## Core Design Goals
+## See it in action (assets pending)
 
-- All fixed-point — custom Q-format types (u0x16, s0x16, fl::s16x16, fl::s24x8, fl::u24x8) with strong typing to prevent unit mixing
-- Unified UV space — all spatial transforms operate on normalized fl::s16x16 (Q16.16 signed) coordinates, agnostic to polar vs
-  cartesian
-- Composable pipeline — transforms are small, single-responsibility, and stackable in any order via PipelineStep variant
-- Explicit motion — all animation driven by S0x16Signal + PhaseAccumulator, no hidden state
-- Dual-core safe frame lifecycle — state changes happen in `advanceFrame()`, render sampling is read-only
-- Zero heap allocation in hot paths — scene compilation may allocate on scene changes, never in the per-frame render loop
+GIFs are on the way. Placeholders — drop the clips into `docs/media/` (see
+[docs/media/README.md](docs/media/README.md)) and these become live images:
 
-### 1. Deterministic Fixed-Point Arithmetic
+<!-- composer UI GIF: docs/media/composer-ui.gif — editing patterns/transforms/signals live -->
+<!-- round display GIF: docs/media/display-round.gif — a scene on the 241-pixel round display -->
+<!-- matrix display GIF: docs/media/display-matrix.gif — a scene on a matrix display -->
 
-- No `float`, no `double`
-- Explicit Q-formats (`u0x16/s0x16 (Q0.16)`, `fl::u16x16/fl::s16x16 (Q16.16)`, `Q1.15`)
-- Fully deterministic across frames, compilers, and MCUs
-- Predictable overflow, wrap, and saturation behavior
+## ⚡ Create & deploy locally
 
-This makes PolarShader suitable for:
+Running the composer locally unlocks saving compositions and flashing them to hardware.
 
-- Tight real-time loops
-- Long-running installations
-- Visual continuity under variable frame timing
+1. **Install prerequisites** — Python 3, then `pip install -r web/requirements.txt`. PlatformIO is only
+   needed for the deploy step.
+2. **Start the composer** — `web/serve.sh` (rebuilds and serves on port `8000`), then open
+   `http://localhost:8000/composer/`.
+3. **Pick your display** — choose your layout from the dropdown, or add `?display=round` (etc.) to the URL.
+4. **Compose a scene** — layer a pattern, transforms, and signals, then **Add to playlist** (writes a
+   `.psc` file into `build/psc/` — local server only).
+5. **Deploy** — select your board target and click **Deploy** to flash it (runs `pio run -e <env> -t upload`).
 
----
+→ Details in **[Getting Started](docs/wiki/Getting-Started.md)** and
+**[Deploying to Hardware](docs/wiki/Deploying-to-Hardware.md)**.
 
-### 2. Unified Coordinate System (UV)
+## Supported hardware
 
-PolarShader uses a **unified spatial representation (UV)**:
+Each firmware target is one PlatformIO environment bound to a fixed display layout:
 
-- **Normalized UV Space:** All spatial operations are performed in a normalized [0.0, 1.0] domain mapped to `fl::s16x16`.
-- **Domain Agnostic:** Transforms like rotation or zoom apply seamlessly to any pattern.
-- **High Precision:** `fl::u16x16/fl::s16x16 (Q16.16)` provides sufficient geometric headroom for large-scale translations and zooms.
-- **Specialized Cartesian Domain:** `fl::s24x8/fl::u24x8` is used for lattice/noise-style Cartesian internals where 8 fractional bits
-  are enough and integer-grid behavior is the priority.
+| env | Board | Display | Entry point |
+|-----|-------|---------|-------------|
+| `seeed_xiao` | Seeeduino XIAO (SAMD21) | Fabric (20×20) | `main_samd.cpp` |
+| `seeed_xiao_rp2040_fabric` | Seeed XIAO RP2040 | Fabric (20×20) | `main_rp2040_fabric.cpp` |
+| `seeed_xiao_rp2040_round` | Seeed XIAO RP2040 | Round (241 px) | `main_rp2040_round.cpp` |
+| `seeed_xiao_rp2040_matrix32x8` | Seeed XIAO RP2040 | Fabric 32×8 | `main_rp2040_fabric32x8.cpp` |
+| `seeed_xiao_rp2040_fibonacci` | Seeed XIAO RP2040 | Fibonacci (324 px) | `main_rp2040_fibonacci.cpp` |
+| `teensy41_matrix` | Teensy 4.1 | SmartMatrix 128×128 | `main_teensy.cpp` |
 
-`fl::u16x16` and `fl::u24x8` are both ratio/range formats, but they serve different purposes:
+→ More in **[Displays](docs/wiki/Displays.md)**.
 
-- `fl::u16x16/fl::s16x16`: high-precision transform space (UV, composition, smooth motion).
-- `fl::u24x8/fl::s24x8`: lower-fractional precision Cartesian/noise space (grid cells, lattice sampling, fast domain math).
+## Documentation
 
----
-
-### 3. Shader-Like Composition API
-
-Effects are built by stacking **small, pure transforms**, similar to GPU shaders:
-
-```cpp
-pipeline
-  .addTransform(RotationTransform(noise(constant(560))))
-  .addTransform(KaleidoscopeTransform(6, true))
-  .addTransform(ZoomTransform(sine(constant(550))))
-```
-
-Each transform:
-
-* Has a **single responsibility**
-* Is stateless (or uses an explicit integrator)
-* Can be reordered, removed, or reused
-
-## Architecture at a Glance
-
-```
-PolarRenderer → SceneManager → Scene → Layer(s)
-                                          ↓
-                          Pattern → UV Transforms → Palette → CRGB
-```
-
-On RP2040 dual-core builds:
-
-- Core 0 owns frame timing, scene transitions, and `FastLED.show()`.
-- Scene compilation happens only when a scene is created or replaced.
-- Each scene builds one compiled sampler chain per core from the same logical scene state.
-- During render, both cores only sample their own compiled chain; no per-frame `ColourMap` handoff or copying occurs.
----
-
-## Frame Lifecycle
-
-PolarShader separates frame preparation from sampling:
-
-- `Scene::compile()`: runs on scene creation/change and builds stable sampler chains.
-- `advanceFrame(progress, elapsedMs)`: updates mutable frame state such as signals, accumulators, depth, and cached pattern parameters.
-- `sample()` / compiled functors: read cached state only and must remain safe for concurrent sampling on RP2040.
-
-This split is required for dual-core rendering. Anything that samples signals, advances accumulators, or mutates state must happen before render starts.
-
-## Key Modules
-
-| Directory                         | Purpose                                                                                | 
-|:----------------------------------|:---------------------------------------------------------------------------------------|
-| src/renderer/pipeline/patterns/   | UV-based patterns (Noise, Worley, Hex tiling, FBm)                                     |
-| src/renderer/pipeline/transforms/ | Composable transforms (Rotation, Zoom, Translation, Kaleidoscope, Vortex, Domain Warp) |
-| src/renderer/pipeline/signals/    | Time-varying signals (sine, noise, linear easing) driving animation                    |                    
-| src/renderer/scene/               | Scene/layer lifecycle, blending, alpha                                                 |                                                            
-| src/renderer/layer/               | Layer composition with fluent LayerBuilder API                                         |                                                    
-| src/renderer/maths/               | Fixed-point math (polar/cartesian, UV ops, angle, noise)                               |                                           
-| src/display/                      | Display abstraction (FastLED, SmartMatrix)                                             |                                                                 
-
-## Key Concepts
-
-### Signals
-
-PolarShader uses `S0x16Signal` factories for time-varying scalar control values.
-
-Signal kinds:
-
-* `PERIODIC`: waveform receives scene `elapsedMs` directly.
-* `APERIODIC`: waveform receives a relative time derived from `duration` and `LoopMode`.
-    - `LoopMode::RESET` wraps by `elapsedMs % duration`.
-    - `duration == 0` emits 0.
-
-Factory families:
-
-* Periodic factories (`sine`, `noise`, `triangle`, `square`, `sawtooth`) expose:
-    - A base signature: `(phaseVelocity, phaseOffset)`.
-    - Bounded overloads: `(phaseVelocity, floor, ceiling)` and `(phaseVelocity, phaseOffset, floor, ceiling)`.
-    - Waveform `phaseVelocity` is sampled through the magnitude domain, where `constant(1000)` = 1 Hz and `constant(500)` = 0.5 Hz.
-    - `phaseOffset` is a signed turn offset wrapped into the phase domain.
-    - When a bounded overload is used, the factory applies `smap()` internally.
-* Aperiodic factories (`linear`, `quadraticIn`, `quadraticOut`, `quadraticInOut`) share:
-    - `(duration, loopMode)`.
-
-Output contract:
-
-* `S0x16Signal` emits values in `[-1, 1]`.
-* Periodic factories span `[-1, 1]` by default.
-* Use `smap(signal, floorSignal, ceilingSignal)` to remap a signal into a bounded unipolar interval before it is converted back to signed `s0x16`.
-    - `floorSignal` and `ceilingSignal` are sampled through the unsigned magnitude domain.
-    - If the sampled floor exceeds the sampled ceiling, the bounds are swapped for that sample.
-* Internal waveform phase integration uses magnitude-domain phase velocity with a 1 Hz full-scale maximum.
-
----
-
-### Phase vs Angle
-
-PolarShader clearly distinguishes:
-
-* **`u0x16` angle samples**
-  A wrapped turn-domain angle (0..65535 -> 0..1 turn)
-
-* **`PhaseAccumulator` internal phase state**
-  A higher-precision integrated phase used for smooth periodic motion
-
-This avoids:
-
-* Quantization jitter
-* Hidden precision loss
-* Accidental misuse of angles as phases
-
----
-
-### Motion as Integration
-
-Motion is not implicit.
-All motion goes through **explicit integrators**:
-
-* Phase accumulators for rotation
-* Mapped-signal accumulators for relative mapped/UV domains
-* Cartesian integrators for translation and domain warp drift
-
-This ensures:
-
-* Smooth motion under variable `dt`
-* Correct wrap semantics
-* Centralized timing logic
-
----
-
-### Unit Naming Cheat Sheet
-
-| Type           | Signed | Format | Typical Use                                                          |
-|:---------------|:-------|:-------|:---------------------------------------------------------------------|
-| `u0x16`        | No     | Q0.16  | Unit fractions and wrapped angle-like values in `[0, 1)` domains     |
-| `s0x16`        | Yes    | Q0.16  | Signed scalar signals/modulation in `[-1, 1]`                        |
-| `fl::u16x16`   | No     | Q16.16 | Unsigned high-precision ratio/range values (not implicitly `[0, 1]`) |
-| `fl::s16x16`   | Yes    | Q16.16 | UV transform/composition space with high fractional precision        |
-| `fl::u24x8`    | No     | Q24.8  | Unsigned Cartesian/noise-domain coordinates and depth sampling       |
-| `fl::s24x8`    | Yes    | Q24.8  | Signed lattice/grid Cartesian internals for pattern math             |
-
----
-
-## Why Not FastLED Effects Directly?
-
-FastLED is excellent at **pixel IO and color math**.
-PolarShader focuses on **spatial structure and motion**.
-
-Use them together:
-
-* FastLED handles LEDs and palettes
-* PolarShader handles geometry and time
-
----
-
-## What PolarShader Is *Not*
-
-* Not a general-purpose math library
-* Not a floating-point abstraction
-* Not a scene graph
-* Not a GPU replacement
-
-It is intentionally narrow—and fast.
-
----
-
-## Performance Characteristics
-
-* No heap allocation in per-frame hot paths
-* Scene/layer compilation may allocate only when scenes are created or replaced
-* No virtual dispatch in inner loops
-* Small, predictable codegen
-* Suitable for 48–133 MHz MCUs
-
----
-
-## Philosophy Summary
-
-> **Make geometry explicit.**
-> **Make time explicit.**
-> **Make units explicit.**
-> **Compose everything.**
-
-PolarShader treats LED effects as **deterministic programs over space and time**, not ad-hoc animations.
-
----
+- **[Getting Started](docs/wiki/Getting-Started.md)** — install, run the composer, build and save your first scene.
+- **[Web Composer Guide](docs/wiki/Web-Composer-Guide.md)** — the UI in depth, playlists, embed mode, hosted vs local.
+- **[Deploying to Hardware](docs/wiki/Deploying-to-Hardware.md)** — targets, the deploy flow, embedding playlists.
+- **[Core Concepts](docs/wiki/Core-Concepts.md)** — Scene / Layer / Pattern / Transform / Signal and the design choices.
+- **[Patterns](docs/wiki/Patterns.md)** · **[Transforms](docs/wiki/Transforms.md)** · **[Signals](docs/wiki/Signals.md)** · **[Displays](docs/wiki/Displays.md)** — reference catalogs.
+- **[PSC Format](docs/psc-format.md)** — the binary scene format shared by the composer, WASM renderer, and firmware.
 
 ## License
 
-GPL-3.0-or-later
+GPL-3.0-or-later.
