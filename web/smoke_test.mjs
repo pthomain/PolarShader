@@ -13,7 +13,7 @@
 //   1. the body is revealed (computed opacity === "1") — normal boot does this,
 //      and boot-diagnostics.js reveals on error and as a timed fail-safe, so a
 //      body stuck at 0 means the whole boot chain (incl. our bootstrap) failed,
-//   2. the static menu bar is visible,
+//   2. the composer canvas shell is visible,
 //   3. boot-diagnostics.js ran (the build stamp element is present).
 //
 // Uncaught page errors (e.g. the known SharedArrayBuffer/cross-origin-isolation
@@ -111,8 +111,8 @@ try {
     fail("body never reached opacity:1 — the page stayed invisible (blank-screen regression)");
   }
 
-  const menuVisible = await page.locator("#menu-bar").isVisible().catch(() => false);
-  if (!menuVisible) fail("#menu-bar is not visible");
+  const canvasVisible = await page.locator("#canvas-container").isVisible().catch(() => false);
+  if (!canvasVisible) fail("#canvas-container is not visible");
 
   const stampPresent = (await page.locator("#ps-build-stamp").count()) > 0;
   if (!stampPresent) fail("boot-diagnostics did not run (no #ps-build-stamp)");
