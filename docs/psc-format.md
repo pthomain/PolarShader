@@ -2,7 +2,7 @@
 
 PSC is the binary scene format used by the web composer, the WASM renderer, and the embedded MCU playlist.
 
-The supported runtime format is **PSC v1**. Older PSC files are not supported by the production codecs; they must be manually re-saved or rebuilt as v1 before they are loaded or embedded.
+The supported runtime formats are **PSC v1**, **PSC v2**, and **PSC v3**. v1 stores built-in palette IDs, v2 adds raw embedded palettes, and v3 adds embedded cosine palette coefficients.
 
 ## Byte Order
 
@@ -13,12 +13,20 @@ All multi-byte integers are little-endian.
 ```text
 offset  size  field
 0       4     magic        "PSC\0" (0x50 0x53 0x43 0x00)
-4       1     version      0x01
-5       1     palette_id   composer palette id
-6       ...   pattern      record(tag, body_len, body)
+4       1     version      0x01, 0x02, or 0x03
+5       1     palette_id   composer palette id, or 0xFF embedded sentinel
+6       ...   palette      only present for embedded palettes
+...     ...   pattern      record(tag, body_len, body)
 ...     1     transform_n  transform count
 ...     ...   transforms   transform_n records
 ```
+
+Palette layouts:
+
+- v1: `palette_id` is a built-in composer palette ID. `0xFF` is invalid.
+- v2 with `palette_id = 0xFF`: 48 bytes follow, encoded as 16 raw `(r,g,b)` entries.
+- v3 with `palette_id = 0xFF`: 24 bytes follow, encoded as 12 little-endian `u16` cosine coefficients in `a,b,c,d` RGB order. Coefficients `a`, `b`, and `d` are scaled over `0..1`; coefficient `c` is scaled over `0..4`.
+- v2/v3 may also carry a built-in palette ID, but current web output only uses v2/v3 for embedded palettes.
 
 Every pattern, transform, and signal is encoded as a length-prefixed record:
 

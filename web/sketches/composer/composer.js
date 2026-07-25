@@ -2485,6 +2485,7 @@ function applyGeneratorToScene(gen) {
     mutateScene('paletteEntries', 'cosine', (scene) => {
         scene.paletteId = null;
         scene.paletteEntries = entries.map((e) => e.slice());
+        scene.paletteCoeffs = cloneCoeffs(gen.coeffs);
     });
 }
 
@@ -2933,7 +2934,21 @@ function syncPaletteGeneratorFromChoice(choice) {
 }
 
 function syncPaletteGeneratorFromScene() {
-    syncPaletteGeneratorFromChoice(currentPaletteChoice(sceneStore.scene));
+    const scene = sceneStore.scene;
+    const choice = currentPaletteChoice(scene);
+    const entry = paletteLibraryEntryFromChoice(choice);
+    if (entry?.data?.type === 'cosine' && entry.data.coeffs) {
+        syncPaletteGeneratorFromChoice(choice);
+        return;
+    }
+    if (scene.paletteCoeffs) {
+        const gen = ensurePaletteGenerator();
+        gen.startFrom = choice;
+        gen.coeffs = cloneCoeffs(scene.paletteCoeffs);
+        gen.savedSnapshot = null;
+        return;
+    }
+    syncPaletteGeneratorFromChoice(choice);
 }
 
 function applyPaletteChoiceToScene(choice, { syncGenerator = true } = {}) {
@@ -2943,6 +2958,7 @@ function applyPaletteChoiceToScene(choice, { syncGenerator = true } = {}) {
         mutateScene('paletteId', paletteId, (scene) => {
             scene.paletteId = paletteId;
             scene.paletteEntries = null;
+            scene.paletteCoeffs = null;
         });
         return true;
     }
@@ -2952,21 +2968,34 @@ function applyPaletteChoiceToScene(choice, { syncGenerator = true } = {}) {
         mutateScene('paletteEntries', entry.name, (scene) => {
             scene.paletteId = null;
             scene.paletteEntries = entry.data.entries.map((e) => e.slice());
+            scene.paletteCoeffs = entry.data.type === 'cosine' && entry.data.coeffs
+                ? cloneCoeffs(entry.data.coeffs)
+                : null;
         });
         return true;
     }
     return choice === 'embedded';
 }
 
-// Save an embedded (entries-only) palette to the library as type "raw" —
-// coeffs are unrecoverable from baked entries, so it is not basis-eligible.
-async function saveEmbeddedPaletteToLibrary(entries) {
+// Save an unmatched embedded palette. PSC v3 palettes keep their cosine
+// coefficients; v2 entries-only palettes are saved as raw.
+async function saveEmbeddedPaletteToLibrary(scene) {
     const name = window.prompt('Palette name', 'Imported palette');
     if (name === null) return;
     const trimmed = name.trim();
     if (!trimmed) { showStatus('palette name is required', true); return; }
+    const entries = scene.paletteEntries;
+    if (!Array.isArray(entries)) return;
+    const data = scene.paletteCoeffs
+        ? {
+            type: 'cosine',
+            name: trimmed,
+            coeffs: cloneCoeffs(scene.paletteCoeffs),
+            entries: entries.map((e) => e.slice()),
+        }
+        : { type: 'raw', name: trimmed, entries: entries.map((e) => e.slice()) };
     try {
-        await savePaletteData({ type: 'raw', name: trimmed, entries: entries.map((e) => e.slice()) });
+        await savePaletteData(data);
         rebuildPanel();
         showStatus(`saved palette ${trimmed}`, false);
     } catch (e) {
@@ -3004,7 +3033,7 @@ function renderPaletteSelector() {
         // from also being forwarded to (and re-focusing) the <select>.
         saveBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            void saveEmbeddedPaletteToLibrary(scene.paletteEntries);
+            void saveEmbeddedPaletteToLibrary(scene);
         });
         wrap.appendChild(saveBtn);
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025 Pierre Thomain
 //
-// PSC v1 schema — mirrors src/composer/SceneCodec.cpp byte-for-byte.
+// PSC schema — mirrors src/composer/SceneCodec.cpp byte-for-byte.
 // Drift between this file and the C++ tag tables is caught by the
 // cross-implementation golden fixture in test/test_composer.
 
@@ -698,8 +698,12 @@ export const DEFAULT_PALETTE_TRANSFORM = () => ({
 export const DEFAULT_SCENE = () => ({
     paletteId: 0,
     // null = use the built-in palette named by paletteId. A non-null array of
-    // 16 [r,g,b] triples is an embedded custom palette (encoded as PSC v2).
+    // 16 [r,g,b] triples is an embedded custom palette (PSC v2 raw entries, or
+    // PSC v3 when paletteCoeffs is also present).
     paletteEntries: null,
+    // null = baked entries or built-in palette. Non-null cosine coefficients
+    // are stored directly in PSC v3 and decoded back into paletteEntries.
+    paletteCoeffs: null,
     pattern: {
         id: 'noiseBasic',
         config: {},

@@ -1308,6 +1308,36 @@ void test_decode_v2_embedded_palette() {
     (void) sample;
 }
 
+void test_decode_v3_cosine_palette_coefficients() {
+    // v3 header with the 0xFF sentinel followed by 12 little-endian u16 cosine
+    // coefficients: a, b, c, d RGB triples. a/b/d are scaled 0..1; c is 0..4.
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,   // magic "PSC\0"
+        0x03,                      // version 3
+        0xFF,                      // embedded cosine-palette sentinel
+        // a = [0.5, 0.5, 0.5]
+        0x00, 0x80,  0x00, 0x80,  0x00, 0x80,
+        // b = [0.5, 0.5, 0.5]
+        0x00, 0x80,  0x00, 0x80,  0x00, 0x80,
+        // c = [1.0, 1.0, 1.0] scaled over 0..4
+        0x00, 0x40,  0x00, 0x40,  0x00, 0x40,
+        // d = [0.0, 0.33, 0.67]
+        0x00, 0x00,  0x7B, 0x54,  0x84, 0xAB,
+        // pattern: paletteGlow (colour pattern that reads the palette)
+        0x1F, 0x00, 0x00,          // PAT_PALETTE_GLOW, body length 0
+        0x00,                      // transform count
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    decoded->compile();
+    decoded->advanceFrame(u0x16(0x8000u), 1000);
+    ::CRGB sample = decoded->sample(0, u0x16(0x4000u), u0x16(0x4000u));
+    (void) sample;
+}
+
 void test_decode_v1_with_embedded_sentinel_rejected() {
     // Under v1, 0xFF is simply an unknown palette id → BAD_ENUM (NOT BAD_VERSION).
     static const uint8_t kFixture[] = {
@@ -1333,6 +1363,22 @@ void test_decode_v2_embedded_palette_truncated_rejected() {
         // 40 palette bytes (8 short)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::TRUNCATED), static_cast<int>(status));
+    TEST_ASSERT_NULL(decoded.get());
+}
+
+void test_decode_v3_cosine_palette_truncated_rejected() {
+    // v3 + 0xFF but only 20 of the required 24 coefficient bytes → TRUNCATED.
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x03,
+        0xFF,
+        // 20 coefficient bytes (4 short)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
@@ -2182,8 +2228,10 @@ void setup() {
     RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_v2_embedded_palette);
+    RUN_TEST(test_decode_v3_cosine_palette_coefficients);
     RUN_TEST(test_decode_v1_with_embedded_sentinel_rejected);
     RUN_TEST(test_decode_v2_embedded_palette_truncated_rejected);
+    RUN_TEST(test_decode_v3_cosine_palette_truncated_rejected);
     RUN_TEST(test_decode_v1_length_prefixed_fixture);
     RUN_TEST(test_decode_js_generated_lockstep_fixtures);
     RUN_TEST(test_decode_v1_rejects_trailing_pattern_body_bytes);
@@ -2255,8 +2303,10 @@ int main() {
     RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
     RUN_TEST(test_decode_v2_embedded_palette);
+    RUN_TEST(test_decode_v3_cosine_palette_coefficients);
     RUN_TEST(test_decode_v1_with_embedded_sentinel_rejected);
     RUN_TEST(test_decode_v2_embedded_palette_truncated_rejected);
+    RUN_TEST(test_decode_v3_cosine_palette_truncated_rejected);
     RUN_TEST(test_decode_v1_length_prefixed_fixture);
     RUN_TEST(test_decode_js_generated_lockstep_fixtures);
     RUN_TEST(test_decode_v1_rejects_trailing_pattern_body_bytes);

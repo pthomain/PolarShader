@@ -184,6 +184,32 @@ class PscValidationTest(unittest.TestCase):
         with self.assertRaises(psc_v1.PscValidationError):
             psc_v1.validate_psc_scene(payload)
 
+    def test_validator_accepts_v3_cosine_palette(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x03,                              # version 3
+            0xFF,                              # embedded cosine palette sentinel
+            *([0x10] * (2 * 12)),              # 12 u16 coefficient words
+            0x00, 0x05, 0x00,                  # noiseBasic, body length 5
+            0x00, 0x02, 0x00, 0x26, 0x02,      # depthSpeed constant 550
+            0x00,
+        ])
+        info = psc_v1.validate_psc_scene(payload)
+        self.assertEqual(info.pattern_tag, 0x00)
+        tag, error = local_server._psc_pattern_tag(payload)
+        self.assertEqual(tag, 0x00)
+        self.assertIsNone(error)
+
+    def test_validator_rejects_v3_cosine_palette_truncated(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x03,
+            0xFF,
+            *([0x10] * 20),                    # only 20 of 24 coefficient bytes
+        ])
+        with self.assertRaises(psc_v1.PscValidationError):
+            psc_v1.validate_psc_scene(payload)
+
     def test_validator_rejects_v1_with_embedded_sentinel(self) -> None:
         payload = bytes([
             0x50, 0x53, 0x43, 0x00,

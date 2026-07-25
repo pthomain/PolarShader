@@ -18,7 +18,7 @@
  * along with PolarShader. If not, see <https://www.gnu.org/licenses/>.
  */
 
-// PSC v1 wire-format decoder. See SceneCodec.h for the format spec.
+// PSC wire-format decoder. See SceneCodec.h for the format spec.
 //
 // Tag tables in this file MUST match web/sketches/composer/schema.js
 // byte-for-byte. The cross-implementation golden fixture in test_composer
@@ -42,6 +42,7 @@
 #include "renderer/pipeline/transforms/TilingTransform.h"
 #include "renderer/pipeline/transforms/FlowFieldTransform.h"
 
+#include <cmath>
 #include <cstring>
 #include <utility>
 
@@ -228,11 +229,49 @@ namespace PolarShader::composer {
         // ───── Recursive Signal decoder ───────────────────────────────
 
         constexpr uint8_t kMaxSignalDecodeDepth = 64;
+        constexpr uint8_t kPscVersion1 = 1;
+        constexpr uint8_t kPscVersion2 = 2;
+        constexpr uint8_t kPscVersion3 = 3;
+        constexpr uint8_t kEmbeddedPaletteSentinel = 0xFF;
+        constexpr uint16_t kCoeffRawMax = 0xFFFF;
+        constexpr double kTau = 6.28318530717958647692;
 
         // Loop period (scene duration) threaded into noise signals so they loop
         // seamlessly in looping mode. Set at the top of decodeSceneWithDuration
         // before any signal is decoded; 0 means non-looping (live playback).
         TimeMillis g_signalLoopPeriodMs = 0;
+
+        double decodePaletteCoeff(uint8_t coeffIndex, uint16_t raw) {
+            const double max = coeffIndex == 2 ? 4.0 : 1.0;
+            return (static_cast<double>(raw) / static_cast<double>(kCoeffRawMax)) * max;
+        }
+
+        uint8_t cosinePaletteChannel(double t, double a, double b, double c, double d) {
+            double value = a + b * std::cos(kTau * (c * t + d));
+            if (value < 0.0) value = 0.0;
+            if (value > 1.0) value = 1.0;
+            return static_cast<uint8_t>(std::round(255.0 * value));
+        }
+
+        bool readCosinePalette(ByteReader &r, ::CRGBPalette16 &out) {
+            double coeffs[4][3] = {};
+            for (uint8_t key = 0; key < 4; ++key) {
+                for (uint8_t ch = 0; ch < 3; ++ch) {
+                    coeffs[key][ch] = decodePaletteCoeff(key, r.readU16());
+                }
+            }
+            if (!r.ok()) return false;
+
+            for (int i = 0; i < 16; ++i) {
+                const double t = static_cast<double>(i) / 16.0;
+                out.entries[i] = ::CRGB(
+                    cosinePaletteChannel(t, coeffs[0][0], coeffs[1][0], coeffs[2][0], coeffs[3][0]),
+                    cosinePaletteChannel(t, coeffs[0][1], coeffs[1][1], coeffs[2][1], coeffs[3][1]),
+                    cosinePaletteChannel(t, coeffs[0][2], coeffs[1][2], coeffs[2][2], coeffs[3][2])
+                );
+            }
+            return true;
+        }
 
         S0x16Signal decodeSignal(ByteReader &r, DecodeStatus *status, uint8_t version);
         S0x16Signal decodeSignalAtDepth(ByteReader &r,
@@ -1092,25 +1131,33 @@ namespace PolarShader::composer {
         // Version
         uint8_t version = r.readU8();
         if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); if (statusOut) *statusOut = *status; return nullptr; }
-        if (version != 1 && version != 2) {
+        if (version != kPscVersion1 && version != kPscVersion2 && version != kPscVersion3) {
             setStatusIfOk(status, DecodeStatus::BAD_VERSION);
             if (statusOut) *statusOut = *status;
             return nullptr;
         }
 
-        // Palette. Palette id 0xFF is the v2 embedded-palette sentinel: 48 bytes
-        // (16 x r,g,b) follow and define a self-contained custom palette. Under
+        // Palette. Palette id 0xFF is an embedded-palette sentinel under v2/v3:
+        // v2 stores 48 raw RGB bytes; v3 stores 12 u16 cosine coefficients. Under
         // v1, 0xFF is simply an unknown palette id and falls through to BAD_ENUM.
         uint8_t paletteId = r.readU8();
         if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); if (statusOut) *statusOut = *status; return nullptr; }
         ::CRGBPalette16 embeddedPalette;
         const ::CRGBPalette16 *palette = nullptr;
         bool paletteIsEmbedded = false;
-        if (version == 2 && paletteId == 0xFF) {
+        if (version == kPscVersion2 && paletteId == kEmbeddedPaletteSentinel) {
             const uint8_t *entries = r.readBytes(3 * 16);
             if (!entries) { setStatusIfOk(status, DecodeStatus::TRUNCATED); if (statusOut) *statusOut = *status; return nullptr; }
             for (int i = 0; i < 16; ++i) {
                 embeddedPalette.entries[i] = ::CRGB(entries[3 * i], entries[3 * i + 1], entries[3 * i + 2]);
+            }
+            palette = &embeddedPalette;
+            paletteIsEmbedded = true;
+        } else if (version == kPscVersion3 && paletteId == kEmbeddedPaletteSentinel) {
+            if (!readCosinePalette(r, embeddedPalette)) {
+                setStatusIfOk(status, DecodeStatus::TRUNCATED);
+                if (statusOut) *statusOut = *status;
+                return nullptr;
             }
             palette = &embeddedPalette;
             paletteIsEmbedded = true;
