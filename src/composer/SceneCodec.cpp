@@ -88,7 +88,7 @@ namespace PolarShader::composer {
             PAT_REACTION_DIFFUSION= 0x05, // body: u8 preset + u8 width + u8 height + u8 stepsPerFrame
             PAT_FLOW_FIELD        = 0x06, // body: u8 gridSize + u8 dotCount + u8 mode + 8 signals
             PAT_TRANSPORT         = 0x07, // body: u8 gridSize + u8 mode + u8 velocityGlow + 4 signals
-            PAT_SPIRAL            = 0x08, // body: u8 armCount + u8 clockwise + 3 signals
+            PAT_SPIRAL            = 0x08, // body: u8 armCount + u8 clockwise + u8 layerCount + 4 signals
             PAT_ANNULI            = 0x09, // body: u8 ringCount + u8 slicesPerRing + u8 reverse + u16 stepIntervalMs + u16 holdMs
             PAT_FLURRY            = 0x0A, // body: u8 gridSize + u8 lineCount + u8 shape + 6 signals
             PAT_WORLEY            = 0x0B, // body: i32 cellSize raw + u8 aliasingMode
@@ -485,13 +485,16 @@ namespace PolarShader::composer {
                 case PAT_SPIRAL: {
                     uint8_t arms = r.readU8();
                     uint8_t cwByte = r.readU8();
+                    uint8_t layers = r.readU8();
                     if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
                     S0x16Signal tightness = decodeSignal(r, status, version);
                     S0x16Signal armThick  = decodeSignal(r, status, version);
                     S0x16Signal rotSpeed  = decodeSignal(r, status, version);
+                    S0x16Signal detune    = decodeSignal(r, status, version);
                     if (*status != DecodeStatus::OK) return nullptr;
                     return spiralPattern(arms, cwByte != 0,
-                        std::move(tightness), std::move(armThick), std::move(rotSpeed));
+                        std::move(tightness), std::move(armThick), std::move(rotSpeed),
+                        layers, std::move(detune));
                 }
 
                 case PAT_ANNULI: {
@@ -1089,20 +1092,35 @@ namespace PolarShader::composer {
         // Version
         uint8_t version = r.readU8();
         if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); if (statusOut) *statusOut = *status; return nullptr; }
-        if (version != 1) {
+        if (version != 1 && version != 2) {
             setStatusIfOk(status, DecodeStatus::BAD_VERSION);
             if (statusOut) *statusOut = *status;
             return nullptr;
         }
 
-        // Palette
+        // Palette. Palette id 0xFF is the v2 embedded-palette sentinel: 48 bytes
+        // (16 x r,g,b) follow and define a self-contained custom palette. Under
+        // v1, 0xFF is simply an unknown palette id and falls through to BAD_ENUM.
         uint8_t paletteId = r.readU8();
         if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); if (statusOut) *statusOut = *status; return nullptr; }
-        const ::CRGBPalette16 *palette = paletteById(paletteId);
-        if (!palette) {
-            setStatusIfOk(status, DecodeStatus::BAD_ENUM);
-            if (statusOut) *statusOut = *status;
-            return nullptr;
+        ::CRGBPalette16 embeddedPalette;
+        const ::CRGBPalette16 *palette = nullptr;
+        bool paletteIsEmbedded = false;
+        if (version == 2 && paletteId == 0xFF) {
+            const uint8_t *entries = r.readBytes(3 * 16);
+            if (!entries) { setStatusIfOk(status, DecodeStatus::TRUNCATED); if (statusOut) *statusOut = *status; return nullptr; }
+            for (int i = 0; i < 16; ++i) {
+                embeddedPalette.entries[i] = ::CRGB(entries[3 * i], entries[3 * i + 1], entries[3 * i + 2]);
+            }
+            palette = &embeddedPalette;
+            paletteIsEmbedded = true;
+        } else {
+            palette = paletteById(paletteId);
+            if (!palette) {
+                setStatusIfOk(status, DecodeStatus::BAD_ENUM);
+                if (statusOut) *statusOut = *status;
+                return nullptr;
+            }
         }
 
         // Looping mode is signalled by a finite scene duration; propagate it to
@@ -1120,8 +1138,9 @@ namespace PolarShader::composer {
         const bool allowUvTransforms = pattern->domain() != PatternDomain::RasterGrid;
         LayerBuilder builder(std::move(pattern), *palette, "composer");
         // Palette id 0 is Rainbow; a hue-remap onto it is redundant, so colour
-        // patterns render their emitted hue natively instead.
-        builder.setPaletteIsRainbow(paletteId == 0);
+        // patterns render their emitted hue natively instead. An embedded custom
+        // palette is never treated as rainbow.
+        builder.setPaletteIsRainbow(!paletteIsEmbedded && paletteId == 0);
 
         // Transforms
         uint8_t transformCount = r.readU8();

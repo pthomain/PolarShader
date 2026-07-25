@@ -36,10 +36,8 @@ namespace PolarShader {
      *     (armCount arms; fold = winding tightness). No true log spiral (no
      *     ln() in fixed point) -> arms use a radial shear instead.
      *
-     * Intrinsic parameters only. Global rotation -> RotationTransform,
-     * scale -> ZoomTransform, colour -> PaletteTransform live in the preset.
-     * The Ripple variant is the base for pfKaleidoVortexPreset (0526), which
-     * adds RadialKaleidoscope + Vortex transforms downstream.
+     * Intrinsic parameters only. Global rotation, scale, colour, kaleidoscope,
+     * and vortex effects live in ordinary downstream scene transforms.
      *
      * Parameter ranges (signals sampled in magnitudeRange() -> [0, 1]):
      *   phaseSpeed [0,1] -> internal animation rate.

@@ -15,15 +15,6 @@ Writes visual proofs of the ported PatternFlow effects into
 
 - **PGM per bare `pf*` pattern** — samples `layer()(UV)` over a Cartesian UV
   grid (grayscale intensity field, no transforms/palette).
-- **PPM per `pf*Preset` builder** — samples the built `Layer::compile()`
-  `ColourMap` over a polar display disc `(angle, radius) -> CRGB`. This is the
-  only view that exercises the full transform + palette stack, so it is the
-  proof that transform-dependent presets actually apply their
-  rotation/zoom/palette-offset (and, for effects that use them,
-  kaleidoscope/vortex/tiling) stack.
-
-The PPM uses a full-saturation hue wheel palette (deterministic, distinct across
-the wheel) so the image shows field structure rather than a palette artefact.
 
 ### Run
 
@@ -31,9 +22,9 @@ the wheel) so the image shows field structure rather than a palette artefact.
 pio run -e native_pf_snapshot && .pio/build/native_pf_snapshot/program
 ```
 
-Output lands in `build/pf_snapshots/` (`pattern_<name>.pgm`,
-`preset_<Variant>.ppm`). View with any image viewer that reads Netpbm, or
-convert: `magick build/pf_snapshots/preset_Plasma.ppm preset_Plasma.png`.
+Output lands in `build/pf_snapshots/` (`pattern_<name>.pgm`). View with any
+image viewer that reads Netpbm, or convert:
+`magick build/pf_snapshots/pattern_pfPlasma.pgm pattern_pfPlasma.png`.
 
 ### Notes
 

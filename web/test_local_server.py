@@ -158,6 +158,44 @@ class PscValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(psc_v1.PscValidationError, "below min 1"):
             psc_v1.validate_psc_scene(payload)
 
+    def test_validator_accepts_v2_embedded_palette(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x02,                              # version 2
+            0xFF,                              # embedded palette sentinel
+            *([0x10] * (3 * 16)),              # 48 palette bytes
+            0x00, 0x05, 0x00,                  # noiseBasic, body length 5
+            0x00, 0x02, 0x00, 0x26, 0x02,      # depthSpeed constant 550
+            0x00,
+        ])
+        info = psc_v1.validate_psc_scene(payload)
+        self.assertEqual(info.pattern_tag, 0x00)
+        tag, error = local_server._psc_pattern_tag(payload)
+        self.assertEqual(tag, 0x00)
+        self.assertIsNone(error)
+
+    def test_validator_rejects_v2_embedded_palette_truncated(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x02,
+            0xFF,
+            *([0x10] * 40),                    # only 40 of 48 palette bytes
+        ])
+        with self.assertRaises(psc_v1.PscValidationError):
+            psc_v1.validate_psc_scene(payload)
+
+    def test_validator_rejects_v1_with_embedded_sentinel(self) -> None:
+        payload = bytes([
+            0x50, 0x53, 0x43, 0x00,
+            0x01,                              # v1: 0xFF is just an unknown id
+            0xFF,
+            0x00, 0x05, 0x00,
+            0x00, 0x02, 0x00, 0x26, 0x02,
+            0x00,
+        ])
+        with self.assertRaisesRegex(psc_v1.PscValidationError, "unknown palette id 255"):
+            psc_v1.validate_psc_scene(payload)
+
     def test_validator_rejects_legacy_palette_transform(self) -> None:
         tag, error = local_server._psc_pattern_tag(LEGACY_PALETTE_TRANSFORM_PSC)
         self.assertEqual(tag, 0)
@@ -237,6 +275,7 @@ class LocalServerTest(unittest.TestCase):
         )
         local_server.LocalComposerServer.repo_root = self.repo_root
         local_server.LocalComposerServer.playlist_dir = (self.repo_root / "build" / "psc").resolve()
+        local_server.LocalComposerServer.palette_dir = (self.repo_root / "build" / "palettes").resolve()
         local_server.LocalComposerServer.display_config_path = (self.repo_root / "build" / "display_config.json").resolve()
         local_server.LocalComposerServer.deploy_manager = self.manager
         self.server = local_server.ThreadedLocalServer(
@@ -651,6 +690,135 @@ class LocalServerTest(unittest.TestCase):
         self.assertEqual(next_status, 202, next_body)
         next_job = self.wait_job(next_body["job"]["id"])
         self.assertEqual(next_job["status"], "succeeded", next_job)
+
+
+def _cosine_palette(name: str) -> dict:
+    return {
+        "type": "cosine",
+        "name": name,
+        "coeffs": {
+            "a": [0.5, 0.5, 0.5],
+            "b": [0.5, 0.5, 0.5],
+            "c": [1.0, 1.0, 1.0],
+            "d": [0.0, 0.33, 0.67],
+        },
+        "entries": [[i * 16, 255 - i * 16, i * 8] for i in range(16)],
+    }
+
+
+def _raw_palette(name: str) -> dict:
+    return {
+        "type": "raw",
+        "name": name,
+        "entries": [[i, i, i] for i in range(16)],
+    }
+
+
+class PaletteLibraryTest(LocalServerTest):
+    def _save(self, palette: dict):
+        return self.request(
+            "POST",
+            "/api/palettes/save",
+            json.dumps(palette).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+
+    def _list(self):
+        status, body = self.request("GET", "/api/palettes")
+        self.assertEqual(status, 200, body)
+        return body["palettes"]
+
+    def test_capabilities_reports_palettes(self) -> None:
+        status, body = self.request("GET", "/api/capabilities")
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["palettes"])
+        self.assertEqual(body["paletteDir"], "build/palettes")
+
+    def test_save_list_roundtrip(self) -> None:
+        status, body = self._save(_cosine_palette("Sunset Glow"))
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["palette"]["name"], "sunset-glow.json")
+        self.assertTrue((self.repo_root / "build" / "palettes" / "sunset-glow.json").is_file())
+
+        palettes = self._list()
+        self.assertEqual(len(palettes), 1)
+        self.assertEqual(palettes[0]["name"], "sunset-glow.json")
+        self.assertEqual(palettes[0]["data"]["name"], "Sunset Glow")
+        self.assertEqual(palettes[0]["data"]["type"], "cosine")
+
+    def test_save_collision_dedups_slug(self) -> None:
+        first = self._save(_cosine_palette("Dup"))[1]
+        second = self._save(_cosine_palette("Dup"))[1]
+        self.assertEqual(first["palette"]["name"], "dup.json")
+        self.assertEqual(second["palette"]["name"], "dup-1.json")
+
+    def test_save_rejects_malformed_palette(self) -> None:
+        bad = _cosine_palette("Bad")
+        bad["entries"] = bad["entries"][:15]  # only 15 triples
+        status, body = self._save(bad)
+        self.assertEqual(status, 400, body)
+
+        fractional = _raw_palette("Frac")
+        fractional["entries"][0] = [1.5, 0, 0]
+        status, body = self._save(fractional)
+        self.assertEqual(status, 400, body)
+
+        wrong_type = _raw_palette("WrongType")
+        wrong_type["type"] = "bogus"
+        status, body = self._save(wrong_type)
+        self.assertEqual(status, 400, body)
+
+    def test_export_import_bundle_roundtrip(self) -> None:
+        self._save(_cosine_palette("Aurora"))
+        self._save(_raw_palette("Imported"))
+
+        bundle = {
+            "polarshaderPalettes": local_server.PALETTE_BUNDLE_VERSION,
+            "palettes": [
+                {"name": p["name"], "data": p["data"]}
+                for p in self._list()
+            ],
+        }
+
+        # Wipe and re-import via replace.
+        status, body = self.request(
+            "POST",
+            "/api/palettes/replace",
+            json.dumps(bundle).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["replaced"], 2)
+
+        names = sorted(p["name"] for p in self._list())
+        self.assertEqual(names, ["aurora.json", "imported.json"])
+
+    def test_replace_rejects_bad_bundle(self) -> None:
+        status, body = self.request(
+            "POST",
+            "/api/palettes/replace",
+            json.dumps({"polarshaderPalettes": 999, "palettes": []}).encode("utf-8"),
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 400, body)
+
+    def test_delete_rejects_unsafe_name(self) -> None:
+        status, body = self.request(
+            "POST",
+            "/api/palettes/delete?name=../escape.json",
+            headers={"Content-Type": "text/plain"},
+        )
+        self.assertEqual(status, 400, body)
+
+    def test_delete_removes_palette(self) -> None:
+        self._save(_raw_palette("Trash"))
+        status, body = self.request(
+            "POST",
+            "/api/palettes/delete?name=trash.json",
+            headers={"Content-Type": "text/plain"},
+        )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self._list(), [])
 
 
 if __name__ == "__main__":

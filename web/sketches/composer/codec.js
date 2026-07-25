@@ -13,8 +13,38 @@ import {
 } from './schema.js';
 
 const MAGIC = [0x50, 0x53, 0x43, 0x00];   // "PSC\0"
-const VERSION = 0x01;
+const PSC_VERSION_V1 = 0x01;
+const PSC_VERSION_V2 = 0x02;   // adds optional embedded 16-entry palette
+// Back-compat alias: the default encode version stays v1 so built-in palettes
+// remain byte-for-byte identical to the golden fixtures.
+const VERSION = PSC_VERSION_V1;
+// Sentinel palette id meaning "an embedded 16-entry RGB palette follows"
+// (48 bytes). Only valid under PSC v2.
+const PALETTE_EMBEDDED = 0xFF;
+const PALETTE_ENTRY_COUNT = 16;
 const MAX_SIGNAL_RECURSION_DEPTH = 64;
+
+// Validate a scene's paletteEntries: null (built-in) or exactly 16 [r,g,b]
+// integer triples with each channel in 0..255. Returns true if the scene
+// carries a valid embedded palette, false if none. Throws on a malformed one
+// so we never silently mask bad channels through w.u8().
+function hasEmbeddedPalette(entries) {
+    if (entries === null || entries === undefined) return false;
+    if (!Array.isArray(entries) || entries.length !== PALETTE_ENTRY_COUNT) {
+        throw new Error(`paletteEntries must be ${PALETTE_ENTRY_COUNT} [r,g,b] triples`);
+    }
+    for (const triple of entries) {
+        if (!Array.isArray(triple) || triple.length !== 3) {
+            throw new Error('paletteEntries entry must be an [r,g,b] triple');
+        }
+        for (const ch of triple) {
+            if (!Number.isInteger(ch) || ch < 0 || ch > 255) {
+                throw new Error('paletteEntries channel must be an integer 0..255');
+            }
+        }
+    }
+    return true;
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // ByteWriter — grows a Uint8Array and writes LE primitives.
@@ -332,23 +362,41 @@ function readTransform(r, version) {
 // Top-level
 // ─────────────────────────────────────────────────────────────────────
 
-export function encodeScene(scene, { version = VERSION } = {}) {
-    if (version !== VERSION) {
+export function encodeScene(scene, { version = undefined } = {}) {
+    // Version selection is content-driven: emit v2 only when the scene carries
+    // a valid embedded palette, else v1. An explicit caller version that
+    // contradicts the content is rejected.
+    if (version !== undefined && version !== PSC_VERSION_V1 && version !== PSC_VERSION_V2) {
         throw new Error(`unsupported PSC encode version ${version}`);
     }
+    const embedded = hasEmbeddedPalette(scene.paletteEntries);
+    const emitVersion = embedded ? PSC_VERSION_V2 : PSC_VERSION_V1;
+    if (version !== undefined && version !== emitVersion) {
+        throw new Error(
+            `PSC encode version ${version} contradicts scene content ` +
+            `(expected v${emitVersion}${embedded ? ' — embedded palette' : ''})`);
+    }
+
     const w = new ByteWriter();
     for (const b of MAGIC) w.u8(b);
-    w.u8(version);
-    if (!PALETTES.find(p => p.id === scene.paletteId)) {
-        throw new Error(`unknown palette id ${scene.paletteId}`);
+    w.u8(emitVersion);
+    if (embedded) {
+        w.u8(PALETTE_EMBEDDED);
+        for (const [rc, gc, bc] of scene.paletteEntries) {
+            w.u8(rc); w.u8(gc); w.u8(bc);
+        }
+    } else {
+        if (!PALETTES.find(p => p.id === scene.paletteId)) {
+            throw new Error(`unknown palette id ${scene.paletteId}`);
+        }
+        w.u8(scene.paletteId);
     }
-    w.u8(scene.paletteId);
-    writePattern(w, scene.pattern, version);
+    writePattern(w, scene.pattern, emitVersion);
     const tfms = scene.transforms ?? [];
     assertTransformCompatible(scene.pattern, tfms);
     if (tfms.length > 255) throw new Error('too many transforms (max 255)');
     w.u8(tfms.length);
-    for (const t of tfms) writeTransform(w, t, version);
+    for (const t of tfms) writeTransform(w, t, emitVersion);
     return w.toUint8Array();
 }
 
@@ -358,9 +406,21 @@ export function decodeScene(bytes) {
         if (r.u8() !== MAGIC[i]) throw new Error('bad PSC magic');
     }
     const version = r.u8();
-    if (version !== VERSION) throw new Error(`unsupported PSC version ${version}`);
+    if (version !== PSC_VERSION_V1 && version !== PSC_VERSION_V2) {
+        throw new Error(`unsupported PSC version ${version}`);
+    }
     const paletteId = r.u8();
-    if (!PALETTES.find(p => p.id === paletteId)) {
+    // The 0xFF sentinel is an embedded palette ONLY under v2; under v1 it is
+    // simply an unknown palette id (mirrors the C++ BAD_ENUM path).
+    let scenePaletteId = paletteId;
+    let paletteEntries = null;
+    if (version === PSC_VERSION_V2 && paletteId === PALETTE_EMBEDDED) {
+        paletteEntries = [];
+        for (let i = 0; i < PALETTE_ENTRY_COUNT; ++i) {
+            paletteEntries.push([r.u8(), r.u8(), r.u8()]);
+        }
+        scenePaletteId = null;
+    } else if (!PALETTES.find(p => p.id === paletteId)) {
         throw new Error(`unknown palette id ${paletteId}`);
     }
     const pattern = readPattern(r, version);
@@ -369,5 +429,5 @@ export function decodeScene(bytes) {
     for (let i = 0; i < transformCount; ++i) transforms.push(readTransform(r, version));
     r.expectEnd('scene');
     assertTransformCompatible(pattern, transforms);
-    return { paletteId, pattern, transforms };
+    return { paletteId: scenePaletteId, paletteEntries, pattern, transforms };
 }

@@ -27,8 +27,8 @@ namespace PolarShader {
     /*
      * PatternFlow pattern factories, named by field Variant (the canonical API).
      * Each factory carries a // <date-code> comment tracing it to the upstream
-     * effect. Intrinsic parameters only; global coordinate/palette controls live
-     * in the pf*Preset transform stacks (see PatternFlowPresets.h).
+     * effect. Intrinsic parameters only; global coordinate/palette controls are
+     * applied by ordinary transforms in the scene.
      */
 
     // --- PfInterferenceField ---

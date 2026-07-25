@@ -72,6 +72,8 @@ Each firmware target is one PlatformIO environment bound to a fixed display layo
 
 ## Documentation
 
+The hosted documentation site is available at **[pthomain.github.io/PolarShader/wiki/](https://pthomain.github.io/PolarShader/wiki/)**.
+
 - **[Getting Started](docs/wiki/Getting-Started.md)** — install, run the composer, build and save your first scene.
 - **[Web Composer Guide](docs/wiki/Web-Composer-Guide.md)** — the UI in depth, playlists, embed mode, hosted vs local.
 - **[Deploying to Hardware](docs/wiki/Deploying-to-Hardware.md)** — targets, the deploy flow, embedding playlists.

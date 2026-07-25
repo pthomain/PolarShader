@@ -19,11 +19,9 @@
  */
 
 /*
- * Native invariant + preset smoke tests for the PatternFlow field family.
- * Pattern-functor invariants cover the 18 pf* factories (range, purity,
- * animation, deterministic replay). Preset smoke tests cover the 19
- * pf*Preset builders (build -> advance -> compile -> sample; colours vary),
- * plus each date-code alias matching its canonical preset's first frame.
+ * Native invariant tests for the PatternFlow field family.
+ * Pattern-functor invariants cover the pf* factories (range, purity,
+ * animation, deterministic replay).
  */
 
 #ifdef ARDUINO
@@ -40,7 +38,6 @@
 #include "renderer/pipeline/signals/Signals.h"
 #include "renderer/pipeline/patterns/patternflow/PfFieldMaths.h"
 #include "renderer/pipeline/patterns/patternflow/PatternFlow.h"
-#include "renderer/pipeline/patterns/patternflow/PatternFlowPresets.h"
 
 #ifndef ARDUINO
 #include "renderer/pipeline/maths/src/PolarMaths.cpp"
@@ -59,15 +56,6 @@
 #include "renderer/pipeline/patterns/patternflow/src/PfCellularField.cpp"
 #include "renderer/pipeline/patterns/patternflow/src/PfSourceField.cpp"
 #include "renderer/pipeline/patterns/patternflow/src/PatternFlow.cpp"
-#include "renderer/pipeline/patterns/patternflow/src/PatternFlowPresets.cpp"
-#include "renderer/pipeline/transforms/src/PaletteTransform.cpp"
-#include "renderer/pipeline/transforms/src/RotationTransform.cpp"
-#include "renderer/pipeline/transforms/src/ZoomTransform.cpp"
-#include "renderer/pipeline/transforms/src/VortexTransform.cpp"
-#include "renderer/pipeline/transforms/src/RadialKaleidoscopeTransform.cpp"
-#include "renderer/pipeline/transforms/src/TilingTransform.cpp"
-#include "renderer/layer/src/Layer.cpp"
-#include "renderer/layer/src/LayerBuilder.cpp"
 #endif
 
 using namespace PolarShader;
@@ -113,14 +101,6 @@ static std::vector<Factory> makeFactories() {
     };
 }
 
-// Aliases in the same order as PF_EFFECTS.
-static PfPresetFn kAliases[19] = {
-    &pfOriginPreset, &pf0510Preset, &pf0511Preset, &pf0512Preset, &pf0514Preset,
-    &pf0515Preset, &pf0515_3Preset, &pf0519_1Preset, &pf0520Preset,
-    &pf0524_2Preset, &pf0526Preset, &pf0528Preset, &pf0529Preset, &pf0530Preset,
-    &pf0531Preset, &pf0601Preset, &pfBigHitPreset, &pf0614_2Preset, &pf0624Preset
-};
-
 // Sample a UV functor over the renderer's normalised [0,1] domain (raw
 // [0, U0X16_MAX]) in both axes, matching what polarToCartesianUV feeds patterns.
 static void gridSample(const UVMap &m, uint16_t &mn, uint16_t &mx, uint64_t &sum) {
@@ -139,16 +119,6 @@ static void advanceN(UVPattern &p, int frames, TimeMillis step) {
     for (int i = 1; i <= frames; ++i) {
         p.advanceFrame(u0x16(0), static_cast<TimeMillis>(i) * step);
     }
-}
-
-static CRGBPalette16 distinctPalette() {
-    CRGBPalette16 p;
-    for (int i = 0; i < 16; ++i) {
-        p.entries[i] = CRGB(static_cast<uint8_t>(16 + i * 15),
-                            static_cast<uint8_t>(240 - i * 14),
-                            static_cast<uint8_t>(i * 17));
-    }
-    return p;
 }
 
 // --- PfFieldMaths unit tests -------------------------------------------------
@@ -262,73 +232,6 @@ void test_pattern_deterministic_replay() {
     }
 }
 
-// --- Preset smoke tests ------------------------------------------------------
-
-// Count distinct colours over a broad angle x radius display grid.
-static size_t distinctColours(ColourMap &cm) {
-    std::set<uint32_t> colours;
-    // Step is deliberately NOT a multiple of 0x100: colour-emitting effects
-    // whose hue tracks the raw display angle (e.g. Petals) would otherwise
-    // alias every sample onto palette index 0 (angle>>8 stepping by 16 -> all
-    // == 0 mod 16) under the brightness-blind native ColorFromPalette stub.
-    for (uint32_t a = 0; a < 0x10000u; a += 0x0EE7u) {       // full turn
-        for (int r = 1; r <= 8; ++r) {                        // centre -> edge
-            uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 8);
-            CRGB c = cm(RenderPoint{u0x16(static_cast<uint16_t>(a)), u0x16(radius), RasterPoint{}});
-            colours.insert((static_cast<uint32_t>(c.r) << 16) |
-                           (static_cast<uint32_t>(c.g) << 8) | c.b);
-        }
-    }
-    return colours.size();
-}
-
-void test_preset_builds_and_varies() {
-    CRGBPalette16 pal = distinctPalette();
-    for (int i = 0; i < 19; ++i) {
-        Layer layer = PF_EFFECTS[i].preset(pal).build();
-        for (int f = 0; f < 4; ++f) {
-            layer.advanceFrame(u0x16(0), static_cast<TimeMillis>(f) * 250u);
-        }
-        auto cm = layer.compile();
-        TEST_ASSERT_NOT_NULL(cm.get());
-        size_t distinct = distinctColours(*cm);
-        char msg[80];
-        snprintf(msg, sizeof(msg), "%s preset colours too uniform (%zu)",
-                 PF_EFFECTS[i].variant, distinct);
-        // A dead/uniform transform stack collapses to exactly 1 colour. Several
-        // ported effects are intrinsically few-level threshold/posterize fields,
-        // and the native FastLED stub's ColorFromPalette aliases distinct
-        // intensities via index%16 -- so > 1 distinct is the honest floor that
-        // still catches a dead stack. The PPM snapshot is the real visual proof.
-        TEST_ASSERT_TRUE_MESSAGE(distinct > 1, msg);
-    }
-}
-
-void test_alias_matches_canonical_first_frame() {
-    CRGBPalette16 pal = distinctPalette();
-    for (int i = 0; i < 19; ++i) {
-        Layer canon = PF_EFFECTS[i].preset(pal).build();
-        Layer alias = kAliases[i](pal).build();
-        canon.advanceFrame(u0x16(0), 0u);
-        alias.advanceFrame(u0x16(0), 0u);
-        auto cc = canon.compile();
-        auto ac = alias.compile();
-        bool identical = true;
-        for (uint32_t a = 0; a < 0x10000u && identical; a += 0x2000u) {
-            for (int r = 1; r <= 6; ++r) {
-                uint16_t radius = static_cast<uint16_t>((r * 0xFFFF) / 6);
-                RenderPoint point{u0x16(static_cast<uint16_t>(a)), u0x16(radius), RasterPoint{}};
-                CRGB c1 = (*cc)(point);
-                CRGB c2 = (*ac)(point);
-                if (c1.r != c2.r || c1.g != c2.g || c1.b != c2.b) { identical = false; break; }
-            }
-        }
-        char msg[80];
-        snprintf(msg, sizeof(msg), "%s alias diverges from canonical", PF_EFFECTS[i].dateCode);
-        TEST_ASSERT_TRUE_MESSAGE(identical, msg);
-    }
-}
-
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_pffieldmaths_bump);
@@ -339,7 +242,5 @@ int main(int, char **) {
     RUN_TEST(test_pattern_purity);
     RUN_TEST(test_pattern_animates);
     RUN_TEST(test_pattern_deterministic_replay);
-    RUN_TEST(test_preset_builds_and_varies);
-    RUN_TEST(test_alias_matches_canonical_first_frame);
     return UNITY_END();
 }

@@ -38,9 +38,16 @@ namespace PolarShader {
      *   tightness     [0, 1] -> [0, 2] full turns of winding from centre to edge
      *   armThickness  [0, 1] -> fraction of arm-spacing (clamped internally to [0.05, 0.90])
      *   rotationSpeed [0, 1] -> [0, 1] full turns per second
+     *   layerCount    [1, 4] -> overlaid spirals; 1 = plain spiral, >1 = moire mode
+     *   detune        [0, 1] -> per-layer winding offset that spreads stacked layers apart
      *
      * The clockwise flag controls the sign of phase advancement; the visually-perceived
      * rotation direction depends on the display's UV orientation. Flip if it looks wrong.
+     *
+     * Moire mode (layerCount > 1): extra layers mirror the base chirality and counter-
+     * rotate, and the layers are combined with a max (union) so each spiral stays at full
+     * brightness. Their crossings form the moire interference, which reads clearly even on
+     * sparse / low-resolution displays.
      */
     class SpiralPattern : public UVPattern {
     private:
@@ -54,7 +61,9 @@ namespace PolarShader {
             bool clockwise = true,
             S0x16Signal tightness = constant(720),
             S0x16Signal armThickness = constant(500),
-            S0x16Signal rotationSpeed = constant(300)
+            S0x16Signal rotationSpeed = constant(300),
+            uint8_t layerCount = 1,
+            S0x16Signal detune = constant(0)
         );
 
         void advanceFrame(u0x16 progress, TimeMillis elapsedMs) override;

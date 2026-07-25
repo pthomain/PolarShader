@@ -7,10 +7,10 @@ import { decodeScene, encodeScene } from './sketches/composer/codec.js';
 import {
     DEFAULT_SCENE,
     PATTERNS,
-    PF_PRESETS,
     SIGNALS,
     TRANSFORMS,
 } from './sketches/composer/schema.js';
+import { cosinePaletteEntries, defaultCosineCoeffs, paletteSlug } from './sketches/composer/palette.js';
 
 const SIMPLE_SCENE = {
     paletteId: 0,
@@ -171,24 +171,6 @@ test('schema tags are unique', () => {
     assertUniqueTags(PATTERNS, 'pattern');
     assertUniqueTags(TRANSFORMS, 'transform');
     assertUniqueTags(SIGNALS, 'signal');
-});
-
-test('PatternFlow presets use the current palette transform', () => {
-    assert.equal(TRANSFORMS.paletteClip.label, 'Palette');
-
-    for (const preset of PF_PRESETS) {
-        const scene = preset.scene();
-        const decoded = decodeScene(encodeScene(scene));
-        assert.ok(
-            decoded.transforms.some((transform) => transform.id === 'paletteClip'),
-            `${preset.id} does not include paletteClip`,
-        );
-        assert.equal(
-            decoded.transforms.some((transform) => transform.id === 'palette'),
-            false,
-            `${preset.id} still uses legacy palette transform`,
-        );
-    }
 });
 
 test('default greyscale scene starts with an enabled Palette transform', () => {
@@ -573,6 +555,128 @@ test('decoder rejects legacy palette transform tag', () => {
         0x00, 0x02, 0x00, 0x64, 0x00,
     ]);
     assertThrowsMessage(() => decodeScene(bad), /unknown transform tag 0x6/);
+});
+
+// ─── PSC v2 embedded palette ────────────────────────────────────────────
+
+function rampPaletteEntries() {
+    // 16 distinct [r,g,b] triples so byte positions are unambiguous.
+    const entries = [];
+    for (let i = 0; i < 16; ++i) entries.push([i * 16, 255 - i * 16, i * 8]);
+    return entries;
+}
+
+test('encodeScene emits PSC v2 with embedded palette when paletteEntries present', () => {
+    const entries = rampPaletteEntries();
+    const encoded = encodeScene({
+        paletteId: 0,
+        paletteEntries: entries,
+        pattern: { id: 'noiseBasic', config: {}, signals: {} },
+        transforms: [],
+    });
+    assert.equal(encoded[4], 0x02, 'version byte is v2');
+    assert.equal(encoded[5], 0xFF, 'palette sentinel byte is 0xFF');
+    const embedded = Array.from(encoded.slice(6, 6 + 48));
+    assert.deepEqual(embedded, entries.flat(), 'embedded 48 palette bytes match');
+});
+
+test('embedded palette scene round-trips through decodeScene', () => {
+    const entries = rampPaletteEntries();
+    const scene = {
+        paletteId: 3,
+        paletteEntries: entries,
+        pattern: { id: 'noiseBasic', config: {}, signals: {} },
+        transforms: [],
+    };
+    const decoded = decodeScene(encodeScene(scene));
+    assert.equal(decoded.paletteId, null, 'embedded scene clears paletteId');
+    assert.deepEqual(decoded.paletteEntries, entries);
+    assert.deepEqual(Array.from(encodeScene(decoded)), Array.from(encodeScene(scene)));
+});
+
+test('built-in palette scene stays v1 with null paletteEntries', () => {
+    const encoded = encodeScene({
+        paletteId: 2,
+        paletteEntries: null,
+        pattern: { id: 'noiseBasic', config: {}, signals: {} },
+        transforms: [],
+    });
+    assert.equal(encoded[4], 0x01, 'version byte stays v1');
+    assert.equal(encoded[5], 0x02, 'palette id preserved');
+    const decoded = decodeScene(encoded);
+    assert.equal(decoded.paletteId, 2);
+    assert.equal(decoded.paletteEntries, null);
+});
+
+test('DEFAULT_SCENE encodes as v1 (paletteEntries null)', () => {
+    assert.equal(encodeScene(DEFAULT_SCENE())[4], 0x01);
+});
+
+test('decoder rejects v1 with 0xFF palette id as unknown palette', () => {
+    const encoded = encodeScene({
+        paletteId: 0,
+        paletteEntries: rampPaletteEntries(),
+        pattern: { id: 'noiseBasic', config: {}, signals: {} },
+        transforms: [],
+    });
+    const bad = bytes([...encoded]);
+    bad[4] = 0x01;  // force v1 while keeping the 0xFF sentinel + palette bytes
+    assertThrowsMessage(() => decodeScene(bad), /unknown palette id 255/);
+});
+
+test('decoder rejects v2 embedded palette truncated below 48 bytes', () => {
+    const bad = bytes([0x50, 0x53, 0x43, 0x00, 0x02, 0xFF, 0x00, 0x01, 0x02]);
+    assertThrowsMessage(() => decodeScene(bad), /truncated/);
+});
+
+test('encodeScene rejects malformed paletteEntries shapes', () => {
+    const base = { paletteId: 0, pattern: { id: 'noiseBasic', config: {}, signals: {} }, transforms: [] };
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: [[0, 0, 0]] }),
+        /must be 16/,
+    );
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: Array.from({ length: 16 }, () => [0, 0]) }),
+        /\[r,g,b\] triple/,
+    );
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: Array.from({ length: 16 }, () => [0, 0, 300]) }),
+        /channel must be an integer 0\.\.255/,
+    );
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: Array.from({ length: 16 }, () => [0, 0, 1.5]) }),
+        /channel must be an integer 0\.\.255/,
+    );
+});
+
+test('encodeScene rejects explicit version that contradicts content', () => {
+    const base = { paletteId: 0, pattern: { id: 'noiseBasic', config: {}, signals: {} }, transforms: [] };
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: null }, { version: 2 }),
+        /contradicts scene content/,
+    );
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: rampPaletteEntries() }, { version: 1 }),
+        /contradicts scene content/,
+    );
+});
+
+test('cosinePaletteEntries yields 16 integer triples for the default rainbow', () => {
+    const entries = cosinePaletteEntries(defaultCosineCoeffs());
+    assert.equal(entries.length, 16);
+    for (const [r, g, b] of entries) {
+        for (const ch of [r, g, b]) {
+            assert.ok(Number.isInteger(ch) && ch >= 0 && ch <= 255, `channel ${ch}`);
+        }
+    }
+    // t=0: a + b*cos(2π d). Red: 0.5 + 0.5*cos(0) = 1.0 → 255.
+    assert.equal(entries[0][0], 255);
+});
+
+test('paletteSlug mirrors the server slug algorithm', () => {
+    assert.equal(paletteSlug('Sunset Glow!'), 'sunset-glow.json');
+    assert.equal(paletteSlug('   '), 'palette.json');
+    assert.equal(paletteSlug('--A--'), 'a.json');
 });
 
 test('raster patterns reject UV transforms on encode and decode', () => {

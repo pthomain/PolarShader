@@ -197,11 +197,13 @@ export const PATTERNS = {
     spiral: {
         tag: 0x08, label: 'Spiral',
         config: [
-            { name: 'armCount',  kind: 'u8',   default: 2 },
-            { name: 'clockwise', kind: 'bool', default: 1 },
+            { name: 'armCount',   kind: 'u8',   default: 2 },
+            { name: 'clockwise',  kind: 'bool', default: 1 },
+            { name: 'layerCount', kind: 'u8',   default: 1 },
         ],
         signals: [
             { name: 'tightness' }, { name: 'armThickness' }, { name: 'rotationSpeed' },
+            { name: 'detune' },
         ],
     },
     annuli: {
@@ -246,8 +248,7 @@ export const PATTERNS = {
 
     // ── PatternFlow bare field patterns (one entry per Variant) ──────────
     // Adapted from engmung/Patternflow (CC-BY-SA-4.0). Global scale/rotation/
-    // fold/palette are NOT pattern params — add them as transforms, or load a
-    // ready-made recipe from PF_PRESETS below.
+    // fold/palette are NOT pattern params — add them as transforms.
     pfDualAxis: {
         tag: 0x0D, label: 'PF — Dual Axis (0510)', output: 'rgb',
         config: [],
@@ -693,130 +694,12 @@ export const DEFAULT_PALETTE_TRANSFORM = () => ({
     enabled: true,
 });
 
-// ─────────────────────────────────────────────────────────────────────
-// PatternFlow ready-made presets.
-//
-// Each entry mirrors a pf*Preset recipe in
-// src/renderer/pipeline/patterns/patternflow/PatternFlowPresets.cpp — a
-// bare pf field pattern plus its transform stack (palette-offset, zoom,
-// rotation, vortex, kaleidoscope, tiling). The bare patterns expose only
-// intrinsic field controls; the "look" of an effect lives in these
-// recipes. scene() returns a FRESH model so loading one never mutates the
-// library. Palette defaults to Rainbow (id 0); the C++ presets take the
-// palette as an argument, so it is free to change after loading.
-// ─────────────────────────────────────────────────────────────────────
-
-const pfK    = (permille) => ({ id: 'constant', params: { permille } });
-const pfSine = (permille) => ({
-    id: 'sine', params: { phaseVelocity: pfK(permille), phaseOffset: 0 },
-});
-const signalSlotDefault = (slot) => (
-    slot.default ? JSON.parse(JSON.stringify(slot.default)) : DEFAULT_SIGNAL()
-);
-
-// Bare pf pattern model with schema defaults (matches the C++ factory
-// defaults the presets rely on).
-function pfPatternModel(id) {
-    const def = PATTERNS[id];
-    const config = {};
-    for (const c of def.config) config[c.name] = c.default ?? 0;
-    const signals = {};
-    for (const s of def.signals) signals[s.name] = signalSlotDefault(s);
-    return { id, config, signals };
-}
-
-const pfPalette       = (n)   => ({
-    id: 'paletteClip',
-    config: { maxFeather: 32768, tintMode: 0 },
-    signals: { offset: pfSine(n), clip: pfK(0) },
-});
-const pfZoom          = (n)   => ({ id: 'zoom', config: {}, signals: { scale: pfK(n) } });
-const pfRotate        = (n)   => ({ id: 'rotation', config: { isAngleTurn: 1 }, signals: { angle: pfK(n) } });
-const pfVortex        = (n)   => ({ id: 'vortex', config: {}, signals: { strength: pfK(n) } });
-const pfRadialKaleido = (div) => ({ id: 'radialKaleidoscope', config: { radialDivisions: div, isMirrored: 1 }, signals: {} });
-const pfTiling        = (n)   => ({ id: 'tiling', config: { mirrored: 0, shape: 0 }, signals: { cellSize: pfK(n) } });
-
-export const PF_PRESETS = [
-    { id: 'pfConcentricGrid', label: 'Concentric Grid (Origin)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfConcentricGrid'),
-                      transforms: [pfPalette(120), pfZoom(400), pfRotate(60)] }) },
-    { id: 'pfDualAxis', label: 'Dual Axis (0510)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfDualAxis'),
-                      transforms: [pfPalette(150), pfZoom(450)] }) },
-    { id: 'pfRowSegments', label: 'Row Segments (0511)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRowSegments'),
-                      transforms: [pfPalette(100), pfZoom(400)] }) },
-    { id: 'pfPetals', label: 'Petals (0512)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfPetals'),
-                      transforms: [pfPalette(140), pfRotate(80)] }) },
-    { id: 'pfShapes', label: 'Shapes (0514)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfShapes'),
-                      transforms: [pfPalette(130), pfZoom(450)] }) },
-    { id: 'pfCounterRibbons', label: 'Counter Ribbons (0515)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfCounterRibbons'),
-                      transforms: [pfPalette(160), pfZoom(450)] }) },
-    { id: 'pfQuadDirectional', label: 'Quad Directional (0515-3)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfQuadDirectional'),
-                      transforms: [pfPalette(150), pfZoom(450)] }) },
-    { id: 'pfOrganic', label: 'Organic (0519-1)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfOrganic'),
-                      transforms: [pfPalette(120), pfZoom(500)] }) },
-    { id: 'pfTendrils', label: 'Tendrils (0520)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfTendrils'),
-                      transforms: [pfPalette(140), pfZoom(500), pfRotate(50)] }) },
-    { id: 'pfRipple', label: 'Ripple (0524-2)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRipple'),
-                      transforms: [pfPalette(150), pfZoom(450), pfRotate(40)] }) },
-    { id: 'pfKaleidoVortex', label: 'Kaleido Vortex (0526)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRipple'),
-                      transforms: [pfPalette(160), pfZoom(450), pfVortex(500), pfRadialKaleido(6)] }) },
-    { id: 'pfDots', label: 'Dots (0528)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfDots'),
-                      transforms: [pfPalette(150), pfZoom(400)] }) },
-    { id: 'pfTopographic', label: 'Topographic (0529)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfTopographic'),
-                      transforms: [pfPalette(120), pfZoom(500)] }) },
-    { id: 'pfLiquidGate', label: 'Liquid Gate (0530)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfLiquidGate'),
-                      transforms: [pfPalette(170), pfZoom(500), pfRotate(45)] }) },
-    { id: 'pfPosterized', label: 'Posterized (0531)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfPosterized'),
-                      transforms: [pfPalette(160), pfZoom(450)] }) },
-    { id: 'pfWaveMatrix', label: 'Wave Matrix (0601)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfWaveMatrix'),
-                      transforms: [pfPalette(150), pfZoom(400)] }) },
-    { id: 'pfPlasma', label: 'Plasma',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfPlasma'),
-                      transforms: [pfPalette(140), pfZoom(500), pfRotate(40)] }) },
-    { id: 'pfCross', label: 'Cross (0614-2)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfCross'),
-                      transforms: [pfPalette(150), pfTiling(1000), pfZoom(355), pfRotate(30)] }) },
-    { id: 'pfRadialPulse', label: 'Radial Pulse (0624)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRadialPulse'),
-                      transforms: [pfPalette(160), pfZoom(450)] }) },
-    { id: 'pfLattice', label: 'Lattice',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfLattice'),
-                      transforms: [pfPalette(150), pfZoom(450)] }) },
-    { id: 'pfMoire', label: 'Moiré',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfMoire'),
-                      transforms: [pfPalette(150), pfZoom(450)] }) },
-    { id: 'pfChladni', label: 'Chladni',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfChladni'),
-                      transforms: [pfPalette(160), pfZoom(450)] }) },
-    { id: 'pfChirp', label: 'Chirp (Sonar)',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfChirp'),
-                      transforms: [pfPalette(150), pfZoom(450)] }) },
-    { id: 'pfSpiralArms', label: 'Spiral Arms',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfSpiralArms'),
-                      transforms: [pfPalette(150), pfRotate(50)] }) },
-    { id: 'pfRippleTank', label: 'Ripple Tank',
-      scene: () => ({ paletteId: 0, pattern: pfPatternModel('pfRippleTank'),
-                      transforms: [pfPalette(160), pfZoom(450)] }) },
-];
-
 // Initial scene model the composer mounts with.
 export const DEFAULT_SCENE = () => ({
     paletteId: 0,
+    // null = use the built-in palette named by paletteId. A non-null array of
+    // 16 [r,g,b] triples is an embedded custom palette (encoded as PSC v2).
+    paletteEntries: null,
     pattern: {
         id: 'noiseBasic',
         config: {},

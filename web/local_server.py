@@ -6,6 +6,7 @@ import http.server
 import base64
 import codecs
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -26,9 +27,14 @@ from psc_v1 import PscValidationError, raw_pattern_tag, validate_psc_scene  # no
 MAX_PSC_BYTES = 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
 MAX_PLAYLIST_BUNDLE_BYTES = 16 * 1024 * 1024
+MAX_PALETTE_BUNDLE_BYTES = 4 * 1024 * 1024
 # Playlist bundle wire format version — must match PLAYLIST_BUNDLE_VERSION in
 # web/sketches/composer/composer.js.
 PLAYLIST_BUNDLE_VERSION = 1
+# Palette bundle wire format version — must match PALETTE_BUNDLE_VERSION in
+# web/sketches/composer/composer.js.
+PALETTE_BUNDLE_VERSION = 1
+PALETTE_ENTRY_COUNT = 16
 DEPLOY_TIMEOUT_SECONDS = 10 * 60
 DEVICE_LIST_TIMEOUT_SECONDS = 8
 PROCESS_TERM_GRACE_SECONDS = 5
@@ -171,6 +177,92 @@ def _deduplicated_playlist_path(name: str, path: Path, playlist_dir: Path) -> tu
         if not candidate_path.exists():
             return candidate_name, candidate_path
     raise ValueError("could not allocate a unique playlist filename")
+
+
+class PaletteValidationError(ValueError):
+    pass
+
+
+def _palette_slug(name: str) -> str:
+    # Mirror paletteSlug() in web/sketches/composer/palette.js so the same
+    # display name maps to the same on-disk key everywhere.
+    base = str(name or "").lower().strip()
+    base = re.sub(r"[^a-z0-9]+", "-", base)
+    base = re.sub(r"^-+|-+$", "", base)
+    base = base[:64]
+    base = re.sub(r"-+$", "", base)
+    return f"{base or 'palette'}.json"
+
+
+def _validate_palette_data(data) -> None:
+    if not isinstance(data, dict):
+        raise PaletteValidationError("palette must be a JSON object")
+    ptype = data.get("type")
+    if ptype not in ("cosine", "raw"):
+        raise PaletteValidationError("palette type must be 'cosine' or 'raw'")
+    name = data.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise PaletteValidationError("palette name must be a non-empty string")
+    entries = data.get("entries")
+    if not isinstance(entries, list) or len(entries) != PALETTE_ENTRY_COUNT:
+        raise PaletteValidationError(
+            f"palette entries must be {PALETTE_ENTRY_COUNT} [r,g,b] triples"
+        )
+    for triple in entries:
+        if not isinstance(triple, list) or len(triple) != 3:
+            raise PaletteValidationError("palette entry must be an [r,g,b] triple")
+        for channel in triple:
+            if isinstance(channel, bool) or not isinstance(channel, int) or channel < 0 or channel > 255:
+                raise PaletteValidationError("palette channel must be an integer 0..255")
+    if ptype == "cosine":
+        coeffs = data.get("coeffs")
+        if not isinstance(coeffs, dict):
+            raise PaletteValidationError("cosine palette requires coeffs")
+        for key in ("a", "b", "c", "d"):
+            arr = coeffs.get(key)
+            if not isinstance(arr, list) or len(arr) != 3:
+                raise PaletteValidationError(f"coeffs.{key} must be an array of 3 numbers")
+            for value in arr:
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                    raise PaletteValidationError(f"coeffs.{key} must contain finite numbers")
+
+
+def _palette_name(raw: str, palette_dir: Path) -> tuple[str, Path]:
+    name = unquote(raw).strip()
+    if not name:
+        raise ValueError("missing palette filename")
+
+    candidate = Path(name)
+    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+        raise ValueError("palette filename must be relative")
+    if any(not SAFE_NAME_RE.fullmatch(part) for part in candidate.parts):
+        raise ValueError("palette filename contains unsupported characters")
+    if candidate.suffix.lower() != ".json":
+        raise ValueError("palette filename must end in .json")
+
+    resolved = (palette_dir / candidate).resolve()
+    try:
+        resolved.relative_to(palette_dir)
+    except ValueError as exc:
+        raise ValueError("palette filename escapes build/palettes") from exc
+
+    return candidate.as_posix(), resolved
+
+
+def _deduplicated_palette_path(name: str, path: Path, palette_dir: Path) -> tuple[str, Path]:
+    if not path.exists():
+        return name, path
+
+    requested = Path(name)
+    parent = requested.parent
+    stem = requested.stem
+    suffix = requested.suffix
+    for index in range(1, 10000):
+        candidate = parent / f"{stem}-{index}{suffix}"
+        candidate_name, candidate_path = _palette_name(candidate.as_posix(), palette_dir)
+        if not candidate_path.exists():
+            return candidate_name, candidate_path
+    raise ValueError("could not allocate a unique palette filename")
 
 
 def _duration_label(seconds: int | float) -> str:
@@ -507,6 +599,7 @@ class ThreadedLocalServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
     repo_root: Path
     playlist_dir: Path
+    palette_dir: Path
     display_config_path: Path
     deploy_manager: DeployManager
 
@@ -600,10 +693,31 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 "ok": True,
                 "savePsc": True,
                 "playlist": True,
+                "palettes": True,
                 "deploy": True,
                 "displayConfig": True,
                 "playlistDir": "build/psc",
+                "paletteDir": "build/palettes",
             })
+            return
+
+        if parsed.path == "/api/palettes":
+            palettes = []
+            if self.palette_dir.is_dir():
+                for path in sorted(self.palette_dir.glob("*.json")):
+                    try:
+                        data = json.loads(path.read_text(encoding="utf-8"))
+                        _validate_palette_data(data)
+                    except (OSError, json.JSONDecodeError, PaletteValidationError):
+                        continue
+                    stat = path.stat()
+                    palettes.append({
+                        "name": path.name,
+                        "data": data,
+                        "size": stat.st_size,
+                        "mtime": int(stat.st_mtime),
+                    })
+            self._send_json(200, {"ok": True, "palettes": palettes})
             return
 
         if parsed.path == "/api/playlist":
@@ -724,6 +838,156 @@ class LocalComposerServer(http.server.SimpleHTTPRequestHandler):
                 self._send_error_json(exc.status, exc.message)
                 return
             self._send_json(200, {"ok": True, "brightness": brightness, "saved": True})
+            return
+
+        if parsed.path == "/api/palettes/save":
+            try:
+                data = self._read_json_body()
+                _validate_palette_data(data)
+            except PaletteValidationError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+
+            try:
+                name, path = _palette_name(_palette_slug(data["name"]), self.palette_dir)
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    name, path = _deduplicated_palette_path(name, path, self.palette_dir)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
+                    saved_size = path.stat().st_size
+                    saved_mtime = int(path.stat().st_mtime)
+                finally:
+                    self.deploy_manager.release_build_input_lock()
+            except ValueError as exc:
+                self._send_error_json(400, str(exc))
+                return
+            except OSError as exc:
+                self._send_error_json(500, f"failed to save palette: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+
+            self._send_json(200, {
+                "ok": True,
+                "palette": {"name": name, "data": data, "size": saved_size, "mtime": saved_mtime},
+            })
+            return
+
+        if parsed.path == "/api/palettes/delete":
+            self._drain_request_body()
+            try:
+                raw = parse_qs(parsed.query).get("name", [""])[0]
+                name, path = _palette_name(raw, self.palette_dir)
+            except ValueError as exc:
+                self._send_error_json(400, str(exc))
+                return
+
+            try:
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    path.unlink()
+                finally:
+                    self.deploy_manager.release_build_input_lock()
+            except FileNotFoundError:
+                self._send_error_json(404, "palette file not found")
+                return
+            except IsADirectoryError:
+                self._send_error_json(400, "palette path is not a file")
+                return
+            except OSError as exc:
+                self._send_error_json(500, f"failed to delete palette: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+
+            self._send_json(200, {"ok": True, "palette": {"name": name}})
+            return
+
+        if parsed.path == "/api/palettes/replace":
+            length_raw = self.headers.get("Content-Length")
+            try:
+                length = int(length_raw or "-1")
+            except ValueError:
+                self._reject_api_request(411, "invalid Content-Length", drain=True)
+                return
+            if length < 0:
+                self._reject_api_request(411, "missing Content-Length", drain=True)
+                return
+            if length > MAX_PALETTE_BUNDLE_BYTES:
+                self._reject_api_request(413, f"palette bundle is too large ({length} bytes)", drain=True)
+                return
+
+            raw = self.rfile.read(length)
+            try:
+                bundle = json.loads(raw.decode("utf-8") or "{}")
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._send_error_json(400, "invalid palette bundle JSON")
+                return
+            if not isinstance(bundle, dict) or bundle.get("polarshaderPalettes") != PALETTE_BUNDLE_VERSION:
+                self._send_error_json(400, "unrecognised palette bundle format")
+                return
+            entries = bundle.get("palettes")
+            if not isinstance(entries, list) or not entries:
+                self._send_error_json(400, "palette bundle contains no palettes")
+                return
+
+            # Validate every palette up front so a bad bundle never wipes the
+            # existing library. The slug is re-derived from data.name (bundle
+            # entry name is advisory), then deduped within the batch.
+            prepared: list[tuple[str, Path, dict]] = []
+            seen: set[str] = set()
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    self._send_error_json(400, "palette bundle entry is not an object")
+                    return
+                data = entry.get("data")
+                try:
+                    _validate_palette_data(data)
+                except PaletteValidationError as exc:
+                    self._send_error_json(400, f"invalid palette in bundle: {exc}")
+                    return
+                name, path = _palette_name(_palette_slug(data["name"]), self.palette_dir)
+                if name in seen:
+                    requested = Path(name)
+                    stem, suffix = requested.stem, requested.suffix
+                    for index in range(1, 10000):
+                        cand_name, cand_path = _palette_name(f"{stem}-{index}{suffix}", self.palette_dir)
+                        if cand_name not in seen:
+                            name, path = cand_name, cand_path
+                            break
+                    else:
+                        self._send_error_json(400, "could not allocate a unique palette filename")
+                        return
+                seen.add(name)
+                prepared.append((name, path, data))
+
+            try:
+                self.deploy_manager.acquire_build_input_lock()
+                try:
+                    removed = 0
+                    if self.palette_dir.is_dir():
+                        for existing in self.palette_dir.glob("*.json"):
+                            existing.unlink()
+                            removed += 1
+                    for name, path, data in prepared:
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
+                finally:
+                    self.deploy_manager.release_build_input_lock()
+            except OSError as exc:
+                self._send_error_json(500, f"failed to replace palettes: {exc}")
+                return
+            except ApiError as exc:
+                self._send_error_json(exc.status, exc.message)
+                return
+
+            self._send_json(200, {"ok": True, "replaced": len(prepared), "removed": removed})
             return
 
         if parsed.path == "/api/playlist/delete":
@@ -951,6 +1215,7 @@ def main() -> None:
 
     LocalComposerServer.repo_root = repo_root
     LocalComposerServer.playlist_dir = (repo_root / "build" / "psc").resolve()
+    LocalComposerServer.palette_dir = (repo_root / "build" / "palettes").resolve()
     LocalComposerServer.display_config_path = (repo_root / "build" / "display_config.json").resolve()
     LocalComposerServer.deploy_manager = DeployManager(repo_root, platformio_python)
     with ThreadedLocalServer(

@@ -24,10 +24,6 @@
  * Writes visual proofs of the ported PatternFlow effects into
  * build/pf_snapshots/:
  *   - PGM per bare pf* pattern  : sample layer()(UV) over a Cartesian UV grid.
- *   - PPM per pf*Preset builder : sample the built Layer::compile() ColourMap
- *     over a polar display disc (angle, radius) -> CRGB, which is the only
- *     view that exercises the transform + palette stack (kaleidoscope, vortex,
- *     tiling, rotation, zoom, palette-offset).
  *
  * This tool is compiled ONLY by [env:native_pf_snapshot]; every other env
  * excludes tools/pf_snapshot.cpp so no second main() is ever linked.
@@ -35,16 +31,14 @@
  *   pio run -e native_pf_snapshot && .pio/build/native_pf_snapshot/program
  *
  * NOTE: 0511 (RowSegments) and 0624 (RadialPulse) are idiomatic approximations
- * of the source effects; 0526 (KaleidoVortex) is a transform recipe over Ripple.
+ * of the source effects.
  */
 
 #include "native/Arduino.h"
 #include "native/FastLED.h"
 
 #include "renderer/pipeline/patterns/patternflow/PatternFlow.h"
-#include "renderer/pipeline/patterns/patternflow/PatternFlowPresets.h"
 
-#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -97,33 +91,6 @@ std::vector<PatternEntry> patterns() {
     };
 }
 
-// Full-saturation hue wheel -> RGB (native stub has no CHSV).
-CRGB hueToRgb(double h) { // h in [0, 1)
-    double x = h * 6.0;
-    int seg = static_cast<int>(x) % 6;
-    double f = x - std::floor(x);
-    uint8_t up = static_cast<uint8_t>(f * 255.0);
-    uint8_t dn = static_cast<uint8_t>((1.0 - f) * 255.0);
-    switch (seg) {
-        case 0:  return CRGB(255, up, 0);
-        case 1:  return CRGB(dn, 255, 0);
-        case 2:  return CRGB(0, 255, up);
-        case 3:  return CRGB(0, dn, 255);
-        case 4:  return CRGB(up, 0, 255);
-        default: return CRGB(255, 0, dn);
-    }
-}
-
-// Rainbow spread: deterministic, distinct across the wheel -- so the PPM shows
-// field structure rather than a palette artefact.
-CRGBPalette16 snapshotPalette() {
-    CRGBPalette16 p;
-    for (int i = 0; i < 16; ++i) {
-        p.entries[i] = hueToRgb(static_cast<double>(i) / 16.0);
-    }
-    return p;
-}
-
 // Map a pixel column/row in [0, kGrid) to a UV raw coord in the renderer's
 // normalised [0, 1] domain (Q16.16), matching what patterns receive live.
 int32_t pixelToUvRaw(int px) {
@@ -136,15 +103,6 @@ bool writePgm(const std::string &path, const std::vector<uint8_t> &gray) {
     if (!f) return false;
     std::fprintf(f, "P5\n%d %d\n255\n", kGrid, kGrid);
     std::fwrite(gray.data(), 1, gray.size(), f);
-    std::fclose(f);
-    return true;
-}
-
-bool writePpm(const std::string &path, const std::vector<uint8_t> &rgb) {
-    FILE *f = std::fopen(path.c_str(), "wb");
-    if (!f) return false;
-    std::fprintf(f, "P6\n%d %d\n255\n", kGrid, kGrid);
-    std::fwrite(rgb.data(), 1, rgb.size(), f);
     std::fclose(f);
     return true;
 }
@@ -171,41 +129,6 @@ void dumpPatternPgm(const PatternEntry &e) {
     std::printf("  %s %s\n", writePgm(path, gray) ? "wrote" : "FAILED", path.c_str());
 }
 
-// Dump one preset as an RGB PPM over a polar display disc. The ColourMap takes
-// (angle, radius) display coords and converts to UV internally, so this is the
-// view that proves the transform + palette stack actually applied.
-void dumpPresetPpm(const PfEffect &effect, const CRGBPalette16 &palette) {
-    Layer layer = effect.preset(palette).build();
-    for (int fnum = 1; fnum <= kFrames; ++fnum) {
-        layer.advanceFrame(u0x16(0), static_cast<TimeMillis>(fnum) * kStepMs);
-    }
-    auto cm = layer.compile();
-
-    std::vector<uint8_t> rgb(static_cast<size_t>(kGrid) * kGrid * 3, 0);
-    const double half = (kGrid - 1) / 2.0;
-    for (int y = 0; y < kGrid; ++y) {
-        for (int x = 0; x < kGrid; ++x) {
-            double dx = (x - half) / half; // [-1, 1]
-            double dy = (y - half) / half;
-            double r = std::sqrt(dx * dx + dy * dy);
-            size_t idx = (static_cast<size_t>(y) * kGrid + x) * 3;
-            if (r > 1.0) continue; // outside the disc stays black
-            double ang = std::atan2(dy, dx);           // [-pi, pi]
-            double turns = ang / (2.0 * M_PI);
-            if (turns < 0.0) turns += 1.0;              // [0, 1)
-            u0x16 angle(static_cast<uint16_t>(turns * 65535.0));
-            u0x16 radius(static_cast<uint16_t>(r * 65535.0));
-            CRGB c = (*cm)(RenderPoint{angle, radius, RasterPoint{}});
-            rgb[idx + 0] = c.r;
-            rgb[idx + 1] = c.g;
-            rgb[idx + 2] = c.b;
-        }
-    }
-    std::string stem = effect.variant;
-    std::string path = std::string(kOutDir) + "/preset_" + stem + ".ppm";
-    std::printf("  %s %s\n", writePpm(path, rgb) ? "wrote" : "FAILED", path.c_str());
-}
-
 } // namespace
 
 int main() {
@@ -221,12 +144,6 @@ int main() {
         dumpPatternPgm(e);
     }
 
-    std::printf("PPM (presets) -> %s\n", kOutDir);
-    CRGBPalette16 palette = snapshotPalette();
-    for (const auto &effect : PF_EFFECTS) {
-        dumpPresetPpm(effect, palette);
-    }
-
-    std::printf("done: %zu patterns, %d presets\n", patterns().size(), 19);
+    std::printf("done: %zu patterns\n", patterns().size());
     return 0;
 }

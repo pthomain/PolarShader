@@ -10,12 +10,16 @@
 // of the viewport.
 
 import {
-    PALETTES, PATTERNS, TRANSFORMS, PF_PRESETS, DEFAULT_SCENE, DEFAULT_SIGNAL,
+    PALETTES, PATTERNS, TRANSFORMS, DEFAULT_SCENE, DEFAULT_SIGNAL,
     DEFAULT_PALETTE_TRANSFORM,
 } from './schema.js';
 import { encodeScene, decodeScene } from './codec.js';
 import { decodePds } from './pds-codec.js';
 import { renderSignalSlot } from './signal-editor.js';
+import {
+    PALETTE_ENTRY_COUNT, cosinePaletteEntries, defaultCosineCoeffs,
+    paletteGradientCss, paletteSlug,
+} from './palette.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Reactive scene model — the source of truth on the JS side.
@@ -62,6 +66,9 @@ function createSceneStore(initialScene) {
 }
 
 const BOOT_SCENE_STORAGE_KEY = 'polarComposerBootScene:v1';
+// Static-build fallback for the palette library when the local server API
+// (/api/palettes) is unreachable — mirrors the playlist localStorage pattern.
+const PALETTE_LIBRARY_STORAGE_KEY = 'polarComposerPaletteLibrary:v1';
 
 function readBootSceneState() {
     try {
@@ -133,7 +140,9 @@ const state = {
     workerRendererReloading: false,
     resetRendererBtn: null,
     composerTab: 'new',
-    presetSelected: PF_PRESETS[0]?.id ?? '',
+    paletteApiAvailable: false,   // /api/palettes reachable (local server)
+    paletteLibrary: [],           // [{ name: slug, data: paletteJson }]
+    paletteGenerator: null,       // lazily { coeffs, name, startFrom, liveApply, link, savedSnapshot }
     sceneSourceName: '',
     playlistApiChecked: false,
     playlistApiAvailable: false,
@@ -520,6 +529,7 @@ function hasSelectedPlaylistScene() {
 }
 
 function shouldShowSceneEditor() {
+    if (state.composerTab === 'palette-generator') return false;
     return state.composerTab !== 'playlist' || hasSelectedPlaylistScene();
 }
 
@@ -862,10 +872,12 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
         state.playlistApiAvailable = body.savePsc === true && body.playlist === true;
         state.deployApiAvailable = state.playlistApiAvailable && body.deploy === true;
         state.displayConfigApiAvailable = body.displayConfig === true;
+        state.paletteApiAvailable = body.palettes === true;
         state.playlistApiChecked = true;
         if (state.playlistApiAvailable) {
             await refreshPlaylistItems();
         }
+        await refreshPaletteLibrary();
         if (state.displayConfigApiAvailable) {
             await refreshDisplayConfig();
         }
@@ -880,12 +892,14 @@ async function refreshPlaylistCapability({ rebuild = false } = {}) {
         state.playlistApiAvailable = false;
         state.deployApiAvailable = false;
         state.displayConfigApiAvailable = false;
+        state.paletteApiAvailable = false;
         state.playlistApiChecked = true;
         state.playlistItems = [];
         clearPlaylistBaseline({ clearSelection: true });
         state.deployTargets = [];
         state.deployDevices = [];
         state.deployTarget = '';
+        await refreshPaletteLibrary();
     }
     if (rebuild) rebuildPanel();
 }
@@ -1156,6 +1170,240 @@ async function replacePlaylistLocally(file) {
     rebuildPanel();
     showStatus(`playlist loaded (${items.length} composition${items.length === 1 ? '' : 's'})`, false);
     logDebug('playlist', `loaded local playlist (${items.length} compositions)`);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Palette library — save / list / export / import. Mirrors the playlist
+// bundle helpers: server-backed when /api/palettes is reachable, else a
+// localStorage fallback for the static GitHub Pages build. Palettes are
+// small structured data, so the library is JSON (not the PSC binary wire).
+// ─────────────────────────────────────────────────────────────────────
+
+// Bundle wire format — mirrored by web/local_server.py (PALETTE_BUNDLE_VERSION).
+const PALETTE_BUNDLE_VERSION = 1;
+
+function cloneCoeffs(coeffs) {
+    return {
+        a: coeffs.a.slice(),
+        b: coeffs.b.slice(),
+        c: coeffs.c.slice(),
+        d: coeffs.d.slice(),
+    };
+}
+
+// Client-side validator, mirroring _validate_palette_data in local_server.py.
+function validatePaletteData(data) {
+    if (!data || typeof data !== 'object') throw new Error('palette must be an object');
+    if (data.type !== 'cosine' && data.type !== 'raw') {
+        throw new Error('palette type must be "cosine" or "raw"');
+    }
+    if (typeof data.name !== 'string' || !data.name.trim()) {
+        throw new Error('palette name is required');
+    }
+    const entries = data.entries;
+    if (!Array.isArray(entries) || entries.length !== PALETTE_ENTRY_COUNT) {
+        throw new Error(`palette entries must be ${PALETTE_ENTRY_COUNT} [r,g,b] triples`);
+    }
+    for (const entry of entries) {
+        if (!Array.isArray(entry) || entry.length !== 3) {
+            throw new Error('palette entry must be an [r,g,b] triple');
+        }
+        for (const ch of entry) {
+            if (!Number.isInteger(ch) || ch < 0 || ch > 255) {
+                throw new Error('palette channel must be an integer 0..255');
+            }
+        }
+    }
+    if (data.type === 'cosine') {
+        const coeffs = data.coeffs;
+        if (!coeffs || typeof coeffs !== 'object') {
+            throw new Error('cosine palette requires coeffs');
+        }
+        for (const key of ['a', 'b', 'c', 'd']) {
+            const arr = coeffs[key];
+            if (!Array.isArray(arr) || arr.length !== 3 || !arr.every((n) => Number.isFinite(n))) {
+                throw new Error(`cosine coeffs.${key} must be 3 finite numbers`);
+            }
+        }
+    }
+    return data;
+}
+
+// Append -1, -2, … until the slug is unique within `existingNames` (a Set).
+// Mirrors the server's _deduplicated_palette_path scheme.
+function dedupPaletteSlug(slug, existingNames) {
+    if (!existingNames.has(slug)) return slug;
+    const dot = slug.lastIndexOf('.');
+    const base = dot >= 0 ? slug.slice(0, dot) : slug;
+    const ext = dot >= 0 ? slug.slice(dot) : '';
+    for (let i = 1; ; i += 1) {
+        const candidate = `${base}-${i}${ext}`;
+        if (!existingNames.has(candidate)) return candidate;
+    }
+}
+
+function loadLocalPaletteLibrary() {
+    try {
+        const raw = localStorage.getItem(PALETTE_LIBRARY_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveLocalPaletteLibrary(library) {
+    try {
+        localStorage.setItem(PALETTE_LIBRARY_STORAGE_KEY, JSON.stringify(library));
+    } catch (e) {
+        logDebug('error', `palette library save failed: ${e.message}`);
+    }
+}
+
+async function refreshPaletteLibrary() {
+    if (state.paletteApiAvailable) {
+        try {
+            const body = await fetchPlaylistJson('/api/palettes');
+            state.paletteLibrary = Array.isArray(body.palettes)
+                ? body.palettes.map((p) => ({ name: p.name, data: p.data }))
+                : [];
+        } catch (e) {
+            logDebug('error', `palette list failed: ${e.message}`);
+            state.paletteLibrary = [];
+        }
+    } else {
+        state.paletteLibrary = loadLocalPaletteLibrary();
+    }
+}
+
+// Persist one palette. Server dedups on collision (never overwrites); the
+// localStorage fallback mirrors that. Returns the stored slug.
+async function savePaletteData(data) {
+    validatePaletteData(data);
+    if (state.paletteApiAvailable) {
+        const body = await fetchPlaylistJson('/api/palettes/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        await refreshPaletteLibrary();
+        return body.palette?.name ?? paletteSlug(data.name);
+    }
+    const library = loadLocalPaletteLibrary();
+    const names = new Set(library.map((p) => p.name));
+    const slug = dedupPaletteSlug(paletteSlug(data.name), names);
+    library.push({ name: slug, data });
+    saveLocalPaletteLibrary(library);
+    state.paletteLibrary = library;
+    return slug;
+}
+
+function buildPaletteBundle(library) {
+    return {
+        polarshaderPalettes: PALETTE_BUNDLE_VERSION,
+        palettes: library.map((p) => ({ name: p.name, data: p.data })),
+    };
+}
+
+function parsePaletteBundle(text) {
+    let bundle;
+    try {
+        bundle = JSON.parse(text);
+    } catch {
+        throw new Error('not a valid palette file');
+    }
+    if (!bundle
+        || bundle.polarshaderPalettes !== PALETTE_BUNDLE_VERSION
+        || !Array.isArray(bundle.palettes)
+        || bundle.palettes.length === 0) {
+        throw new Error('unrecognised or empty palette file');
+    }
+    return bundle;
+}
+
+function paletteBundleFilename() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+        + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    return `polarshader-palettes-${stamp}.json`;
+}
+
+function downloadPaletteBundle() {
+    if (state.paletteLibrary.length === 0) {
+        showStatus('palette library is empty — nothing to export', true);
+        return;
+    }
+    const bundle = buildPaletteBundle(state.paletteLibrary);
+    const blob = new Blob([JSON.stringify(bundle)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = paletteBundleFilename();
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    const n = state.paletteLibrary.length;
+    showStatus(`exported palette library (${n} palette${n === 1 ? '' : 's'})`, false);
+    logDebug('palette', `exported ${n} palettes`);
+}
+
+// Import replaces the whole library (matching the server's /replace + the
+// playlist import flow). The slug is re-derived from data.name — the bundle
+// `name` is advisory — then deduped, so import never trusts a bundle filename.
+async function importPaletteBundleFile(file) {
+    if (!file) return;
+    let bundle;
+    try {
+        bundle = parsePaletteBundle(await file.text());
+    } catch (e) {
+        showStatus(`palette import error: ${e.message}`, true);
+        return;
+    }
+    const existing = state.paletteLibrary.length;
+    const message = existing > 0
+        ? `Replace all ${existing} saved palette${existing === 1 ? '' : 's'} with `
+            + `${bundle.palettes.length} from this file?\n\nThis cannot be undone.`
+        : `Load ${bundle.palettes.length} palette${bundle.palettes.length === 1 ? '' : 's'}?`;
+    if (!window.confirm(message)) return;
+
+    if (state.paletteApiAvailable) {
+        try {
+            const body = await fetchPlaylistJson('/api/palettes/replace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bundle),
+            });
+            await refreshPaletteLibrary();
+            const n = body.replaced ?? bundle.palettes.length;
+            showStatus(`palette library replaced (${n} palette${n === 1 ? '' : 's'})`, false);
+            logDebug('palette', `imported ${n} palettes`);
+        } catch (e) {
+            showStatus(`palette import error: ${e.message}`, true);
+        }
+        rebuildPanel();
+        return;
+    }
+
+    // Static fallback: validate + re-derive slug from data.name + dedup.
+    const library = [];
+    const names = new Set();
+    for (const entry of bundle.palettes) {
+        let data;
+        try {
+            data = validatePaletteData(entry?.data);
+        } catch (e) {
+            showStatus(`palette import error: ${e.message}`, true);
+            return;
+        }
+        const slug = dedupPaletteSlug(paletteSlug(data.name), names);
+        names.add(slug);
+        library.push({ name: slug, data });
+    }
+    saveLocalPaletteLibrary(library);
+    state.paletteLibrary = library;
+    rebuildPanel();
+    showStatus(`palette library loaded (${library.length} palette${library.length === 1 ? '' : 's'})`, false);
+    logDebug('palette', `loaded ${library.length} palettes locally`);
 }
 
 async function saveCurrentSceneToPlaylist() {
@@ -2147,6 +2395,585 @@ function renderSignalsForm(signalsSchema, signalsObj, setSignal) {
     return form;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Palette generator (cosine palette) UI
+// ─────────────────────────────────────────────────────────────────────
+
+// Slider ranges per coefficient. a/b/d are normalized ~0..1; c is a small
+// frequency multiplier (colour cycles across the strip), so it gets a wider
+// range. These bound the UI only — the cosine math clamps to [0,1] anyway.
+const PALETTE_COEFF_RANGES = { a: [0, 1], b: [0, 1], c: [0, 4], d: [0, 1] };
+const PALETTE_CHANNEL_LABELS = ['R', 'G', 'B'];
+
+// Human-friendly meaning of each cosine coefficient (Inigo Quilez formula).
+const PALETTE_COEFF_META = {
+    a: { title: 'Base', desc: 'base brightness / DC offset per channel' },
+    b: { title: 'Amplitude', desc: 'contrast — how far each channel swings' },
+    c: { title: 'Cycles', desc: 'number of colour cycles across the strip' },
+    d: { title: 'Phase', desc: 'hue phase offset per channel' },
+};
+
+// Generator state survives panel rebuilds by living on `state`, not the DOM.
+function ensurePaletteGenerator() {
+    if (!state.paletteGenerator) {
+        state.paletteGenerator = {
+            coeffs: defaultCosineCoeffs(),
+            name: '',
+            startFrom: '',
+            liveApply: true,
+            link: { a: false, b: false, c: false, d: false },
+            savedSnapshot: null,
+        };
+    }
+    return state.paletteGenerator;
+}
+
+// True when two coefficient sets are identical channel-for-channel.
+function coeffsEqual(a, b) {
+    if (!a || !b) return false;
+    for (const key of ['a', 'b', 'c', 'd']) {
+        for (let ch = 0; ch < 3; ch += 1) {
+            if (a[key][ch] !== b[key][ch]) return false;
+        }
+    }
+    return true;
+}
+
+// The generator has unsaved edits when its coeffs differ from the last save.
+function paletteGeneratorDirty(gen) {
+    return !gen.savedSnapshot || !coeffsEqual(gen.coeffs, gen.savedSnapshot);
+}
+
+// Random coefficients in IQ-friendly ranges (a,b,d ~0..1, c a small frequency).
+function randomCosineCoeffs() {
+    const rand = (min, max) => min + Math.random() * (max - min);
+    const triple = (min, max) => [rand(min, max), rand(min, max), rand(min, max)];
+    return {
+        a: triple(0.3, 0.7),
+        b: triple(0.2, 0.6),
+        c: triple(0.5, 2.0),
+        d: triple(0.0, 1.0),
+    };
+}
+
+// Shadertoy-style GLSL palette function for these coeffs (for Copy GLSL).
+function coeffsToGlsl(coeffs) {
+    const vec = (t) => `vec3(${t.map((n) => n.toFixed(3)).join(', ')})`;
+    return 'vec3 palette(float t) {\n'
+        + `    vec3 a = ${vec(coeffs.a)};\n`
+        + `    vec3 b = ${vec(coeffs.b)};\n`
+        + `    vec3 c = ${vec(coeffs.c)};\n`
+        + `    vec3 d = ${vec(coeffs.d)};\n`
+        + '    return a + b * cos(6.28318 * (c * t + d));\n'
+        + '}';
+}
+
+async function copyGeneratorGlsl(gen) {
+    try {
+        await navigator.clipboard.writeText(coeffsToGlsl(gen.coeffs));
+        showStatus('copied GLSL palette to clipboard', false);
+    } catch (e) {
+        showStatus(`clipboard error: ${e.message}`, true);
+    }
+}
+
+// Apply the generator's current colours to the scene (embeds on encode).
+function applyGeneratorToScene(gen) {
+    const entries = cosinePaletteEntries(gen.coeffs);
+    const match = matchingLibraryPalette(entries);
+    gen.startFrom = match ? `lib:${match.name}` : 'embedded';
+    mutateScene('paletteEntries', 'cosine', (scene) => {
+        scene.paletteId = null;
+        scene.paletteEntries = entries.map((e) => e.slice());
+    });
+}
+
+// Delete a saved palette (server or localStorage), then rebuild the panel.
+async function deletePaletteBySlug(slug) {
+    const entry = state.paletteLibrary.find((p) => p.name === slug);
+    const label = entry?.data?.name ?? slug;
+    if (!window.confirm(`Delete palette "${label}"? This cannot be undone.`)) return;
+    try {
+        if (state.paletteApiAvailable) {
+            await fetchPlaylistJson(`/api/palettes/delete?name=${encodeURIComponent(slug)}`, { method: 'POST' });
+            await refreshPaletteLibrary();
+        } else {
+            const library = loadLocalPaletteLibrary().filter((p) => p.name !== slug);
+            saveLocalPaletteLibrary(library);
+            state.paletteLibrary = library;
+        }
+        showStatus(`deleted palette ${label}`, false);
+    } catch (e) {
+        showStatus(`palette delete error: ${e.message}`, true);
+    }
+    rebuildPanel();
+}
+
+// Suggest "Cosine N" where N is one past the highest existing "Cosine N".
+function defaultPaletteName() {
+    let max = 0;
+    for (const entry of state.paletteLibrary) {
+        const m = /^Cosine (\d+)$/.exec(entry.data?.name ?? '');
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return `Cosine ${max + 1}`;
+}
+
+async function savePaletteFromGenerator() {
+    const gen = ensurePaletteGenerator();
+    const name = (gen.name || '').trim() || defaultPaletteName();
+    const data = {
+        type: 'cosine',
+        name,
+        coeffs: cloneCoeffs(gen.coeffs),
+        entries: cosinePaletteEntries(gen.coeffs),
+    };
+    try {
+        const slug = await savePaletteData(data);
+        gen.savedSnapshot = cloneCoeffs(gen.coeffs);
+        gen.startFrom = `lib:${slug}`;
+        gen.name = '';
+        rebuildPanel();
+        showStatus(`saved palette ${name}`, false);
+        logDebug('palette', `saved ${slug}`);
+    } catch (e) {
+        showStatus(`palette save error: ${e.message}`, true);
+        logDebug('error', `palette save failed: ${e.message}`);
+    }
+}
+
+function renderPaletteGeneratorSection() {
+    const gen = ensurePaletteGenerator();
+    const section = document.createElement('section');
+    section.className = 'panel-section palette-generator';
+
+    section.appendChild(Object.assign(document.createElement('h2'), { textContent: 'Palette Generator' }));
+    section.appendChild(Object.assign(document.createElement('p'), {
+        className: 'muted-note',
+        textContent: 'Cosine palette: channel(t) = a + b·cos(2π·(c·t + d)).',
+    }));
+
+    // ── Live preview: gradient strip + the 16 discrete entries the engine renders.
+    const preview = document.createElement('div');
+    preview.className = 'palette-preview';
+    section.appendChild(preview);
+
+    const swatches = document.createElement('div');
+    swatches.className = 'palette-swatches';
+    const swatchCells = [];
+    for (let i = 0; i < PALETTE_ENTRY_COUNT; i += 1) {
+        const cell = document.createElement('div');
+        cell.className = 'palette-swatch';
+        swatches.appendChild(cell);
+        swatchCells.push(cell);
+    }
+    section.appendChild(swatches);
+
+    // Outputs updated in place (no panel rebuild) so sliders survive dragging.
+    let saveBtn = null;
+    let exportBtn = null;
+    let dirtyNote = null;
+    const updateOutputs = ({ applyLive = true } = {}) => {
+        const entries = cosinePaletteEntries(gen.coeffs);
+        preview.style.background = paletteGradientCss(entries);
+        for (let i = 0; i < swatchCells.length; i += 1) {
+            const [r, g, b] = entries[i];
+            swatchCells[i].style.background = `rgb(${r},${g},${b})`;
+        }
+        const dirty = paletteGeneratorDirty(gen);
+        if (saveBtn) saveBtn.disabled = !dirty;
+        if (dirtyNote) dirtyNote.textContent = gen.savedSnapshot && !dirty ? 'Saved' : 'Unsaved changes';
+        if (exportBtn) exportBtn.disabled = state.paletteLibrary.length === 0;
+        if (applyLive && gen.liveApply) applyGeneratorToScene(gen);
+    };
+
+    // ── Palette: same choices as the Palette transform, plus Randomize / Reset.
+    const startRow = document.createElement('div');
+    startRow.className = 'top-row palette-start-row';
+    const startSel = document.createElement('select');
+    appendPaletteOptions(startSel, sceneStore.scene);
+    const currentChoice = currentPaletteChoice(sceneStore.scene);
+    const startChoice = gen.startFrom || currentChoice;
+    startSel.value = startChoice;
+    if (startSel.value !== startChoice) {
+        gen.startFrom = currentChoice;
+        startSel.value = currentChoice;
+    }
+    startSel.addEventListener('change', () => {
+        syncPaletteGeneratorFromChoice(startSel.value);
+        applyPaletteChoiceToScene(startSel.value, { syncGenerator: false });
+        rebuildPanel();
+    });
+    startRow.appendChild(startSel);
+
+    const randomBtn = document.createElement('button');
+    randomBtn.type = 'button';
+    randomBtn.textContent = 'Randomize';
+    randomBtn.title = 'Roll random coefficients';
+    randomBtn.addEventListener('click', () => {
+        gen.coeffs = randomCosineCoeffs();
+        gen.startFrom = '';
+        if (gen.liveApply) applyGeneratorToScene(gen);
+        rebuildPanel();
+    });
+    startRow.appendChild(randomBtn);
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset';
+    resetBtn.title = 'Reset to the default rainbow coefficients';
+    resetBtn.addEventListener('click', () => {
+        gen.coeffs = defaultCosineCoeffs();
+        gen.startFrom = '';
+        if (gen.liveApply) applyGeneratorToScene(gen);
+        rebuildPanel();
+    });
+    startRow.appendChild(resetBtn);
+    section.appendChild(startRow);
+
+    // ── Coefficient groups: a/b/c/d, each with R/G/B slider + numeric input,
+    //    a tooltip explaining its role, and an optional "link RGB" toggle.
+    for (const key of ['a', 'b', 'c', 'd']) {
+        section.appendChild(buildPaletteCoeffGroup(gen, key, updateOutputs));
+    }
+
+    // ── Name (auto-advances after a save) + saved/dirty indicator.
+    const nameRow = document.createElement('label');
+    nameRow.className = 'param';
+    nameRow.appendChild(Object.assign(document.createElement('span'), { className: 'param-label', textContent: 'Name' }));
+    const nameIn = document.createElement('input');
+    nameIn.type = 'text';
+    nameIn.placeholder = defaultPaletteName();
+    nameIn.value = gen.name;
+    nameIn.addEventListener('input', () => { gen.name = nameIn.value; });
+    nameRow.appendChild(nameIn);
+    section.appendChild(nameRow);
+
+    dirtyNote = document.createElement('p');
+    dirtyNote.className = 'muted-note palette-dirty-note';
+    section.appendChild(dirtyNote);
+
+    // ── Actions.
+    const actions = document.createElement('div');
+    actions.className = 'top-row palette-actions';
+
+    const liveLabel = document.createElement('label');
+    liveLabel.className = 'palette-live-toggle';
+    liveLabel.title = 'Update the current scene as you edit';
+    const liveBox = document.createElement('input');
+    liveBox.type = 'checkbox';
+    liveBox.checked = gen.liveApply;
+    liveBox.addEventListener('change', () => {
+        gen.liveApply = liveBox.checked;
+        if (gen.liveApply) applyGeneratorToScene(gen);
+    });
+    liveLabel.appendChild(liveBox);
+    liveLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Live apply' }));
+    actions.appendChild(liveLabel);
+
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.textContent = 'Apply to scene';
+    applyBtn.title = 'Use this palette in the current composition';
+    applyBtn.addEventListener('click', () => {
+        applyGeneratorToScene(gen);
+        showStatus('applied cosine palette to scene', false);
+    });
+    actions.appendChild(applyBtn);
+
+    saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Save';
+    saveBtn.title = 'Save this palette to your library';
+    saveBtn.addEventListener('click', () => { void savePaletteFromGenerator(); });
+    actions.appendChild(saveBtn);
+
+    const glslBtn = document.createElement('button');
+    glslBtn.type = 'button';
+    glslBtn.textContent = 'Copy GLSL';
+    glslBtn.title = 'Copy the Shadertoy-style palette() function';
+    glslBtn.addEventListener('click', () => { void copyGeneratorGlsl(gen); });
+    actions.appendChild(glslBtn);
+
+    exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
+    exportBtn.textContent = 'Export';
+    exportBtn.title = 'Download the whole palette library as a file';
+    exportBtn.addEventListener('click', downloadPaletteBundle);
+    actions.appendChild(exportBtn);
+
+    const importBtn = document.createElement('button');
+    importBtn.type = 'button';
+    importBtn.textContent = 'Import';
+    importBtn.title = 'Replace the palette library from a file';
+    const importIn = document.createElement('input');
+    importIn.type = 'file';
+    importIn.accept = '.json,application/json';
+    importIn.style.display = 'none';
+    importBtn.addEventListener('click', () => importIn.click());
+    importIn.addEventListener('change', () => {
+        const f = importIn.files?.[0];
+        importIn.value = '';
+        if (f) void importPaletteBundleFile(f);
+    });
+    actions.appendChild(importBtn);
+    actions.appendChild(importIn);
+
+    section.appendChild(actions);
+
+    // ── Saved-palette library: load a cosine one back into the sliders, or delete.
+    if (state.paletteLibrary.length > 0) {
+        section.appendChild(renderPaletteLibraryList(gen));
+    }
+
+    updateOutputs({ applyLive: false });
+    return section;
+}
+
+// One coefficient block (a/b/c/d): a labelled header with a "link RGB" toggle
+// and three R/G/B rows, each a slider + two-way-bound numeric input.
+function buildPaletteCoeffGroup(gen, key, updateOutputs) {
+    const [min, max] = PALETTE_COEFF_RANGES[key];
+    const meta = PALETTE_COEFF_META[key];
+    const group = document.createElement('div');
+    group.className = 'palette-coeff-group';
+
+    const head = document.createElement('div');
+    head.className = 'palette-coeff-head';
+    const title = Object.assign(document.createElement('span'), {
+        className: 'param-label',
+        textContent: `${key} · ${meta.title}`,
+    });
+    title.title = meta.desc;
+    head.appendChild(title);
+
+    const linkLabel = document.createElement('label');
+    linkLabel.className = 'palette-link-toggle';
+    linkLabel.title = 'Move all three channels together';
+    const linkBox = document.createElement('input');
+    linkBox.type = 'checkbox';
+    linkBox.checked = gen.link[key];
+    linkLabel.appendChild(linkBox);
+    linkLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'link RGB' }));
+    head.appendChild(linkLabel);
+    group.appendChild(head);
+
+    const rows = [];
+    // Set one channel (clamped) and sync its slider; when linked, mirror to the
+    // other channels. `skipNumber` leaves the actively-edited number field alone
+    // so typing (e.g. "0.5") isn't clobbered by a mid-entry reformat.
+    const setChannel = (ch, value, { fromLink = false, skipNumber = false } = {}) => {
+        const clamped = Math.min(max, Math.max(min, value));
+        gen.coeffs[key][ch] = clamped;
+        rows[ch].slider.value = String(clamped);
+        if (!skipNumber) rows[ch].number.value = clamped.toFixed(2);
+        if (!fromLink && gen.link[key]) {
+            for (let o = 0; o < 3; o += 1) if (o !== ch) setChannel(o, clamped, { fromLink: true });
+        }
+    };
+
+    for (let ch = 0; ch < 3; ch += 1) {
+        const row = document.createElement('div');
+        row.className = 'palette-slider-row';
+        row.appendChild(Object.assign(document.createElement('span'), {
+            className: 'palette-slider-label',
+            textContent: PALETTE_CHANNEL_LABELS[ch],
+        }));
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = String(min);
+        slider.max = String(max);
+        slider.step = '0.01';
+        slider.value = String(gen.coeffs[key][ch]);
+        const number = document.createElement('input');
+        number.type = 'number';
+        number.className = 'palette-slider-value';
+        number.min = String(min);
+        number.max = String(max);
+        number.step = '0.01';
+        number.value = gen.coeffs[key][ch].toFixed(2);
+
+        slider.addEventListener('input', () => {
+            setChannel(ch, parseFloat(slider.value), {});
+            updateOutputs();
+        });
+        number.addEventListener('input', () => {
+            const v = parseFloat(number.value);
+            if (Number.isFinite(v)) {
+                setChannel(ch, v, { skipNumber: true });
+                updateOutputs();
+            }
+        });
+        // Normalise (clamp + reformat) the field once editing commits.
+        number.addEventListener('change', () => {
+            number.value = gen.coeffs[key][ch].toFixed(2);
+        });
+
+        row.appendChild(slider);
+        row.appendChild(number);
+        rows.push({ slider, number });
+        group.appendChild(row);
+    }
+
+    linkBox.addEventListener('change', () => {
+        gen.link[key] = linkBox.checked;
+        if (linkBox.checked) {
+            setChannel(0, gen.coeffs[key][0], {});
+            updateOutputs();
+        }
+    });
+
+    return group;
+}
+
+// The saved-palette library list with per-palette Load (cosine) / Delete.
+function renderPaletteLibraryList(gen) {
+    const wrap = document.createElement('div');
+    wrap.className = 'palette-library';
+    wrap.appendChild(Object.assign(document.createElement('h3'), { textContent: 'Saved palettes' }));
+    for (const entry of state.paletteLibrary) {
+        const row = document.createElement('div');
+        row.className = 'palette-library-row';
+
+        const swatch = document.createElement('div');
+        swatch.className = 'palette-lib-swatch';
+        if (Array.isArray(entry.data?.entries)) {
+            swatch.style.background = paletteGradientCss(entry.data.entries);
+        }
+        row.appendChild(swatch);
+
+        row.appendChild(Object.assign(document.createElement('span'), {
+            className: 'palette-lib-name',
+            textContent: entry.data?.name ?? entry.name,
+        }));
+
+        if (entry.data?.type === 'cosine' && entry.data.coeffs) {
+            const loadBtn = document.createElement('button');
+            loadBtn.type = 'button';
+            loadBtn.textContent = 'Load';
+            loadBtn.title = 'Load these coefficients into the sliders';
+            loadBtn.addEventListener('click', () => {
+                syncPaletteGeneratorFromChoice(`lib:${entry.name}`);
+                if (gen.liveApply) applyPaletteChoiceToScene(`lib:${entry.name}`, { syncGenerator: false });
+                rebuildPanel();
+            });
+            row.appendChild(loadBtn);
+        }
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = 'Delete';
+        delBtn.title = 'Delete this palette from the library';
+        delBtn.addEventListener('click', () => { void deletePaletteBySlug(entry.name); });
+        row.appendChild(delBtn);
+
+        wrap.appendChild(row);
+    }
+    return wrap;
+}
+
+// True when the two 16-entry palettes have identical RGB values.
+function paletteEntriesMatch(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+        for (let ch = 0; ch < 3; ch += 1) {
+            if (a[i]?.[ch] !== b[i]?.[ch]) return false;
+        }
+    }
+    return true;
+}
+
+function matchingLibraryPalette(entries) {
+    if (!Array.isArray(entries)) return null;
+    return state.paletteLibrary.find((p) => paletteEntriesMatch(p.data?.entries, entries)) ?? null;
+}
+
+function currentPaletteChoice(scene) {
+    if (Array.isArray(scene.paletteEntries)) {
+        const libMatch = matchingLibraryPalette(scene.paletteEntries);
+        return libMatch ? `lib:${libMatch.name}` : 'embedded';
+    }
+    return `builtin:${scene.paletteId ?? PALETTES[0]?.id ?? 0}`;
+}
+
+function appendPaletteOptions(select, scene) {
+    for (const palette of PALETTES) {
+        const opt = document.createElement('option');
+        opt.value = `builtin:${palette.id}`;
+        opt.textContent = palette.name;
+        select.appendChild(opt);
+    }
+    for (const entry of state.paletteLibrary) {
+        const opt = document.createElement('option');
+        opt.value = `lib:${entry.name}`;
+        opt.textContent = entry.data?.name ?? entry.name;
+        select.appendChild(opt);
+    }
+    if (Array.isArray(scene.paletteEntries) && !matchingLibraryPalette(scene.paletteEntries)) {
+        const opt = document.createElement('option');
+        opt.value = 'embedded';
+        opt.textContent = 'Embedded custom';
+        select.appendChild(opt);
+    }
+}
+
+function paletteLibraryEntryFromChoice(choice) {
+    if (!choice.startsWith('lib:')) return null;
+    return state.paletteLibrary.find((p) => p.name === choice.slice('lib:'.length)) ?? null;
+}
+
+function syncPaletteGeneratorFromChoice(choice) {
+    const gen = ensurePaletteGenerator();
+    gen.startFrom = choice;
+    const entry = paletteLibraryEntryFromChoice(choice);
+    if (entry?.data?.type === 'cosine' && entry.data.coeffs) {
+        gen.coeffs = cloneCoeffs(entry.data.coeffs);
+        gen.savedSnapshot = cloneCoeffs(entry.data.coeffs);
+    }
+}
+
+function syncPaletteGeneratorFromScene() {
+    syncPaletteGeneratorFromChoice(currentPaletteChoice(sceneStore.scene));
+}
+
+function applyPaletteChoiceToScene(choice, { syncGenerator = true } = {}) {
+    if (syncGenerator) syncPaletteGeneratorFromChoice(choice);
+    if (choice.startsWith('builtin:')) {
+        const paletteId = parseInt(choice.slice('builtin:'.length), 10);
+        mutateScene('paletteId', paletteId, (scene) => {
+            scene.paletteId = paletteId;
+            scene.paletteEntries = null;
+        });
+        return true;
+    }
+    if (choice.startsWith('lib:')) {
+        const entry = paletteLibraryEntryFromChoice(choice);
+        if (!entry?.data?.entries) return false;
+        mutateScene('paletteEntries', entry.name, (scene) => {
+            scene.paletteId = null;
+            scene.paletteEntries = entry.data.entries.map((e) => e.slice());
+        });
+        return true;
+    }
+    return choice === 'embedded';
+}
+
+// Save an embedded (entries-only) palette to the library as type "raw" —
+// coeffs are unrecoverable from baked entries, so it is not basis-eligible.
+async function saveEmbeddedPaletteToLibrary(entries) {
+    const name = window.prompt('Palette name', 'Imported palette');
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) { showStatus('palette name is required', true); return; }
+    try {
+        await savePaletteData({ type: 'raw', name: trimmed, entries: entries.map((e) => e.slice()) });
+        rebuildPanel();
+        showStatus(`saved palette ${trimmed}`, false);
+    } catch (e) {
+        showStatus(`palette save error: ${e.message}`, true);
+    }
+}
+
 function renderPaletteSelector() {
     const wrap = document.createElement('label');
     wrap.className = 'param';
@@ -2155,21 +2982,32 @@ function renderPaletteSelector() {
     labelText.textContent = 'Palette';
     wrap.appendChild(labelText);
 
+    const scene = sceneStore.scene;
     const sel = document.createElement('select');
-    for (const palette of PALETTES) {
-        const opt = document.createElement('option');
-        opt.value = palette.id;
-        opt.textContent = palette.name;
-        sel.appendChild(opt);
-    }
-    sel.value = sceneStore.scene.paletteId;
+    appendPaletteOptions(sel, scene);
+    const hasEmbedded = Array.isArray(scene.paletteEntries);
+    const libMatch = hasEmbedded ? matchingLibraryPalette(scene.paletteEntries) : null;
+    sel.value = currentPaletteChoice(scene);
+
     sel.addEventListener('change', () => {
-        const paletteId = parseInt(sel.value, 10);
-        mutateScene('paletteId', paletteId, (scene) => {
-            scene.paletteId = paletteId;
-        });
+        applyPaletteChoiceToScene(sel.value);
+        rebuildPanel();
     });
     wrap.appendChild(sel);
+
+    if (hasEmbedded && !libMatch) {
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.textContent = 'Save to library…';
+        saveBtn.title = 'Save this embedded palette to your library';
+        // The button lives inside the <label>; preventDefault stops the click
+        // from also being forwarded to (and re-focusing) the <select>.
+        saveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            void saveEmbeddedPaletteToLibrary(scene.paletteEntries);
+        });
+        wrap.appendChild(saveBtn);
+    }
     return wrap;
 }
 
@@ -2548,6 +3386,22 @@ function renderTopSection() {
     });
     brightnessRow.appendChild(brightnessSlider);
     brightnessRow.appendChild(brightnessValue);
+    const glowLabel = document.createElement('label');
+    glowLabel.className = 'glow-toggle';
+    glowLabel.title = 'Enable glow post-processing in the web renderer';
+    const glowBox = document.createElement('input');
+    glowBox.type = 'checkbox';
+    glowBox.checked = bloomPreference;
+    glowBox.addEventListener('change', () => {
+        void setWorkerBloom(glowBox.checked).then((result) => {
+            if (!result?.ok) {
+                logDebug('display', `glow toggle deferred: ${result?.reason ?? 'renderer not ready'}`);
+            }
+        });
+    });
+    glowLabel.appendChild(glowBox);
+    glowLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Glow' }));
+    brightnessRow.appendChild(glowLabel);
     section.appendChild(brightnessRow);
 
     const ioRow = document.createElement('div'); ioRow.className = 'top-row action-row';
@@ -2728,6 +3582,7 @@ function renderTopSection() {
     for (const tab of [
         { id: 'new', label: 'New composition' },
         { id: 'playlist', label: 'Playlist' },
+        { id: 'palette-generator', label: 'Palette Generator' },
     ]) {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -2735,6 +3590,9 @@ function renderTopSection() {
         btn.className = state.composerTab === tab.id ? 'active' : '';
         btn.addEventListener('click', () => {
             if (state.composerTab === tab.id) return;
+            if (tab.id === 'palette-generator') {
+                syncPaletteGeneratorFromScene();
+            }
             state.composerTab = tab.id;
             rebuildPanel();
             if (tab.id === 'playlist') {
@@ -2751,40 +3609,6 @@ function renderTopSection() {
         tabs.appendChild(btn);
     }
     section.appendChild(tabs);
-
-    if (state.composerTab === 'new') {
-        // PatternFlow ready-made presets: load a bare pf pattern + its transform
-        // stack in one click (mirrors the native pf*Preset recipes).
-        const presetRow = document.createElement('div'); presetRow.className = 'top-row';
-        presetRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'PF preset' }));
-        const presetSel = document.createElement('select');
-        for (const p of PF_PRESETS) {
-            const o = document.createElement('option'); o.value = p.id; o.textContent = p.label;
-            presetSel.appendChild(o);
-        }
-        if (!PF_PRESETS.some((p) => p.id === state.presetSelected)) {
-            state.presetSelected = PF_PRESETS[0]?.id ?? '';
-        }
-        presetSel.value = state.presetSelected;
-        const presetBtn = document.createElement('button'); presetBtn.textContent = 'Load';
-        const loadSelectedPreset = () => {
-            const preset = PF_PRESETS.find((p) => p.id === presetSel.value);
-            if (!preset) return;
-            state.presetSelected = preset.id;
-            const nextScene = preset.scene();
-            clearPlaylistBaseline({ clearSelection: true });
-            sceneStore.setScene(nextScene, {
-                path: 'scene.preset',
-                value: preset.label,
-            });
-            state.sceneSourceName = '';
-            rebuildPanel();
-        };
-        presetSel.addEventListener('change', loadSelectedPreset);
-        presetBtn.addEventListener('click', loadSelectedPreset);
-        presetRow.appendChild(presetSel); presetRow.appendChild(presetBtn);
-        section.appendChild(presetRow);
-    }
 
     if (state.composerTab === 'playlist') {
         const compatiblePlaylistItems = supportedPlaylistItems();
@@ -2985,6 +3809,10 @@ function renderTopSection() {
             }
             section.appendChild(playlistList);
         }
+    }
+
+    if (state.composerTab === 'palette-generator') {
+        section.appendChild(renderPaletteGeneratorSection());
     }
 
     return section;
