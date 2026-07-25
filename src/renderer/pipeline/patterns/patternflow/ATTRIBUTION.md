@@ -39,8 +39,7 @@ effect date-code(s) it derives from.
 ## Effect date-code map
 
 Effects are named in PolarShader by their **Variant** characteristic; the
-source date-code is preserved as a code comment and as a `pf<datecode>Preset`
-forwarding alias.
+source date-code is preserved as a code comment next to each pattern factory.
 
 ### All 19 effects
 
@@ -68,9 +67,8 @@ forwarding alias.
 
 `0526` (KaleidoVortex) is not a standalone pattern: it reuses the `Ripple`
 field folded by a `RadialKaleidoscopeTransform` and twisted by a
-`VortexTransform` (a transform recipe in `pfKaleidoVortexPreset`). `0614-2`
-(Cross) folds the single breathing cross into a grid via a `TilingTransform`
-in `pfCrossPreset`.
+`VortexTransform`. `0614-2` (Cross) can be folded into a grid via a
+downstream `TilingTransform`.
 
 ## Approximations (flagged)
 

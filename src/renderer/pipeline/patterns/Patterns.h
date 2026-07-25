@@ -216,12 +216,15 @@ namespace PolarShader {
     );
 
     // Rotating Archimedean spiral. Stateless per-pixel (theta - tightness*r - phase) formula.
+    // layerCount > 1 overlays counter-rotating mirror-chirality spirals (moire mode).
     std::unique_ptr<UVPattern> spiralPattern(
         uint8_t armCount = 2,
         bool clockwise = true,
         S0x16Signal tightness = constant(720),
         S0x16Signal armThickness = constant(500),
-        S0x16Signal rotationSpeed = constant(300)
+        S0x16Signal rotationSpeed = constant(300),
+        uint8_t layerCount = 1,
+        S0x16Signal detune = constant(0)
     );
 
     // Concentric annuli sweep-fill. Polar reinterpretation of CD77 box-fill.

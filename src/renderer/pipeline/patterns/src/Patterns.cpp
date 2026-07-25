@@ -256,14 +256,18 @@ namespace PolarShader {
         bool clockwise,
         S0x16Signal tightness,
         S0x16Signal armThickness,
-        S0x16Signal rotationSpeed
+        S0x16Signal rotationSpeed,
+        uint8_t layerCount,
+        S0x16Signal detune
     ) {
         return std::make_unique<SpiralPattern>(
             armCount,
             clockwise,
             std::move(tightness),
             std::move(armThickness),
-            std::move(rotationSpeed)
+            std::move(rotationSpeed),
+            layerCount,
+            std::move(detune)
         );
     }
 

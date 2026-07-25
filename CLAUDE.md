@@ -60,6 +60,15 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. One Worktree Per PR
+
+**Every new PR starts on its own git worktree and branch, off a clean base.**
+
+- Before starting new work, create a dedicated worktree: `git worktree add ../PolarShader-<slug> -b <type>/<slug> origin/main` (or another clean base). Do the work there.
+- Never build a new feature on top of `main` or any tree that already carries unrelated uncommitted changes — it entangles diffs and makes review painful.
+- Keep one PR's changes to one worktree. If you find unrelated work-in-progress in the tree, stop and flag it before adding more; don't stack new changes on top of it.
+- The test: `git status` in your worktree should show only files that trace to this PR.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

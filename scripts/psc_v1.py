@@ -8,8 +8,12 @@ from dataclasses import dataclass
 
 MAGIC = b"PSC\0"
 VERSION = 1
+VERSION_V2 = 2  # adds optional embedded 16-entry palette
+SUPPORTED_VERSIONS = frozenset({VERSION, VERSION_V2})
 MAX_RECURSION_DEPTH = 64
 PALETTE_IDS = frozenset({0, 1, 2, 3})
+PALETTE_EMBEDDED = 0xFF  # sentinel: 48 bytes of 16 x (r,g,b) follow (v2 only)
+PALETTE_ENTRY_COUNT = 16
 
 
 class PscValidationError(ValueError):
@@ -260,9 +264,21 @@ def _read_transform(reader: _Reader) -> tuple[int, str]:
 
 
 def raw_pattern_tag(data: bytes) -> int | None:
-    if len(data) >= 7 and data[:4] == MAGIC and data[4] == VERSION:
-        return data[6]
-    return None
+    # The pattern tag no longer sits at a fixed offset: a v2 embedded palette
+    # inserts 48 bytes before it. Compute the offset from the version + sentinel.
+    if len(data) < 7 or data[:4] != MAGIC:
+        return None
+    version = data[4]
+    if version not in SUPPORTED_VERSIONS:
+        return None
+    palette_id = data[5]
+    if version == VERSION_V2 and palette_id == PALETTE_EMBEDDED:
+        tag_offset = 6 + 3 * PALETTE_ENTRY_COUNT
+    else:
+        tag_offset = 6
+    if len(data) <= tag_offset:
+        return None
+    return data[tag_offset]
 
 
 def validate_psc_scene(data: bytes) -> PscInfo:
@@ -273,11 +289,16 @@ def validate_psc_scene(data: bytes) -> PscInfo:
         raise PscValidationError("bad .psc magic")
 
     version = reader.u8()
-    if version != VERSION:
+    if version not in SUPPORTED_VERSIONS:
         raise PscValidationError(f"unsupported .psc version {version}")
 
     palette_id = reader.u8()
-    if palette_id not in PALETTE_IDS:
+    # The 0xFF sentinel is an embedded palette ONLY under v2; under v1 it is an
+    # unknown palette id.
+    if version == VERSION_V2 and palette_id == PALETTE_EMBEDDED:
+        for _ in range(3 * PALETTE_ENTRY_COUNT):
+            reader.u8()  # consume 48 palette bytes (bounds-checked)
+    elif palette_id not in PALETTE_IDS:
         raise PscValidationError(f"unknown palette id {palette_id}")
 
     pattern_tag, pattern_domain = _read_pattern(reader)

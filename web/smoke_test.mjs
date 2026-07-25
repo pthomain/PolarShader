@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Headless shell-render smoke test for the built composer page.
+// Headless smoke test for the built Pages artifact and composer shell.
 //
 // Catches the "silent blank page" regression class: the generated page hides
 // its body behind `opacity: 0` and only reveals it once boot progresses, so a
@@ -34,7 +34,21 @@ import { join, normalize, extname } from "node:path";
 const args = process.argv.slice(2);
 const strict = args.includes("--strict");
 const distDir = args.find((a) => !a.startsWith("--")) || join(process.cwd(), "web", "dist");
+const rootIndex = join(distDir, "index.html");
+const wikiIndex = join(distDir, "wiki", "index.html");
 const composerIndex = join(distDir, "composer", "index.html");
+
+if (!existsSync(rootIndex)) {
+  console.error(`[smoke] site root not found at ${rootIndex}`);
+  console.error("[smoke] run `python web/build_site.py` first.");
+  process.exit(2);
+}
+
+if (!existsSync(wikiIndex)) {
+  console.error(`[smoke] built wiki not found at ${wikiIndex}`);
+  console.error("[smoke] run `python web/build_site.py` first.");
+  process.exit(2);
+}
 
 if (!existsSync(composerIndex)) {
   console.error(`[smoke] built composer not found at ${composerIndex}`);
@@ -81,7 +95,9 @@ const server = createServer(async (req, res) => {
 
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const { port } = server.address();
-const url = `http://127.0.0.1:${port}/composer/index.html`;
+const rootUrl = `http://127.0.0.1:${port}/`;
+const wikiUrl = `http://127.0.0.1:${port}/wiki/`;
+const composerUrl = `http://127.0.0.1:${port}/composer/index.html`;
 
 const pageErrors = [];
 let browser;
@@ -96,8 +112,23 @@ try {
   const page = await browser.newPage();
   page.on("pageerror", (err) => pageErrors.push(err.message || String(err)));
 
-  console.log(`[smoke] loading ${url}`);
-  await page.goto(url, { waitUntil: "load", timeout: 30000 });
+  console.log(`[smoke] loading ${rootUrl}`);
+  await page.goto(rootUrl, { waitUntil: "load", timeout: 30000 });
+
+  const composerLink = await page.locator('a[href="./composer/"]').count();
+  if (composerLink === 0) fail("landing page does not link to ./composer/");
+
+  const wikiLink = await page.locator('a[href="./wiki/"]').count();
+  if (wikiLink === 0) fail("landing page does not link to ./wiki/");
+
+  console.log(`[smoke] loading ${wikiUrl}`);
+  await page.goto(wikiUrl, { waitUntil: "load", timeout: 30000 });
+
+  const wikiTitle = await page.locator("main h1, article h1, h1").first().innerText().catch(() => "");
+  if (!/PolarShader Wiki/.test(wikiTitle)) fail(`wiki home title mismatch: ${wikiTitle || "<missing>"}`);
+
+  console.log(`[smoke] loading ${composerUrl}`);
+  await page.goto(composerUrl, { waitUntil: "load", timeout: 30000 });
 
   // Wait for the shell to become visible. boot-diagnostics force-reveals after
   // ~10s even on a failed WASM boot, so this should always resolve unless the
@@ -140,4 +171,4 @@ try {
 if (failed) {
   process.exit(1);
 }
-console.log("[smoke] PASS: composer shell rendered (visible, menu bar, diagnostics active)");
+console.log("[smoke] PASS: landing, wiki, and composer shell rendered");

@@ -39,8 +39,7 @@ namespace PolarShader {
      *   - QuadDirectional (0515-3): four axis waves -> sharp bright veins.
      *   - Posterized      (0531):  three waves quantised into flat bands.
      *   - Cross           (0614-2): a breathing plus/cross of axis-aligned
-     *     bars. The single cross is folded into a grid by a TilingTransform in
-     *     pfCrossPreset (the fold is a transform, not a pattern param).
+     *     bars. Fold it into a grid with a downstream TilingTransform.
      *   - Lattice:        a separable sin(x)*sin(y) standing wave; glowing
      *     antinode dots on a grid (warp detunes the axes, thickness = dot size).
      *   - Moire:          two near-equal gratings per axis beat into slow moire
@@ -49,9 +48,8 @@ namespace PolarShader {
      *     collects on the bright nodal curves (modeCount = m, warp = axis skew).
      *
      * Intrinsic parameters only (per the PatternFlow design rule). Global
-     * scale/density -> ZoomTransform, colour/hue -> PaletteTransform, tiling/
-     * fold -> TilingTransform, and global drift/rotation live in the pf*Preset
-     * transform stack, NOT here.
+     * scale/density, colour/hue, tiling/fold, drift, and rotation live in
+     * ordinary downstream scene transforms, NOT here.
      *
      * Parameter ranges (all signals sampled in magnitudeRange() -> [0, 1]):
      *   phaseSpeed [0,1] -> internal animation rate, up to ~0.4 turns/sec.

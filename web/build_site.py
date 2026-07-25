@@ -21,6 +21,10 @@ SOURCE_ROOT = REPO_ROOT / "src"
 SKETCH_ROOT = WEB_ROOT / "sketches"
 LANDING_PAGE = WEB_ROOT / "index.html"
 DISPLAYS_DIR = REPO_ROOT / "displays"
+DOCS_ROOT = REPO_ROOT / "docs"
+WIKI_SOURCE_ROOT = DOCS_ROOT / "wiki"
+DOCS_MEDIA_ROOT = DOCS_ROOT / "media"
+MKDOCS_CONFIG = REPO_ROOT / "mkdocs.yml"
 REQUIREMENTS_PATH = WEB_ROOT / "requirements.txt"
 # POLARSHADER_WORK_ROOT_OVERRIDE lets an external orchestrator reparent the
 # four write roots (.stage/, .home/, .fastled/, dist/) under a directory of
@@ -33,6 +37,7 @@ STAGE_ROOT = WORK_ROOT / ".stage"
 DIST_ROOT = WORK_ROOT / "dist"
 HOME_ROOT = WORK_ROOT / ".home"
 FASTLED_CACHE_ROOT = WORK_ROOT / ".fastled"
+WIKI_STAGE_ROOT = STAGE_ROOT / "wiki_docs"
 
 # PolarShader uses FastLED fixed-point types (fl::s16x16 / fl::u16x16 /
 # fl::s24x8 / fl::u24x8), which are available in FastLED 3.10.4 and later.
@@ -52,6 +57,12 @@ MINIMAL_FRONTEND_MARKERS = (
     "const canvas = document.getElementById('canvas');",
     "FastLED WASM",
 )
+
+WIKI_LINK_REPLACEMENTS = {
+    "https://github.com/pthomain/PolarShader/blob/main/docs/psc-format.md": "PSC-Format.md",
+    "https://github.com/pthomain/PolarShader/blob/main/docs/pds-format.md": "PDS-Format.md",
+    "Core-Concepts.md#unified-uv--polar-coordinate-model": "Core-Concepts.md#unified-uv-polar-coordinate-model",
+}
 
 EXCLUDED_SOURCE_FILES = {
     "FastLED.h",
@@ -137,7 +148,7 @@ if "POLARSHADER_SKETCHES_OVERRIDE" in os.environ:
 # dir alongside the FastLED-built page and inject <link>/<script> tags.
 COMPOSER_PANEL_ASSETS = {
     "css":     ("composer.css",),
-    "modules": ("schema.js", "codec.js", "pds-codec.js", "stepper.js", "signal-editor.js", "composer.js"),
+    "modules": ("schema.js", "codec.js", "pds-codec.js", "palette.js", "stepper.js", "signal-editor.js", "composer.js"),
     # Classic (non-module) scripts injected into <head> so they run before the
     # FastLED app.js and the composer modules, in this order:
     #   - coi-serviceworker: grants cross-origin isolation on GitHub Pages (which
@@ -1473,6 +1484,63 @@ def copy_display_fixtures(dist_sketch_dir: Path) -> None:
         shutil.copy2(pds, dst_dir / pds.name)
 
 
+def rewrite_wiki_links(markdown: str) -> str:
+    for old, new in WIKI_LINK_REPLACEMENTS.items():
+        markdown = markdown.replace(old, new)
+    return markdown
+
+
+def stage_markdown_page(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    markdown = source.read_text(encoding="utf-8")
+    destination.write_text(rewrite_wiki_links(markdown), encoding="utf-8")
+
+
+def copy_media_assets(destination: Path) -> None:
+    if not DOCS_MEDIA_ROOT.is_dir():
+        return
+
+    for source in DOCS_MEDIA_ROOT.rglob("*"):
+        if source.is_dir() or source.suffix.lower() == ".md":
+            continue
+        target = destination / source.relative_to(DOCS_MEDIA_ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+
+
+def stage_wiki_docs() -> None:
+    reset_directory(WIKI_STAGE_ROOT)
+
+    for source in sorted(WIKI_SOURCE_ROOT.glob("*.md")):
+        destination_name = "index.md" if source.name == "Home.md" else source.name
+        stage_markdown_page(source, WIKI_STAGE_ROOT / destination_name)
+
+    stage_markdown_page(DOCS_ROOT / "psc-format.md", WIKI_STAGE_ROOT / "PSC-Format.md")
+    stage_markdown_page(DOCS_ROOT / "pds-format.md", WIKI_STAGE_ROOT / "PDS-Format.md")
+    copy_media_assets(WIKI_STAGE_ROOT / "media")
+
+
+def build_wiki_docs() -> None:
+    stage_wiki_docs()
+    env = dict(os.environ)
+    env["POLARSHADER_MKDOCS_DOCS_DIR"] = str(WIKI_STAGE_ROOT)
+    env["POLARSHADER_MKDOCS_SITE_DIR"] = str(DIST_ROOT / "wiki")
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mkdocs",
+            "build",
+            "--clean",
+            "--config-file",
+            str(MKDOCS_CONFIG),
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        check=True,
+    )
+
+
 def build_site() -> None:
     reset_directory(STAGE_ROOT)
     reset_directory(DIST_ROOT)
@@ -1495,6 +1563,8 @@ def build_site() -> None:
             patch_threejs_led_gradient(dist_sketch_dir)
 
     shutil.copy2(LANDING_PAGE, DIST_ROOT / "index.html")
+    copy_media_assets(DIST_ROOT / "media")
+    build_wiki_docs()
 
 
 def main() -> int:

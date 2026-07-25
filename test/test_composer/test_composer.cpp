@@ -311,8 +311,8 @@ namespace {
                     for (uint8_t i = 0; i < 4; ++i) appendSignal(body, SIG_CONSTANT);
                     return;
                 case PAT_SPIRAL:
-                    body.u8(2).u8(1);
-                    for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+                    body.u8(2).u8(1).u8(1);
+                    for (uint8_t i = 0; i < 4; ++i) appendSignal(body, SIG_CONSTANT);
                     return;
                 case PAT_ANNULI:
                     body.u8(8).u8(32).u8(0).u16(80).u16(800);
@@ -1281,6 +1281,67 @@ void test_decode_golden_fixture() {
     (void) sample;  // value depends on noise sampler but call must not crash
 }
 
+void test_decode_v2_embedded_palette() {
+    // v2 header with the 0xFF sentinel followed by 48 palette bytes: entry i is
+    // (i*16, 255-i*16, i*8). The engine must render the embedded colours.
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,   // magic "PSC\0"
+        0x02,                      // version 2
+        0xFF,                      // embedded-palette sentinel
+        // 16 x (r,g,b)
+        0x00, 0xFF, 0x00,  0x10, 0xEF, 0x08,  0x20, 0xDF, 0x10,  0x30, 0xCF, 0x18,
+        0x40, 0xBF, 0x20,  0x50, 0xAF, 0x28,  0x60, 0x9F, 0x30,  0x70, 0x8F, 0x38,
+        0x80, 0x7F, 0x40,  0x90, 0x6F, 0x48,  0xA0, 0x5F, 0x50,  0xB0, 0x4F, 0x58,
+        0xC0, 0x3F, 0x60,  0xD0, 0x2F, 0x68,  0xE0, 0x1F, 0x70,  0xF0, 0x0F, 0x78,
+        // pattern: paletteGlow (colour pattern that reads the palette)
+        0x1F, 0x00, 0x00,          // PAT_PALETTE_GLOW, body length 0
+        0x00,                      // transform count
+    };
+
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::OK), static_cast<int>(status));
+    TEST_ASSERT_NOT_NULL(decoded.get());
+    decoded->compile();
+    decoded->advanceFrame(u0x16(0x8000u), 1000);
+    ::CRGB sample = decoded->sample(0, u0x16(0x4000u), u0x16(0x4000u));
+    (void) sample;
+}
+
+void test_decode_v1_with_embedded_sentinel_rejected() {
+    // Under v1, 0xFF is simply an unknown palette id → BAD_ENUM (NOT BAD_VERSION).
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x01,                      // version 1
+        0xFF,                      // unknown palette id under v1
+        0x00, 0x05, 0x00,
+        0x00, 0x02, 0x00, 0x26, 0x02,
+        0x00,
+    };
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::BAD_ENUM), static_cast<int>(status));
+    TEST_ASSERT_NULL(decoded.get());
+}
+
+void test_decode_v2_embedded_palette_truncated_rejected() {
+    // v2 + 0xFF but only 40 of the required 48 palette bytes → TRUNCATED.
+    static const uint8_t kFixture[] = {
+        0x50, 0x53, 0x43, 0x00,
+        0x02,
+        0xFF,
+        // 40 palette bytes (8 short)
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
+    DecodeStatus status = DecodeStatus::OK;
+    auto decoded = decodeScene(kFixture, sizeof(kFixture), &status);
+    TEST_ASSERT_EQUAL(static_cast<int>(DecodeStatus::TRUNCATED), static_cast<int>(status));
+    TEST_ASSERT_NULL(decoded.get());
+}
+
 void test_decode_v1_length_prefixed_fixture() {
     static const uint8_t kV1Fixture[] = {
         0x50, 0x53, 0x43, 0x00,
@@ -2120,6 +2181,9 @@ void setup() {
     RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
     RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
+    RUN_TEST(test_decode_v2_embedded_palette);
+    RUN_TEST(test_decode_v1_with_embedded_sentinel_rejected);
+    RUN_TEST(test_decode_v2_embedded_palette_truncated_rejected);
     RUN_TEST(test_decode_v1_length_prefixed_fixture);
     RUN_TEST(test_decode_js_generated_lockstep_fixtures);
     RUN_TEST(test_decode_v1_rejects_trailing_pattern_body_bytes);
@@ -2190,6 +2254,9 @@ int main() {
     RUN_TEST(test_embedded_psc_playlist_provider_falls_back_after_decode_fail);
     RUN_TEST(test_embedded_psc_playlist_provider_has_builtin_fallback);
     RUN_TEST(test_decode_golden_fixture);
+    RUN_TEST(test_decode_v2_embedded_palette);
+    RUN_TEST(test_decode_v1_with_embedded_sentinel_rejected);
+    RUN_TEST(test_decode_v2_embedded_palette_truncated_rejected);
     RUN_TEST(test_decode_v1_length_prefixed_fixture);
     RUN_TEST(test_decode_js_generated_lockstep_fixtures);
     RUN_TEST(test_decode_v1_rejects_trailing_pattern_body_bytes);

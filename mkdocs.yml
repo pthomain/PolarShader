@@ -1,0 +1,36 @@
+site_name: PolarShader
+site_url: https://pthomain.github.io/PolarShader/wiki/
+docs_dir: !ENV [POLARSHADER_MKDOCS_DOCS_DIR, web/.stage/wiki_docs]
+site_dir: !ENV [POLARSHADER_MKDOCS_SITE_DIR, web/dist/wiki]
+strict: true
+validation:
+  nav:
+    not_found: warn
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    anchors: warn
+theme:
+  name: mkdocs
+use_directory_urls: true
+nav:
+  - Home: index.md
+  - Guides:
+      - Getting Started: Getting-Started.md
+      - Web Composer Guide: Web-Composer-Guide.md
+      - Deploying to Hardware: Deploying-to-Hardware.md
+      - Exporting GIFs and WebP: Exporting-GIFs-and-WebP.md
+  - Concepts & Reference:
+      - Core Concepts: Core-Concepts.md
+      - Patterns: Patterns.md
+      - Transforms: Transforms.md
+      - Signals: Signals.md
+      - Displays: Displays.md
+      - PSC Format: PSC-Format.md
+      - PDS Format: PDS-Format.md
+markdown_extensions:
+  - admonition
+  - fenced_code
+  - tables
+  - toc:
+      permalink: true

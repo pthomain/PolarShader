@@ -205,7 +205,7 @@ body.composer-resizing {
 
 .composer-tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 4px;
     margin: 8px 0;
 }
@@ -238,6 +238,16 @@ body.composer-resizing {
     color: #6a7480;
     font-variant-numeric: tabular-nums;
     text-align: right;
+}
+
+.glow-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #8b95a0;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
 .playlist-list {
@@ -561,3 +571,132 @@ button:disabled {
 .composer-debug-line.error { color: #e28b8b; }
 .composer-debug-line.system { color: #9aa4af; }
 .composer-debug-line.deploy { color: #cbd3dc; }
+
+/* Palette generator */
+.palette-preview {
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid #39404a;
+    margin: 6px 0 4px;
+}
+
+.palette-swatches {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    height: 14px;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid #39404a;
+    margin-bottom: 10px;
+}
+
+.palette-swatch {
+    height: 100%;
+}
+
+.palette-start-row {
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.palette-start-row select {
+    flex: 1 1 auto;
+    min-width: 120px;
+}
+
+.palette-coeff-group {
+    margin-bottom: 10px;
+}
+
+.palette-coeff-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 3px;
+}
+
+.palette-coeff-head > .param-label {
+    font-weight: 600;
+    cursor: help;
+}
+
+.palette-link-toggle,
+.palette-live-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #8b95a0;
+    cursor: pointer;
+}
+
+.palette-slider-row {
+    display: grid;
+    grid-template-columns: 16px 1fr 52px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.palette-slider-label {
+    color: #8b95a0;
+    font-size: 12px;
+}
+
+.palette-slider-value {
+    color: #c9d1da;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 1px 3px;
+    background: #23272e;
+    border: 1px solid #39404a;
+    border-radius: 3px;
+}
+
+.palette-dirty-note {
+    margin: 2px 0 6px;
+}
+
+.palette-actions {
+    flex-wrap: wrap;
+}
+
+.palette-library {
+    margin-top: 12px;
+    border-top: 1px solid #39404a;
+    padding-top: 8px;
+}
+
+.palette-library h3 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: #8b95a0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.palette-library-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.palette-lib-swatch {
+    width: 40px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #39404a;
+    flex: 0 0 auto;
+}
+
+.palette-lib-name {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}

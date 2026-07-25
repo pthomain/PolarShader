@@ -32,13 +32,20 @@ namespace PolarShader::composer {
     //   offset  size  field
     //   ─────── ────  ──────────────────────────────────────────────
     //   0       4     magic        "PSC\0"  (0x50 0x53 0x43 0x00)
-    //   4       1     version      0x01
-    //   5       1     palette_id   composer palette ID (PaletteTable)
-    //   6       1     pattern_tag  see PATTERN_TAGS in SceneCodec.cpp
-    //   7       2     pattern_len  little-endian body length
+    //   4       1     version      0x01 (built-in palette) or 0x02 (embedded)
+    //   5       1     palette_id   composer palette ID (PaletteTable), or
+    //                              0xFF under v2 = embedded-palette sentinel
+    //   [6      48]   palette      v2 + palette_id 0xFF only: 16 x (r,g,b) bytes
+    //   …       1     pattern_tag  see PATTERN_TAGS in SceneCodec.cpp
+    //   …       2     pattern_len  little-endian body length
     //   …       …     pattern_body static-config bytes + signal slots
     //   …       1     transform_n  transform count
     //   …       …     transform[i] tag(1) + length(2) + static-config + signal slots
+    //
+    // Version 2 is emitted only when a scene carries an embedded custom palette
+    // (palette_id 0xFF followed by 48 raw bytes). Built-in palettes stay v1 and
+    // are byte-identical to before. Under v1, palette_id 0xFF is an unknown id
+    // (BAD_ENUM); the sentinel meaning applies only under v2.
     //
     // A Signal blob is recursive: signal_tag(1) + body_len(2) + body.
     //
