@@ -1187,10 +1187,13 @@ def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
 _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
     (
         "    this.auto_bloom_enabled = true;\n",
-        "    this.auto_bloom_enabled = true;\n    this.bloom_enabled = true;\n",
+        "    this.auto_bloom_enabled = true;\n"
+        "    this.bloom_enabled = true;\n"
+        "    this.bloom_pass = null;\n",
     ),
     (
         "      this.composer.addPass(bloomPass);\n",
+        "      this.bloom_pass = bloomPass;\n"
         "      bloomPass.enabled = this.bloom_enabled;\n"
         "      this.composer.addPass(bloomPass);\n",
     ),
@@ -1202,11 +1205,14 @@ _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
         "   */\n"
         "  setBloomEnabled(enabled) {\n"
         "    this.bloom_enabled = !!enabled;\n"
+        "    if (this.bloom_pass) {\n"
+        "      this.bloom_pass.enabled = this.bloom_enabled;\n"
+        "    }\n"
         "    if (!this.composer || !this.composer.passes) {\n"
         "      return;\n"
         "    }\n"
         "    for (const pass of this.composer.passes) {\n"
-        '      if (pass.constructor.name === "UnrealBloomPass") {\n'
+        "      if (pass === this.bloom_pass || (pass && pass.strength !== undefined && pass.radius !== undefined && pass.threshold !== undefined)) {\n"
         "        pass.enabled = this.bloom_enabled;\n"
         "      }\n"
         "    }\n"
