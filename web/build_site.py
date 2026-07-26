@@ -1534,7 +1534,7 @@ def insert_sparse_led_scale(text: str, path: Path) -> str:
 
 
 def insert_led_brightness_multiplier(text: str, path: Path) -> str:
-    desired = "this.LED_BRIGHTNESS_MULTIPLIER = 4;"
+    desired = "this.LED_BRIGHTNESS_MULTIPLIER = 8;"
     if desired in text:
         return text
     text, count = re.subn(
