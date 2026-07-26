@@ -10,20 +10,6 @@ from web import build_site
 
 
 class BuildSitePatchTest(unittest.TestCase):
-    BLOOM_STRENGTH_SNIPPET = """class GraphicsManagerThreeJS {
-  constructor() {
-    this.bloom_stength = 1;
-    this.bloom_radius = 16;
-    this.base_bloom_strength = 16;
-    this.max_bloom_strength = 20;
-    this.min_bloom_strength = 0.5;
-  }
-  setup() {
-      this.bloom_stength = 16;
-      this.bloom_radius = 1;
-  }
-}
-"""
     WORKER_SCRIPT_SNIPPET = """function handleWorkerMessage(type, payload) {
   let response;
   switch (type) {
@@ -40,54 +26,16 @@ function createGraphicsManager() {
     workerLog("LOG", "BACKGROUND_WORKER", "Graphics manager initialized", {});
 }
 """
-    GRAPHICS_MANAGER_SNIPPET = """class GraphicsManagerThreeJS {
-  constructor() {
-    this.auto_bloom_enabled = true;
-  }
-  setup() {
-    const bloomPass = {};
-      this.composer.addPass(bloomPass);
-  }
-  /**
-   * Updates the bloom pass strength dynamically
-   */
-  _updateBloomStrength(strength) {
-    if (!this.composer || !this.composer.passes) {
-      return;
-    }
-    for (const pass of this.composer.passes) {
-        pass.strength = strength;
-        this.bloom_stength = strength;
-    }
-  }
-}
-"""
-    WORKER_GRAPHICS_MANAGER_SNIPPET = """      class GraphicsManagerThreeJS {
-        constructor() {
-        this.auto_bloom_enabled = true;
-        }
-        setup() {
-          const bloomPass = {};
-          this.composer.addPass(bloomPass);
-        }
-      /**
-       * Updates the bloom pass strength dynamically
-       */
-      _updateBloomStrength(strength) {
-        if (!this.composer || !this.composer.passes) {
-          return;
-        }
-        for (const pass of this.composer.passes) {
-            pass.strength = strength;
-            this.bloom_stength = strength;
-        }
-      }
-      }
-"""
     LED_RENDERING_SNIPPET = """class GraphicsManagerThreeJS {
   constructor() {
     this.LED_SCALE = 1;
     this.SCREEN_WIDTH = 0;
+  }
+  _setupRenderPasses() {
+    if (this.bloom_stength > 0 || this.bloom_radius > 0) {
+      const bloomPass = {};
+      this.composer.addPass(bloomPass);
+    }
   }
   createGrid(frameData) {
     let isDenseScreenMap = true;
@@ -123,9 +71,21 @@ function createGraphicsManager() {
       return new THREE.MeshBasicMaterial({ color, vertexColors: useVertexColors });
     }
 
+    const uniforms = { diffuse: { value: new THREE.Color(color) } };
     const material = new THREE.ShaderMaterial({
-      vertexColors: useVertexColors
+      uniforms,
+      vertexColors: useVertexColors,
+      fragmentShader: `
+        uniform vec3 diffuse;
+        varying vec2 vUv;
+        void main() {
+          float radius = length((vUv - vec2(0.5)) * 2.0);
+          float alpha = clamp(1.0 - radius, 0.0, 1.0);
+          gl_FragColor = vec4(diffuse, alpha);
+        }
+      `
     });
+    material.color = uniforms.diffuse.value;
     return material;
   }
   /**
@@ -177,60 +137,6 @@ function createGraphicsManager() {
 }
 """
 
-    def test_bloom_strength_patch_uses_reduced_glow_constants(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            dist = Path(tmp)
-            assets = dist / "assets"
-            assets.mkdir()
-            graphics = assets / "graphics_manager_threejs-test.js"
-            graphics.write_text(self.BLOOM_STRENGTH_SNIPPET, encoding="utf-8")
-
-            build_site.patch_threejs_bloom(dist)
-
-            patched = graphics.read_text(encoding="utf-8")
-            self.assertIn("this.bloom_stength = 0.04375;", patched)
-            self.assertIn("this.base_bloom_strength = 0.7;", patched)
-            self.assertIn("this.max_bloom_strength = 0.875;", patched)
-            self.assertIn("this.min_bloom_strength = 0.021875;", patched)
-            self.assertIn("this.bloom_stength = 0.7;", patched)
-
-    def test_bloom_toggle_patch_keeps_direct_pass_reference(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            dist = Path(tmp)
-            assets = dist / "assets"
-            assets.mkdir()
-            graphics = assets / "graphics_manager_threejs-test.js"
-            graphics.write_text(self.GRAPHICS_MANAGER_SNIPPET, encoding="utf-8")
-
-            build_site.patch_threejs_bloom_toggle(dist)
-
-            patched = graphics.read_text(encoding="utf-8")
-            self.assertIn("this.bloom_pass = null;", patched)
-            self.assertIn("this.bloom_pass = bloomPass;", patched)
-            self.assertIn("this.bloom_pass.enabled = this.bloom_enabled;", patched)
-            self.assertIn("pass === this.bloom_pass", patched)
-
-    def test_bloom_toggle_patch_does_not_confuse_worker_handler_for_method(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            dist = Path(tmp)
-            worker = dist / "fastled_background_worker.js"
-            worker.write_text(
-                self.WORKER_GRAPHICS_MANAGER_SNIPPET
-                + """
-function handleComposerSetBloom(enabled) {
-  gm.setBloomEnabled(enabled);
-}
-""",
-                encoding="utf-8",
-            )
-
-            build_site.patch_threejs_bloom_toggle(dist)
-
-            patched = worker.read_text(encoding="utf-8")
-            self.assertIn("gm.setBloomEnabled(enabled);", patched)
-            self.assertIn("this.bloom_pass = null;", patched)
-            self.assertIn("this.bloom_pass = bloomPass;", patched)
-
     def test_led_gradient_patch_uses_sparse_rendering_for_all_displays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
@@ -243,14 +149,19 @@ function handleComposerSetBloom(enabled) {
 
             patched = graphics.read_text(encoding="utf-8")
             self.assertIn("isDenseScreenMap = false;", patched)
-            self.assertIn("this.SPARSE_LED_SCALE = 2.25;", patched)
+            self.assertIn("this.LED_HALO_MAX_SCALE = 2.25;", patched)
+            self.assertIn("this.LED_CORE_SCALE = 1;", patched)
+            self.assertIn("this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;", patched)
             self.assertIn("this.LED_BRIGHTNESS_MULTIPLIER = 8;", patched)
             self.assertIn("setLedDiffusionScale(scale)", patched)
-            self.assertIn("this.needsRebuild = true;", patched)
+            self.assertIn("this._updateLedDiffusionUniforms();", patched)
+            self.assertIn("uniform float coreRadius;", patched)
+            self.assertIn("uniform float diffusionRadius;", patched)
+            self.assertIn("smoothstep(coreRadius, diffusionRadius, radius)", patched)
             self.assertIn("_scalePreviewLedChannel(value)", patched)
-            self.assertIn("const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;", patched)
+            self.assertIn("const ledScale = this.LED_SCALE * this.LED_HALO_MAX_SCALE;", patched)
             self.assertIn(
-                "const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;",
+                "const visualRadius = diameter * this.LED_SCALE * this.LED_HALO_MAX_SCALE;",
                 patched,
             )
             self.assertIn("new THREE.ShaderMaterial", patched)
@@ -261,6 +172,53 @@ function handleComposerSetBloom(enabled) {
             self.assertIn("led.material.color.setRGB(displayR, displayG, displayB);", patched)
             self.assertIn("color: new THREE.Color(displayR, displayG, displayB)", patched)
             self.assertIn("const brightness = (r + g + b) / 3;", patched)
+            self.assertNotIn("const bloomPass", patched)
+            self.assertNotIn("this.composer.addPass(bloomPass);", patched)
+
+    def test_generated_bloom_controls_are_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            (dist / "index.html").write_text(
+                """<div class="menu-dropdown-item" data-value="gfx-bloom">bloom</div>
+                <div class="menu-dropdown-item" data-value="toggle-auto-bloom">
+                    <input type="checkbox" id="auto-bloom-toggle" checked>
+                    <label for="auto-bloom-toggle">Auto Bloom</label>
+                </div>
+""",
+                encoding="utf-8",
+            )
+            (dist / "app.js").write_text(
+                """function handleGraphicsOptionChange(option) {
+  if (option === "toggle-auto-bloom") {
+    return;
+  }
+  let gfxParam = "";
+  if (option === "gfx-simple") {
+    gfxParam = "0";
+  } else if (option === "gfx-bloom") {
+    gfxParam = "1";
+  }
+}
+var autoBloomToggle = document.getElementById("auto-bloom-toggle");
+if (autoBloomToggle) {
+  autoBloomToggle.addEventListener("change", function(e) {
+    if (window.graphicsManager) {
+      window.graphicsManager.auto_bloom_enabled = this.checked;
+    }
+  });
+}
+""",
+                encoding="utf-8",
+            )
+
+            build_site.remove_generated_bloom_controls(dist)
+
+            index = (dist / "index.html").read_text(encoding="utf-8")
+            script = (dist / "app.js").read_text(encoding="utf-8")
+            self.assertNotIn("gfx-bloom", index)
+            self.assertNotIn("auto-bloom-toggle", index)
+            self.assertNotIn("gfx-bloom", script)
+            self.assertNotIn("auto-bloom-toggle", script)
 
     def test_render_worker_patch_adds_diffusion_message(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -275,6 +233,8 @@ function handleComposerSetBloom(enabled) {
             self.assertIn("function handleComposerSetDiffusion(payload)", patched)
             self.assertIn("workerState.composerDiffusionScale = scale;", patched)
             self.assertIn("workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);", patched)
+            self.assertIn("gm.LED_DIFFUSION_SCALE = scale;", patched)
+            self.assertNotIn("gm.SPARSE_LED_SCALE = scale;", patched)
 
 
 if __name__ == "__main__":

@@ -650,6 +650,49 @@ def inject_panel_assets(sketch: "Sketch", dist_sketch_dir: Path, assets: dict) -
     index_path.write_text(text, encoding="utf-8")
 
 
+def remove_generated_bloom_controls(dist_sketch_dir: Path) -> None:
+    """Remove FastLED's generated bloom menu entries from the published UI."""
+    index_path = dist_sketch_dir / "index.html"
+    if index_path.exists():
+        text = index_path.read_text(encoding="utf-8")
+        text = re.sub(
+            r'(?m)^\s*<div class="menu-dropdown-item" data-value="gfx-bloom">bloom</div>\n',
+            "",
+            text,
+            count=1,
+        )
+        text = re.sub(
+            r'(?ms)^\s*<div class="menu-dropdown-item" data-value="toggle-auto-bloom">\n'
+            r".*?^\s*</div>\n",
+            "",
+            text,
+            count=1,
+        )
+        index_path.write_text(text, encoding="utf-8")
+
+    script_path = generated_main_script(dist_sketch_dir)
+    text = script_path.read_text(encoding="utf-8")
+    text = text.replace(
+        '  if (option === "toggle-auto-bloom") {\n'
+        "    return;\n"
+        "  }\n",
+        "",
+    )
+    text = text.replace(
+        '  } else if (option === "gfx-bloom") {\n'
+        '    gfxParam = "1";\n',
+        "",
+    )
+    text = re.sub(
+        r'(?ms)^var autoBloomToggle = document\.getElementById\("auto-bloom-toggle"\);\n'
+        r"if \(autoBloomToggle\) \{\n.*?^}\n",
+        "",
+        text,
+        count=1,
+    )
+    script_path.write_text(text, encoding="utf-8")
+
+
 # The FastLED CLI generates a background render worker (fastled_background_worker.js)
 # that runs its own wasm module and owns the OffscreenCanvas — the main-thread
 # module's frames are never shown. Its onmessage switch has no case for the
@@ -670,18 +713,12 @@ _WORKER_CASE_INJECT = (
     '      case "composer_load_display":\n'
     "        response = handleComposerLoadDisplay(payload);\n"
     "        break;\n"
-    '      case "composer_set_bloom":\n'
-    "        response = handleComposerSetBloom(payload);\n"
-    "        break;\n"
     '      case "composer_set_diffusion":\n'
     "        response = handleComposerSetDiffusion(payload);\n"
     "        break;\n"
     + _WORKER_CASE_ANCHOR
 )
 _WORKER_DIFFUSION_CASE_INJECT = (
-    '      case "composer_set_bloom":\n'
-    "        response = handleComposerSetBloom(payload);\n"
-    "        break;\n"
     '      case "composer_set_diffusion":\n'
     "        response = handleComposerSetDiffusion(payload);\n"
     "        break;\n"
@@ -690,22 +727,11 @@ _WORKER_START_ANCHOR = (
     "    workerState.externFunctions.externSetup();\n"
     '    workerLog("LOG", "BACKGROUND_WORKER", "FastLED setup completed");'
 )
-# The graphics manager is created lazily; a bloom toggle sent before then is
-# stashed on workerState.composerBloomEnabled. Replay it onto the freshly built
-# manager so an early toggle is not lost.
 _WORKER_GM_INIT_ANCHOR = (
     '    workerLog("LOG", "BACKGROUND_WORKER", "Graphics manager initialized", {'
 )
 _WORKER_GM_INIT_INJECT = (
     "    if (workerState.graphicsManager) {\n"
-    "      if (workerState.composerBloomEnabled !== undefined"
-    ' && typeof workerState.graphicsManager.setBloomEnabled === "function") {\n'
-    "        workerState.graphicsManager.setBloomEnabled(workerState.composerBloomEnabled);\n"
-    "      }\n"
-    "      if (workerState.composerBloomStrengthMultiplier !== undefined"
-    ' && typeof workerState.graphicsManager.setBloomStrengthMultiplier === "function") {\n'
-    "        workerState.graphicsManager.setBloomStrengthMultiplier(workerState.composerBloomStrengthMultiplier);\n"
-    "      }\n"
     "      if (workerState.composerDiffusionScale !== undefined"
     ' && typeof workerState.graphicsManager.setLedDiffusionScale === "function") {\n'
     "        workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);\n"
@@ -720,8 +746,8 @@ _WORKER_START_INJECT = (
 _WORKER_DIFFUSION_HANDLER = """
 
 // Injected by PolarShader build_site.py (patch_render_worker): adjust the
-// renderer LED diffusion/halo scale. The graphics manager rebuilds LED geometry
-// on the next frame after the scale changes.
+// renderer LED diffusion/halo spread. The geometry stays fixed; the material
+// alpha falloff updates in place.
 function handleComposerSetDiffusion(payload) {
   const rawScale = payload && typeof payload.scale === "number" ? payload.scale : 2.25;
   const scale = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 2.25;
@@ -731,8 +757,10 @@ function handleComposerSetDiffusion(payload) {
   if (typeof gm.setLedDiffusionScale === "function") {
     gm.setLedDiffusionScale(scale);
   } else {
-    gm.SPARSE_LED_SCALE = scale;
-    gm.needsRebuild = true;
+    gm.LED_DIFFUSION_SCALE = scale;
+    if (typeof gm._updateLedDiffusionUniforms === "function") {
+      gm._updateLedDiffusionUniforms();
+    }
   }
   return { ok: true, scale };
 }
@@ -1013,36 +1041,68 @@ function handleComposerLoadDisplay(payload) {
   return { ok: true, seq, status: 0, displayApplied: true, screenMapOk: true, screenMapCount: refresh.screenMapCount };
 }
 
-// Injected by PolarShader build_site.py (patch_render_worker): toggle the ThreeJS
-// bloom post-processing pass on the graphics manager that owns the OffscreenCanvas
-// in this worker. The graphics manager is patched (patch_threejs_bloom_toggle) to
-// expose setBloomEnabled + honour bloom_enabled across scene rebuilds. Store the
-// desired state so it survives a graphics manager that is not ready yet.
-function handleComposerSetBloom(payload) {
-  const enabled = !(payload && payload.enabled === false);
-  const rawMultiplier = payload && typeof payload.strengthMultiplier === "number"
-    ? payload.strengthMultiplier
-    : 1;
-  const strengthMultiplier = Number.isFinite(rawMultiplier) && rawMultiplier > 0
-    ? rawMultiplier
-    : 1;
-  workerState.composerBloomEnabled = enabled;
-  workerState.composerBloomStrengthMultiplier = strengthMultiplier;
-  const gm = workerState.graphicsManager;
-  if (!gm) return { ok: true, enabled, strengthMultiplier, deferred: true };
-  if (typeof gm.setBloomEnabled === "function") {
-    gm.setBloomEnabled(enabled);
-  } else {
-    gm.bloom_enabled = enabled;
-  }
-  if (typeof gm.setBloomStrengthMultiplier === "function") {
-    gm.setBloomStrengthMultiplier(strengthMultiplier);
-  } else {
-    gm.bloom_strength_multiplier = strengthMultiplier;
-  }
-  return { ok: true, enabled, strengthMultiplier };
-}
 """
+
+
+def remove_composer_bloom_worker_bridge(text: str) -> str:
+    text = text.replace(
+        '      case "composer_set_bloom":\n'
+        "        response = handleComposerSetBloom(payload);\n"
+        "        break;\n",
+        "",
+    )
+    text = re.sub(
+        r"(?ms)\n// Injected by PolarShader build_site\.py \(patch_render_worker\): toggle the ThreeJS\n"
+        r"// bloom post-processing pass.*?\n"
+        r"function handleComposerSetBloom\(payload\) \{\n.*?\n\}\n",
+        "\n",
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r"(?m)^      if \(workerState\.composerBloomEnabled !== undefined"
+        r" && typeof workerState\.graphicsManager\.setBloomEnabled === \"function\"\) \{\n"
+        r"        workerState\.graphicsManager\.setBloomEnabled\(workerState\.composerBloomEnabled\);\n"
+        r"      \}\n",
+        "",
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r"(?m)^      if \(workerState\.composerBloomStrengthMultiplier !== undefined"
+        r" && typeof workerState\.graphicsManager\.setBloomStrengthMultiplier === \"function\"\) \{\n"
+        r"        workerState\.graphicsManager\.setBloomStrengthMultiplier\(workerState\.composerBloomStrengthMultiplier\);\n"
+        r"      \}\n",
+        "",
+        text,
+        count=1,
+    )
+    return text
+
+
+def upgrade_composer_diffusion_worker_handler(text: str) -> str:
+    text = text.replace(
+        "// Injected by PolarShader build_site.py (patch_render_worker): adjust the\n"
+        "// renderer LED diffusion/halo scale. The graphics manager rebuilds LED geometry\n"
+        "// on the next frame after the scale changes.\n",
+        "// Injected by PolarShader build_site.py (patch_render_worker): adjust the\n"
+        "// renderer LED diffusion/halo spread. The geometry stays fixed; the material\n"
+        "// alpha falloff updates in place.\n",
+    )
+    text = text.replace(
+        "  } else {\n"
+        "    gm.SPARSE_LED_SCALE = scale;\n"
+        "    gm.needsRebuild = true;\n"
+        "  }\n",
+        "  } else {\n"
+        "    gm.LED_DIFFUSION_SCALE = scale;\n"
+        "    if (typeof gm._updateLedDiffusionUniforms === \"function\") {\n"
+        "      gm._updateLedDiffusionUniforms();\n"
+        "    }\n"
+        "  }\n",
+        1,
+    )
+    return text
 
 
 def patch_render_worker(dist_sketch_dir: Path) -> None:
@@ -1058,6 +1118,8 @@ def patch_render_worker(dist_sketch_dir: Path) -> None:
             "worker-routed scene apply needs revisiting."
         )
     text = worker_path.read_text(encoding="utf-8")
+    text = remove_composer_bloom_worker_bridge(text)
+    text = upgrade_composer_diffusion_worker_handler(text)
     if "handleComposerApplyScene" not in text:
         if _WORKER_CASE_ANCHOR not in text:
             raise RuntimeError(
@@ -1068,18 +1130,13 @@ def patch_render_worker(dist_sketch_dir: Path) -> None:
         text = text.replace(_WORKER_CASE_ANCHOR, _WORKER_CASE_INJECT, 1)
         text = text + _WORKER_HANDLER + _WORKER_DIFFUSION_HANDLER
     if "handleComposerSetDiffusion" not in text:
-        bloom_case = (
-            '      case "composer_set_bloom":\n'
-            "        response = handleComposerSetBloom(payload);\n"
-            "        break;\n"
-        )
-        if bloom_case not in text:
+        if _WORKER_CASE_ANCHOR not in text:
             raise RuntimeError(
-                f"Cannot patch {worker_path}: composer_set_bloom case not found. "
+                f"Cannot patch {worker_path}: onmessage switch anchor not found. "
                 "The FastLED worker's message dispatch changed; update "
                 "patch_render_worker."
             )
-        text = text.replace(bloom_case, _WORKER_DIFFUSION_CASE_INJECT, 1)
+        text = text.replace(_WORKER_CASE_ANCHOR, _WORKER_DIFFUSION_CASE_INJECT + _WORKER_CASE_ANCHOR, 1)
         text = text + _WORKER_DIFFUSION_HANDLER
     if "applyComposerInitialDisplayFromUrl(workerState.fastledModule);" not in text:
         if _WORKER_START_ANCHOR not in text:
@@ -1088,33 +1145,13 @@ def patch_render_worker(dist_sketch_dir: Path) -> None:
                 "FastLED's worker setup changed; update patch_render_worker."
             )
         text = text.replace(_WORKER_START_ANCHOR, _WORKER_START_INJECT, 1)
-    if "workerState.composerBloomEnabled" not in text.split(_WORKER_GM_INIT_ANCHOR, 1)[0]:
+    if "workerState.composerDiffusionScale" not in text.split(_WORKER_GM_INIT_ANCHOR, 1)[0]:
         if _WORKER_GM_INIT_ANCHOR not in text:
             raise RuntimeError(
                 f"Cannot patch {worker_path}: graphics-manager-init anchor not found. "
                 "FastLED's worker graphics init changed; update patch_render_worker."
             )
         text = text.replace(_WORKER_GM_INIT_ANCHOR, _WORKER_GM_INIT_INJECT, 1)
-    if "workerState.composerDiffusionScale" not in text.split(_WORKER_GM_INIT_ANCHOR, 1)[0]:
-        bloom_replay = (
-            "      if (workerState.composerBloomStrengthMultiplier !== undefined"
-            ' && typeof workerState.graphicsManager.setBloomStrengthMultiplier === "function") {\n'
-            "        workerState.graphicsManager.setBloomStrengthMultiplier(workerState.composerBloomStrengthMultiplier);\n"
-            "      }\n"
-        )
-        diffusion_replay = (
-            bloom_replay
-            + "      if (workerState.composerDiffusionScale !== undefined"
-            ' && typeof workerState.graphicsManager.setLedDiffusionScale === "function") {\n'
-            "        workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);\n"
-            "      }\n"
-        )
-        if bloom_replay not in text:
-            raise RuntimeError(
-                f"Cannot patch {worker_path}: graphics-manager bloom replay not found. "
-                "FastLED's worker graphics init changed; update patch_render_worker."
-            )
-        text = text.replace(bloom_replay, diffusion_replay, 1)
     worker_path.write_text(text, encoding="utf-8")
 
 
@@ -1214,193 +1251,6 @@ def patch_main_initial_display_hook(dist_sketch_dir: Path) -> None:
     )
 
 
-_THREEJS_BLOOM_REPLACEMENTS = (
-    (
-        "    this.bloom_stength = 1;\n",
-        "    this.bloom_stength = 0.04375;\n"
-        "    this.bloom_strength_base = this.bloom_stength;\n"
-        "    this.bloom_strength_multiplier = 1;\n",
-    ),
-    ("    this.bloom_radius = 16;\n", "    this.bloom_radius = 2;\n"),
-    ("    this.base_bloom_strength = 16;\n", "    this.base_bloom_strength = 0.7;\n"),
-    ("    this.max_bloom_strength = 20;\n", "    this.max_bloom_strength = 0.875;\n"),
-    ("    this.min_bloom_strength = 0.5;\n", "    this.min_bloom_strength = 0.021875;\n"),
-    (
-        "      this.bloom_stength = 16;\n",
-        "      this.bloom_stength = 0.7;\n"
-        "      this.bloom_strength_base = this.bloom_stength;\n",
-    ),
-    ("      this.bloom_radius = 1;\n", "      this.bloom_radius = 0.125;\n"),
-)
-
-
-def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
-    """Reduce FastLED's generated ThreeJS bloom strength to 4.375% of default."""
-    for path in graphics_manager_patch_paths(dist_sketch_dir):
-        text = path.read_text(encoding="utf-8")
-        for old, new in _THREEJS_BLOOM_REPLACEMENTS:
-            if old not in text:
-                raise RuntimeError(
-                    f"Cannot patch bloom in {path}: expected snippet not found: {old.strip()}"
-                )
-            text = text.replace(old, new, 1)
-        path.write_text(text, encoding="utf-8")
-
-
-# Add a runtime bloom on/off switch to FastLED's generated ThreeJS graphics
-# manager (driven from the composer panel via the worker's composer_set_bloom
-# message). The pass itself is still created; we flip its `.enabled` flag, which
-# EffectComposer honours per-frame, and stash the desired state in
-# `this.bloom_enabled` so it survives scene rebuilds (_setupRenderPasses reapplies
-# it to the freshly created pass).
-_THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
-    (
-        "    this.auto_bloom_enabled = true;\n",
-        "    this.auto_bloom_enabled = true;\n"
-        "    this.bloom_enabled = true;\n"
-        "    this.bloom_pass = null;\n",
-    ),
-    (
-        "      this.composer.addPass(bloomPass);\n",
-        "      this.bloom_pass = bloomPass;\n"
-        "      bloomPass.enabled = this.bloom_enabled;\n"
-        "      this.composer.addPass(bloomPass);\n",
-    ),
-)
-
-_THREEJS_BLOOM_TOGGLE_METHOD_REPLACEMENTS = (
-    (
-        "  /**\n   * Updates the bloom pass strength dynamically\n",
-        "  /**\n"
-        "   * Enables or disables the bloom pass at runtime (PolarShader)\n"
-        "   * @param {boolean} enabled - Whether bloom should render\n"
-        "   */\n"
-        "  setBloomEnabled(enabled) {\n"
-        "    this.bloom_enabled = !!enabled;\n"
-        "    if (this.bloom_pass) {\n"
-        "      this.bloom_pass.enabled = this.bloom_enabled;\n"
-        "    }\n"
-        "    if (!this.composer || !this.composer.passes) {\n"
-        "      return;\n"
-        "    }\n"
-        "    for (const pass of this.composer.passes) {\n"
-        "      if (pass === this.bloom_pass || (pass && pass.strength !== undefined && pass.radius !== undefined && pass.threshold !== undefined)) {\n"
-        "        pass.enabled = this.bloom_enabled;\n"
-        "      }\n"
-        "    }\n"
-        "  }\n"
-        "  /**\n"
-        "   * Scales bloom strength from the composer brightness slider (PolarShader)\n"
-        "   * @param {number} multiplier - Multiplier applied to dynamic bloom strength\n"
-        "   */\n"
-        "  setBloomStrengthMultiplier(multiplier) {\n"
-        "    this.bloom_strength_multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;\n"
-        "    this._updateBloomStrength(this.bloom_strength_base);\n"
-        "  }\n"
-        "  /**\n   * Updates the bloom pass strength dynamically\n",
-    ),
-    (
-        "      /**\n       * Updates the bloom pass strength dynamically\n",
-        "      /**\n"
-        "       * Enables or disables the bloom pass at runtime (PolarShader)\n"
-        "       * @param {boolean} enabled - Whether bloom should render\n"
-        "       */\n"
-        "      setBloomEnabled(enabled) {\n"
-        "        this.bloom_enabled = !!enabled;\n"
-        "        if (this.bloom_pass) {\n"
-        "          this.bloom_pass.enabled = this.bloom_enabled;\n"
-        "        }\n"
-        "        if (!this.composer || !this.composer.passes) {\n"
-        "          return;\n"
-        "        }\n"
-        "        for (const pass of this.composer.passes) {\n"
-        "          if (pass === this.bloom_pass || (pass && pass.strength !== undefined && pass.radius !== undefined && pass.threshold !== undefined)) {\n"
-        "            pass.enabled = this.bloom_enabled;\n"
-        "          }\n"
-        "        }\n"
-        "      }\n"
-        "      /**\n"
-        "       * Scales bloom strength from the composer brightness slider (PolarShader)\n"
-        "       * @param {number} multiplier - Multiplier applied to dynamic bloom strength\n"
-        "       */\n"
-        "      setBloomStrengthMultiplier(multiplier) {\n"
-        "        this.bloom_strength_multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;\n"
-        "        this._updateBloomStrength(this.bloom_strength_base);\n"
-        "      }\n"
-        "      /**\n       * Updates the bloom pass strength dynamically\n",
-    ),
-)
-
-_THREEJS_BLOOM_TOGGLE_STRENGTH_REPLACEMENTS = (
-    (
-        "  _updateBloomStrength(strength) {\n"
-        "    if (!this.composer || !this.composer.passes) {\n"
-        "      return;\n"
-        "    }\n",
-        "  _updateBloomStrength(strength) {\n"
-        "    this.bloom_strength_base = strength;\n"
-        "    const scaledStrength = strength * this.bloom_strength_multiplier;\n"
-        "    if (!this.composer || !this.composer.passes) {\n"
-        "      this.bloom_stength = scaledStrength;\n"
-        "      return;\n"
-        "    }\n",
-    ),
-    (
-        "      _updateBloomStrength(strength) {\n"
-        "        if (!this.composer || !this.composer.passes) {\n"
-        "          return;\n"
-        "        }\n",
-        "      _updateBloomStrength(strength) {\n"
-        "        this.bloom_strength_base = strength;\n"
-        "        const scaledStrength = strength * this.bloom_strength_multiplier;\n"
-        "        if (!this.composer || !this.composer.passes) {\n"
-        "          this.bloom_stength = scaledStrength;\n"
-        "          return;\n"
-        "        }\n",
-    ),
-)
-
-_THREEJS_BLOOM_TOGGLE_PASS_STRENGTH_REPLACEMENTS = (
-    (
-        "        pass.strength = strength;\n"
-        "        this.bloom_stength = strength;\n",
-        "        pass.strength = scaledStrength;\n"
-        "        this.bloom_stength = scaledStrength;\n",
-    ),
-    (
-        "            pass.strength = strength;\n"
-        "            this.bloom_stength = strength;\n",
-        "            pass.strength = scaledStrength;\n"
-        "            this.bloom_stength = scaledStrength;\n",
-    ),
-)
-
-
-def replace_first_available(text: str, path: Path, replacements: tuple[tuple[str, str], ...], label: str) -> str:
-    for old, new in replacements:
-        if old in text:
-            return text.replace(old, new, 1)
-    raise RuntimeError(f"Cannot patch bloom toggle in {path}: expected {label} snippet not found")
-
-
-def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
-    """Add a runtime setBloomEnabled() switch to the ThreeJS graphics manager."""
-    for path in graphics_manager_patch_paths(dist_sketch_dir):
-        text = path.read_text(encoding="utf-8")
-        if "this.bloom_pass = null;" in text and "this.bloom_pass = bloomPass;" in text:
-            continue
-        for old, new in _THREEJS_BLOOM_TOGGLE_REPLACEMENTS:
-            if old not in text:
-                raise RuntimeError(
-                    f"Cannot patch bloom toggle in {path}: expected snippet not found: {old.strip()}"
-                )
-            text = text.replace(old, new, 1)
-        text = replace_first_available(text, path, _THREEJS_BLOOM_TOGGLE_METHOD_REPLACEMENTS, "method anchor")
-        text = replace_first_available(text, path, _THREEJS_BLOOM_TOGGLE_STRENGTH_REPLACEMENTS, "strength method")
-        text = replace_first_available(text, path, _THREEJS_BLOOM_TOGGLE_PASS_STRENGTH_REPLACEMENTS, "pass strength")
-        path.write_text(text, encoding="utf-8")
-
-
 _THREEJS_LED_MATERIAL_HELPER_ANCHOR = (
     "  /**\n"
     "   * Creates LED objects for each pixel in the frame data\n"
@@ -1417,7 +1267,13 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "   */\n"
     "  _createLedMaterial(isDenseScreenMap, color, useVertexColors = false) {\n"
     "    const { THREE } = this.threeJsModules;\n"
-    "    const uniforms = { diffuse: { value: new THREE.Color(color) } };\n"
+    "    const coreRadius = this._ledCoreRadius();\n"
+    "    const diffusionRadius = this._ledDiffusionRadius();\n"
+    "    const uniforms = {\n"
+    "      diffuse: { value: new THREE.Color(color) },\n"
+    "      coreRadius: { value: coreRadius },\n"
+    "      diffusionRadius: { value: diffusionRadius }\n"
+    "    };\n"
     "    const vertexColorVarying = useVertexColors ? \"varying vec3 vColor;\\n\" : \"\";\n"
     "    const vertexColorAssign = useVertexColors ? \"      vColor = color;\\n\" : \"\";\n"
     "    const fragmentColor = useVertexColors ? \"diffuse * vColor\" : \"diffuse\";\n"
@@ -1437,11 +1293,13 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "      `,\n"
     "      fragmentShader: `\n"
     "        uniform vec3 diffuse;\n"
+    "        uniform float coreRadius;\n"
+    "        uniform float diffusionRadius;\n"
     "        varying vec2 vUv;\n"
     "        ${vertexColorVarying}\n"
     "        void main() {\n"
     "          float radius = length((vUv - vec2(0.5)) * 2.0);\n"
-    "          float alpha = clamp(1.0 - radius, 0.0, 1.0);\n"
+    "          float alpha = 1.0 - smoothstep(coreRadius, diffusionRadius, radius);\n"
     "          gl_FragColor = vec4(${fragmentColor}, alpha);\n"
     "        }\n"
     "      `\n"
@@ -1453,17 +1311,37 @@ _THREEJS_LED_MATERIAL_HELPER = (
 )
 _THREEJS_LED_DIFFUSION_SETTER = (
     "  /**\n"
-    "   * Updates LED diffusion/halo scale and rebuilds geometry on the next frame.\n"
-    "   * @param {number} scale - Absolute sparse LED scale\n"
+    "   * Updates LED diffusion/halo spread without changing LED geometry size.\n"
+    "   * @param {number} scale - Absolute halo falloff scale\n"
     "   */\n"
     "  setLedDiffusionScale(scale) {\n"
-    "    const nextScale = Number.isFinite(scale) && scale > 0 ? scale : 2.25;\n"
-    "    if (Math.abs(this.SPARSE_LED_SCALE - nextScale) < 0.0001) {\n"
+    "    const rawScale = Number.isFinite(scale) && scale > 0 ? scale : this.LED_HALO_MAX_SCALE;\n"
+    "    const nextScale = Math.max(this.LED_CORE_SCALE, Math.min(this.LED_HALO_MAX_SCALE, rawScale));\n"
+    "    if (Math.abs(this.LED_DIFFUSION_SCALE - nextScale) < 0.0001) {\n"
     "      return;\n"
     "    }\n"
-    "    this.SPARSE_LED_SCALE = nextScale;\n"
-    "    if (this.scene) {\n"
-    "      this.needsRebuild = true;\n"
+    "    this.LED_DIFFUSION_SCALE = nextScale;\n"
+    "    this._updateLedDiffusionUniforms();\n"
+    "  }\n"
+    "  _ledCoreRadius() {\n"
+    "    return Math.min(0.98, Math.max(0.01, this.LED_CORE_SCALE / this.LED_HALO_MAX_SCALE));\n"
+    "  }\n"
+    "  _ledDiffusionRadius() {\n"
+    "    return Math.min(1, Math.max(this._ledCoreRadius() + 0.001, this.LED_DIFFUSION_SCALE / this.LED_HALO_MAX_SCALE));\n"
+    "  }\n"
+    "  _updateLedDiffusionUniforms() {\n"
+    "    const coreRadius = this._ledCoreRadius();\n"
+    "    const diffusionRadius = this._ledDiffusionRadius();\n"
+    "    const updateMaterial = (material) => {\n"
+    "      if (!material || !material.uniforms || !material.uniforms.coreRadius || !material.uniforms.diffusionRadius) return;\n"
+    "      material.uniforms.coreRadius.value = coreRadius;\n"
+    "      material.uniforms.diffusionRadius.value = diffusionRadius;\n"
+    "    };\n"
+    "    for (const led of this.leds || []) {\n"
+    "      if (!led._isMerged) updateMaterial(led.material);\n"
+    "    }\n"
+    "    for (const mesh of this.mergedMeshes || []) {\n"
+    "      updateMaterial(mesh.material);\n"
     "    }\n"
     "  }\n"
 )
@@ -1471,7 +1349,7 @@ _THREEJS_LED_VISUALS_HELPER = (
     _THREEJS_LED_DIFFUSION_SETTER
     +
     "  /**\n"
-    "   * Scales a web-preview LED color channel without changing bloom tracking.\n"
+    "   * Scales a web-preview LED color channel.\n"
     "   * @private\n"
     "   */\n"
     "  _scalePreviewLedChannel(value) {\n"
@@ -1485,25 +1363,29 @@ _THREEJS_CAN_MERGE_REPLACEMENTS = (
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
         "    if (!canMergeGeometries) {\n",
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
-        "    const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        "    const ledScale = this.LED_SCALE * this.LED_HALO_MAX_SCALE;\n"
         "    if (!canMergeGeometries) {\n",
     ),
     (
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;\n"
         "    if (!canMergeGeometries) {\n",
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;\n"
-        "    const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        "    const ledScale = this.LED_SCALE * this.LED_HALO_MAX_SCALE;\n"
         "    if (!canMergeGeometries) {\n",
     ),
 )
 _THREEJS_VISUAL_RADIUS_REPLACEMENTS = (
     (
         "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;\n",
-        "        const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+        "        const visualRadius = diameter * this.LED_SCALE * this.LED_HALO_MAX_SCALE;\n",
     ),
     (
         "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+        "        const visualRadius = diameter * this.LED_SCALE * this.LED_HALO_MAX_SCALE;\n",
+    ),
+    (
         "        const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+        "        const visualRadius = diameter * this.LED_SCALE * this.LED_HALO_MAX_SCALE;\n",
     ),
 )
 
@@ -1559,16 +1441,89 @@ def insert_led_material_helper(text: str, path: Path) -> str:
     return text.replace(anchor, helper, 1)
 
 
+def apply_led_material_diffusion_uniforms(text: str, path: Path) -> str:
+    if "uniform float coreRadius;" in text and "uniform float diffusionRadius;" in text:
+        return text
+    text, count = re.subn(
+        r"(?m)^(\s*)const uniforms = \{ diffuse: \{ value: new THREE\.Color\(color\) \} \};\n",
+        r"\1const coreRadius = this._ledCoreRadius();\n"
+        r"\1const diffusionRadius = this._ledDiffusionRadius();\n"
+        r"\1const uniforms = {\n"
+        r"\1  diffuse: { value: new THREE.Color(color) },\n"
+        r"\1  coreRadius: { value: coreRadius },\n"
+        r"\1  diffusionRadius: { value: diffusionRadius }\n"
+        r"\1};\n",
+        text,
+        count=1,
+    )
+    if not count:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: LED material uniforms"
+        )
+    text, count = re.subn(
+        r"(?m)^(\s*)uniform vec3 diffuse;\n\1varying vec2 vUv;\n",
+        r"\1uniform vec3 diffuse;\n"
+        r"\1uniform float coreRadius;\n"
+        r"\1uniform float diffusionRadius;\n"
+        r"\1varying vec2 vUv;\n",
+        text,
+        count=1,
+    )
+    if not count:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: LED material shader uniforms"
+        )
+    text, count = re.subn(
+        r"(?m)^(\s*)float alpha = clamp\(1\.0 - radius, 0\.0, 1\.0\);",
+        r"\1float alpha = 1.0 - smoothstep(coreRadius, diffusionRadius, radius);",
+        text,
+        count=1,
+    )
+    if not count:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: LED material alpha falloff"
+        )
+    return text
+
+
+def replace_led_diffusion_setter(text: str, path: Path) -> str:
+    if "_updateLedDiffusionUniforms()" in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)/\*\*\n"
+        r"\1 \* Updates LED diffusion/halo scale and rebuilds geometry on the next frame\.\n"
+        r"\1 \* @param \{number\} scale - Absolute sparse LED scale\n"
+        r"\1 \*/\n"
+        r"\1setLedDiffusionScale\(scale\) \{\n"
+        r"(?:\1  .*\n)*?"
+        r"\1\}\n",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: diffusion setter anchor not found."
+        )
+    indent = match.group(1)
+    setter = reindent_js_block(_THREEJS_LED_DIFFUSION_SETTER, indent)
+    return text[:match.start()] + setter + text[match.end():]
+
+
 def insert_led_visuals_helper(text: str, path: Path) -> str:
     match = re.search(
         r"(?m)^(\s*)/\*\*\n\1 \* Updates LED visuals based on position map data\n",
         text,
     )
     if "_scalePreviewLedChannel(value)" in text:
-        if "setLedDiffusionScale(scale)" in text:
+        if "_updateLedDiffusionUniforms()" in text:
             return text
+        if "setLedDiffusionScale(scale)" in text:
+            return replace_led_diffusion_setter(text, path).replace(
+                "Scales a web-preview LED color channel without changing bloom tracking.",
+                "Scales a web-preview LED color channel.",
+                1,
+            )
         scale_match = re.search(
-            r"(?m)^(\s*)/\*\*\n\1 \* Scales a web-preview LED color channel without changing bloom tracking\.\n",
+            r"(?m)^(\s*)/\*\*\n\1 \* Scales a web-preview LED color channel(?: without changing bloom tracking)?\.\n",
             text,
         )
         if scale_match is None:
@@ -1612,18 +1567,19 @@ def remove_dense_led_material_branch(text: str) -> str:
     )
 
 
-def insert_sparse_led_scale(text: str, path: Path) -> str:
-    desired = "this.SPARSE_LED_SCALE = 2.25;"
-    if desired in text:
-        return text
-    text, count = re.subn(
-        r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n",
-        rf"\1{desired}\n",
-        text,
-        count=1,
+def insert_led_halo_scales(text: str, path: Path) -> str:
+    desired = (
+        "this.LED_HALO_MAX_SCALE = 2.25;\n"
+        "{indent}this.LED_CORE_SCALE = 1;\n"
+        "{indent}this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;"
     )
-    if count:
+    if "this.LED_HALO_MAX_SCALE = 2.25;" in text:
         return text
+    match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n", text)
+    if match is not None:
+        indent = match.group(1)
+        replacement = f"{indent}" + desired.format(indent=indent) + "\n"
+        return text[:match.start()] + replacement + text[match.end():]
     match = re.search(
         r"(?m)^(\s*)this\.LED_SCALE = 1;\n\1this\.SCREEN_WIDTH = 0;\n",
         text,
@@ -1635,7 +1591,7 @@ def insert_sparse_led_scale(text: str, path: Path) -> str:
     indent = match.group(1)
     replacement = (
         f"{indent}this.LED_SCALE = 1;\n"
-        f"{indent}{desired}\n"
+        f"{indent}{desired.format(indent=indent)}\n"
         f"{indent}this.SCREEN_WIDTH = 0;\n"
     )
     return text[:match.start()] + replacement + text[match.end():]
@@ -1653,10 +1609,10 @@ def insert_led_brightness_multiplier(text: str, path: Path) -> str:
     )
     if count:
         return text
-    match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n", text)
+    match = re.search(r"(?m)^(\s*)this\.LED_DIFFUSION_SCALE = this\.LED_HALO_MAX_SCALE;\n", text)
     if match is None:
         raise RuntimeError(
-            f"Cannot patch LED gradient in {path}: expected snippet not found: SPARSE_LED_SCALE initialization"
+            f"Cannot patch LED gradient in {path}: expected snippet not found: LED halo initialization"
         )
     indent = match.group(1)
     replacement = match.group(0) + f"{indent}{desired}\n"
@@ -1683,8 +1639,16 @@ def force_sparse_led_rendering(text: str, path: Path) -> str:
 
 
 def insert_led_scale_local(text: str, path: Path) -> str:
-    desired = "const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;"
+    desired = "const ledScale = this.LED_SCALE * this.LED_HALO_MAX_SCALE;"
     if desired in text:
+        return text
+    text, count = re.subn(
+        r"(?m)^(\s*)const ledScale = this\.LED_SCALE \* this\.SPARSE_LED_SCALE;\n",
+        rf"\1{desired}\n",
+        text,
+        count=1,
+    )
+    if count:
         return text
     match = re.search(
         r"(?m)^(\s*)const ledScale = isDenseScreenMap \? this\.LED_SCALE : this\.LED_SCALE \* this\.SPARSE_LED_SCALE;\n",
@@ -1769,22 +1733,60 @@ def replace_merged_led_material(text: str, path: Path) -> str:
     return text[:match.start()] + replacement + text[match.end():]
 
 
+def remove_generated_bloom_pass(text: str) -> str:
+    text = re.sub(
+        r"(?m)^(\s*)if \(this\.bloom_stength > 0 \|\| this\.bloom_radius > 0\) \{\n"
+        r"(?:\1  .*\n)*?"
+        r"\1\}\n",
+        "",
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r"(?m)^(\s*)/\*\*\n"
+        r"\1 \* Enables or disables the bloom pass at runtime \(PolarShader\)\n"
+        r"(?:\1 \*.*\n)*?"
+        r"\1 \*/\n"
+        r"\1setBloomEnabled\(enabled\) \{\n"
+        r"(?:\1  .*\n)*?"
+        r"\1\}\n",
+        "",
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r"(?m)^(\s*)/\*\*\n"
+        r"\1 \* Scales bloom strength from the composer brightness slider \(PolarShader\)\n"
+        r"(?:\1 \*.*\n)*?"
+        r"\1 \*/\n"
+        r"\1setBloomStrengthMultiplier\(multiplier\) \{\n"
+        r"(?:\1  .*\n)*?"
+        r"\1\}\n",
+        "",
+        text,
+        count=1,
+    )
+    return text
+
+
 def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
     """Render FastLED screen-map LEDs with the sparse radial alpha style."""
     for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
+        text = remove_generated_bloom_pass(text)
         if "_createLedMaterial(isDenseScreenMap" not in text:
             text = insert_led_material_helper(text, path)
+        text = apply_led_material_diffusion_uniforms(text, path)
         text = insert_led_visuals_helper(text, path)
         text = remove_dense_led_material_branch(text)
-        text = insert_sparse_led_scale(text, path)
+        text = insert_led_halo_scales(text, path)
         text = insert_led_brightness_multiplier(text, path)
         text = force_sparse_led_rendering(text, path)
         text = replace_first_variant(
             text,
             path,
             _THREEJS_VISUAL_RADIUS_REPLACEMENTS,
-            "const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;",
+            "const visualRadius = diameter * this.LED_SCALE * this.LED_HALO_MAX_SCALE;",
             "visual radius calculation",
         )
         text = insert_led_scale_local(text, path)
@@ -1889,12 +1891,11 @@ def build_site() -> None:
         shutil.copytree(output_dir, dist_sketch_dir)
         if sketch.name in SKETCHES_WITH_PANEL:
             inject_panel_assets(sketch, dist_sketch_dir, SKETCHES_WITH_PANEL[sketch.name])
+            remove_generated_bloom_controls(dist_sketch_dir)
             copy_display_fixtures(dist_sketch_dir)
             patch_render_worker(dist_sketch_dir)
             patch_main_initial_display_hook(dist_sketch_dir)
             patch_main_worker_ready_hook(dist_sketch_dir)
-            patch_threejs_bloom(dist_sketch_dir)
-            patch_threejs_bloom_toggle(dist_sketch_dir)
             patch_threejs_led_gradient(dist_sketch_dir)
 
     shutil.copy2(LANDING_PAGE, DIST_ROOT / "index.html")

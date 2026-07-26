@@ -196,14 +196,11 @@ const DEPLOY_POLL_MS = 1000;
 const DEPLOY_DONE_STATUSES = new Set(['succeeded', 'failed', 'timed_out']);
 const DEBUG_LOG_LIMIT = 500;
 const BRIGHTNESS_SAVE_DEBOUNCE_MS = 250;
-const BLOOM_BASE_BRIGHTNESS = 30;
-const BLOOM_MAX_BRIGHTNESS = 255;
-const BLOOM_BASE_MULTIPLIER = 1;
-const BLOOM_MAX_MULTIPLIER = 3;
 const DIFFUSION_MIN_PERCENT = 0;
 const DIFFUSION_MAX_PERCENT = 100;
 const DIFFUSION_BASE_SCALE = 2.25;
-const DIFFUSION_MIN_SCALE_FACTOR = 0.25;
+const DIFFUSION_CORE_SCALE = 1;
+const DIFFUSION_MIN_SPREAD_FACTOR = 0.25;
 
 function displayUrlValue(which) {
     if (which === 1) return 'round';
@@ -687,24 +684,15 @@ function smap(value, inMin, inMax, outMin, outMax) {
     return outMin + (outMax - outMin) * t;
 }
 
-function bloomStrengthMultiplierForBrightness(value) {
-    return smap(
-        clampDisplayBrightness(value),
-        BLOOM_BASE_BRIGHTNESS,
-        BLOOM_MAX_BRIGHTNESS,
-        BLOOM_BASE_MULTIPLIER,
-        BLOOM_MAX_MULTIPLIER
-    );
-}
-
 function diffusionScaleForPercent(value) {
-    return smap(
+    const spreadFactor = smap(
         clampDiffusionPercent(value),
         DIFFUSION_MIN_PERCENT,
         DIFFUSION_MAX_PERCENT,
-        DIFFUSION_BASE_SCALE * DIFFUSION_MIN_SCALE_FACTOR,
-        DIFFUSION_BASE_SCALE
+        DIFFUSION_MIN_SPREAD_FACTOR,
+        1
     );
+    return DIFFUSION_CORE_SCALE + (DIFFUSION_BASE_SCALE - DIFFUSION_CORE_SCALE) * spreadFactor;
 }
 
 async function refreshDisplayConfig({ rebuild = false } = {}) {
@@ -716,7 +704,6 @@ async function refreshDisplayConfig({ rebuild = false } = {}) {
         if (body.warning) {
             logDebug('display', body.warning);
         }
-        void setWorkerBloom(bloomPreference);
     } catch (e) {
         state.displayConfigApiAvailable = false;
         logDebug('display', `display config unavailable: ${e.message}`);
@@ -739,7 +726,6 @@ async function saveDisplayBrightness(value, { rebuild = true, notify = true } = 
         });
         state.displayBrightness = clampDisplayBrightness(body.brightness);
         state.displayBrightnessSaved = true;
-        void setWorkerBloom(bloomPreference);
         if (notify) {
             showStatus(`brightness ${state.displayBrightness}`, false);
             logDebug('display', `MCU brightness saved: ${state.displayBrightness}`);
@@ -2180,27 +2166,6 @@ async function callApplyScene(bytes, seq) {
     return { status: -1, target: 'none', detail: 'no worker and no main-thread module', seq };
 }
 
-// Bloom is a ThreeJS post-processing pass on the graphics manager that lives in
-// the render worker (it owns the OffscreenCanvas). The composer_set_bloom message
-// handler + graphics-manager setBloomEnabled() are injected by build_site.py
-// (patch_render_worker / patch_threejs_bloom_toggle). The enabled flag and
-// brightness-derived strength multiplier are replayed when the worker activates.
-let bloomPreference = true;
-
-async function setWorkerBloom(enabled) {
-    bloomPreference = !!enabled;
-    const strengthMultiplier = bloomStrengthMultiplierForBrightness(state.displayBrightness);
-    const workerManager = getWorkerManager() ?? await waitForWorkerManager(2000);
-    if (!workerManager) return { ok: false, reason: 'worker not active' };
-    try {
-        return await workerManager.sendMessageWithResponse(
-            { type: 'composer_set_bloom', payload: { enabled: bloomPreference, strengthMultiplier } }
-        );
-    } catch (e) {
-        return { ok: false, reason: e && e.message ? e.message : String(e) };
-    }
-}
-
 async function setWorkerDiffusion(percent) {
     const diffusionPercent = clampDiffusionPercent(percent);
     state.diffusionPercent = diffusionPercent;
@@ -3446,7 +3411,6 @@ function renderTopSection() {
         const brightness = clampDisplayBrightness(brightnessSlider.value);
         state.displayBrightness = brightness;
         brightnessValue.textContent = String(brightness);
-        void setWorkerBloom(bloomPreference);
         scheduleDisplayBrightnessSave(brightness);
     });
     brightnessRow.appendChild(brightnessSlider);
@@ -3461,7 +3425,7 @@ function renderTopSection() {
     diffusionSlider.max = String(DIFFUSION_MAX_PERCENT);
     diffusionSlider.step = '1';
     diffusionSlider.value = String(state.diffusionPercent);
-    diffusionSlider.title = 'Adjust LED halo size';
+    diffusionSlider.title = 'Adjust LED halo spread';
     const diffusionValue = document.createElement('span');
     diffusionValue.className = 'diffusion-value';
     diffusionValue.textContent = `${state.diffusionPercent}%`;
@@ -4038,7 +4002,6 @@ function rePushOnWorkerInit() {
         const sceneSeq = nextRenderSeq();
         state.latestSceneSeq = sceneSeq;
         await pushSceneNow(state.latestEvent, sceneSeq);
-        await setWorkerBloom(bloomPreference);
         await setWorkerDiffusion(state.diffusionPercent);
     };
 
