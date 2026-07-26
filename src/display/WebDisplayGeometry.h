@@ -50,8 +50,6 @@ namespace PolarShader {
 
     namespace detail {
         constexpr float DEFAULT_LED_FILL = 0.8f;
-        constexpr float FABRIC_LED_SPACING_MM = 75.0f;
-        constexpr float FABRIC_LED_DIAMETER_MM = 5.0f;
         constexpr float PI_F = 3.14159265358979323846f;
 
         inline float squaredDistance(const WebDisplayPoint &lhs, const WebDisplayPoint &rhs) {
@@ -90,21 +88,21 @@ namespace PolarShader {
     inline WebDisplayGeometry buildFabricWebGeometry() {
         WebDisplayGeometry geometry;
         geometry.points.resize(FabricDisplaySpec::WIDTH * FabricDisplaySpec::HEIGHT);
-        geometry.centerX = static_cast<float>(FabricDisplaySpec::WIDTH - 1) * detail::FABRIC_LED_SPACING_MM * 0.5f;
-        geometry.centerY = static_cast<float>(FabricDisplaySpec::HEIGHT - 1) * detail::FABRIC_LED_SPACING_MM * 0.5f;
+        geometry.centerX = static_cast<float>(FabricDisplaySpec::WIDTH - 1) * 0.5f;
+        geometry.centerY = static_cast<float>(FabricDisplaySpec::HEIGHT - 1) * 0.5f;
 
         for (uint16_t row = 0; row < FabricDisplaySpec::HEIGHT; ++row) {
             for (uint16_t col = 0; col < FabricDisplaySpec::WIDTH; ++col) {
                 const uint16_t indexInRow = row & 1 ? (FabricDisplaySpec::WIDTH - 1) - col : col;
                 const uint16_t pixelIndex = static_cast<uint16_t>((row * FabricDisplaySpec::WIDTH) + indexInRow);
                 geometry.points[pixelIndex] = {
-                    static_cast<float>(col) * detail::FABRIC_LED_SPACING_MM,
-                    static_cast<float>(row) * detail::FABRIC_LED_SPACING_MM
+                    static_cast<float>(col),
+                    static_cast<float>(row)
                 };
             }
         }
 
-        geometry.diameter = detail::FABRIC_LED_DIAMETER_MM;
+        geometry.diameter = detail::deriveLedDiameter(geometry.points);
         return geometry;
     }
 
