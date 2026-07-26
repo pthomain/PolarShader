@@ -8,6 +8,22 @@
 :root {
     --composer-panel-width: 50vw;
     --composer-left-width: calc(100vw - var(--composer-panel-width));
+    --composer-bg: var(--wa-color-neutral-950, #05070a);
+    --composer-panel-bg: var(--wa-color-neutral-900, #15171a);
+    --composer-panel-raised: var(--wa-color-neutral-850, #181b1f);
+    --composer-control-bg: var(--wa-color-neutral-800, #1d2026);
+    --composer-control-hover: var(--wa-color-neutral-750, #34393f);
+    --composer-border: var(--wa-color-neutral-700, #2e333b);
+    --composer-border-strong: var(--wa-color-neutral-600, #39404a);
+    --composer-text: var(--wa-color-neutral-100, #d8dde2);
+    --composer-text-strong: var(--wa-color-neutral-0, #ffffff);
+    --composer-muted: var(--wa-color-neutral-400, #8b95a0);
+    --composer-subtle: var(--wa-color-neutral-500, #6a7480);
+    --composer-accent: var(--wa-color-blue-500, #4b93ff);
+    --composer-warning: var(--wa-color-amber-500, #d6a84f);
+    --composer-danger-bg: var(--wa-color-red-950, #3b2d28);
+    --composer-danger-border: var(--wa-color-red-700, #9b5b3b);
+    --composer-radius: var(--wa-border-radius-s, 4px);
 }
 
 html,
@@ -17,7 +33,7 @@ body {
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
-    background: #05070a;
+    background: var(--composer-bg);
 }
 
 body {
@@ -58,7 +74,7 @@ body > h1,
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: #05070a !important;
+    background: var(--composer-bg) !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -79,7 +95,7 @@ body > h1,
     margin: 0 !important;
     padding: 0 !important;
     display: block !important;
-    background: #05070a !important;
+    background: var(--composer-bg) !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -95,12 +111,12 @@ body > h1,
     min-width: 320px;
     max-width: calc(100vw - 280px);
     overflow: hidden;
-    background: #15171a;
-    color: #d8dde2;
+    background: var(--composer-panel-bg);
+    color: var(--composer-text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     font-size: 13px;
     box-sizing: border-box;
-    border-left: 1px solid #2a2e34;
+    border-left: 1px solid var(--composer-border);
     z-index: 10000;
 }
 
@@ -134,7 +150,7 @@ body > h1,
 
 .composer-resize-handle:hover::after,
 .composer-resize-handle.dragging::after {
-    background: #56616f;
+    background: var(--composer-muted);
 }
 
 body.composer-resizing {
@@ -146,7 +162,7 @@ body.composer-resizing {
     margin: 0 0 12px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: var(--composer-text-strong);
 }
 
 #composer-panel h2 {
@@ -155,13 +171,13 @@ body.composer-resizing {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #8b95a0;
+    color: var(--composer-muted);
 }
 
 .panel-section {
     margin-bottom: 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid #232830;
+    border-bottom: 1px solid var(--composer-border);
 }
 
 .pattern-header {
@@ -181,7 +197,7 @@ body.composer-resizing {
 }
 
 .inline-warning {
-    color: #d6a84f;
+    color: var(--composer-warning);
     font-size: 12px;
     line-height: 1.35;
     margin-top: 6px;
@@ -196,7 +212,7 @@ body.composer-resizing {
 
 .top-row > span:first-child {
     width: 60px;
-    color: #8b95a0;
+    color: var(--composer-muted);
 }
 
 .action-row {
@@ -210,20 +226,22 @@ body.composer-resizing {
     margin: 8px 0;
 }
 
-.composer-tabs button {
+.composer-tabs button,
+.composer-tabs wa-button {
     width: 100%;
 }
 
-.composer-tabs button.active {
-    background: #39404a;
-    border-color: #56616f;
-    color: #ffffff;
+.composer-tabs button.active,
+.composer-tabs wa-button.active::part(base) {
+    background: color-mix(in srgb, var(--composer-accent) 22%, var(--composer-control-bg));
+    border-color: color-mix(in srgb, var(--composer-accent) 55%, var(--composer-border-strong));
+    color: var(--composer-text-strong);
 }
 
 .muted-note {
     flex: 1;
     min-width: 0;
-    color: #6a7480;
+    color: var(--composer-subtle);
     font-size: 12px;
 }
 
@@ -235,7 +253,7 @@ body.composer-resizing {
 
 .brightness-value {
     flex: 0 0 32px;
-    color: #6a7480;
+    color: var(--composer-subtle);
     font-variant-numeric: tabular-nums;
     text-align: right;
 }
@@ -244,7 +262,7 @@ body.composer-resizing {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: #8b95a0;
+    color: var(--composer-muted);
     font-size: 12px;
     white-space: nowrap;
     cursor: pointer;
@@ -268,7 +286,7 @@ body.composer-resizing {
 }
 
 .playlist-item.active {
-    border-color: #4b93ff;
+    border-color: var(--composer-accent);
 }
 
 .playlist-load-btn {
@@ -280,11 +298,21 @@ body.composer-resizing {
     white-space: nowrap;
 }
 
+wa-button.playlist-load-btn::part(base) {
+    justify-content: flex-start;
+}
+
 .playlist-delete-btn {
     flex: 0 0 28px;
     width: 28px;
     padding: 2px 0;
     text-align: center;
+}
+
+wa-button.playlist-delete-btn::part(base) {
+    width: 28px;
+    min-width: 28px;
+    padding-inline: 0;
 }
 
 .playlist-dirty-actions {
@@ -295,22 +323,24 @@ body.composer-resizing {
     min-width: 0;
 }
 
-.playlist-dirty-actions button {
+.playlist-dirty-actions button,
+.playlist-dirty-actions wa-button {
     white-space: nowrap;
 }
 
-.playlist-item.selected .playlist-load-btn {
-    background: #39404a;
-    border-color: #56616f;
-    color: #ffffff;
+.playlist-item.selected button.playlist-load-btn,
+.playlist-item.selected wa-button.playlist-load-btn::part(base) {
+    background: color-mix(in srgb, var(--composer-accent) 22%, var(--composer-control-bg));
+    border-color: color-mix(in srgb, var(--composer-accent) 55%, var(--composer-border-strong));
+    color: var(--composer-text-strong);
 }
 
 input[type="number"], input[type="range"], select {
-    background: #1d2026;
-    border: 1px solid #2e333b;
-    color: #d8dde2;
+    background: var(--composer-control-bg);
+    border: 1px solid var(--composer-border);
+    color: var(--composer-text);
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: var(--composer-radius);
     font-size: 12px;
     flex: 1;
     min-width: 0;
@@ -319,26 +349,52 @@ input[type="number"], input[type="range"], select {
 input[type="number"] { max-width: 80px; flex: 0 0 80px; }
 input[type="range"]  { flex: 1; min-width: 80px; }
 
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+wa-button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--composer-accent) 70%, transparent);
+    outline-offset: 2px;
+}
+
 button {
-    background: #2a2e34;
-    color: #d8dde2;
-    border: 1px solid #3a3f47;
+    background: var(--composer-control-bg);
+    color: var(--composer-text);
+    border: 1px solid var(--composer-border-strong);
     padding: 3px 10px;
-    border-radius: 3px;
+    border-radius: var(--composer-radius);
     cursor: pointer;
     font-size: 12px;
 }
 
-button:hover:not(:disabled) {
-    background: #34393f;
+wa-button {
+    display: inline-block;
+    flex: 0 0 auto;
+    font-size: 12px;
 }
 
-button.attention:not(:disabled) {
-    border-color: #9b5b3b;
-    background: #3b2d28;
+wa-button::part(base) {
+    min-height: 24px;
+    background: var(--composer-control-bg);
+    border-color: var(--composer-border-strong);
+    border-radius: var(--composer-radius);
+    color: var(--composer-text);
+    font-size: 12px;
 }
 
-button:disabled {
+button:hover:not(:disabled),
+wa-button:hover::part(base) {
+    background: var(--composer-control-hover);
+}
+
+button.attention:not(:disabled),
+wa-button.attention::part(base) {
+    border-color: var(--composer-danger-border);
+    background: var(--composer-danger-bg);
+}
+
+button:disabled,
+wa-button[disabled] {
     opacity: 0.4;
     cursor: not-allowed;
 }
@@ -363,14 +419,15 @@ button:disabled {
     gap: 8px;
 }
 
-.vortex-fibonacci button {
+.vortex-fibonacci button,
+.vortex-fibonacci wa-button {
     flex: 0 0 auto;
 }
 
 .param-label {
     width: 100px;
     flex: 0 0 100px;
-    color: #8b95a0;
+    color: var(--composer-muted);
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -378,7 +435,7 @@ button:disabled {
 .param-readout {
     flex: 0 0 50px;
     text-align: right;
-    color: #6a7480;
+    color: var(--composer-subtle);
     font-variant-numeric: tabular-nums;
 }
 
@@ -394,7 +451,7 @@ button:disabled {
 }
 
 .stepper.active {
-    border-color: #4b93ff;
+    border-color: var(--composer-accent);
 }
 
 .stepper-btn {
@@ -406,15 +463,22 @@ button:disabled {
     font-size: 13px;
 }
 
+wa-button.stepper-btn::part(base) {
+    min-width: 22px;
+    min-height: 22px;
+    padding-inline: 0;
+    font-size: 13px;
+}
+
 .signal-row {
     margin-top: 6px;
     padding: 6px;
-    background: #181b1f;
-    border-radius: 4px;
+    background: var(--composer-panel-raised);
+    border-radius: var(--composer-radius);
 }
 
 .signal-row-label {
-    color: #c0c8d0;
+    color: var(--composer-text);
     font-size: 11px;
     margin-bottom: 4px;
     font-weight: 500;
@@ -425,7 +489,7 @@ button:disabled {
     flex-direction: column;
     gap: 4px;
     padding: 4px 0 4px 8px;
-    border-left: 2px solid #2e333b;
+    border-left: 2px solid var(--composer-border);
 }
 
 .signal-type {
@@ -441,9 +505,9 @@ button:disabled {
 }
 
 .transform-card {
-    background: #181b1f;
+    background: var(--composer-panel-raised);
     padding: 8px;
-    border-radius: 4px;
+    border-radius: var(--composer-radius);
     margin-bottom: 6px;
 }
 
@@ -457,13 +521,22 @@ button:disabled {
 .transform-title {
     flex: 1;
     font-weight: 500;
-    color: #c0c8d0;
+    color: var(--composer-text);
 }
 
-.transform-header button {
+.transform-header button,
+.transform-header wa-button {
     padding: 4px 10px;
     min-width: 32px;
     height: 28px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.transform-header wa-button::part(base) {
+    min-width: 32px;
+    min-height: 28px;
+    padding-inline: 10px;
     font-size: 14px;
     line-height: 1;
 }
@@ -473,7 +546,7 @@ button:disabled {
     align-items: center;
     gap: 3px;
     font-size: 11px;
-    color: #8a929c;
+    color: var(--composer-muted);
     cursor: pointer;
     user-select: none;
 }
@@ -503,7 +576,7 @@ button:disabled {
     align-items: center;
     gap: 5px;
     font-size: 11px;
-    color: #c0c8d0;
+    color: var(--composer-text);
     cursor: pointer;
     user-select: none;
 }
@@ -575,8 +648,8 @@ button:disabled {
 /* Palette generator */
 .palette-preview {
     height: 28px;
-    border-radius: 4px;
-    border: 1px solid #39404a;
+    border-radius: var(--composer-radius);
+    border: 1px solid var(--composer-border-strong);
     margin: 6px 0 4px;
 }
 
@@ -584,9 +657,9 @@ button:disabled {
     display: grid;
     grid-template-columns: repeat(16, 1fr);
     height: 14px;
-    border-radius: 3px;
+    border-radius: var(--composer-radius);
     overflow: hidden;
-    border: 1px solid #39404a;
+    border: 1px solid var(--composer-border-strong);
     margin-bottom: 10px;
 }
 
@@ -626,7 +699,7 @@ button:disabled {
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #8b95a0;
+    color: var(--composer-muted);
     cursor: pointer;
 }
 
@@ -639,21 +712,21 @@ button:disabled {
 }
 
 .palette-slider-label {
-    color: #8b95a0;
+    color: var(--composer-muted);
     font-size: 12px;
 }
 
 .palette-slider-value {
-    color: #c9d1da;
+    color: var(--composer-text);
     font-size: 12px;
     font-variant-numeric: tabular-nums;
     text-align: right;
     width: 100%;
     box-sizing: border-box;
     padding: 1px 3px;
-    background: #23272e;
-    border: 1px solid #39404a;
-    border-radius: 3px;
+    background: var(--composer-control-bg);
+    border: 1px solid var(--composer-border-strong);
+    border-radius: var(--composer-radius);
 }
 
 .palette-dirty-note {
@@ -666,14 +739,14 @@ button:disabled {
 
 .palette-library {
     margin-top: 12px;
-    border-top: 1px solid #39404a;
+    border-top: 1px solid var(--composer-border-strong);
     padding-top: 8px;
 }
 
 .palette-library h3 {
     margin: 0 0 6px;
     font-size: 12px;
-    color: #8b95a0;
+    color: var(--composer-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -688,8 +761,8 @@ button:disabled {
 .palette-lib-swatch {
     width: 40px;
     height: 16px;
-    border-radius: 3px;
-    border: 1px solid #39404a;
+    border-radius: var(--composer-radius);
+    border: 1px solid var(--composer-border-strong);
     flex: 0 0 auto;
 }
 

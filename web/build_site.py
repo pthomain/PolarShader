@@ -155,9 +155,11 @@ COMPOSER_PANEL_ASSETS = {
     #     can't send COOP/COEP headers) so FastLED's pthread WASM gets a
     #     SharedArrayBuffer instead of throwing a blank-screen boot error. Runs
     #     first so its one-time reload happens before the heavy WASM boot.
+    #   - webawesome-loader: progressively loads Web Awesome controls for the
+    #     composer panel; the panel keeps native controls until components are ready.
     #   - boot-diagnostics: global error handlers + fail-safe reveal so a failing
     #     boot shows a readable banner instead of a silent white screen.
-    "head_scripts": ("coi-serviceworker.js", "boot-diagnostics.js"),
+    "head_scripts": ("coi-serviceworker.js", "webawesome-loader.js", "boot-diagnostics.js"),
 }
 SKETCHES_WITH_PANEL = {"composer": COMPOSER_PANEL_ASSETS}
 

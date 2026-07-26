@@ -200,6 +200,24 @@ const BLOOM_MAX_BRIGHTNESS = 255;
 const BLOOM_BASE_MULTIPLIER = 1;
 const BLOOM_MAX_MULTIPLIER = 3;
 
+function webAwesomeButtonsReady() {
+    return window.polarWebAwesome?.ready === true
+        && typeof customElements !== 'undefined'
+        && Boolean(customElements.get('wa-button'));
+}
+
+function createComposerButton(text = '') {
+    const btn = document.createElement(webAwesomeButtonsReady() ? 'wa-button' : 'button');
+    btn.type = 'button';
+    if (webAwesomeButtonsReady()) {
+        btn.setAttribute('variant', 'neutral');
+        btn.setAttribute('size', 'small');
+        btn.setAttribute('appearance', 'filled-outlined');
+    }
+    if (text) btn.textContent = text;
+    return btn;
+}
+
 function displayUrlValue(which) {
     if (which === 1) return 'round';
     if (which === 2) return 'fabric32x8';
@@ -2606,7 +2624,7 @@ function renderPaletteGeneratorSection() {
     });
     startRow.appendChild(startSel);
 
-    const randomBtn = document.createElement('button');
+    const randomBtn = createComposerButton();
     randomBtn.type = 'button';
     randomBtn.textContent = 'Randomize';
     randomBtn.title = 'Roll random coefficients';
@@ -2618,7 +2636,7 @@ function renderPaletteGeneratorSection() {
     });
     startRow.appendChild(randomBtn);
 
-    const resetBtn = document.createElement('button');
+    const resetBtn = createComposerButton();
     resetBtn.type = 'button';
     resetBtn.textContent = 'Reset';
     resetBtn.title = 'Reset to the default rainbow coefficients';
@@ -2671,7 +2689,7 @@ function renderPaletteGeneratorSection() {
     liveLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Live apply' }));
     actions.appendChild(liveLabel);
 
-    const applyBtn = document.createElement('button');
+    const applyBtn = createComposerButton();
     applyBtn.type = 'button';
     applyBtn.textContent = 'Apply to scene';
     applyBtn.title = 'Use this palette in the current composition';
@@ -2681,28 +2699,28 @@ function renderPaletteGeneratorSection() {
     });
     actions.appendChild(applyBtn);
 
-    saveBtn = document.createElement('button');
+    saveBtn = createComposerButton();
     saveBtn.type = 'button';
     saveBtn.textContent = 'Save';
     saveBtn.title = 'Save this palette to your library';
     saveBtn.addEventListener('click', () => { void savePaletteFromGenerator(); });
     actions.appendChild(saveBtn);
 
-    const glslBtn = document.createElement('button');
+    const glslBtn = createComposerButton();
     glslBtn.type = 'button';
     glslBtn.textContent = 'Copy GLSL';
     glslBtn.title = 'Copy the Shadertoy-style palette() function';
     glslBtn.addEventListener('click', () => { void copyGeneratorGlsl(gen); });
     actions.appendChild(glslBtn);
 
-    exportBtn = document.createElement('button');
+    exportBtn = createComposerButton();
     exportBtn.type = 'button';
     exportBtn.textContent = 'Export';
     exportBtn.title = 'Download the whole palette library as a file';
     exportBtn.addEventListener('click', downloadPaletteBundle);
     actions.appendChild(exportBtn);
 
-    const importBtn = document.createElement('button');
+    const importBtn = createComposerButton();
     importBtn.type = 'button';
     importBtn.textContent = 'Import';
     importBtn.title = 'Replace the palette library from a file';
@@ -2848,7 +2866,7 @@ function renderPaletteLibraryList(gen) {
         }));
 
         if (entry.data?.type === 'cosine' && entry.data.coeffs) {
-            const loadBtn = document.createElement('button');
+            const loadBtn = createComposerButton();
             loadBtn.type = 'button';
             loadBtn.textContent = 'Load';
             loadBtn.title = 'Load these coefficients into the sliders';
@@ -2860,7 +2878,7 @@ function renderPaletteLibraryList(gen) {
             row.appendChild(loadBtn);
         }
 
-        const delBtn = document.createElement('button');
+        const delBtn = createComposerButton();
         delBtn.type = 'button';
         delBtn.textContent = 'Delete';
         delBtn.title = 'Delete this palette from the library';
@@ -2996,7 +3014,7 @@ function renderPaletteSelector() {
     wrap.appendChild(sel);
 
     if (hasEmbedded && !libMatch) {
-        const saveBtn = document.createElement('button');
+        const saveBtn = createComposerButton();
         saveBtn.type = 'button';
         saveBtn.textContent = 'Save to library…';
         saveBtn.title = 'Save this embedded palette to your library';
@@ -3124,7 +3142,7 @@ function renderTransformsSection() {
 
     const addRow = document.createElement('div'); addRow.className = 'add-row';
     const addSel = document.createElement('select');
-    const addBtn = document.createElement('button'); addBtn.textContent = 'Add';
+    const addBtn = createComposerButton(); addBtn.textContent = 'Add';
     addRow.appendChild(addSel); addRow.appendChild(addBtn);
     section.appendChild(addRow);
 
@@ -3180,10 +3198,10 @@ function renderTransformsSection() {
                 header.appendChild(enableWrap);
             }
 
-            const btnRm   = document.createElement('button'); btnRm.textContent   = '✕';
+            const btnRm   = createComposerButton(); btnRm.textContent   = '✕';
             if (!isPaletteTransform) {
-                const btnUp   = document.createElement('button'); btnUp.textContent   = '↑';
-                const btnDown = document.createElement('button'); btnDown.textContent = '↓';
+                const btnUp   = createComposerButton(); btnUp.textContent   = '↑';
+                const btnDown = createComposerButton(); btnDown.textContent = '↓';
                 btnUp.disabled = (
                     i === 0 ||
                     transformDomain(sceneStore.scene.transforms[i - 1]?.id) === 'palette'
@@ -3252,12 +3270,12 @@ function renderTransformsSection() {
                         });
                     rebuildList();
                 };
-                const cwBtn = document.createElement('button');
+                const cwBtn = createComposerButton();
                 cwBtn.type = 'button';
                 cwBtn.textContent = 'φ CW';
                 cwBtn.title = 'Golden-angle swirl, clockwise (≈137.5° twist at the rim)';
                 cwBtn.addEventListener('click', () => setFibonacciStrength(VORTEX_FIBONACCI_CW_PERMILLE));
-                const ccwBtn = document.createElement('button');
+                const ccwBtn = createComposerButton();
                 ccwBtn.type = 'button';
                 ccwBtn.textContent = 'φ CCW';
                 ccwBtn.title = 'Golden-angle swirl, counter-clockwise (≈137.5° twist at the rim)';
@@ -3333,7 +3351,7 @@ function renderTopSection() {
         reloadForDisplay(which);
     });
     dispRow.appendChild(dispSel);
-    const loadDisplayBtn = document.createElement('button');
+    const loadDisplayBtn = createComposerButton();
     loadDisplayBtn.textContent = 'Load display';
     loadDisplayBtn.title = 'Load a custom .pds display (in-place, no reload)';
     const displayIn = document.createElement('input');
@@ -3405,14 +3423,14 @@ function renderTopSection() {
     section.appendChild(brightnessRow);
 
     const ioRow = document.createElement('div'); ioRow.className = 'top-row action-row';
-    const saveBtn = document.createElement('button'); saveBtn.textContent = 'Download .psc';
-    const savePlaylistBtn = document.createElement('button'); savePlaylistBtn.textContent = 'Add to playlist';
-    const importPlaylistBtn = document.createElement('button'); importPlaylistBtn.textContent = 'Import';
-    const downloadPlaylistBtn = document.createElement('button'); downloadPlaylistBtn.textContent = 'Download playlist';
-    const replacePlaylistBtn = document.createElement('button'); replacePlaylistBtn.textContent = 'Replace playlist';
-    const clearPlaylistBtn = document.createElement('button'); clearPlaylistBtn.textContent = 'Clear playlist';
-    const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load .psc';
-    const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset renderer';
+    const saveBtn = createComposerButton(); saveBtn.textContent = 'Download .psc';
+    const savePlaylistBtn = createComposerButton(); savePlaylistBtn.textContent = 'Add to playlist';
+    const importPlaylistBtn = createComposerButton(); importPlaylistBtn.textContent = 'Import';
+    const downloadPlaylistBtn = createComposerButton(); downloadPlaylistBtn.textContent = 'Download playlist';
+    const replacePlaylistBtn = createComposerButton(); replacePlaylistBtn.textContent = 'Replace playlist';
+    const clearPlaylistBtn = createComposerButton(); clearPlaylistBtn.textContent = 'Clear playlist';
+    const loadBtn = createComposerButton(); loadBtn.textContent = 'Load .psc';
+    const resetBtn = createComposerButton(); resetBtn.textContent = 'Reset renderer';
     resetBtn.title = 'Reload the renderer from the last successfully applied scene';
     state.resetRendererBtn = resetBtn;
     if (state.workerRendererFatal) {
@@ -3584,7 +3602,7 @@ function renderTopSection() {
         { id: 'playlist', label: 'Playlist' },
         { id: 'palette-generator', label: 'Palette Generator' },
     ]) {
-        const btn = document.createElement('button');
+        const btn = createComposerButton();
         btn.type = 'button';
         btn.textContent = tab.label;
         btn.className = state.composerTab === tab.id ? 'active' : '';
@@ -3639,7 +3657,7 @@ function renderTopSection() {
             });
             targetRow.appendChild(targetSel);
         }
-        const detectBtn = document.createElement('button');
+        const detectBtn = createComposerButton();
         detectBtn.textContent = state.deployDetectBusy ? 'Detecting' : 'Detect';
         detectBtn.disabled = !state.deployApiAvailable || state.deployBusy || state.playlistBusy || state.deployDetectBusy;
         detectBtn.title = state.deployBusy
@@ -3653,7 +3671,7 @@ function renderTopSection() {
 
         const deployRow = document.createElement('div'); deployRow.className = 'top-row';
         deployRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Deploy' }));
-        const deployBtn = document.createElement('button');
+        const deployBtn = createComposerButton();
         deployBtn.textContent = state.deployBusy ? 'Deploying' : 'Deploy to MCU';
         deployBtn.disabled = !state.deployApiAvailable
             || state.deployBusy
@@ -3720,7 +3738,7 @@ function renderTopSection() {
                 textContent: `${compatiblePlaylistItems.length}/${state.playlistItems.length} compatible composition${compatiblePlaylistItems.length === 1 ? '' : 's'} ${location}${compatibilitySuffix}`,
             }));
         }
-        const refreshBtn = document.createElement('button');
+        const refreshBtn = createComposerButton();
         refreshBtn.textContent = 'Refresh';
         refreshBtn.disabled = !state.playlistApiAvailable || state.playlistBusy || state.deployBusy;
         refreshBtn.addEventListener('click', () => {
@@ -3742,7 +3760,7 @@ function renderTopSection() {
                 if (isKeyboardActive) itemClasses.push('active');
                 if (!isSupported) itemClasses.push('unsupported');
                 item.className = itemClasses.join(' ');
-                const loadSavedBtn = document.createElement('button');
+                const loadSavedBtn = createComposerButton();
                 loadSavedBtn.type = 'button';
                 loadSavedBtn.textContent = file.name;
                 loadSavedBtn.title = isSupported
@@ -3762,7 +3780,7 @@ function renderTopSection() {
                     const dirtyActions = document.createElement('div');
                     dirtyActions.className = 'playlist-dirty-actions';
 
-                    const updateBtn = document.createElement('button');
+                    const updateBtn = createComposerButton();
                     updateBtn.type = 'button';
                     updateBtn.textContent = 'Update';
                     updateBtn.title = `Overwrite ${file.name}`;
@@ -3772,7 +3790,7 @@ function renderTopSection() {
                     });
                     dirtyActions.appendChild(updateBtn);
 
-                    const saveNewBtn = document.createElement('button');
+                    const saveNewBtn = createComposerButton();
                     saveNewBtn.type = 'button';
                     saveNewBtn.textContent = 'Save as new';
                     saveNewBtn.title = `Save a new copy based on ${file.name}`;
@@ -3782,7 +3800,7 @@ function renderTopSection() {
                     });
                     dirtyActions.appendChild(saveNewBtn);
 
-                    const discardBtn = document.createElement('button');
+                    const discardBtn = createComposerButton();
                     discardBtn.type = 'button';
                     discardBtn.textContent = 'Discard';
                     discardBtn.title = `Reload ${file.name}`;
@@ -3793,7 +3811,7 @@ function renderTopSection() {
                     item.appendChild(dirtyActions);
                 }
                 if (!state.playlistLocalMode) {
-                    const deleteSavedBtn = document.createElement('button');
+                    const deleteSavedBtn = createComposerButton();
                     deleteSavedBtn.type = 'button';
                     deleteSavedBtn.textContent = '×';
                     deleteSavedBtn.className = 'playlist-delete-btn';
@@ -3918,6 +3936,10 @@ function mountPanel() {
     document.addEventListener('click', handlePlaylistDocumentClick);
     document.addEventListener('focusin', handlePlaylistDocumentFocus);
     document.addEventListener('keydown', handlePlaylistKeydown);
+    window.addEventListener('polar-webawesome-ready', () => {
+        logDebug('system', 'web awesome controls ready');
+        rebuildPanel();
+    }, { once: true });
     mountDebugConsole();
     rebuildPanel();
     void refreshPlaylistCapability({ rebuild: true });
