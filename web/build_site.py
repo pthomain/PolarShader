@@ -1197,6 +1197,9 @@ _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
         "      bloomPass.enabled = this.bloom_enabled;\n"
         "      this.composer.addPass(bloomPass);\n",
     ),
+)
+
+_THREEJS_BLOOM_TOGGLE_METHOD_REPLACEMENTS = (
     (
         "  /**\n   * Updates the bloom pass strength dynamically\n",
         "  /**\n"
@@ -1228,6 +1231,39 @@ _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
         "  /**\n   * Updates the bloom pass strength dynamically\n",
     ),
     (
+        "      /**\n       * Updates the bloom pass strength dynamically\n",
+        "      /**\n"
+        "       * Enables or disables the bloom pass at runtime (PolarShader)\n"
+        "       * @param {boolean} enabled - Whether bloom should render\n"
+        "       */\n"
+        "      setBloomEnabled(enabled) {\n"
+        "        this.bloom_enabled = !!enabled;\n"
+        "        if (this.bloom_pass) {\n"
+        "          this.bloom_pass.enabled = this.bloom_enabled;\n"
+        "        }\n"
+        "        if (!this.composer || !this.composer.passes) {\n"
+        "          return;\n"
+        "        }\n"
+        "        for (const pass of this.composer.passes) {\n"
+        "          if (pass === this.bloom_pass || (pass && pass.strength !== undefined && pass.radius !== undefined && pass.threshold !== undefined)) {\n"
+        "            pass.enabled = this.bloom_enabled;\n"
+        "          }\n"
+        "        }\n"
+        "      }\n"
+        "      /**\n"
+        "       * Scales bloom strength from the composer brightness slider (PolarShader)\n"
+        "       * @param {number} multiplier - Multiplier applied to dynamic bloom strength\n"
+        "       */\n"
+        "      setBloomStrengthMultiplier(multiplier) {\n"
+        "        this.bloom_strength_multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;\n"
+        "        this._updateBloomStrength(this.bloom_strength_base);\n"
+        "      }\n"
+        "      /**\n       * Updates the bloom pass strength dynamically\n",
+    ),
+)
+
+_THREEJS_BLOOM_TOGGLE_STRENGTH_REPLACEMENTS = (
+    (
         "  _updateBloomStrength(strength) {\n"
         "    if (!this.composer || !this.composer.passes) {\n"
         "      return;\n"
@@ -1241,19 +1277,48 @@ _THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
         "    }\n",
     ),
     (
+        "      _updateBloomStrength(strength) {\n"
+        "        if (!this.composer || !this.composer.passes) {\n"
+        "          return;\n"
+        "        }\n",
+        "      _updateBloomStrength(strength) {\n"
+        "        this.bloom_strength_base = strength;\n"
+        "        const scaledStrength = strength * this.bloom_strength_multiplier;\n"
+        "        if (!this.composer || !this.composer.passes) {\n"
+        "          this.bloom_stength = scaledStrength;\n"
+        "          return;\n"
+        "        }\n",
+    ),
+)
+
+_THREEJS_BLOOM_TOGGLE_PASS_STRENGTH_REPLACEMENTS = (
+    (
         "        pass.strength = strength;\n"
         "        this.bloom_stength = strength;\n",
         "        pass.strength = scaledStrength;\n"
         "        this.bloom_stength = scaledStrength;\n",
     ),
+    (
+        "            pass.strength = strength;\n"
+        "            this.bloom_stength = strength;\n",
+        "            pass.strength = scaledStrength;\n"
+        "            this.bloom_stength = scaledStrength;\n",
+    ),
 )
+
+
+def replace_first_available(text: str, path: Path, replacements: tuple[tuple[str, str], ...], label: str) -> str:
+    for old, new in replacements:
+        if old in text:
+            return text.replace(old, new, 1)
+    raise RuntimeError(f"Cannot patch bloom toggle in {path}: expected {label} snippet not found")
 
 
 def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
     """Add a runtime setBloomEnabled() switch to the ThreeJS graphics manager."""
     for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
-        if "setBloomEnabled(enabled)" in text:
+        if "this.bloom_pass = null;" in text and "this.bloom_pass = bloomPass;" in text:
             continue
         for old, new in _THREEJS_BLOOM_TOGGLE_REPLACEMENTS:
             if old not in text:
@@ -1261,6 +1326,9 @@ def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
                     f"Cannot patch bloom toggle in {path}: expected snippet not found: {old.strip()}"
                 )
             text = text.replace(old, new, 1)
+        text = replace_first_available(text, path, _THREEJS_BLOOM_TOGGLE_METHOD_REPLACEMENTS, "method anchor")
+        text = replace_first_available(text, path, _THREEJS_BLOOM_TOGGLE_STRENGTH_REPLACEMENTS, "strength method")
+        text = replace_first_available(text, path, _THREEJS_BLOOM_TOGGLE_PASS_STRENGTH_REPLACEMENTS, "pass strength")
         path.write_text(text, encoding="utf-8")
 
 
