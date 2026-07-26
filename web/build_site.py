@@ -1338,16 +1338,12 @@ _THREEJS_LED_MATERIAL_HELPER_ANCHOR = (
 )
 _THREEJS_LED_MATERIAL_HELPER = (
     "  /**\n"
-    "   * Creates the LED material. Sparse screen maps use a radial alpha falloff\n"
-    "   * so neighbouring pixels blend instead of drawing as hard overlapping discs.\n"
+    "   * Creates the LED material. All screen maps use the sparse radial alpha\n"
+    "   * falloff so matrix and non-matrix displays share one preview style.\n"
     "   * @private\n"
     "   */\n"
     "  _createLedMaterial(isDenseScreenMap, color, useVertexColors = false) {\n"
     "    const { THREE } = this.threeJsModules;\n"
-    "    if (isDenseScreenMap) {\n"
-    "      return new THREE.MeshBasicMaterial({ color, vertexColors: useVertexColors });\n"
-    "    }\n"
-    "\n"
     "    const uniforms = { diffuse: { value: new THREE.Color(color) } };\n"
     "    const vertexColorVarying = useVertexColors ? \"varying vec3 vColor;\\n\" : \"\";\n"
     "    const vertexColorAssign = useVertexColors ? \"      vColor = color;\\n\" : \"\";\n"
@@ -1387,15 +1383,25 @@ _THREEJS_CAN_MERGE_REPLACEMENTS = (
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
         "    if (!canMergeGeometries) {\n",
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && true;\n"
-        "    const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        "    const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
         "    if (!canMergeGeometries) {\n",
     ),
     (
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;\n"
         "    if (!canMergeGeometries) {\n",
         "    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;\n"
-        "    const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        "    const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
         "    if (!canMergeGeometries) {\n",
+    ),
+)
+_THREEJS_VISUAL_RADIUS_REPLACEMENTS = (
+    (
+        "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;\n",
+        "        const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+    ),
+    (
+        "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+        "        const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
     ),
 )
 
@@ -1451,6 +1457,29 @@ def insert_led_material_helper(text: str, path: Path) -> str:
     return text.replace(anchor, helper, 1)
 
 
+def remove_dense_led_material_branch(text: str) -> str:
+    text = text.replace(
+        "   * Creates the LED material. Sparse screen maps use a radial alpha falloff\n"
+        "   * so neighbouring pixels blend instead of drawing as hard overlapping discs.\n",
+        "   * Creates the LED material. All screen maps use the sparse radial alpha\n"
+        "   * falloff so matrix and non-matrix displays share one preview style.\n",
+    )
+    text = re.sub(
+        r"(?m)^([ \t]*\* )Creates the LED material\. Sparse screen maps use a radial alpha falloff\n"
+        r"\1so neighbouring pixels blend instead of drawing as hard overlapping discs\.\n",
+        r"\1Creates the LED material. All screen maps use the sparse radial alpha\n"
+        r"\1falloff so matrix and non-matrix displays share one preview style.\n",
+        text,
+        count=1,
+    )
+    return re.sub(
+        r"(?m)^[ \t]*if \(isDenseScreenMap\) \{\n[ \t]*return new THREE\.MeshBasicMaterial\(\{ color, vertexColors: useVertexColors \}\);\n[ \t]*\}\n[ \t]*\n",
+        "",
+        text,
+        count=1,
+    )
+
+
 def insert_sparse_led_scale(text: str, path: Path) -> str:
     if "this.SPARSE_LED_SCALE = 1.5;" in text:
         return text
@@ -1471,9 +1500,36 @@ def insert_sparse_led_scale(text: str, path: Path) -> str:
     return text[:match.start()] + replacement + text[match.end():]
 
 
-def insert_led_scale_local(text: str, path: Path) -> str:
-    if "const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;" in text:
+def force_sparse_led_rendering(text: str, path: Path) -> str:
+    if "isDenseScreenMap = false;" in text:
         return text
+    match = re.search(
+        r"(?m)^(\s*)const \{ defaultDotSize, normalizedScale \} = this\._calculateDotSizes\(\n",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: dot size calculation"
+        )
+    indent = match.group(1)
+    insertion = (
+        f"{indent}// PolarShader: use the sparse LED drawing path for every display type.\n"
+        f"{indent}isDenseScreenMap = false;\n"
+    )
+    return text[:match.start()] + insertion + text[match.start():]
+
+
+def insert_led_scale_local(text: str, path: Path) -> str:
+    desired = "const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;"
+    if desired in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)const ledScale = isDenseScreenMap \? this\.LED_SCALE : this\.LED_SCALE \* this\.SPARSE_LED_SCALE;\n",
+        text,
+    )
+    if match is not None:
+        indent = match.group(1)
+        return text[:match.start()] + f"{indent}{desired}\n" + text[match.end():]
     match = re.search(
         r"(?m)^(\s*)const canMergeGeometries = this\.useMergedGeometry && BufferGeometryUtils && (?:true|!DISABLE_MERGE_GEOMETRIES);\n\1if \(!canMergeGeometries\) \{\n",
         text,
@@ -1483,14 +1539,14 @@ def insert_led_scale_local(text: str, path: Path) -> str:
             text,
             path,
             _THREEJS_CAN_MERGE_REPLACEMENTS,
-            "const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;",
+            desired,
             "canMergeGeometries initialization",
         )
         return text
     indent = match.group(1)
     replacement = match.group(0).replace(
         f"{indent}if (!canMergeGeometries) {{\n",
-        f"{indent}const ledScale = isDenseScreenMap ? this.LED_SCALE : this.LED_SCALE * this.SPARSE_LED_SCALE;\n"
+        f"{indent}{desired}\n"
         f"{indent}if (!canMergeGeometries) {{\n",
     )
     return text[:match.start()] + replacement + text[match.end():]
@@ -1514,17 +1570,19 @@ def replace_merged_led_material(text: str, path: Path) -> str:
 
 
 def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
-    """Render sparse FastLED screen-map LEDs with radial alpha falloff."""
+    """Render FastLED screen-map LEDs with the sparse radial alpha style."""
     for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
         if "_createLedMaterial(isDenseScreenMap" not in text:
             text = insert_led_material_helper(text, path)
+        text = remove_dense_led_material_branch(text)
         text = insert_sparse_led_scale(text, path)
-        text = replace_or_fail(
+        text = force_sparse_led_rendering(text, path)
+        text = replace_first_variant(
             text,
             path,
-            "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;\n",
-            "        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;\n",
+            _THREEJS_VISUAL_RADIUS_REPLACEMENTS,
+            "const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;",
             "visual radius calculation",
         )
         text = insert_led_scale_local(text, path)

@@ -68,6 +68,67 @@ class BuildSitePatchTest(unittest.TestCase):
       }
       }
 """
+    LED_RENDERING_SNIPPET = """class GraphicsManagerThreeJS {
+  constructor() {
+    this.LED_SCALE = 1;
+    this.SCREEN_WIDTH = 0;
+  }
+  createGrid(frameData) {
+    let isDenseScreenMap = true;
+    for (const screenMap of Object.values(this.screenMaps)) {
+      if (!isDenseGrid(screenMap)) {
+        isDenseScreenMap = false;
+        break;
+      }
+    }
+    const { defaultDotSize, normalizedScale } = this._calculateDotSizes(
+      frameData,
+      ledPositions,
+      width,
+      height,
+      calcXPosition,
+      isDenseScreenMap
+    );
+    let maxLedVisualRadius = 0;
+    for (const strip of Object.values(screenMap.strips)) {
+        const visualRadius = isDenseScreenMap ? diameter * this.LED_SCALE / 2 : diameter * this.LED_SCALE;
+        maxLedVisualRadius = Math.max(maxLedVisualRadius, visualRadius);
+    }
+    return { isDenseScreenMap, maxLedVisualRadius };
+  }
+  /**
+   * Creates the LED material. Sparse screen maps use a radial alpha falloff
+   * so neighbouring pixels blend instead of drawing as hard overlapping discs.
+   * @private
+   */
+  _createLedMaterial(isDenseScreenMap, color, useVertexColors = false) {
+    const { THREE } = this.threeJsModules;
+    if (isDenseScreenMap) {
+      return new THREE.MeshBasicMaterial({ color, vertexColors: useVertexColors });
+    }
+
+    const material = new THREE.ShaderMaterial({
+      vertexColors: useVertexColors
+    });
+    return material;
+  }
+  /**
+   * Creates LED objects for each pixel in the frame data
+   * @private
+   */
+  _createLedObjects(frameData, calcXPosition, calcYPosition, isDenseScreenMap, defaultDotSize, normalizedScale) {
+    const canMergeGeometries = this.useMergedGeometry && BufferGeometryUtils && !DISABLE_MERGE_GEOMETRIES;
+    if (!canMergeGeometries) {
+      let ignored = stripDiameter * this.LED_SCALE;
+          const material = new THREE.MeshBasicMaterial({ color: 0 });
+    }
+        const material = new THREE.MeshBasicMaterial({
+          color: 16777215,
+          vertexColors: true
+        });
+  }
+}
+"""
 
     def test_bloom_strength_patch_uses_reduced_glow_constants(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -122,6 +183,28 @@ function handleComposerSetBloom(enabled) {
             self.assertIn("gm.setBloomEnabled(enabled);", patched)
             self.assertIn("this.bloom_pass = null;", patched)
             self.assertIn("this.bloom_pass = bloomPass;", patched)
+
+    def test_led_gradient_patch_uses_sparse_rendering_for_all_displays(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            assets = dist / "assets"
+            assets.mkdir()
+            graphics = assets / "graphics_manager_threejs-test.js"
+            graphics.write_text(self.LED_RENDERING_SNIPPET, encoding="utf-8")
+
+            build_site.patch_threejs_led_gradient(dist)
+
+            patched = graphics.read_text(encoding="utf-8")
+            self.assertIn("isDenseScreenMap = false;", patched)
+            self.assertIn("const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;", patched)
+            self.assertIn(
+                "const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;",
+                patched,
+            )
+            self.assertIn("new THREE.ShaderMaterial", patched)
+            self.assertNotIn("return new THREE.MeshBasicMaterial({ color, vertexColors: useVertexColors });", patched)
+            self.assertIn("All screen maps use the sparse radial alpha", patched)
+            self.assertIn("const material = this._createLedMaterial(isDenseScreenMap, 16777215, true);", patched)
 
 
 if __name__ == "__main__":
