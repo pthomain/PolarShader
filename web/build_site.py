@@ -1267,12 +1267,11 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "   */\n"
     "  _createLedMaterial(isDenseScreenMap, color, useVertexColors = false) {\n"
     "    const { THREE } = this.threeJsModules;\n"
-    "    const coreRadius = this._ledCoreRadius();\n"
-    "    const diffusionRadius = this._ledDiffusionRadius();\n"
     "    const uniforms = {\n"
     "      diffuse: { value: new THREE.Color(color) },\n"
-    "      coreRadius: { value: coreRadius },\n"
-    "      diffusionRadius: { value: diffusionRadius }\n"
+    "      coreScale: { value: this.LED_CORE_SCALE },\n"
+    "      haloScale: { value: this.LED_DIFFUSION_SCALE },\n"
+    "      maxHaloScale: { value: this.LED_HALO_MAX_SCALE }\n"
     "    };\n"
     "    const vertexColorVarying = useVertexColors ? \"varying vec3 vColor;\\n\" : \"\";\n"
     "    const vertexColorAssign = useVertexColors ? \"      vColor = color;\\n\" : \"\";\n"
@@ -1293,13 +1292,18 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "      `,\n"
     "      fragmentShader: `\n"
     "        uniform vec3 diffuse;\n"
-    "        uniform float coreRadius;\n"
-    "        uniform float diffusionRadius;\n"
+    "        uniform float coreScale;\n"
+    "        uniform float haloScale;\n"
+    "        uniform float maxHaloScale;\n"
     "        varying vec2 vUv;\n"
     "        ${vertexColorVarying}\n"
     "        void main() {\n"
     "          float radius = length((vUv - vec2(0.5)) * 2.0);\n"
-    "          float alpha = 1.0 - smoothstep(coreRadius, diffusionRadius, radius);\n"
+    "          float physicalRadius = radius * maxHaloScale;\n"
+    "          float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);\n"
+    "          float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
+    "          float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
+    "          float alpha = max(coreAlpha, haloAlpha);\n"
     "          gl_FragColor = vec4(${fragmentColor}, alpha);\n"
     "        }\n"
     "      `\n"
@@ -1312,7 +1316,7 @@ _THREEJS_LED_MATERIAL_HELPER = (
 _THREEJS_LED_DIFFUSION_SETTER = (
     "  /**\n"
     "   * Updates LED diffusion/halo spread without changing LED geometry size.\n"
-    "   * @param {number} scale - Absolute halo falloff scale\n"
+    "   * @param {number} scale - Absolute halo diameter scale\n"
     "   */\n"
     "  setLedDiffusionScale(scale) {\n"
     "    const rawScale = Number.isFinite(scale) && scale > 0 ? scale : this.LED_HALO_MAX_SCALE;\n"
@@ -1323,19 +1327,12 @@ _THREEJS_LED_DIFFUSION_SETTER = (
     "    this.LED_DIFFUSION_SCALE = nextScale;\n"
     "    this._updateLedDiffusionUniforms();\n"
     "  }\n"
-    "  _ledCoreRadius() {\n"
-    "    return Math.min(0.98, Math.max(0.01, this.LED_CORE_SCALE / this.LED_HALO_MAX_SCALE));\n"
-    "  }\n"
-    "  _ledDiffusionRadius() {\n"
-    "    return Math.min(1, Math.max(this._ledCoreRadius() + 0.001, this.LED_DIFFUSION_SCALE / this.LED_HALO_MAX_SCALE));\n"
-    "  }\n"
     "  _updateLedDiffusionUniforms() {\n"
-    "    const coreRadius = this._ledCoreRadius();\n"
-    "    const diffusionRadius = this._ledDiffusionRadius();\n"
     "    const updateMaterial = (material) => {\n"
-    "      if (!material || !material.uniforms || !material.uniforms.coreRadius || !material.uniforms.diffusionRadius) return;\n"
-    "      material.uniforms.coreRadius.value = coreRadius;\n"
-    "      material.uniforms.diffusionRadius.value = diffusionRadius;\n"
+    "      if (!material || !material.uniforms || !material.uniforms.haloScale) return;\n"
+    "      material.uniforms.coreScale.value = this.LED_CORE_SCALE;\n"
+    "      material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;\n"
+    "      material.uniforms.maxHaloScale.value = this.LED_HALO_MAX_SCALE;\n"
     "    };\n"
     "    for (const led of this.leds || []) {\n"
     "      if (!led._isMerged) updateMaterial(led.material);\n"
@@ -1442,43 +1439,88 @@ def insert_led_material_helper(text: str, path: Path) -> str:
 
 
 def apply_led_material_diffusion_uniforms(text: str, path: Path) -> str:
-    if "uniform float coreRadius;" in text and "uniform float diffusionRadius;" in text:
+    if "uniform float haloScale;" in text and "uniform float maxHaloScale;" in text:
         return text
-    text, count = re.subn(
-        r"(?m)^(\s*)const uniforms = \{ diffuse: \{ value: new THREE\.Color\(color\) \} \};\n",
-        r"\1const coreRadius = this._ledCoreRadius();\n"
-        r"\1const diffusionRadius = this._ledDiffusionRadius();\n"
+    uniform_replacement = (
         r"\1const uniforms = {\n"
         r"\1  diffuse: { value: new THREE.Color(color) },\n"
-        r"\1  coreRadius: { value: coreRadius },\n"
-        r"\1  diffusionRadius: { value: diffusionRadius }\n"
-        r"\1};\n",
+        r"\1  coreScale: { value: this.LED_CORE_SCALE },\n"
+        r"\1  haloScale: { value: this.LED_DIFFUSION_SCALE },\n"
+        r"\1  maxHaloScale: { value: this.LED_HALO_MAX_SCALE }\n"
+        r"\1};\n"
+    )
+    text, count = re.subn(
+        r"(?m)^(\s*)const coreRadius = this\._ledCoreRadius\(\);\n"
+        r"\1const diffusionRadius = this\._ledDiffusionRadius\(\);\n"
+        r"\1const uniforms = \{\n"
+        r"\1  diffuse: \{ value: new THREE\.Color\(color\) \},\n"
+        r"\1  coreRadius: \{ value: coreRadius \},\n"
+        r"\1  diffusionRadius: \{ value: diffusionRadius \}\n"
+        r"\1\};\n",
+        uniform_replacement,
         text,
         count=1,
     )
+    if not count:
+        text, count = re.subn(
+            r"(?m)^(\s*)const uniforms = \{ diffuse: \{ value: new THREE\.Color\(color\) \} \};\n",
+            uniform_replacement,
+            text,
+            count=1,
+        )
     if not count:
         raise RuntimeError(
             f"Cannot patch LED gradient in {path}: expected snippet not found: LED material uniforms"
         )
     text, count = re.subn(
-        r"(?m)^(\s*)uniform vec3 diffuse;\n\1varying vec2 vUv;\n",
-        r"\1uniform vec3 diffuse;\n"
+        r"(?m)^(\s*)uniform vec3 diffuse;\n"
         r"\1uniform float coreRadius;\n"
         r"\1uniform float diffusionRadius;\n"
+        r"\1varying vec2 vUv;\n",
+        r"\1uniform vec3 diffuse;\n"
+        r"\1uniform float coreScale;\n"
+        r"\1uniform float haloScale;\n"
+        r"\1uniform float maxHaloScale;\n"
         r"\1varying vec2 vUv;\n",
         text,
         count=1,
     )
     if not count:
+        text, count = re.subn(
+            r"(?m)^(\s*)uniform vec3 diffuse;\n\1varying vec2 vUv;\n",
+            r"\1uniform vec3 diffuse;\n"
+            r"\1uniform float coreScale;\n"
+            r"\1uniform float haloScale;\n"
+            r"\1uniform float maxHaloScale;\n"
+            r"\1varying vec2 vUv;\n",
+            text,
+            count=1,
+        )
+    if not count:
         raise RuntimeError(
             f"Cannot patch LED gradient in {path}: expected snippet not found: LED material shader uniforms"
         )
     text, count = re.subn(
-        r"(?m)^(\s*)float alpha = clamp\(1\.0 - radius, 0\.0, 1\.0\);",
-        r"\1float alpha = 1.0 - smoothstep(coreRadius, diffusionRadius, radius);",
+        r"(?m)^(\s*)float alpha = 1\.0 - smoothstep\(coreRadius, diffusionRadius, radius\);",
+        r"\1float physicalRadius = radius * maxHaloScale;\n"
+        r"\1float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);\n"
+        r"\1float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
+        r"\1float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
+        r"\1float alpha = max(coreAlpha, haloAlpha);",
         text,
         count=1,
     )
+    if not count:
+        text, count = re.subn(
+            r"(?m)^(\s*)float alpha = clamp\(1\.0 - radius, 0\.0, 1\.0\);",
+            r"\1float physicalRadius = radius * maxHaloScale;\n"
+            r"\1float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);\n"
+            r"\1float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
+            r"\1float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
+            r"\1float alpha = max(coreAlpha, haloAlpha);",
+            text,
+            count=1,
+        )
     if not count:
         raise RuntimeError(
             f"Cannot patch LED gradient in {path}: expected snippet not found: LED material alpha falloff"
@@ -1487,8 +1529,18 @@ def apply_led_material_diffusion_uniforms(text: str, path: Path) -> str:
 
 
 def replace_led_diffusion_setter(text: str, path: Path) -> str:
-    if "_updateLedDiffusionUniforms()" in text:
+    if "material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;" in text:
         return text
+    match = re.search(
+        r"(?ms)^(\s*)/\*\*\n"
+        r"\1 \* Updates LED diffusion/halo .*?"
+        r"(?=^\1/\*\*\n\1 \* Scales a web-preview LED color channel)",
+        text,
+    )
+    if match is not None:
+        indent = match.group(1)
+        setter = reindent_js_block(_THREEJS_LED_DIFFUSION_SETTER, indent)
+        return text[:match.start()] + setter + text[match.end():]
     match = re.search(
         r"(?m)^(\s*)/\*\*\n"
         r"\1 \* Updates LED diffusion/halo scale and rebuilds geometry on the next frame\.\n"
@@ -1514,7 +1566,7 @@ def insert_led_visuals_helper(text: str, path: Path) -> str:
         text,
     )
     if "_scalePreviewLedChannel(value)" in text:
-        if "_updateLedDiffusionUniforms()" in text:
+        if "material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;" in text:
             return text
         if "setLedDiffusionScale(scale)" in text:
             return replace_led_diffusion_setter(text, path).replace(
