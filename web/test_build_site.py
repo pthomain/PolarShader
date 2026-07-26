@@ -158,12 +158,26 @@ function createGraphicsManager() {
             self.assertIn("uniform float coreScale;", patched)
             self.assertIn("uniform float haloScale;", patched)
             self.assertIn("uniform float maxHaloScale;", patched)
+            self.assertIn("extensions: { derivatives: true }", patched)
             self.assertIn("float physicalRadius = radius * maxHaloScale;", patched)
+            self.assertIn("float diffusionRange = max(maxHaloScale - coreScale, 0.0001);", patched)
+            self.assertIn(
+                "float diffusionAmount = clamp((haloScale - coreScale) / diffusionRange, 0.0, 1.0);",
+                patched,
+            )
+            self.assertIn("float antialiasWidth = fwidth(physicalRadius);", patched)
+            self.assertIn("float diffusionBlurWidth = coreScale * 0.45 * diffusionAmount;", patched)
+            self.assertIn("float coreEdgeWidth = max(antialiasWidth, diffusionBlurWidth);", patched)
+            self.assertIn(
+                "float coreAlpha = 1.0 - smoothstep(coreScale - coreEdgeWidth, coreScale + coreEdgeWidth, physicalRadius);",
+                patched,
+            )
             self.assertIn("float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;", patched)
             self.assertIn("float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);", patched)
             self.assertIn("float alpha = max(coreAlpha, haloAlpha);", patched)
             self.assertIn("material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;", patched)
             self.assertNotIn("smoothstep(coreRadius, diffusionRadius, radius)", patched)
+            self.assertNotIn("smoothstep(coreScale, coreScale + 0.001, physicalRadius)", patched)
             self.assertIn("_scalePreviewLedChannel(value)", patched)
             self.assertIn("const ledScale = this.LED_SCALE * this.LED_HALO_MAX_SCALE;", patched)
             self.assertIn(
@@ -192,6 +206,41 @@ function createGraphicsManager() {
 
         self.assertIn("    this.LED_CORE_SCALE = 0.5;\n", patched)
         self.assertNotIn("this.LED_CORE_SCALE = 1;", patched)
+
+    def test_led_core_alpha_patch_updates_existing_shader(self) -> None:
+        text = """
+  _createLedMaterial(isDenseScreenMap, color, useVertexColors = false) {
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      vertexShader: `
+        void main() {
+          float radius = length((vUv - vec2(0.5)) * 2.0);
+          float physicalRadius = radius * maxHaloScale;
+          float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);
+          float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;
+          float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);
+          float alpha = max(coreAlpha, haloAlpha);
+        }
+      `
+    });
+  }
+"""
+
+        patched = build_site.replace_led_core_alpha_blur(text, Path("graphics.js"))
+        patched = build_site.ensure_led_material_derivatives_extension(patched, Path("graphics.js"))
+
+        self.assertIn("extensions: { derivatives: true }", patched)
+        self.assertIn("float antialiasWidth = fwidth(physicalRadius);", patched)
+        self.assertIn("float diffusionBlurWidth = coreScale * 0.45 * diffusionAmount;", patched)
+        self.assertIn(
+            "float coreAlpha = 1.0 - smoothstep(coreScale - coreEdgeWidth, coreScale + coreEdgeWidth, physicalRadius);",
+            patched,
+        )
+        self.assertIn("float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;", patched)
+        self.assertIn("float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);", patched)
+        self.assertNotIn("smoothstep(coreScale, coreScale + 0.001, physicalRadius)", patched)
 
     def test_generated_bloom_controls_are_removed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

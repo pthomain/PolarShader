@@ -1281,6 +1281,7 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "      vertexColors: useVertexColors,\n"
     "      transparent: true,\n"
     "      depthWrite: false,\n"
+    "      extensions: { derivatives: true },\n"
     "      vertexShader: `\n"
     "        varying vec2 vUv;\n"
     "        ${vertexColorVarying}\n"
@@ -1300,7 +1301,12 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "        void main() {\n"
     "          float radius = length((vUv - vec2(0.5)) * 2.0);\n"
     "          float physicalRadius = radius * maxHaloScale;\n"
-    "          float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);\n"
+    "          float diffusionRange = max(maxHaloScale - coreScale, 0.0001);\n"
+    "          float diffusionAmount = clamp((haloScale - coreScale) / diffusionRange, 0.0, 1.0);\n"
+    "          float antialiasWidth = fwidth(physicalRadius);\n"
+    "          float diffusionBlurWidth = coreScale * 0.45 * diffusionAmount;\n"
+    "          float coreEdgeWidth = max(antialiasWidth, diffusionBlurWidth);\n"
+    "          float coreAlpha = 1.0 - smoothstep(coreScale - coreEdgeWidth, coreScale + coreEdgeWidth, physicalRadius);\n"
     "          float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
     "          float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
     "          float alpha = max(coreAlpha, haloAlpha);\n"
@@ -1438,9 +1444,85 @@ def insert_led_material_helper(text: str, path: Path) -> str:
     return text.replace(anchor, helper, 1)
 
 
+def replace_led_core_alpha_blur(text: str, path: Path) -> str:
+    if "float diffusionBlurWidth = coreScale * 0.45 * diffusionAmount;" in text:
+        return text
+    replacement = (
+        r"\1float physicalRadius = radius * maxHaloScale;\n"
+        r"\1float diffusionRange = max(maxHaloScale - coreScale, 0.0001);\n"
+        r"\1float diffusionAmount = clamp((haloScale - coreScale) / diffusionRange, 0.0, 1.0);\n"
+        r"\1float antialiasWidth = fwidth(physicalRadius);\n"
+        r"\1float diffusionBlurWidth = coreScale * 0.45 * diffusionAmount;\n"
+        r"\1float coreEdgeWidth = max(antialiasWidth, diffusionBlurWidth);\n"
+        r"\1float coreAlpha = 1.0 - smoothstep(coreScale - coreEdgeWidth, coreScale + coreEdgeWidth, physicalRadius);\n"
+        r"\1float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
+        r"\1float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
+        r"\1float alpha = max(coreAlpha, haloAlpha);"
+    )
+    replacements = (
+        (
+            r"(?m)^(\s*)float physicalRadius = radius \* maxHaloScale;\n"
+            r"\1float coreAlpha = 1\.0 - smoothstep\(coreScale, coreScale \+ 0\.001, physicalRadius\);\n"
+            r"\1float haloUnit = haloScale > 0\.0 \? physicalRadius / haloScale : 1\.0;\n"
+            r"\1float haloAlpha = clamp\(1\.0 - haloUnit, 0\.0, 1\.0\);\n"
+            r"\1float alpha = max\(coreAlpha, haloAlpha\);",
+            replacement,
+        ),
+        (
+            r"(?m)^(\s*)float alpha = 1\.0 - smoothstep\(coreRadius, diffusionRadius, radius\);",
+            replacement,
+        ),
+        (
+            r"(?m)^(\s*)float alpha = clamp\(1\.0 - radius, 0\.0, 1\.0\);",
+            replacement,
+        ),
+    )
+    for old, new in replacements:
+        text, count = re.subn(old, new, text, count=1)
+        if count:
+            return text
+    raise RuntimeError(
+        f"Cannot patch LED gradient in {path}: expected snippet not found: LED material alpha falloff"
+    )
+
+
+def ensure_led_material_derivatives_extension(text: str, path: Path) -> str:
+    if "float antialiasWidth = fwidth(physicalRadius);" not in text:
+        return text
+    if "extensions: { derivatives: true }" in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)_createLedMaterial\(isDenseScreenMap, color, useVertexColors = false\) \{",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: material helper anchor not found."
+        )
+    start = match.start()
+    extension_match = None
+    for pattern in (
+        r"(?m)^(\s*)depthWrite: false,\n",
+        r"(?m)^(\s*)vertexColors: useVertexColors,\n",
+        r"(?m)^(\s*)uniforms,\n",
+    ):
+        extension_match = re.search(pattern, text[start:])
+        if extension_match is not None:
+            break
+    if extension_match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: LED material options"
+        )
+    indent = extension_match.group(1)
+    insertion = f"{indent}extensions: {{ derivatives: true }},\n"
+    absolute_start = start + extension_match.end()
+    return text[:absolute_start] + insertion + text[absolute_start:]
+
+
 def apply_led_material_diffusion_uniforms(text: str, path: Path) -> str:
     if "uniform float haloScale;" in text and "uniform float maxHaloScale;" in text:
-        return text
+        text = replace_led_core_alpha_blur(text, path)
+        return ensure_led_material_derivatives_extension(text, path)
     uniform_replacement = (
         r"\1const uniforms = {\n"
         r"\1  diffuse: { value: new THREE.Color(color) },\n"
@@ -1500,32 +1582,8 @@ def apply_led_material_diffusion_uniforms(text: str, path: Path) -> str:
         raise RuntimeError(
             f"Cannot patch LED gradient in {path}: expected snippet not found: LED material shader uniforms"
         )
-    text, count = re.subn(
-        r"(?m)^(\s*)float alpha = 1\.0 - smoothstep\(coreRadius, diffusionRadius, radius\);",
-        r"\1float physicalRadius = radius * maxHaloScale;\n"
-        r"\1float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);\n"
-        r"\1float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
-        r"\1float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
-        r"\1float alpha = max(coreAlpha, haloAlpha);",
-        text,
-        count=1,
-    )
-    if not count:
-        text, count = re.subn(
-            r"(?m)^(\s*)float alpha = clamp\(1\.0 - radius, 0\.0, 1\.0\);",
-            r"\1float physicalRadius = radius * maxHaloScale;\n"
-            r"\1float coreAlpha = 1.0 - smoothstep(coreScale, coreScale + 0.001, physicalRadius);\n"
-            r"\1float haloUnit = haloScale > 0.0 ? physicalRadius / haloScale : 1.0;\n"
-            r"\1float haloAlpha = clamp(1.0 - haloUnit, 0.0, 1.0);\n"
-            r"\1float alpha = max(coreAlpha, haloAlpha);",
-            text,
-            count=1,
-        )
-    if not count:
-        raise RuntimeError(
-            f"Cannot patch LED gradient in {path}: expected snippet not found: LED material alpha falloff"
-        )
-    return text
+    text = replace_led_core_alpha_blur(text, path)
+    return ensure_led_material_derivatives_extension(text, path)
 
 
 def replace_led_diffusion_setter(text: str, path: Path) -> str:
