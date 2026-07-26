@@ -734,7 +734,7 @@ _WORKER_GM_INIT_INJECT = (
     "    if (workerState.graphicsManager) {\n"
     "      if (workerState.composerDiffusionScale !== undefined"
     ' && typeof workerState.graphicsManager.setLedDiffusionScale === "function") {\n'
-    "        workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale, workerState.composerDiffusionMaxScale);\n"
+    "        workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);\n"
     "      }\n"
     "    }\n"
     + _WORKER_GM_INIT_ANCHOR
@@ -750,27 +750,19 @@ _WORKER_DIFFUSION_HANDLER = """
 // alpha falloff updates in place.
 function handleComposerSetDiffusion(payload) {
   const rawScale = payload && typeof payload.scale === "number" ? payload.scale : 2.25;
-  const rawMaxScale = payload && typeof payload.maxScale === "number" ? payload.maxScale : 2.25;
   const scale = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 2.25;
-  const maxScale = Number.isFinite(rawMaxScale) && rawMaxScale > 0 ? rawMaxScale : 2.25;
   workerState.composerDiffusionScale = scale;
-  workerState.composerDiffusionMaxScale = maxScale;
   const gm = workerState.graphicsManager;
-  if (!gm) return { ok: true, scale, maxScale, deferred: true };
+  if (!gm) return { ok: true, scale, deferred: true };
   if (typeof gm.setLedDiffusionScale === "function") {
-    gm.setLedDiffusionScale(scale, maxScale);
+    gm.setLedDiffusionScale(scale);
   } else {
-    const previousMaxScale = gm.LED_HALO_MAX_SCALE;
-    gm.LED_HALO_MAX_SCALE = maxScale;
     gm.LED_DIFFUSION_SCALE = scale;
-    if (Math.abs(previousMaxScale - maxScale) > 0.0001) {
-      gm.needsRebuild = true;
-    }
     if (typeof gm._updateLedDiffusionUniforms === "function") {
       gm._updateLedDiffusionUniforms();
     }
   }
-  return { ok: true, scale, maxScale };
+  return { ok: true, scale };
 }
 """
 _WORKER_HANDLER = """
@@ -1089,22 +1081,6 @@ def remove_composer_bloom_worker_bridge(text: str) -> str:
 
 
 def upgrade_composer_diffusion_worker_handler(text: str) -> str:
-    if (
-        "function handleComposerSetDiffusion(payload)" in text
-        and "workerState.composerDiffusionMaxScale = maxScale;" not in text
-    ):
-        text, count = re.subn(
-            r"(?ms)^// Injected by PolarShader build_site\.py \(patch_render_worker\): adjust the\n"
-            r"// renderer LED diffusion/halo .*?\n"
-            r"function handleComposerSetDiffusion\(payload\) \{.*?^}\n",
-            _WORKER_DIFFUSION_HANDLER.lstrip(),
-            text,
-            count=1,
-        )
-        if not count:
-            raise RuntimeError(
-                "Cannot patch render worker: existing diffusion handler has an unexpected shape."
-            )
     text = text.replace(
         "// Injected by PolarShader build_site.py (patch_render_worker): adjust the\n"
         "// renderer LED diffusion/halo scale. The graphics manager rebuilds LED geometry\n"
@@ -1125,10 +1101,6 @@ def upgrade_composer_diffusion_worker_handler(text: str) -> str:
         "    }\n"
         "  }\n",
         1,
-    )
-    text = text.replace(
-        "workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);",
-        "workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale, workerState.composerDiffusionMaxScale);",
     )
     return text
 
@@ -1349,25 +1321,16 @@ _THREEJS_LED_MATERIAL_HELPER = (
 )
 _THREEJS_LED_DIFFUSION_SETTER = (
     "  /**\n"
-    "   * Updates LED diffusion/halo spread and rebuilds geometry when max scale changes.\n"
+    "   * Updates LED diffusion/halo spread without changing LED geometry size.\n"
     "   * @param {number} scale - Absolute halo diameter scale\n"
-    "   * @param {number} maxScale - Maximum halo diameter scale reserved by LED geometry\n"
     "   */\n"
-    "  setLedDiffusionScale(scale, maxScale = this.LED_HALO_MAX_SCALE) {\n"
-    "    const rawMaxScale = Number.isFinite(maxScale) && maxScale > 0 ? maxScale : this.LED_HALO_MAX_SCALE;\n"
-    "    const maxLimit = Number.isFinite(this.LED_HALO_LIMIT_SCALE) ? this.LED_HALO_LIMIT_SCALE : this.LED_HALO_MAX_SCALE;\n"
-    "    const nextMaxScale = Math.max(this.LED_CORE_SCALE, Math.min(maxLimit, rawMaxScale));\n"
-    "    const rawScale = Number.isFinite(scale) && scale > 0 ? scale : nextMaxScale;\n"
-    "    const nextScale = Math.max(this.LED_CORE_SCALE, Math.min(nextMaxScale, rawScale));\n"
-    "    const maxChanged = Math.abs(this.LED_HALO_MAX_SCALE - nextMaxScale) >= 0.0001;\n"
-    "    if (!maxChanged && Math.abs(this.LED_DIFFUSION_SCALE - nextScale) < 0.0001) {\n"
+    "  setLedDiffusionScale(scale) {\n"
+    "    const rawScale = Number.isFinite(scale) && scale > 0 ? scale : this.LED_HALO_MAX_SCALE;\n"
+    "    const nextScale = Math.max(this.LED_CORE_SCALE, Math.min(this.LED_HALO_MAX_SCALE, rawScale));\n"
+    "    if (Math.abs(this.LED_DIFFUSION_SCALE - nextScale) < 0.0001) {\n"
     "      return;\n"
     "    }\n"
-    "    this.LED_HALO_MAX_SCALE = nextMaxScale;\n"
     "    this.LED_DIFFUSION_SCALE = nextScale;\n"
-    "    if (maxChanged) {\n"
-    "      this.needsRebuild = true;\n"
-    "    }\n"
     "    this._updateLedDiffusionUniforms();\n"
     "  }\n"
     "  _updateLedDiffusionUniforms() {\n"
@@ -1624,7 +1587,7 @@ def apply_led_material_diffusion_uniforms(text: str, path: Path) -> str:
 
 
 def replace_led_diffusion_setter(text: str, path: Path) -> str:
-    if "setLedDiffusionScale(scale, maxScale = this.LED_HALO_MAX_SCALE)" in text:
+    if "material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;" in text:
         return text
     match = re.search(
         r"(?ms)^(\s*)/\*\*\n"
@@ -1661,7 +1624,7 @@ def insert_led_visuals_helper(text: str, path: Path) -> str:
         text,
     )
     if "_scalePreviewLedChannel(value)" in text:
-        if "setLedDiffusionScale(scale, maxScale = this.LED_HALO_MAX_SCALE)" in text:
+        if "material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;" in text:
             return text
         if "setLedDiffusionScale(scale)" in text:
             return replace_led_diffusion_setter(text, path).replace(
@@ -1716,10 +1679,8 @@ def remove_dense_led_material_branch(text: str) -> str:
 
 def insert_led_halo_scales(text: str, path: Path) -> str:
     desired_core = "this.LED_CORE_SCALE = 0.5;"
-    desired_limit = "this.LED_HALO_LIMIT_SCALE = this.LED_HALO_MAX_SCALE * 10;"
     desired = (
         "this.LED_HALO_MAX_SCALE = 2.25;\n"
-        f"{{indent}}{desired_limit}\n"
         f"{{indent}}{desired_core}\n"
         "{indent}this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;"
     )
@@ -1730,21 +1691,12 @@ def insert_led_halo_scales(text: str, path: Path) -> str:
             text,
             count=1,
         )
+        if count:
+            return text
         match = re.search(r"(?m)^(\s*)this\.LED_HALO_MAX_SCALE = 2\.25;\n", text)
         if match is not None:
             indent = match.group(1)
-            if "this.LED_HALO_LIMIT_SCALE =" in text:
-                text = re.sub(
-                    r"(?m)^(\s*)this\.LED_HALO_LIMIT_SCALE = .*;\n",
-                    rf"\1{desired_limit}\n",
-                    text,
-                    count=1,
-                )
-            else:
-                text = text[: match.end()] + f"{indent}{desired_limit}\n" + text[match.end() :]
-            if not count:
-                text = text[: match.end()] + f"{indent}{desired_core}\n" + text[match.end() :]
-            return text
+            return text[: match.end()] + f"{indent}{desired_core}\n" + text[match.end() :]
         return text
     match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n", text)
     if match is not None:

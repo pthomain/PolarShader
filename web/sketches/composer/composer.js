@@ -161,7 +161,6 @@ const state = {
     displayBrightnessBusy: false,
     displayBrightnessSaveTimer: null,
     diffusionPercent: 100,
-    diffusion10x: false,
     deployApiAvailable: false,
     deployTargets: [],
     deployDevices: [],
@@ -202,7 +201,6 @@ const DIFFUSION_MAX_PERCENT = 100;
 const DIFFUSION_BASE_SCALE = 2.25;
 const DIFFUSION_CORE_SCALE = 0.5;
 const DIFFUSION_MIN_SPREAD_FACTOR = 0.125;
-const DIFFUSION_BOOST_MULTIPLIER = 10;
 
 function displayUrlValue(which) {
     if (which === 1) return 'round';
@@ -686,15 +684,7 @@ function smap(value, inMin, inMax, outMin, outMax) {
     return outMin + (outMax - outMin) * t;
 }
 
-function diffusionMultiplier(boosted) {
-    return boosted ? DIFFUSION_BOOST_MULTIPLIER : 1;
-}
-
-function diffusionMaxScale(boosted) {
-    return DIFFUSION_BASE_SCALE * diffusionMultiplier(boosted);
-}
-
-function diffusionScaleForPercent(value, boosted = false) {
+function diffusionScaleForPercent(value) {
     const spreadFactor = smap(
         clampDiffusionPercent(value),
         DIFFUSION_MIN_PERCENT,
@@ -702,8 +692,7 @@ function diffusionScaleForPercent(value, boosted = false) {
         DIFFUSION_MIN_SPREAD_FACTOR,
         1
     );
-    return (DIFFUSION_CORE_SCALE + (DIFFUSION_BASE_SCALE - DIFFUSION_CORE_SCALE) * spreadFactor)
-        * diffusionMultiplier(boosted);
+    return DIFFUSION_CORE_SCALE + (DIFFUSION_BASE_SCALE - DIFFUSION_CORE_SCALE) * spreadFactor;
 }
 
 async function refreshDisplayConfig({ rebuild = false } = {}) {
@@ -2180,25 +2169,15 @@ async function callApplyScene(bytes, seq) {
 async function setWorkerDiffusion(percent) {
     const diffusionPercent = clampDiffusionPercent(percent);
     state.diffusionPercent = diffusionPercent;
-    const boosted = state.diffusion10x === true;
-    const scale = diffusionScaleForPercent(diffusionPercent, boosted);
-    const maxScale = diffusionMaxScale(boosted);
+    const scale = diffusionScaleForPercent(diffusionPercent);
     const workerManager = getWorkerManager() ?? await waitForWorkerManager(500);
-    if (!workerManager) return { ok: false, reason: 'worker not active', scale, maxScale };
+    if (!workerManager) return { ok: false, reason: 'worker not active', scale };
     try {
         return await workerManager.sendMessageWithResponse(
-            {
-                type: 'composer_set_diffusion',
-                payload: {
-                    scale,
-                    maxScale,
-                    percent: diffusionPercent,
-                    multiplier: diffusionMultiplier(boosted),
-                },
-            }
+            { type: 'composer_set_diffusion', payload: { scale, percent: diffusionPercent } }
         );
     } catch (e) {
-        return { ok: false, reason: e && e.message ? e.message : String(e), scale, maxScale };
+        return { ok: false, reason: e && e.message ? e.message : String(e), scale };
     }
 }
 
@@ -3450,33 +3429,17 @@ function renderTopSection() {
     const diffusionValue = document.createElement('span');
     diffusionValue.className = 'diffusion-value';
     diffusionValue.textContent = `${state.diffusionPercent}%`;
-    const applyDiffusionControl = () => {
-        void setWorkerDiffusion(state.diffusionPercent).then((result) => {
-            if (!result?.ok) {
-                logDebug('display', `diffusion update deferred: ${result?.reason ?? 'renderer not ready'}`);
-            }
-        });
-    };
     diffusionSlider.addEventListener('input', () => {
         const percent = clampDiffusionPercent(diffusionSlider.value);
         state.diffusionPercent = percent;
         diffusionValue.textContent = `${percent}%`;
-        applyDiffusionControl();
+        void setWorkerDiffusion(percent).then((result) => {
+            if (!result?.ok) {
+                logDebug('display', `diffusion update deferred: ${result?.reason ?? 'renderer not ready'}`);
+            }
+        });
     });
-    const diffusionBoostLabel = document.createElement('label');
-    diffusionBoostLabel.className = 'diffusion-boost-toggle';
-    diffusionBoostLabel.title = 'Multiply the diffusion scale by 10';
-    const diffusionBoost = document.createElement('input');
-    diffusionBoost.type = 'checkbox';
-    diffusionBoost.checked = state.diffusion10x;
-    diffusionBoost.addEventListener('change', () => {
-        state.diffusion10x = diffusionBoost.checked;
-        applyDiffusionControl();
-    });
-    diffusionBoostLabel.appendChild(diffusionBoost);
-    diffusionBoostLabel.appendChild(Object.assign(document.createElement('span'), { textContent: '10x' }));
     diffusionRow.appendChild(diffusionSlider);
-    diffusionRow.appendChild(diffusionBoostLabel);
     diffusionRow.appendChild(diffusionValue);
     section.appendChild(diffusionRow);
 

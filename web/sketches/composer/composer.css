@@ -241,20 +241,6 @@ body.composer-resizing {
     text-align: right;
 }
 
-.diffusion-boost-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    flex: 0 0 auto;
-    color: #8b95a0;
-    font-size: 11px;
-    cursor: pointer;
-}
-
-.diffusion-boost-toggle input {
-    margin: 0;
-}
-
 .playlist-list {
     display: flex;
     flex-direction: column;
