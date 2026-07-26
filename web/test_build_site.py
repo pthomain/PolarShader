@@ -69,7 +69,7 @@ class BuildSitePatchTest(unittest.TestCase):
       }
 """
 
-    def test_bloom_strength_patch_reduces_current_glow_by_75_percent(self) -> None:
+    def test_bloom_strength_patch_uses_reduced_glow_constants(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
             assets = dist / "assets"
@@ -80,11 +80,11 @@ class BuildSitePatchTest(unittest.TestCase):
             build_site.patch_threejs_bloom(dist)
 
             patched = graphics.read_text(encoding="utf-8")
-            self.assertIn("this.bloom_stength = 0.0625;", patched)
-            self.assertIn("this.base_bloom_strength = 1;", patched)
-            self.assertIn("this.max_bloom_strength = 1.25;", patched)
-            self.assertIn("this.min_bloom_strength = 0.03125;", patched)
-            self.assertIn("this.bloom_stength = 1;", patched)
+            self.assertIn("this.bloom_stength = 0.04375;", patched)
+            self.assertIn("this.base_bloom_strength = 0.7;", patched)
+            self.assertIn("this.max_bloom_strength = 0.875;", patched)
+            self.assertIn("this.min_bloom_strength = 0.021875;", patched)
+            self.assertIn("this.bloom_stength = 0.7;", patched)
 
     def test_bloom_toggle_patch_keeps_direct_pass_reference(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

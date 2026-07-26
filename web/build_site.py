@@ -1148,17 +1148,17 @@ def patch_main_initial_display_hook(dist_sketch_dir: Path) -> None:
 _THREEJS_BLOOM_REPLACEMENTS = (
     (
         "    this.bloom_stength = 1;\n",
-        "    this.bloom_stength = 0.0625;\n"
+        "    this.bloom_stength = 0.04375;\n"
         "    this.bloom_strength_base = this.bloom_stength;\n"
         "    this.bloom_strength_multiplier = 1;\n",
     ),
     ("    this.bloom_radius = 16;\n", "    this.bloom_radius = 2;\n"),
-    ("    this.base_bloom_strength = 16;\n", "    this.base_bloom_strength = 1;\n"),
-    ("    this.max_bloom_strength = 20;\n", "    this.max_bloom_strength = 1.25;\n"),
-    ("    this.min_bloom_strength = 0.5;\n", "    this.min_bloom_strength = 0.03125;\n"),
+    ("    this.base_bloom_strength = 16;\n", "    this.base_bloom_strength = 0.7;\n"),
+    ("    this.max_bloom_strength = 20;\n", "    this.max_bloom_strength = 0.875;\n"),
+    ("    this.min_bloom_strength = 0.5;\n", "    this.min_bloom_strength = 0.021875;\n"),
     (
         "      this.bloom_stength = 16;\n",
-        "      this.bloom_stength = 1;\n"
+        "      this.bloom_stength = 0.7;\n"
         "      this.bloom_strength_base = this.bloom_stength;\n",
     ),
     ("      this.bloom_radius = 1;\n", "      this.bloom_radius = 0.125;\n"),
@@ -1166,7 +1166,7 @@ _THREEJS_BLOOM_REPLACEMENTS = (
 
 
 def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
-    """Reduce FastLED's generated ThreeJS bloom strength to 6.25% of default."""
+    """Reduce FastLED's generated ThreeJS bloom strength to 4.375% of default."""
     for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
         for old, new in _THREEJS_BLOOM_REPLACEMENTS:
