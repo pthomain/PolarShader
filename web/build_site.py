@@ -1336,6 +1336,10 @@ _THREEJS_LED_MATERIAL_HELPER_ANCHOR = (
     "  /**\n"
     "   * Creates LED objects for each pixel in the frame data\n"
 )
+_THREEJS_LED_VISUALS_HELPER_ANCHOR = (
+    "  /**\n"
+    "   * Updates LED visuals based on position map data\n"
+)
 _THREEJS_LED_MATERIAL_HELPER = (
     "  /**\n"
     "   * Creates the LED material. All screen maps use the sparse radial alpha\n"
@@ -1377,6 +1381,17 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "    return material;\n"
     "  }\n"
     + _THREEJS_LED_MATERIAL_HELPER_ANCHOR
+)
+_THREEJS_LED_VISUALS_HELPER = (
+    "  /**\n"
+    "   * Scales a web-preview LED color channel without changing bloom tracking.\n"
+    "   * @private\n"
+    "   */\n"
+    "  _scalePreviewLedChannel(value) {\n"
+    "    const multiplier = Number.isFinite(this.LED_BRIGHTNESS_MULTIPLIER) ? this.LED_BRIGHTNESS_MULTIPLIER : 1;\n"
+    "    return Math.min(1, Math.max(0, value * multiplier));\n"
+    "  }\n"
+    + _THREEJS_LED_VISUALS_HELPER_ANCHOR
 )
 _THREEJS_CAN_MERGE_REPLACEMENTS = (
     (
@@ -1457,6 +1472,24 @@ def insert_led_material_helper(text: str, path: Path) -> str:
     return text.replace(anchor, helper, 1)
 
 
+def insert_led_visuals_helper(text: str, path: Path) -> str:
+    if "_scalePreviewLedChannel(value)" in text:
+        return text
+    match = re.search(
+        r"(?m)^(\s*)/\*\*\n\1 \* Updates LED visuals based on position map data\n",
+        text,
+    )
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: LED visuals helper anchor not found."
+        )
+
+    indent = match.group(1)
+    anchor = reindent_js_block(_THREEJS_LED_VISUALS_HELPER_ANCHOR, indent)
+    helper = reindent_js_block(_THREEJS_LED_VISUALS_HELPER, indent)
+    return text.replace(anchor, helper, 1)
+
+
 def remove_dense_led_material_branch(text: str) -> str:
     text = text.replace(
         "   * Creates the LED material. Sparse screen maps use a radial alpha falloff\n"
@@ -1497,6 +1530,19 @@ def insert_sparse_led_scale(text: str, path: Path) -> str:
         f"{indent}this.SPARSE_LED_SCALE = 1.5;\n"
         f"{indent}this.SCREEN_WIDTH = 0;\n"
     )
+    return text[:match.start()] + replacement + text[match.end():]
+
+
+def insert_led_brightness_multiplier(text: str, path: Path) -> str:
+    if "this.LED_BRIGHTNESS_MULTIPLIER = 2;" in text:
+        return text
+    match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = 1\.5;\n", text)
+    if match is None:
+        raise RuntimeError(
+            f"Cannot patch LED gradient in {path}: expected snippet not found: SPARSE_LED_SCALE initialization"
+        )
+    indent = match.group(1)
+    replacement = match.group(0) + f"{indent}this.LED_BRIGHTNESS_MULTIPLIER = 2;\n"
     return text[:match.start()] + replacement + text[match.end():]
 
 
@@ -1552,6 +1598,43 @@ def insert_led_scale_local(text: str, path: Path) -> str:
     return text[:match.start()] + replacement + text[match.end():]
 
 
+def apply_preview_led_brightness(text: str, path: Path) -> str:
+    if "const displayR = this._scalePreviewLedChannel(ledData.r);" not in text:
+        match = re.search(
+            r"(?m)^(\s*)const z = this\._calculateDepthEffect\(\);\n\1if \(led\._isMerged\) \{\n",
+            text,
+        )
+        if match is None:
+            raise RuntimeError(
+                f"Cannot patch LED gradient in {path}: expected snippet not found: LED visual update"
+            )
+        indent = match.group(1)
+        replacement = (
+            f"{indent}const z = this._calculateDepthEffect();\n"
+            f"{indent}const displayR = this._scalePreviewLedChannel(ledData.r);\n"
+            f"{indent}const displayG = this._scalePreviewLedChannel(ledData.g);\n"
+            f"{indent}const displayB = this._scalePreviewLedChannel(ledData.b);\n"
+            f"{indent}if (led._isMerged) {{\n"
+        )
+        text = text[:match.start()] + replacement + text[match.end():]
+
+    text = replace_or_fail(
+        text,
+        path,
+        "led.material.color.setRGB(ledData.r, ledData.g, ledData.b);",
+        "led.material.color.setRGB(displayR, displayG, displayB);",
+        "LED material color update",
+    )
+    text = replace_or_fail(
+        text,
+        path,
+        "color: new THREE.Color(ledData.r, ledData.g, ledData.b)",
+        "color: new THREE.Color(displayR, displayG, displayB)",
+        "merged LED color update",
+    )
+    return text
+
+
 def replace_merged_led_material(text: str, path: Path) -> str:
     replacement_marker = "const material = this._createLedMaterial(isDenseScreenMap, 16777215, true);"
     if replacement_marker in text:
@@ -1575,8 +1658,10 @@ def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
         text = path.read_text(encoding="utf-8")
         if "_createLedMaterial(isDenseScreenMap" not in text:
             text = insert_led_material_helper(text, path)
+        text = insert_led_visuals_helper(text, path)
         text = remove_dense_led_material_branch(text)
         text = insert_sparse_led_scale(text, path)
+        text = insert_led_brightness_multiplier(text, path)
         text = force_sparse_led_rendering(text, path)
         text = replace_first_variant(
             text,
@@ -1601,6 +1686,7 @@ def patch_threejs_led_gradient(dist_sketch_dir: Path) -> None:
             "single LED material creation",
         )
         text = replace_merged_led_material(text, path)
+        text = apply_preview_led_brightness(text, path)
         path.write_text(text, encoding="utf-8")
 
 

@@ -127,6 +127,37 @@ class BuildSitePatchTest(unittest.TestCase):
           vertexColors: true
         });
   }
+  _collectLedColorData(frameData) {
+    const data = frameData[0].pixel_data;
+    const r = (data[0] & 255) / 255;
+    const g = (data[1] & 255) / 255;
+    const b = (data[2] & 255) / 255;
+    const brightness = (r + g + b) / 3;
+    return brightness;
+  }
+  /**
+   * Updates LED visuals based on position map data
+   * @private
+   */
+  _updateLedVisuals(positionMap) {
+    const mergedMeshUpdates = new Map();
+    for (const [, ledData] of positionMap) {
+      const led = this.leds[0];
+      const z = this._calculateDepthEffect();
+      if (led._isMerged) {
+        led.material.color.setRGB(ledData.r, ledData.g, ledData.b);
+        if (led._parentMesh) {
+          mergedMeshUpdates.get(led._parentMesh).push({
+            index: led._mergedIndex,
+            color: new THREE.Color(ledData.r, ledData.g, ledData.b)
+          });
+        }
+      } else {
+        led.position.set(0, 0, z);
+        led.material.color.setRGB(ledData.r, ledData.g, ledData.b);
+      }
+    }
+  }
 }
 """
 
@@ -196,6 +227,8 @@ function handleComposerSetBloom(enabled) {
 
             patched = graphics.read_text(encoding="utf-8")
             self.assertIn("isDenseScreenMap = false;", patched)
+            self.assertIn("this.LED_BRIGHTNESS_MULTIPLIER = 2;", patched)
+            self.assertIn("_scalePreviewLedChannel(value)", patched)
             self.assertIn("const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;", patched)
             self.assertIn(
                 "const visualRadius = diameter * this.LED_SCALE * this.SPARSE_LED_SCALE;",
@@ -205,6 +238,10 @@ function handleComposerSetBloom(enabled) {
             self.assertNotIn("return new THREE.MeshBasicMaterial({ color, vertexColors: useVertexColors });", patched)
             self.assertIn("All screen maps use the sparse radial alpha", patched)
             self.assertIn("const material = this._createLedMaterial(isDenseScreenMap, 16777215, true);", patched)
+            self.assertIn("const displayR = this._scalePreviewLedChannel(ledData.r);", patched)
+            self.assertIn("led.material.color.setRGB(displayR, displayG, displayB);", patched)
+            self.assertIn("color: new THREE.Color(displayR, displayG, displayB)", patched)
+            self.assertIn("const brightness = (r + g + b) / 3;", patched)
 
 
 if __name__ == "__main__":
