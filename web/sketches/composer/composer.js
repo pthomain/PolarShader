@@ -200,7 +200,7 @@ const DIFFUSION_MIN_PERCENT = 0;
 const DIFFUSION_MAX_PERCENT = 100;
 const DIFFUSION_BASE_SCALE = 2.25;
 const DIFFUSION_CORE_SCALE = 1;
-const DIFFUSION_MIN_SPREAD_FACTOR = 0.25;
+const DIFFUSION_MIN_SPREAD_FACTOR = 0.125;
 
 function displayUrlValue(which) {
     if (which === 1) return 'round';
