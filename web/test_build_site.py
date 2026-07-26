@@ -150,10 +150,13 @@ function createGraphicsManager() {
             patched = graphics.read_text(encoding="utf-8")
             self.assertIn("isDenseScreenMap = false;", patched)
             self.assertIn("this.LED_HALO_MAX_SCALE = 2.25;", patched)
+            self.assertIn("this.LED_HALO_LIMIT_SCALE = this.LED_HALO_MAX_SCALE * 10;", patched)
             self.assertIn("this.LED_CORE_SCALE = 0.5;", patched)
             self.assertIn("this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;", patched)
             self.assertIn("this.LED_BRIGHTNESS_MULTIPLIER = 8;", patched)
-            self.assertIn("setLedDiffusionScale(scale)", patched)
+            self.assertIn("setLedDiffusionScale(scale, maxScale = this.LED_HALO_MAX_SCALE)", patched)
+            self.assertIn("const nextMaxScale =", patched)
+            self.assertIn("this.needsRebuild = true;", patched)
             self.assertIn("this._updateLedDiffusionUniforms();", patched)
             self.assertIn("uniform float coreScale;", patched)
             self.assertIn("uniform float haloScale;", patched)
@@ -204,8 +207,48 @@ function createGraphicsManager() {
 
         patched = build_site.insert_led_halo_scales(text, Path("graphics.js"))
 
+        self.assertIn("    this.LED_HALO_LIMIT_SCALE = this.LED_HALO_MAX_SCALE * 10;\n", patched)
         self.assertIn("    this.LED_CORE_SCALE = 0.5;\n", patched)
         self.assertNotIn("this.LED_CORE_SCALE = 1;", patched)
+
+    def test_led_diffusion_setter_patch_updates_existing_setter(self) -> None:
+        text = """
+  /**
+   * Updates LED diffusion/halo spread without changing LED geometry size.
+   * @param {number} scale - Absolute halo diameter scale
+   */
+  setLedDiffusionScale(scale) {
+    const rawScale = Number.isFinite(scale) && scale > 0 ? scale : this.LED_HALO_MAX_SCALE;
+    const nextScale = Math.max(this.LED_CORE_SCALE, Math.min(this.LED_HALO_MAX_SCALE, rawScale));
+    if (Math.abs(this.LED_DIFFUSION_SCALE - nextScale) < 0.0001) {
+      return;
+    }
+    this.LED_DIFFUSION_SCALE = nextScale;
+    this._updateLedDiffusionUniforms();
+  }
+  _updateLedDiffusionUniforms() {
+    const updateMaterial = (material) => {
+      if (!material || !material.uniforms || !material.uniforms.haloScale) return;
+      material.uniforms.coreScale.value = this.LED_CORE_SCALE;
+      material.uniforms.haloScale.value = this.LED_DIFFUSION_SCALE;
+      material.uniforms.maxHaloScale.value = this.LED_HALO_MAX_SCALE;
+    };
+  }
+  /**
+   * Scales a web-preview LED color channel.
+   * @private
+   */
+  _scalePreviewLedChannel(value) {
+    return value;
+  }
+"""
+
+        patched = build_site.replace_led_diffusion_setter(text, Path("graphics.js"))
+
+        self.assertIn("setLedDiffusionScale(scale, maxScale = this.LED_HALO_MAX_SCALE)", patched)
+        self.assertIn("const nextMaxScale =", patched)
+        self.assertIn("this.needsRebuild = true;", patched)
+        self.assertNotIn("setLedDiffusionScale(scale) {", patched)
 
     def test_led_core_alpha_patch_updates_existing_shader(self) -> None:
         text = """
@@ -298,9 +341,12 @@ if (autoBloomToggle) {
             patched = worker.read_text(encoding="utf-8")
             self.assertIn('case "composer_set_diffusion":', patched)
             self.assertIn("function handleComposerSetDiffusion(payload)", patched)
+            self.assertIn('const rawMaxScale = payload && typeof payload.maxScale === "number" ? payload.maxScale : 2.25;', patched)
             self.assertIn("workerState.composerDiffusionScale = scale;", patched)
-            self.assertIn("workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);", patched)
+            self.assertIn("workerState.composerDiffusionMaxScale = maxScale;", patched)
+            self.assertIn("workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale, workerState.composerDiffusionMaxScale);", patched)
             self.assertIn("gm.LED_DIFFUSION_SCALE = scale;", patched)
+            self.assertIn("return { ok: true, scale, maxScale };", patched)
             self.assertNotIn("gm.SPARSE_LED_SCALE = scale;", patched)
 
 
