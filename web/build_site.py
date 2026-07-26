@@ -1534,7 +1534,16 @@ def insert_sparse_led_scale(text: str, path: Path) -> str:
 
 
 def insert_led_brightness_multiplier(text: str, path: Path) -> str:
-    if "this.LED_BRIGHTNESS_MULTIPLIER = 2;" in text:
+    desired = "this.LED_BRIGHTNESS_MULTIPLIER = 4;"
+    if desired in text:
+        return text
+    text, count = re.subn(
+        r"(?m)^(\s*)this\.LED_BRIGHTNESS_MULTIPLIER = [0-9.]+;\n",
+        rf"\1{desired}\n",
+        text,
+        count=1,
+    )
+    if count:
         return text
     match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = 1\.5;\n", text)
     if match is None:
@@ -1542,7 +1551,7 @@ def insert_led_brightness_multiplier(text: str, path: Path) -> str:
             f"Cannot patch LED gradient in {path}: expected snippet not found: SPARSE_LED_SCALE initialization"
         )
     indent = match.group(1)
-    replacement = match.group(0) + f"{indent}this.LED_BRIGHTNESS_MULTIPLIER = 2;\n"
+    replacement = match.group(0) + f"{indent}{desired}\n"
     return text[:match.start()] + replacement + text[match.end():]
 
 
