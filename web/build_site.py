@@ -1514,7 +1514,16 @@ def remove_dense_led_material_branch(text: str) -> str:
 
 
 def insert_sparse_led_scale(text: str, path: Path) -> str:
-    if "this.SPARSE_LED_SCALE = 1.5;" in text:
+    desired = "this.SPARSE_LED_SCALE = 2.25;"
+    if desired in text:
+        return text
+    text, count = re.subn(
+        r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n",
+        rf"\1{desired}\n",
+        text,
+        count=1,
+    )
+    if count:
         return text
     match = re.search(
         r"(?m)^(\s*)this\.LED_SCALE = 1;\n\1this\.SCREEN_WIDTH = 0;\n",
@@ -1527,7 +1536,7 @@ def insert_sparse_led_scale(text: str, path: Path) -> str:
     indent = match.group(1)
     replacement = (
         f"{indent}this.LED_SCALE = 1;\n"
-        f"{indent}this.SPARSE_LED_SCALE = 1.5;\n"
+        f"{indent}{desired}\n"
         f"{indent}this.SCREEN_WIDTH = 0;\n"
     )
     return text[:match.start()] + replacement + text[match.end():]
@@ -1545,7 +1554,7 @@ def insert_led_brightness_multiplier(text: str, path: Path) -> str:
     )
     if count:
         return text
-    match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = 1\.5;\n", text)
+    match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n", text)
     if match is None:
         raise RuntimeError(
             f"Cannot patch LED gradient in {path}: expected snippet not found: SPARSE_LED_SCALE initialization"

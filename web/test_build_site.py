@@ -227,6 +227,7 @@ function handleComposerSetBloom(enabled) {
 
             patched = graphics.read_text(encoding="utf-8")
             self.assertIn("isDenseScreenMap = false;", patched)
+            self.assertIn("this.SPARSE_LED_SCALE = 2.25;", patched)
             self.assertIn("this.LED_BRIGHTNESS_MULTIPLIER = 8;", patched)
             self.assertIn("_scalePreviewLedChannel(value)", patched)
             self.assertIn("const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;", patched)
