@@ -1620,12 +1620,25 @@ def remove_dense_led_material_branch(text: str) -> str:
 
 
 def insert_led_halo_scales(text: str, path: Path) -> str:
+    desired_core = "this.LED_CORE_SCALE = 0.5;"
     desired = (
         "this.LED_HALO_MAX_SCALE = 2.25;\n"
-        "{indent}this.LED_CORE_SCALE = 1;\n"
+        f"{{indent}}{desired_core}\n"
         "{indent}this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;"
     )
     if "this.LED_HALO_MAX_SCALE = 2.25;" in text:
+        text, count = re.subn(
+            r"(?m)^(\s*)this\.LED_CORE_SCALE = [0-9.]+;\n",
+            rf"\1{desired_core}\n",
+            text,
+            count=1,
+        )
+        if count:
+            return text
+        match = re.search(r"(?m)^(\s*)this\.LED_HALO_MAX_SCALE = 2\.25;\n", text)
+        if match is not None:
+            indent = match.group(1)
+            return text[: match.end()] + f"{indent}{desired_core}\n" + text[match.end() :]
         return text
     match = re.search(r"(?m)^(\s*)this\.SPARSE_LED_SCALE = [0-9.]+;\n", text)
     if match is not None:

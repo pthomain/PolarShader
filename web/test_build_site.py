@@ -150,7 +150,7 @@ function createGraphicsManager() {
             patched = graphics.read_text(encoding="utf-8")
             self.assertIn("isDenseScreenMap = false;", patched)
             self.assertIn("this.LED_HALO_MAX_SCALE = 2.25;", patched)
-            self.assertIn("this.LED_CORE_SCALE = 1;", patched)
+            self.assertIn("this.LED_CORE_SCALE = 0.5;", patched)
             self.assertIn("this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;", patched)
             self.assertIn("this.LED_BRIGHTNESS_MULTIPLIER = 8;", patched)
             self.assertIn("setLedDiffusionScale(scale)", patched)
@@ -180,6 +180,18 @@ function createGraphicsManager() {
             self.assertIn("const brightness = (r + g + b) / 3;", patched)
             self.assertNotIn("const bloomPass", patched)
             self.assertNotIn("this.composer.addPass(bloomPass);", patched)
+
+    def test_led_halo_scale_patch_updates_existing_core_scale(self) -> None:
+        text = (
+            "    this.LED_HALO_MAX_SCALE = 2.25;\n"
+            "    this.LED_CORE_SCALE = 1;\n"
+            "    this.LED_DIFFUSION_SCALE = this.LED_HALO_MAX_SCALE;\n"
+        )
+
+        patched = build_site.insert_led_halo_scales(text, Path("graphics.js"))
+
+        self.assertIn("    this.LED_CORE_SCALE = 0.5;\n", patched)
+        self.assertNotIn("this.LED_CORE_SCALE = 1;", patched)
 
     def test_generated_bloom_controls_are_removed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
