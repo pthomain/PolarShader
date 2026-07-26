@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small structural validator for PolarShader PSC v1 scene files."""
+"""Small structural validator for PolarShader PSC scene files."""
 
 from __future__ import annotations
 
@@ -9,11 +9,13 @@ from dataclasses import dataclass
 MAGIC = b"PSC\0"
 VERSION = 1
 VERSION_V2 = 2  # adds optional embedded 16-entry palette
-SUPPORTED_VERSIONS = frozenset({VERSION, VERSION_V2})
+VERSION_V3 = 3  # adds optional embedded cosine palette coefficients
+SUPPORTED_VERSIONS = frozenset({VERSION, VERSION_V2, VERSION_V3})
 MAX_RECURSION_DEPTH = 64
 PALETTE_IDS = frozenset({0, 1, 2, 3})
-PALETTE_EMBEDDED = 0xFF  # sentinel: 48 bytes of 16 x (r,g,b) follow (v2 only)
+PALETTE_EMBEDDED = 0xFF  # sentinel: v2 raw entries or v3 cosine coefficients follow
 PALETTE_ENTRY_COUNT = 16
+PALETTE_COEFF_COUNT = 12
 
 
 class PscValidationError(ValueError):
@@ -264,8 +266,9 @@ def _read_transform(reader: _Reader) -> tuple[int, str]:
 
 
 def raw_pattern_tag(data: bytes) -> int | None:
-    # The pattern tag no longer sits at a fixed offset: a v2 embedded palette
-    # inserts 48 bytes before it. Compute the offset from the version + sentinel.
+    # The pattern tag no longer sits at a fixed offset: embedded palettes insert
+    # a version-specific payload before it. Compute the offset from the version
+    # + sentinel.
     if len(data) < 7 or data[:4] != MAGIC:
         return None
     version = data[4]
@@ -274,6 +277,8 @@ def raw_pattern_tag(data: bytes) -> int | None:
     palette_id = data[5]
     if version == VERSION_V2 and palette_id == PALETTE_EMBEDDED:
         tag_offset = 6 + 3 * PALETTE_ENTRY_COUNT
+    elif version == VERSION_V3 and palette_id == PALETTE_EMBEDDED:
+        tag_offset = 6 + 2 * PALETTE_COEFF_COUNT
     else:
         tag_offset = 6
     if len(data) <= tag_offset:
@@ -293,11 +298,14 @@ def validate_psc_scene(data: bytes) -> PscInfo:
         raise PscValidationError(f"unsupported .psc version {version}")
 
     palette_id = reader.u8()
-    # The 0xFF sentinel is an embedded palette ONLY under v2; under v1 it is an
-    # unknown palette id.
+    # The 0xFF sentinel is an embedded palette only under v2/v3; under v1 it is
+    # an unknown palette id.
     if version == VERSION_V2 and palette_id == PALETTE_EMBEDDED:
         for _ in range(3 * PALETTE_ENTRY_COUNT):
             reader.u8()  # consume 48 palette bytes (bounds-checked)
+    elif version == VERSION_V3 and palette_id == PALETTE_EMBEDDED:
+        for _ in range(PALETTE_COEFF_COUNT):
+            reader.u16()  # consume 12 coefficient words (bounds-checked)
     elif palette_id not in PALETTE_IDS:
         raise PscValidationError(f"unknown palette id {palette_id}")
 

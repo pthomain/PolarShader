@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025 Pierre Thomain
 //
-// PSC v1 encoder/decoder. Mirrors src/composer/SceneCodec.cpp's wire
-// format. The byte layout is the contract — drift is caught by the
-// cross-implementation golden fixture in test/test_composer.
+// PSC encoder/decoder. Mirrors src/composer/SceneCodec.cpp's wire format.
+// The byte layout is the contract — drift is caught by the cross-
+// implementation golden fixture in test/test_composer.
 
 import {
     PALETTES, PATTERNS, PATTERN_BY_TAG,
@@ -11,17 +11,21 @@ import {
     SIGNALS, SIGNAL_BY_TAG,
     DEFAULT_SIGNAL,
 } from './schema.js';
+import { cosinePaletteEntries } from './palette.js';
 
 const MAGIC = [0x50, 0x53, 0x43, 0x00];   // "PSC\0"
 const PSC_VERSION_V1 = 0x01;
 const PSC_VERSION_V2 = 0x02;   // adds optional embedded 16-entry palette
+const PSC_VERSION_V3 = 0x03;   // adds optional embedded cosine coefficients
 // Back-compat alias: the default encode version stays v1 so built-in palettes
 // remain byte-for-byte identical to the golden fixtures.
 const VERSION = PSC_VERSION_V1;
-// Sentinel palette id meaning "an embedded 16-entry RGB palette follows"
-// (48 bytes). Only valid under PSC v2.
+// Sentinel palette id meaning "an embedded custom palette follows". Under v2
+// the payload is 48 raw RGB bytes; under v3 it is 12 u16 cosine coefficients.
 const PALETTE_EMBEDDED = 0xFF;
 const PALETTE_ENTRY_COUNT = 16;
+const PALETTE_COEFF_KEYS = ['a', 'b', 'c', 'd'];
+const PALETTE_COEFF_MAX = { a: 1, b: 1, c: 4, d: 1 };
 const MAX_SIGNAL_RECURSION_DEPTH = 64;
 
 // Validate a scene's paletteEntries: null (built-in) or exactly 16 [r,g,b]
@@ -44,6 +48,51 @@ function hasEmbeddedPalette(entries) {
         }
     }
     return true;
+}
+
+function hasCosinePaletteCoeffs(coeffs) {
+    if (coeffs === null || coeffs === undefined) return false;
+    for (const key of PALETTE_COEFF_KEYS) {
+        const values = coeffs[key];
+        if (!Array.isArray(values) || values.length !== 3) {
+            throw new Error('paletteCoeffs must contain a/b/c/d RGB triples');
+        }
+        const max = PALETTE_COEFF_MAX[key];
+        for (const value of values) {
+            if (!Number.isFinite(value) || value < 0 || value > max) {
+                throw new Error(`paletteCoeffs ${key} channel must be in 0..${max}`);
+            }
+        }
+    }
+    return true;
+}
+
+function quantizePaletteCoeff(key, value) {
+    const max = PALETTE_COEFF_MAX[key];
+    return Math.max(0, Math.min(0xFFFF, Math.round((value / max) * 0xFFFF)));
+}
+
+function dequantizePaletteCoeff(key, raw) {
+    return (raw / 0xFFFF) * PALETTE_COEFF_MAX[key];
+}
+
+function writePaletteCoeffs(w, coeffs) {
+    for (const key of PALETTE_COEFF_KEYS) {
+        for (let ch = 0; ch < 3; ch += 1) {
+            w.u16(quantizePaletteCoeff(key, coeffs[key][ch]));
+        }
+    }
+}
+
+function readPaletteCoeffs(r) {
+    const coeffs = {};
+    for (const key of PALETTE_COEFF_KEYS) {
+        coeffs[key] = [];
+        for (let ch = 0; ch < 3; ch += 1) {
+            coeffs[key].push(dequantizePaletteCoeff(key, r.u16()));
+        }
+    }
+    return coeffs;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -363,24 +412,33 @@ function readTransform(r, version) {
 // ─────────────────────────────────────────────────────────────────────
 
 export function encodeScene(scene, { version = undefined } = {}) {
-    // Version selection is content-driven: emit v2 only when the scene carries
-    // a valid embedded palette, else v1. An explicit caller version that
+    // Version selection is content-driven: emit v3 for cosine coefficients, v2
+    // for baked embedded entries, else v1. An explicit caller version that
     // contradicts the content is rejected.
-    if (version !== undefined && version !== PSC_VERSION_V1 && version !== PSC_VERSION_V2) {
+    if (
+        version !== undefined
+        && version !== PSC_VERSION_V1
+        && version !== PSC_VERSION_V2
+        && version !== PSC_VERSION_V3
+    ) {
         throw new Error(`unsupported PSC encode version ${version}`);
     }
+    const hasCoeffs = hasCosinePaletteCoeffs(scene.paletteCoeffs);
     const embedded = hasEmbeddedPalette(scene.paletteEntries);
-    const emitVersion = embedded ? PSC_VERSION_V2 : PSC_VERSION_V1;
+    const emitVersion = hasCoeffs ? PSC_VERSION_V3 : embedded ? PSC_VERSION_V2 : PSC_VERSION_V1;
     if (version !== undefined && version !== emitVersion) {
         throw new Error(
             `PSC encode version ${version} contradicts scene content ` +
-            `(expected v${emitVersion}${embedded ? ' — embedded palette' : ''})`);
+            `(expected v${emitVersion}${hasCoeffs ? ' — cosine palette' : embedded ? ' — embedded palette' : ''})`);
     }
 
     const w = new ByteWriter();
     for (const b of MAGIC) w.u8(b);
     w.u8(emitVersion);
-    if (embedded) {
+    if (hasCoeffs) {
+        w.u8(PALETTE_EMBEDDED);
+        writePaletteCoeffs(w, scene.paletteCoeffs);
+    } else if (embedded) {
         w.u8(PALETTE_EMBEDDED);
         for (const [rc, gc, bc] of scene.paletteEntries) {
             w.u8(rc); w.u8(gc); w.u8(bc);
@@ -406,19 +464,24 @@ export function decodeScene(bytes) {
         if (r.u8() !== MAGIC[i]) throw new Error('bad PSC magic');
     }
     const version = r.u8();
-    if (version !== PSC_VERSION_V1 && version !== PSC_VERSION_V2) {
+    if (version !== PSC_VERSION_V1 && version !== PSC_VERSION_V2 && version !== PSC_VERSION_V3) {
         throw new Error(`unsupported PSC version ${version}`);
     }
     const paletteId = r.u8();
-    // The 0xFF sentinel is an embedded palette ONLY under v2; under v1 it is
+    // The 0xFF sentinel is an embedded palette only under v2/v3; under v1 it is
     // simply an unknown palette id (mirrors the C++ BAD_ENUM path).
     let scenePaletteId = paletteId;
     let paletteEntries = null;
+    let paletteCoeffs = null;
     if (version === PSC_VERSION_V2 && paletteId === PALETTE_EMBEDDED) {
         paletteEntries = [];
         for (let i = 0; i < PALETTE_ENTRY_COUNT; ++i) {
             paletteEntries.push([r.u8(), r.u8(), r.u8()]);
         }
+        scenePaletteId = null;
+    } else if (version === PSC_VERSION_V3 && paletteId === PALETTE_EMBEDDED) {
+        paletteCoeffs = readPaletteCoeffs(r);
+        paletteEntries = cosinePaletteEntries(paletteCoeffs);
         scenePaletteId = null;
     } else if (!PALETTES.find(p => p.id === paletteId)) {
         throw new Error(`unknown palette id ${paletteId}`);
@@ -429,5 +492,5 @@ export function decodeScene(bytes) {
     for (let i = 0; i < transformCount; ++i) transforms.push(readTransform(r, version));
     r.expectEnd('scene');
     assertTransformCompatible(pattern, transforms);
-    return { paletteId: scenePaletteId, paletteEntries, pattern, transforms };
+    return { paletteId: scenePaletteId, paletteEntries, paletteCoeffs, pattern, transforms };
 }

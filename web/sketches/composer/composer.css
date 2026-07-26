@@ -233,21 +233,12 @@ body.composer-resizing {
     white-space: nowrap;
 }
 
-.brightness-value {
+.brightness-value,
+.diffusion-value {
     flex: 0 0 32px;
     color: #6a7480;
     font-variant-numeric: tabular-nums;
     text-align: right;
-}
-
-.glow-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: #8b95a0;
-    font-size: 12px;
-    white-space: nowrap;
-    cursor: pointer;
 }
 
 .playlist-list {

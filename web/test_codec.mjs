@@ -557,13 +557,42 @@ test('decoder rejects legacy palette transform tag', () => {
     assertThrowsMessage(() => decodeScene(bad), /unknown transform tag 0x6/);
 });
 
-// ─── PSC v2 embedded palette ────────────────────────────────────────────
+// ─── PSC embedded palettes ──────────────────────────────────────────────
 
 function rampPaletteEntries() {
     // 16 distinct [r,g,b] triples so byte positions are unambiguous.
     const entries = [];
     for (let i = 0; i < 16; ++i) entries.push([i * 16, 255 - i * 16, i * 8]);
     return entries;
+}
+
+const PALETTE_COEFF_KEYS = ['a', 'b', 'c', 'd'];
+const PALETTE_COEFF_MAX = { a: 1, b: 1, c: 4, d: 1 };
+
+function quantizedCoeffRaw(key, value) {
+    return Math.max(0, Math.min(0xFFFF, Math.round((value / PALETTE_COEFF_MAX[key]) * 0xFFFF)));
+}
+
+function quantizedCoeffBytes(coeffs) {
+    const out = [];
+    for (const key of PALETTE_COEFF_KEYS) {
+        for (const value of coeffs[key]) {
+            const raw = quantizedCoeffRaw(key, value);
+            out.push(raw & 0xFF, raw >>> 8);
+        }
+    }
+    return out;
+}
+
+function dequantizedCoeffs(coeffs) {
+    const out = {};
+    for (const key of PALETTE_COEFF_KEYS) {
+        out[key] = coeffs[key].map((value) => {
+            const raw = quantizedCoeffRaw(key, value);
+            return (raw / 0xFFFF) * PALETTE_COEFF_MAX[key];
+        });
+    }
+    return out;
 }
 
 test('encodeScene emits PSC v2 with embedded palette when paletteEntries present', () => {
@@ -591,6 +620,7 @@ test('embedded palette scene round-trips through decodeScene', () => {
     const decoded = decodeScene(encodeScene(scene));
     assert.equal(decoded.paletteId, null, 'embedded scene clears paletteId');
     assert.deepEqual(decoded.paletteEntries, entries);
+    assert.equal(decoded.paletteCoeffs, null);
     assert.deepEqual(Array.from(encodeScene(decoded)), Array.from(encodeScene(scene)));
 });
 
@@ -606,6 +636,7 @@ test('built-in palette scene stays v1 with null paletteEntries', () => {
     const decoded = decodeScene(encoded);
     assert.equal(decoded.paletteId, 2);
     assert.equal(decoded.paletteEntries, null);
+    assert.equal(decoded.paletteCoeffs, null);
 });
 
 test('DEFAULT_SCENE encodes as v1 (paletteEntries null)', () => {
@@ -629,6 +660,37 @@ test('decoder rejects v2 embedded palette truncated below 48 bytes', () => {
     assertThrowsMessage(() => decodeScene(bad), /truncated/);
 });
 
+test('encodeScene emits PSC v3 with cosine palette coefficients', () => {
+    const coeffs = {
+        a: [0.2, 0.5, 0.8],
+        b: [0.25, 0.5, 0.75],
+        c: [0.5, 1.5, 2.5],
+        d: [0.1, 0.33, 0.67],
+    };
+    const scene = {
+        paletteId: null,
+        paletteEntries: cosinePaletteEntries(coeffs),
+        paletteCoeffs: coeffs,
+        pattern: { id: 'noiseBasic', config: {}, signals: {} },
+        transforms: [],
+    };
+    const encoded = encodeScene(scene);
+    assert.equal(encoded[4], 0x03, 'version byte is v3');
+    assert.equal(encoded[5], 0xFF, 'palette sentinel byte is 0xFF');
+    assert.deepEqual(Array.from(encoded.slice(6, 30)), quantizedCoeffBytes(coeffs));
+
+    const decoded = decodeScene(encoded);
+    assert.equal(decoded.paletteId, null);
+    assert.deepEqual(decoded.paletteCoeffs, dequantizedCoeffs(coeffs));
+    assert.deepEqual(decoded.paletteEntries, cosinePaletteEntries(decoded.paletteCoeffs));
+    assert.deepEqual(Array.from(encodeScene(decoded)), Array.from(encoded));
+});
+
+test('decoder rejects v3 cosine palette truncated below 24 bytes', () => {
+    const bad = bytes([0x50, 0x53, 0x43, 0x00, 0x03, 0xFF, 0x00, 0x01, 0x02]);
+    assertThrowsMessage(() => decodeScene(bad), /truncated/);
+});
+
 test('encodeScene rejects malformed paletteEntries shapes', () => {
     const base = { paletteId: 0, pattern: { id: 'noiseBasic', config: {}, signals: {} }, transforms: [] };
     assertThrowsMessage(
@@ -649,6 +711,21 @@ test('encodeScene rejects malformed paletteEntries shapes', () => {
     );
 });
 
+test('encodeScene rejects malformed paletteCoeffs shapes', () => {
+    const base = { paletteId: 0, pattern: { id: 'noiseBasic', config: {}, signals: {} }, transforms: [] };
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteCoeffs: { a: [0, 0, 0], b: [0, 0, 0], c: [1, 1, 1] } }),
+        /paletteCoeffs must contain/,
+    );
+    assertThrowsMessage(
+        () => encodeScene({
+            ...base,
+            paletteCoeffs: { a: [0, 0, 0], b: [0, 0, 0], c: [5, 1, 1], d: [0, 0, 0] },
+        }),
+        /paletteCoeffs c channel must be in 0\.\.4/,
+    );
+});
+
 test('encodeScene rejects explicit version that contradicts content', () => {
     const base = { paletteId: 0, pattern: { id: 'noiseBasic', config: {}, signals: {} }, transforms: [] };
     assertThrowsMessage(
@@ -656,7 +733,15 @@ test('encodeScene rejects explicit version that contradicts content', () => {
         /contradicts scene content/,
     );
     assertThrowsMessage(
+        () => encodeScene({ ...base, paletteEntries: null }, { version: 3 }),
+        /contradicts scene content/,
+    );
+    assertThrowsMessage(
         () => encodeScene({ ...base, paletteEntries: rampPaletteEntries() }, { version: 1 }),
+        /contradicts scene content/,
+    );
+    assertThrowsMessage(
+        () => encodeScene({ ...base, paletteCoeffs: defaultCosineCoeffs() }, { version: 2 }),
         /contradicts scene content/,
     );
 });
