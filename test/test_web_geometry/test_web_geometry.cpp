@@ -30,19 +30,23 @@ void test_fabric_geometry_matches_serpentine_wiring() {
     const WebDisplayGeometry geometry = buildFabricWebGeometry();
 
     TEST_ASSERT_EQUAL_UINT16(FabricDisplaySpec::WIDTH * FabricDisplaySpec::HEIGHT, geometry.points.size());
-    TEST_ASSERT_TRUE(geometry.diameter > 0.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 5.0f, geometry.diameter);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 712.5f, geometry.centerX);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 712.5f, geometry.centerY);
 
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[0].x);
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[0].y);
 
-    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 19.0f, geometry.points[19].x);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 75.0f, geometry.points[1].x - geometry.points[0].x);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1425.0f, geometry.points[19].x);
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[19].y);
 
-    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 19.0f, geometry.points[20].x);
-    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f, geometry.points[20].y);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1425.0f, geometry.points[20].x);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 75.0f, geometry.points[20].y);
 
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, geometry.points[39].x);
-    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f, geometry.points[39].y);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 75.0f, geometry.points[39].y);
 }
 
 void test_round_geometry_matches_ring_counts_and_radii() {
