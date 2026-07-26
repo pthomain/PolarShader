@@ -160,6 +160,7 @@ const state = {
     displayBrightnessSaved: false,
     displayBrightnessBusy: false,
     displayBrightnessSaveTimer: null,
+    diffusionPercent: 100,
     deployApiAvailable: false,
     deployTargets: [],
     deployDevices: [],
@@ -199,6 +200,10 @@ const BLOOM_BASE_BRIGHTNESS = 30;
 const BLOOM_MAX_BRIGHTNESS = 255;
 const BLOOM_BASE_MULTIPLIER = 1;
 const BLOOM_MAX_MULTIPLIER = 3;
+const DIFFUSION_MIN_PERCENT = 0;
+const DIFFUSION_MAX_PERCENT = 100;
+const DIFFUSION_BASE_SCALE = 2.25;
+const DIFFUSION_MIN_SCALE_FACTOR = 0.25;
 
 function displayUrlValue(which) {
     if (which === 1) return 'round';
@@ -670,6 +675,12 @@ function clampDisplayBrightness(value) {
     return Math.max(0, Math.min(255, numeric));
 }
 
+function clampDiffusionPercent(value) {
+    const numeric = Number.parseInt(value, 10);
+    if (!Number.isFinite(numeric)) return DIFFUSION_MAX_PERCENT;
+    return Math.max(DIFFUSION_MIN_PERCENT, Math.min(DIFFUSION_MAX_PERCENT, numeric));
+}
+
 function smap(value, inMin, inMax, outMin, outMax) {
     if (inMax === inMin) return outMin;
     const t = Math.max(0, Math.min(1, (value - inMin) / (inMax - inMin)));
@@ -683,6 +694,16 @@ function bloomStrengthMultiplierForBrightness(value) {
         BLOOM_MAX_BRIGHTNESS,
         BLOOM_BASE_MULTIPLIER,
         BLOOM_MAX_MULTIPLIER
+    );
+}
+
+function diffusionScaleForPercent(value) {
+    return smap(
+        clampDiffusionPercent(value),
+        DIFFUSION_MIN_PERCENT,
+        DIFFUSION_MAX_PERCENT,
+        DIFFUSION_BASE_SCALE * DIFFUSION_MIN_SCALE_FACTOR,
+        DIFFUSION_BASE_SCALE
     );
 }
 
@@ -2180,6 +2201,21 @@ async function setWorkerBloom(enabled) {
     }
 }
 
+async function setWorkerDiffusion(percent) {
+    const diffusionPercent = clampDiffusionPercent(percent);
+    state.diffusionPercent = diffusionPercent;
+    const scale = diffusionScaleForPercent(diffusionPercent);
+    const workerManager = getWorkerManager() ?? await waitForWorkerManager(500);
+    if (!workerManager) return { ok: false, reason: 'worker not active', scale };
+    try {
+        return await workerManager.sendMessageWithResponse(
+            { type: 'composer_set_diffusion', payload: { scale, percent: diffusionPercent } }
+        );
+    } catch (e) {
+        return { ok: false, reason: e && e.message ? e.message : String(e), scale };
+    }
+}
+
 const STATUS_LABELS = [
     'OK', 'BAD_MAGIC', 'BAD_VERSION', 'TRUNCATED', 'UNKNOWN_TAG', 'BAD_ENUM', 'BAD_VALUE',
 ];
@@ -3415,23 +3451,33 @@ function renderTopSection() {
     });
     brightnessRow.appendChild(brightnessSlider);
     brightnessRow.appendChild(brightnessValue);
-    const glowLabel = document.createElement('label');
-    glowLabel.className = 'glow-toggle';
-    glowLabel.title = 'Enable glow post-processing in the web renderer';
-    const glowBox = document.createElement('input');
-    glowBox.type = 'checkbox';
-    glowBox.checked = bloomPreference;
-    glowBox.addEventListener('change', () => {
-        void setWorkerBloom(glowBox.checked).then((result) => {
+    section.appendChild(brightnessRow);
+
+    const diffusionRow = document.createElement('div'); diffusionRow.className = 'top-row';
+    diffusionRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Diffusion' }));
+    const diffusionSlider = document.createElement('input');
+    diffusionSlider.type = 'range';
+    diffusionSlider.min = String(DIFFUSION_MIN_PERCENT);
+    diffusionSlider.max = String(DIFFUSION_MAX_PERCENT);
+    diffusionSlider.step = '1';
+    diffusionSlider.value = String(state.diffusionPercent);
+    diffusionSlider.title = 'Adjust LED halo size';
+    const diffusionValue = document.createElement('span');
+    diffusionValue.className = 'diffusion-value';
+    diffusionValue.textContent = `${state.diffusionPercent}%`;
+    diffusionSlider.addEventListener('input', () => {
+        const percent = clampDiffusionPercent(diffusionSlider.value);
+        state.diffusionPercent = percent;
+        diffusionValue.textContent = `${percent}%`;
+        void setWorkerDiffusion(percent).then((result) => {
             if (!result?.ok) {
-                logDebug('display', `glow toggle deferred: ${result?.reason ?? 'renderer not ready'}`);
+                logDebug('display', `diffusion update deferred: ${result?.reason ?? 'renderer not ready'}`);
             }
         });
     });
-    glowLabel.appendChild(glowBox);
-    glowLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Glow' }));
-    brightnessRow.appendChild(glowLabel);
-    section.appendChild(brightnessRow);
+    diffusionRow.appendChild(diffusionSlider);
+    diffusionRow.appendChild(diffusionValue);
+    section.appendChild(diffusionRow);
 
     const ioRow = document.createElement('div'); ioRow.className = 'top-row action-row';
     const saveBtn = document.createElement('button'); saveBtn.textContent = 'Download .psc';
@@ -3993,6 +4039,7 @@ function rePushOnWorkerInit() {
         state.latestSceneSeq = sceneSeq;
         await pushSceneNow(state.latestEvent, sceneSeq);
         await setWorkerBloom(bloomPreference);
+        await setWorkerDiffusion(state.diffusionPercent);
     };
 
     if (getWorkerManager()) {

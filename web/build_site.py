@@ -673,7 +673,18 @@ _WORKER_CASE_INJECT = (
     '      case "composer_set_bloom":\n'
     "        response = handleComposerSetBloom(payload);\n"
     "        break;\n"
+    '      case "composer_set_diffusion":\n'
+    "        response = handleComposerSetDiffusion(payload);\n"
+    "        break;\n"
     + _WORKER_CASE_ANCHOR
+)
+_WORKER_DIFFUSION_CASE_INJECT = (
+    '      case "composer_set_bloom":\n'
+    "        response = handleComposerSetBloom(payload);\n"
+    "        break;\n"
+    '      case "composer_set_diffusion":\n'
+    "        response = handleComposerSetDiffusion(payload);\n"
+    "        break;\n"
 )
 _WORKER_START_ANCHOR = (
     "    workerState.externFunctions.externSetup();\n"
@@ -695,6 +706,10 @@ _WORKER_GM_INIT_INJECT = (
     ' && typeof workerState.graphicsManager.setBloomStrengthMultiplier === "function") {\n'
     "        workerState.graphicsManager.setBloomStrengthMultiplier(workerState.composerBloomStrengthMultiplier);\n"
     "      }\n"
+    "      if (workerState.composerDiffusionScale !== undefined"
+    ' && typeof workerState.graphicsManager.setLedDiffusionScale === "function") {\n'
+    "        workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);\n"
+    "      }\n"
     "    }\n"
     + _WORKER_GM_INIT_ANCHOR
 )
@@ -702,6 +717,26 @@ _WORKER_START_INJECT = (
     "    applyComposerInitialDisplayFromUrl(workerState.fastledModule);\n"
     + _WORKER_START_ANCHOR
 )
+_WORKER_DIFFUSION_HANDLER = """
+
+// Injected by PolarShader build_site.py (patch_render_worker): adjust the
+// renderer LED diffusion/halo scale. The graphics manager rebuilds LED geometry
+// on the next frame after the scale changes.
+function handleComposerSetDiffusion(payload) {
+  const rawScale = payload && typeof payload.scale === "number" ? payload.scale : 2.25;
+  const scale = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 2.25;
+  workerState.composerDiffusionScale = scale;
+  const gm = workerState.graphicsManager;
+  if (!gm) return { ok: true, scale, deferred: true };
+  if (typeof gm.setLedDiffusionScale === "function") {
+    gm.setLedDiffusionScale(scale);
+  } else {
+    gm.SPARSE_LED_SCALE = scale;
+    gm.needsRebuild = true;
+  }
+  return { ok: true, scale };
+}
+"""
 _WORKER_HANDLER = """
 
 // Injected by PolarShader build_site.py (patch_render_worker): apply a composer
@@ -1031,7 +1066,21 @@ def patch_render_worker(dist_sketch_dir: Path) -> None:
                 "patch_render_worker."
             )
         text = text.replace(_WORKER_CASE_ANCHOR, _WORKER_CASE_INJECT, 1)
-        text = text + _WORKER_HANDLER
+        text = text + _WORKER_HANDLER + _WORKER_DIFFUSION_HANDLER
+    if "handleComposerSetDiffusion" not in text:
+        bloom_case = (
+            '      case "composer_set_bloom":\n'
+            "        response = handleComposerSetBloom(payload);\n"
+            "        break;\n"
+        )
+        if bloom_case not in text:
+            raise RuntimeError(
+                f"Cannot patch {worker_path}: composer_set_bloom case not found. "
+                "The FastLED worker's message dispatch changed; update "
+                "patch_render_worker."
+            )
+        text = text.replace(bloom_case, _WORKER_DIFFUSION_CASE_INJECT, 1)
+        text = text + _WORKER_DIFFUSION_HANDLER
     if "applyComposerInitialDisplayFromUrl(workerState.fastledModule);" not in text:
         if _WORKER_START_ANCHOR not in text:
             raise RuntimeError(
@@ -1046,6 +1095,26 @@ def patch_render_worker(dist_sketch_dir: Path) -> None:
                 "FastLED's worker graphics init changed; update patch_render_worker."
             )
         text = text.replace(_WORKER_GM_INIT_ANCHOR, _WORKER_GM_INIT_INJECT, 1)
+    if "workerState.composerDiffusionScale" not in text.split(_WORKER_GM_INIT_ANCHOR, 1)[0]:
+        bloom_replay = (
+            "      if (workerState.composerBloomStrengthMultiplier !== undefined"
+            ' && typeof workerState.graphicsManager.setBloomStrengthMultiplier === "function") {\n'
+            "        workerState.graphicsManager.setBloomStrengthMultiplier(workerState.composerBloomStrengthMultiplier);\n"
+            "      }\n"
+        )
+        diffusion_replay = (
+            bloom_replay
+            + "      if (workerState.composerDiffusionScale !== undefined"
+            ' && typeof workerState.graphicsManager.setLedDiffusionScale === "function") {\n'
+            "        workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);\n"
+            "      }\n"
+        )
+        if bloom_replay not in text:
+            raise RuntimeError(
+                f"Cannot patch {worker_path}: graphics-manager bloom replay not found. "
+                "FastLED's worker graphics init changed; update patch_render_worker."
+            )
+        text = text.replace(bloom_replay, diffusion_replay, 1)
     worker_path.write_text(text, encoding="utf-8")
 
 
@@ -1382,7 +1451,25 @@ _THREEJS_LED_MATERIAL_HELPER = (
     "  }\n"
     + _THREEJS_LED_MATERIAL_HELPER_ANCHOR
 )
+_THREEJS_LED_DIFFUSION_SETTER = (
+    "  /**\n"
+    "   * Updates LED diffusion/halo scale and rebuilds geometry on the next frame.\n"
+    "   * @param {number} scale - Absolute sparse LED scale\n"
+    "   */\n"
+    "  setLedDiffusionScale(scale) {\n"
+    "    const nextScale = Number.isFinite(scale) && scale > 0 ? scale : 2.25;\n"
+    "    if (Math.abs(this.SPARSE_LED_SCALE - nextScale) < 0.0001) {\n"
+    "      return;\n"
+    "    }\n"
+    "    this.SPARSE_LED_SCALE = nextScale;\n"
+    "    if (this.scene) {\n"
+    "      this.needsRebuild = true;\n"
+    "    }\n"
+    "  }\n"
+)
 _THREEJS_LED_VISUALS_HELPER = (
+    _THREEJS_LED_DIFFUSION_SETTER
+    +
     "  /**\n"
     "   * Scales a web-preview LED color channel without changing bloom tracking.\n"
     "   * @private\n"
@@ -1473,12 +1560,24 @@ def insert_led_material_helper(text: str, path: Path) -> str:
 
 
 def insert_led_visuals_helper(text: str, path: Path) -> str:
-    if "_scalePreviewLedChannel(value)" in text:
-        return text
     match = re.search(
         r"(?m)^(\s*)/\*\*\n\1 \* Updates LED visuals based on position map data\n",
         text,
     )
+    if "_scalePreviewLedChannel(value)" in text:
+        if "setLedDiffusionScale(scale)" in text:
+            return text
+        scale_match = re.search(
+            r"(?m)^(\s*)/\*\*\n\1 \* Scales a web-preview LED color channel without changing bloom tracking\.\n",
+            text,
+        )
+        if scale_match is None:
+            raise RuntimeError(
+                f"Cannot patch LED gradient in {path}: preview brightness helper anchor not found."
+            )
+        indent = scale_match.group(1)
+        setter = reindent_js_block(_THREEJS_LED_DIFFUSION_SETTER, indent)
+        return text[:scale_match.start()] + setter + text[scale_match.start():]
     if match is None:
         raise RuntimeError(
             f"Cannot patch LED gradient in {path}: LED visuals helper anchor not found."

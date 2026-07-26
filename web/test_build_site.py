@@ -24,6 +24,22 @@ class BuildSitePatchTest(unittest.TestCase):
   }
 }
 """
+    WORKER_SCRIPT_SNIPPET = """function handleWorkerMessage(type, payload) {
+  let response;
+  switch (type) {
+      default:
+        throw new Error(`Unknown message type: ${type}`);
+  }
+  return response;
+}
+function startWorker(workerState) {
+    workerState.externFunctions.externSetup();
+    workerLog("LOG", "BACKGROUND_WORKER", "FastLED setup completed");
+}
+function createGraphicsManager() {
+    workerLog("LOG", "BACKGROUND_WORKER", "Graphics manager initialized", {});
+}
+"""
     GRAPHICS_MANAGER_SNIPPET = """class GraphicsManagerThreeJS {
   constructor() {
     this.auto_bloom_enabled = true;
@@ -229,6 +245,8 @@ function handleComposerSetBloom(enabled) {
             self.assertIn("isDenseScreenMap = false;", patched)
             self.assertIn("this.SPARSE_LED_SCALE = 2.25;", patched)
             self.assertIn("this.LED_BRIGHTNESS_MULTIPLIER = 8;", patched)
+            self.assertIn("setLedDiffusionScale(scale)", patched)
+            self.assertIn("this.needsRebuild = true;", patched)
             self.assertIn("_scalePreviewLedChannel(value)", patched)
             self.assertIn("const ledScale = this.LED_SCALE * this.SPARSE_LED_SCALE;", patched)
             self.assertIn(
@@ -243,6 +261,20 @@ function handleComposerSetBloom(enabled) {
             self.assertIn("led.material.color.setRGB(displayR, displayG, displayB);", patched)
             self.assertIn("color: new THREE.Color(displayR, displayG, displayB)", patched)
             self.assertIn("const brightness = (r + g + b) / 3;", patched)
+
+    def test_render_worker_patch_adds_diffusion_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            worker = dist / "fastled_background_worker.js"
+            worker.write_text(self.WORKER_SCRIPT_SNIPPET, encoding="utf-8")
+
+            build_site.patch_render_worker(dist)
+
+            patched = worker.read_text(encoding="utf-8")
+            self.assertIn('case "composer_set_diffusion":', patched)
+            self.assertIn("function handleComposerSetDiffusion(payload)", patched)
+            self.assertIn("workerState.composerDiffusionScale = scale;", patched)
+            self.assertIn("workerState.graphicsManager.setLedDiffusionScale(workerState.composerDiffusionScale);", patched)
 
 
 if __name__ == "__main__":
