@@ -1186,77 +1186,98 @@ def patch_threejs_bloom(dist_sketch_dir: Path) -> None:
 # EffectComposer honours per-frame, and stash the desired state in
 # `this.bloom_enabled` so it survives scene rebuilds (_setupRenderPasses reapplies
 # it to the freshly created pass).
-_THREEJS_BLOOM_TOGGLE_REPLACEMENTS = (
-    (
-        "    this.auto_bloom_enabled = true;\n",
-        "    this.auto_bloom_enabled = true;\n    this.bloom_enabled = true;\n",
-    ),
-    (
-        "      this.composer.addPass(bloomPass);\n",
-        "      bloomPass.enabled = this.bloom_enabled;\n"
-        "      this.composer.addPass(bloomPass);\n",
-    ),
-    (
-        "  /**\n   * Updates the bloom pass strength dynamically\n",
-        "  /**\n"
-        "   * Enables or disables the bloom pass at runtime (PolarShader)\n"
-        "   * @param {boolean} enabled - Whether bloom should render\n"
-        "   */\n"
-        "  setBloomEnabled(enabled) {\n"
-        "    this.bloom_enabled = !!enabled;\n"
-        "    if (!this.composer || !this.composer.passes) {\n"
-        "      return;\n"
-        "    }\n"
-        "    for (const pass of this.composer.passes) {\n"
-        '      if (pass.constructor.name === "UnrealBloomPass") {\n'
-        "        pass.enabled = this.bloom_enabled;\n"
-        "      }\n"
-        "    }\n"
-        "  }\n"
-        "  /**\n"
-        "   * Scales bloom strength from the composer brightness slider (PolarShader)\n"
-        "   * @param {number} multiplier - Multiplier applied to dynamic bloom strength\n"
-        "   */\n"
-        "  setBloomStrengthMultiplier(multiplier) {\n"
-        "    this.bloom_strength_multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;\n"
-        "    this._updateBloomStrength(this.bloom_strength_base);\n"
-        "  }\n"
-        "  /**\n   * Updates the bloom pass strength dynamically\n",
-    ),
-    (
-        "  _updateBloomStrength(strength) {\n"
-        "    if (!this.composer || !this.composer.passes) {\n"
-        "      return;\n"
-        "    }\n",
-        "  _updateBloomStrength(strength) {\n"
-        "    this.bloom_strength_base = strength;\n"
-        "    const scaledStrength = strength * this.bloom_strength_multiplier;\n"
-        "    if (!this.composer || !this.composer.passes) {\n"
-        "      this.bloom_stength = scaledStrength;\n"
-        "      return;\n"
-        "    }\n",
-    ),
-    (
-        "        pass.strength = strength;\n"
-        "        this.bloom_stength = strength;\n",
-        "        pass.strength = scaledStrength;\n"
-        "        this.bloom_stength = scaledStrength;\n",
-    ),
-)
-
-
 def patch_threejs_bloom_toggle(dist_sketch_dir: Path) -> None:
     """Add a runtime setBloomEnabled() switch to the ThreeJS graphics manager."""
     for path in graphics_manager_patch_paths(dist_sketch_dir):
         text = path.read_text(encoding="utf-8")
-        if "setBloomEnabled(enabled)" in text:
+        if "setBloomEnabled(enabled) {\n" in text:
             continue
-        for old, new in _THREEJS_BLOOM_TOGGLE_REPLACEMENTS:
-            if old not in text:
+
+        replacements = (
+            (
+                r"(?m)^(\s*)this\.auto_bloom_enabled = true;\n",
+                lambda m: (
+                    f"{m.group(1)}this.auto_bloom_enabled = true;\n"
+                    f"{m.group(1)}this.bloom_enabled = true;\n"
+                ),
+                "auto_bloom_enabled",
+            ),
+            (
+                r"(?m)^(\s*)this\.composer\.addPass\(bloomPass\);\n",
+                lambda m: (
+                    f"{m.group(1)}bloomPass.__polarComposerBloomPass = true;\n"
+                    f"{m.group(1)}bloomPass.enabled = this.bloom_enabled;\n"
+                    f"{m.group(1)}this.composer.addPass(bloomPass);\n"
+                ),
+                "bloom pass add",
+            ),
+            (
+                r"(?m)^(\s*)/\*\*\n\1 \* Updates the bloom pass strength dynamically\n",
+                lambda m: (
+                    f"{m.group(1)}/**\n"
+                    f"{m.group(1)} * Enables or disables the bloom pass at runtime (PolarShader)\n"
+                    f"{m.group(1)} * @param {{boolean}} enabled - Whether bloom should render\n"
+                    f"{m.group(1)} */\n"
+                    f"{m.group(1)}setBloomEnabled(enabled) {{\n"
+                    f"{m.group(1)}  this.bloom_enabled = !!enabled;\n"
+                    f"{m.group(1)}  if (!this.composer || !this.composer.passes) {{\n"
+                    f"{m.group(1)}    return;\n"
+                    f"{m.group(1)}  }}\n"
+                    f"{m.group(1)}  for (const pass of this.composer.passes) {{\n"
+                    f"{m.group(1)}    if (pass.__polarComposerBloomPass === true) {{\n"
+                    f"{m.group(1)}      pass.enabled = this.bloom_enabled;\n"
+                    f"{m.group(1)}    }}\n"
+                    f"{m.group(1)}  }}\n"
+                    f"{m.group(1)}}}\n"
+                    f"{m.group(1)}/**\n"
+                    f"{m.group(1)} * Scales bloom strength from the composer brightness slider (PolarShader)\n"
+                    f"{m.group(1)} * @param {{number}} multiplier - Multiplier applied to dynamic bloom strength\n"
+                    f"{m.group(1)} */\n"
+                    f"{m.group(1)}setBloomStrengthMultiplier(multiplier) {{\n"
+                    f"{m.group(1)}  this.bloom_strength_multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;\n"
+                    f"{m.group(1)}  this._updateBloomStrength(this.bloom_strength_base);\n"
+                    f"{m.group(1)}}}\n"
+                    f"{m.group(0)}"
+                ),
+                "bloom strength doc",
+            ),
+            (
+                r"(?m)^(\s*)_updateBloomStrength\(strength\) \{\n"
+                r"\1  if \(!this\.composer \|\| !this\.composer\.passes\) \{\n"
+                r"\1    return;\n"
+                r"\1  \}\n",
+                lambda m: (
+                    f"{m.group(1)}_updateBloomStrength(strength) {{\n"
+                    f"{m.group(1)}  this.bloom_strength_base = strength;\n"
+                    f"{m.group(1)}  const scaledStrength = strength * this.bloom_strength_multiplier;\n"
+                    f"{m.group(1)}  if (!this.composer || !this.composer.passes) {{\n"
+                    f"{m.group(1)}    this.bloom_stength = scaledStrength;\n"
+                    f"{m.group(1)}    return;\n"
+                    f"{m.group(1)}  }}\n"
+                ),
+                "_updateBloomStrength body",
+            ),
+            (
+                r'(?m)^(\s*)if \(pass\.constructor\.name === "UnrealBloomPass"\) \{\n',
+                lambda m: f"{m.group(1)}if (pass.__polarComposerBloomPass === true) {{\n",
+                "bloom pass test",
+            ),
+            (
+                r"(?m)^(\s*)pass\.strength = strength;\n\1this\.bloom_stength = strength;\n",
+                lambda m: (
+                    f"{m.group(1)}pass.strength = scaledStrength;\n"
+                    f"{m.group(1)}this.bloom_stength = scaledStrength;\n"
+                ),
+                "bloom strength assignment",
+            ),
+        )
+
+        for pattern, replacement, label in replacements:
+            text, count = re.subn(pattern, replacement, text, count=1)
+            if count != 1:
                 raise RuntimeError(
-                    f"Cannot patch bloom toggle in {path}: expected snippet not found: {old.strip()}"
+                    f"Cannot patch bloom toggle in {path}: expected snippet not found: {label}"
                 )
-            text = text.replace(old, new, 1)
         path.write_text(text, encoding="utf-8")
 
 
