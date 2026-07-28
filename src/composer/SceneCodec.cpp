@@ -386,6 +386,58 @@ namespace PolarShader::composer {
             return decodeSignalAtDepth(r, status, version, 0);
         }
 
+        std::unique_ptr<UVPattern> decodeSpiralPatternBody(ByteReader &r,
+                                                          DecodeStatus *status,
+                                                          uint8_t version,
+                                                          bool legacyWithoutLayerCount) {
+            uint8_t arms = r.readU8();
+            uint8_t cwByte = r.readU8();
+            uint8_t layers = legacyWithoutLayerCount ? 1 : r.readU8();
+            if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
+            S0x16Signal tightness = decodeSignal(r, status, version);
+            S0x16Signal armThick  = decodeSignal(r, status, version);
+            S0x16Signal rotSpeed  = decodeSignal(r, status, version);
+            S0x16Signal detune    = legacyWithoutLayerCount && r.remaining() == 0
+                ? constant(500)
+                : decodeSignal(r, status, version);
+            if (*status != DecodeStatus::OK) return nullptr;
+            return spiralPattern(arms, cwByte != 0,
+                std::move(tightness), std::move(armThick), std::move(rotSpeed),
+                layers, std::move(detune));
+        }
+
+        std::unique_ptr<UVPattern> decodeSpiralPatternBodyWithLegacy(ByteReader &r,
+                                                                    DecodeStatus *status,
+                                                                    uint8_t version) {
+            ByteReader current = r;
+            DecodeStatus currentStatus = DecodeStatus::OK;
+            auto currentPattern = decodeSpiralPatternBody(current, &currentStatus, version, false);
+            if (currentStatus == DecodeStatus::OK && current.ok() && current.atEnd()) {
+                r = current;
+                return currentPattern;
+            }
+
+            if (version == 1) {
+                // Early v1 Spiral records only have armCount + clockwise before
+                // the first three signal blobs. Use current defaults for the
+                // missing layerCount and detune.
+                ByteReader legacy = r;
+                DecodeStatus legacyStatus = DecodeStatus::OK;
+                auto legacyPattern = decodeSpiralPatternBody(legacy, &legacyStatus, version, true);
+                if (legacyStatus == DecodeStatus::OK && legacy.ok() && legacy.atEnd()) {
+                    r = legacy;
+                    return legacyPattern;
+                }
+            }
+
+            if (currentStatus != DecodeStatus::OK) {
+                setStatusIfOk(status, currentStatus);
+            } else {
+                setStatusIfOk(status, current.ok() ? DecodeStatus::BAD_ENUM : DecodeStatus::TRUNCATED);
+            }
+            return nullptr;
+        }
+
         // ───── Pattern decoder ─────────────────────────────────────────
 
         std::unique_ptr<UVPattern> decodePatternBody(uint8_t tag, ByteReader &r, DecodeStatus *status, uint8_t version) {
@@ -483,18 +535,7 @@ namespace PolarShader::composer {
                 }
 
                 case PAT_SPIRAL: {
-                    uint8_t arms = r.readU8();
-                    uint8_t cwByte = r.readU8();
-                    uint8_t layers = r.readU8();
-                    if (!r.ok()) { setStatusIfOk(status, DecodeStatus::TRUNCATED); return nullptr; }
-                    S0x16Signal tightness = decodeSignal(r, status, version);
-                    S0x16Signal armThick  = decodeSignal(r, status, version);
-                    S0x16Signal rotSpeed  = decodeSignal(r, status, version);
-                    S0x16Signal detune    = decodeSignal(r, status, version);
-                    if (*status != DecodeStatus::OK) return nullptr;
-                    return spiralPattern(arms, cwByte != 0,
-                        std::move(tightness), std::move(armThick), std::move(rotSpeed),
-                        layers, std::move(detune));
+                    return decodeSpiralPatternBodyWithLegacy(r, status, version);
                 }
 
                 case PAT_ANNULI: {

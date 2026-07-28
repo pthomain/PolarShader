@@ -1087,6 +1087,17 @@ void test_decode_all_pattern_tags_compile() {
     }
 }
 
+void test_decode_legacy_spiral_without_layer_count() {
+    WireBuilder w;
+    w.header(0);
+    w.record(PAT_SPIRAL, [](WireBuilder &body) {
+        body.u8(3).u8(0);
+        for (uint8_t i = 0; i < 3; ++i) appendSignal(body, SIG_CONSTANT);
+    });
+    w.u8(0);
+    assertDecodeCompileSample(w);
+}
+
 void test_decode_legacy_palette_glow_without_speed_signal() {
     WireBuilder w;
     w.header(0);
@@ -2170,6 +2181,7 @@ void setup() {
     RUN_TEST(test_decode_noise_basic_loop_rejects_zero_period);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_legacy_spiral_without_layer_count);
     RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
     RUN_TEST(test_decode_palette_glow_without_tile_scale_signal);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);
@@ -2243,6 +2255,7 @@ int main() {
     RUN_TEST(test_decode_noise_basic_loop_rejects_zero_period);
     RUN_TEST(test_decode_all_signal_tags_compile);
     RUN_TEST(test_decode_all_pattern_tags_compile);
+    RUN_TEST(test_decode_legacy_spiral_without_layer_count);
     RUN_TEST(test_decode_legacy_palette_glow_without_speed_signal);
     RUN_TEST(test_decode_palette_glow_without_tile_scale_signal);
     RUN_TEST(test_decode_uncovered_transform_tags_compile);

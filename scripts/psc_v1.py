@@ -79,6 +79,14 @@ class _Reader:
         if self.remaining:
             raise PscValidationError(f"{kind} record has {self.remaining} trailing byte(s)")
 
+    def clone(self) -> "_Reader":
+        clone = _Reader(self._data)
+        clone._pos = self._pos
+        return clone
+
+    def copy_position_from(self, other: "_Reader") -> None:
+        self._pos = other._pos
+
 
 def _sig(*params: str | tuple[str, int]) -> tuple[str | tuple[str, int], ...]:
     return params
@@ -88,6 +96,8 @@ APERIODIC = _sig("u32", ("enum", 1))
 PERIODIC_BASE = _sig("signal", "i32")
 PERIODIC_BOUNDED = _sig("signal", "signal", "signal")
 PERIODIC_BOUNDED_PHASE = _sig("signal", "i32", "signal", "signal")
+SPIRAL_CURRENT = _sig("u8", "bool", "u8", "signal", "signal", "signal", "signal")
+SPIRAL_LEGACY = _sig("u8", "bool", "signal", "signal", "signal")
 
 SIGNAL_SCHEMAS: dict[int, tuple[str | tuple[str, int], ...]] = {
     0x00: _sig("u16"),
@@ -124,7 +134,7 @@ PATTERN_SCHEMAS: dict[int, tuple[tuple[str | tuple[str, int], ...], str]] = {
     0x05: (_sig(("enum", 3), "u8", "u8", "u8"), "uv"),
     0x06: (_sig("u8", "u8", ("enum", 2), "signal", "signal", "signal", "signal", "signal", "signal", "signal", "signal"), "uv"),
     0x07: (_sig("u8", ("enum", 9), "bool", "signal", "signal", "signal", "signal"), "uv"),
-    0x08: (_sig("u8", "bool", "signal", "signal", "signal"), "uv"),
+    0x08: (SPIRAL_CURRENT, "uv"),
     0x09: (_sig("u8", "u8", "bool", "u16", "u16"), "uv"),
     0x0A: (_sig("u8", "u8", ("enum", 1), "signal", "signal", "signal", "signal", "signal", "signal"), "uv"),
     0x0B: (_sig("i32", ("enum", 2)), "uv"),
@@ -240,6 +250,22 @@ def _read_pattern(reader: _Reader) -> tuple[int, str]:
     if schema is None:
         raise PscValidationError(f"unknown pattern tag 0x{tag:02x}")
     params, domain = schema
+    if tag == 0x08:
+        current = body.clone()
+        try:
+            _read_params(current, SPIRAL_CURRENT, 0)
+            current.expect_end("pattern")
+            body.copy_position_from(current)
+            return tag, domain
+        except PscValidationError as current_error:
+            legacy = body.clone()
+            try:
+                _read_params(legacy, SPIRAL_LEGACY, 0)
+                legacy.expect_end("pattern")
+                body.copy_position_from(legacy)
+                return tag, domain
+            except PscValidationError:
+                raise current_error
     if tag == 0x1F:
         if body.remaining:
             _read_signal(body, 1)

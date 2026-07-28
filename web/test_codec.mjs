@@ -60,6 +60,18 @@ const SPEED_ONLY_PALETTE_GLOW_FIXTURE = [
     0x00,
 ];
 
+const LEGACY_SPIRAL_WITHOUT_LAYER_COUNT_OR_DETUNE_FIXTURE = [
+    0x50, 0x53, 0x43, 0x00,
+    0x01,
+    0x00,
+    0x08, 0x11, 0x00,
+    0x03, 0x00,
+    0x00, 0x02, 0x00, 0xF4, 0x01,
+    0x00, 0x02, 0x00, 0xF4, 0x01,
+    0x00, 0x02, 0x00, 0xF4, 0x01,
+    0x00,
+];
+
 function bytes(values) {
     return new Uint8Array(values);
 }
@@ -165,6 +177,17 @@ test('decodeScene reads PSC v1 golden bytes', () => {
     assert.equal(scene.transforms.length, 1);
     assert.equal(scene.transforms[0].id, 'zoom');
     assert.equal(scene.transforms[0].signals.scale.params.permille, 200);
+});
+
+test('decodeScene accepts legacy Spiral without layerCount or detune', () => {
+    const scene = decodeScene(bytes(LEGACY_SPIRAL_WITHOUT_LAYER_COUNT_OR_DETUNE_FIXTURE));
+    assert.equal(scene.pattern.id, 'spiral');
+    assert.equal(scene.pattern.config.armCount, 3);
+    assert.equal(scene.pattern.config.clockwise, 0);
+    assert.equal(scene.pattern.config.layerCount, 1);
+    assert.equal(scene.pattern.signals.detune.id, 'constant');
+    assert.equal(scene.pattern.signals.detune.params.permille, 500);
+    assertStableRoundTrip(scene, 'legacy Spiral without layerCount or detune');
 });
 
 test('schema tags are unique', () => {

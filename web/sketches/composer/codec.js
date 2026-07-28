@@ -283,12 +283,9 @@ function writePattern(w, pattern, version) {
     w.appendBytes(body.toUint8Array());
 }
 
-function readPatternBody(r, tag, version) {
-    const id = PATTERN_BY_TAG[tag];
-    if (id === undefined) throw new Error(`unknown pattern tag 0x${tag.toString(16)}`);
-    const def = PATTERNS[id];
+function readPatternFields(r, id, def, version, configSchema = def.config) {
     const config = {};
-    for (const c of def.config) config[c.name] = readParam(r, c, version, 0);
+    for (const c of configSchema) config[c.name] = readParam(r, c, version, 0);
     const signals = {};
     for (const s of def.signals) {
         signals[s.name] = (r.remaining === 0 && s.default)
@@ -296,6 +293,47 @@ function readPatternBody(r, tag, version) {
             : readSignal(r, version, 0);
     }
     return { id, config, signals };
+}
+
+function readSpiralPatternBody(r, id, def, version) {
+    const bodyBytes = r.bytes(r.remaining);
+
+    const current = new ByteReader(bodyBytes);
+    try {
+        const pattern = readPatternFields(current, id, def, version);
+        current.expectEnd('pattern');
+        return pattern;
+    } catch (currentError) {
+        if (version !== PSC_VERSION_V1) throw currentError;
+
+        // Early Spiral v1 records only have armCount + clockwise before the
+        // first three signal blobs. Decode them with current defaults for the
+        // missing layerCount and detune, but keep writing the current body.
+        const legacy = new ByteReader(bodyBytes);
+        try {
+            const legacyConfig = def.config.slice(0, 2);
+            const legacyDef = {
+                ...def,
+                signals: def.signals.map((s) => (
+                    s.name === 'detune' ? { ...s, default: DEFAULT_SIGNAL() } : s
+                )),
+            };
+            const pattern = readPatternFields(legacy, id, legacyDef, version, legacyConfig);
+            pattern.config.layerCount = def.config.find((c) => c.name === 'layerCount')?.default ?? 1;
+            legacy.expectEnd('pattern');
+            return pattern;
+        } catch {
+            throw currentError;
+        }
+    }
+}
+
+function readPatternBody(r, tag, version) {
+    const id = PATTERN_BY_TAG[tag];
+    if (id === undefined) throw new Error(`unknown pattern tag 0x${tag.toString(16)}`);
+    const def = PATTERNS[id];
+    if (id === 'spiral') return readSpiralPatternBody(r, id, def, version);
+    return readPatternFields(r, id, def, version);
 }
 
 function readPattern(r, version) {
